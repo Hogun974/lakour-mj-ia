@@ -19,7 +19,7 @@ export function appeler(cle, { son = true } = {}) {
   const texte = game.i18n?.localize?.(cle) ?? cle;
   if (son) {
     try {
-      foundry.audio.AudioHelper.play({ src: CONFIG.sounds?.notification ?? "sounds/notify.wav", volume: VOLUME, autoplay: true, loop: false, channel: "interface" }, false);
+      foundry.audio.AudioHelper.play({ src: CONFIG.sounds?.notification ?? "sounds/notify.wav", volume: VOLUME, autoplay: true, loop: false, channel: "interface" }, false)?.catch?.(() => {});
     } catch { /* sans son : le titre suffit */ }
   }
   clignoterTitre(texte);

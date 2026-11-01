@@ -1673,9 +1673,11 @@ export async function aideAMontrer(uuid) {
     copie = await JournalEntry.implementation.create(game.journal.fromCompendium(entree, { keepId: true, clearOwnership: false }));
     importe = true;
   }
-  if (!page) return { doc: copie, importe };
-  const pageCopie = copie.pages.get(page.id) ?? copie.pages.find(p => p.name === page.name);
-  return pageCopie ? { doc: pageCopie, importe } : { erreur: true, contenu: `La page « ${page.name} » manque dans la copie du monde de « ${copie.name} ».` };
+  const pageCopie = page ? copie.pages.get(page.id) ?? copie.pages.find(p => p.name === page.name) : null;
+  if (page && !pageCopie) return { erreur: true, contenu: `La page « ${page.name} » manque dans la copie du monde de « ${copie.name} ».` };
+  // Le MJ a pu recacher la copie du monde : on ne la montre pas de force.
+  if (!lisibleDesJoueurs(copie, pageCopie)) return { erreur: true, contenu: `« ${copie.name} » a été caché aux joueurs dans ce monde : il ne se montre pas.` };
+  return { doc: pageCopie ?? copie, importe };
 }
 
 // Fond dessiné d'un plan, déposé dans Data/lakour-mj-ia/cartes/<monde>/ ; renvoie son chemin.

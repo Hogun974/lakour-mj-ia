@@ -115,7 +115,7 @@ const VERIFICATIONS = {
 
 const MUTATIONS = [
   ["scripts/appel.js", "if (game.user?.isGM || !lireReglage()) return false;", "", "ni MJ ni réglage coupé"],
-  ["scripts/appel.js", "channel: \"interface\" }, false);", "channel: \"interface\" }, true);", "jamais diffusé"],
+  ["scripts/appel.js", "channel: \"interface\" }, false)", "channel: \"interface\" }, true)", "jamais diffusé"],
   ["scripts/appel.js", "  if (son) {", "  if (true) {", "le titre seul"],
   ["scripts/appel.js", "return (game.settings.get(\"core\", \"combatTheme\") ?? \"none\") !== \"none\";", "return false;", "thème de combat"],
   ["scripts/appel.js", "const retour = () => { if (!document.hidden) arreterClignotement(); };", "const retour = () => {};", "retour à l'onglet"],
