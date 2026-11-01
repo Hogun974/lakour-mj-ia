@@ -62,14 +62,14 @@
       },
       "Voix": {
         "Nom": "Voix du narrateur",
-        "Aide": "Navigateur : chaque joueur entend la narration avec une voix de son ordinateur (gratuit ; sous Edge, les voix « Naturelles » sont les meilleures). OpenAI : voix très réaliste (gpt-realtime-2.1-mini), générée avec la clé OpenAI du MJ et diffusée à tous (environ 2 à 3 centimes par minute).",
+        "Aide": "Navigateur : chaque joueur entend la narration avec une voix de son ordinateur (gratuit ; sous Edge, les voix « Naturelles » sont les meilleures). OpenAI : voix très réaliste (gpt-realtime-2.1-mini), générée avec la clé OpenAI du MJ et diffusée à tous (environ 2 à 3 centimes par minute). Chaque compagnon IA parle aussi, avec sa propre voix.",
         "Aucune": "Aucune",
         "Navigateur": "Voix du navigateur (gratuite)",
         "OpenAI": "Voix OpenAI (payante, diffusée à tous)"
       },
       "Entendre": {
-        "Nom": "Entendre la narration",
-        "Aide": "Réglage personnel : coupe ou active la voix du narrateur sur cet ordinateur."
+        "Nom": "Entendre les voix des IA",
+        "Aide": "Réglage personnel : coupe ou active, sur cet ordinateur, la voix du narrateur et celles des compagnons IA."
       },
       "VoixNavigateur": {
         "Nom": "Voix préférée (navigateur)",
@@ -79,7 +79,7 @@
         "Nom": "Vitesse de lecture (navigateur)"
       },
       "Volume": {
-        "Nom": "Volume de la voix (navigateur)"
+        "Nom": "Volume de la voix des IA"
       },
       "reagirDeplacements": {
         "Nom": "Le MJ IA réagit aux déplacements",
@@ -126,6 +126,22 @@
       "PiloteEtapes": {
         "Nom": "Pilote automatique : étapes au plus",
         "Aide": "Au-delà, le pilote s'arrête et te prévient (en combat, chaque tour de combat compte comme une étape). Tu peux le relancer depuis la console."
+      },
+      "VoixDirecte": {
+        "Nom": "Voix OpenAI en direct",
+        "Aide": "Chaque morceau de voix part aux joueurs dès qu'il est produit : la voix démarre sans attendre (environ deux secondes de moins). Décoché : la voix est d'abord enregistrée en entier, puis jouée."
+      },
+      "EcouteJoueurs": {
+        "Nom": "Écouter la parole des joueurs (transcription)",
+        "Aide": "Quand une IA doit entendre (séance du MJ IA lancée, ou compagnon IA vivant à la table), ce que les joueurs disent dans la voix intégrée de Foundry est transcrit pour le MJ IA et les compagnons (clé OpenAI, payant à la minute). Chaque joueur voit une icône tant que l'écoute tourne. Décoché : aucun micro n'est écouté."
+      },
+      "ModeleTranscription": {
+        "Nom": "Modèle de transcription (OpenAI)",
+        "Aide": "Vide : le moins cher (gpt-4o-mini-transcribe, environ 0,3 centime par minute de parole). Exemples : gpt-4o-transcribe, whisper-1."
+      },
+      "TranscriptionAuMJ": {
+        "Nom": "Montrer les transcriptions au MJ",
+        "Aide": "Chaque phrase transcrite est aussi chuchotée aux MJ dans le chat (jamais montrée aux joueurs)."
       }
     },
     "Console": {
@@ -229,6 +245,12 @@
       "Passer": "Passer",
       "Valider": "Valider"
     },
-    "Migration": "Réglages du MJ IA mis à jour : {faits}."
+    "Migration": "Réglages du MJ IA mis à jour : {faits}.",
+    "Ecoute": {
+      "Titre": "Écoute du MJ IA",
+      "Icone": "L'IA écoute",
+      "Aide": "Ce que tu dis dans la voix de Foundry est transcrit pour le MJ IA et les compagnons IA (seulement ceux qui peuvent t'entendre). Le MJ peut couper l'écoute.",
+      "Budget": "Écoute des joueurs en pause : budget atteint."
+    }
   }
 }

@@ -27,7 +27,7 @@ Ce guide est aussi installé dans chaque monde par le MJ IA (journaux « MJ IA �
 
 - **Autonomie** : « Validation par le MJ humain » te demande d'approuver les actions sensibles (créer une fiche, éliminer, modifier un objet) ; « Autonome » laisse l'IA faire.
 - **Délai avant réponse** : le temps que l'IA attend la fin des messages des joueurs.
-- **Voix du narrateur** : aucune, navigateur (gratuite, chacun chez soi) ou OpenAI (payante, la même pour tous). Chaque joueur règle s'il l'entend.
+- **Voix du narrateur** : aucune, navigateur (gratuite, chacun chez soi) ou OpenAI (payante, en direct, et chaque compagnon IA a la sienne). Chaque joueur règle s'il l'entend.
 - **Mettre en place le plateau avant de raconter** : l'IA pose PNJ, foules et personnages à l'endroit décrit avant d'afficher son récit.
 - **Réactions** : l'IA peut réagir aux déplacements des joueurs, aux portes ouvertes, et jouer les PNJ en combat.
 - **Style visuel** : cartes et jetons plats ou en relief.
@@ -80,6 +80,25 @@ Sans séance du MJ IA, c'est toi qui mènes la **Table de jeu** des Veillées ; 
 - **Coût** : leurs appels vont au compteur *Compagnons hors séance* de la console, remis à zéro à chaque nouvelle partie et borné par le budget de séance ; sans clé ou budget atteint, ils jouent en mode simple, sans IA.
 - **Une autre partie** : avec le MJ IA, en fin de partie, il propose « une autre partie avec les mêmes joueurs ? » ; chaque partie repart de zéro (l'ancienne conversation est archivée, les joueurs IA oublient tout).
 
+### Voix et écoute
+
+#### Les IA parlent en direct
+Avec la voix **OpenAI**, chaque morceau de voix part aux joueurs dès qu'il est produit : la voix démarre presque aussitôt, sans les deux secondes d'attente d'avant. Le fichier complet est gardé ensuite pour le bouton 🔊 (réécouter).
+- **Toutes les IA parlent** : le narrateur, et chaque compagnon IA avec sa propre voix, choisie selon son tempérament (jamais celle du narrateur, autant que possible différente de celle des autres compagnons) et gardée sur sa fiche. Un compagnon ne dit que sa parole : son geste en italique ne se lit pas.
+- **Une seule voix à la fois** : les voix attendent leur tour ; le narrateur passe avant les compagnons qui attendent. L'ambiance sonore baisse pendant qu'une IA parle.
+- **Qui entend** : tout le monde, sauf aux Veillées, où le système dit qui peut entendre qui (un compagnon mort ne parle qu'aux morts, un loup la nuit qu'aux loups). Le narrateur est entendu de tous.
+- **Réglages** : *Voix OpenAI en direct* (décoché : l'ancienne voix, enregistrée en entière puis jouée). Chaque joueur règle chez lui *Entendre les voix des IA* et *Volume de la voix des IA*.
+- **Sans clé OpenAI ou budget atteint** : la narration est lue par la voix du navigateur de chacun, les compagnons restent en texte.
+
+#### Les IA entendent les joueurs
+Quand une IA doit entendre (une séance du MJ IA est lancée, ou un compagnon IA vivant est à la table), ce que les joueurs disent dans la **voix intégrée de Foundry** est transcrit pour elles. Le reste du temps, aucun micro n'est écouté et rien n'est payé.
+- **À activer** : Réglages du jeu › Configurer les paramètres › **Audio/Vidéo** : mode **Audio seulement** (pas de vidéo à La Kour : rien ne dépend de la caméra) ; chaque joueur choisit son micro et un mode de parole (*toujours*, *selon l'activité vocale* ou *appuyer pour parler*). Le MJ actif doit avoir la page ouverte : c'est son navigateur qui écoute.
+- **Qui a parlé** : le son arrive joueur par joueur, l'IA sait qui parle. Un micro coupé, ou une touche de parole relâchée, n'est pas écouté.
+- **Ce qu'en fait l'IA** : le MJ IA reçoit la phrase comme un message (« 🗣️ Jordan (à voix haute) : … »), sans qu'elle paraisse dans le chat des joueurs ; les compagnons l'apprennent seulement s'ils pouvaient l'entendre (aux Veillées : un compagnon vivant n'entend pas les morts, la nuit seuls les loups s'entendent), et peuvent y répondre.
+- **Chaque joueur est prévenu** : une pastille « L'IA écoute » en haut de l'écran tant que l'écoute tourne.
+- **Réglages** : *Écouter la parole des joueurs* (le couper arrête tout), *Modèle de transcription* (vide : le moins cher, environ 0,3 centime par minute de parole), *Montrer les transcriptions au MJ* (chuchotées aux MJ). Le coût va au compteur de la séance, ou à *Compagnons hors séance*, borné par le budget.
+- **Limites** : sans serveur relais (TURN), la voix de Foundry passe de navigateur à navigateur ; un joueur derrière un réseau strict peut ne pas être entendu du MJ, ni donc transcrit. Un joueur sans casque peut renvoyer la voix des IA dans son micro : ce qui ressemble à ce qu'une IA vient de dire est ignoré.
+
 ### Sauvegardes et dépannage
 
 - Les mondes sont sauvegardés chaque nuit à 4 h 30 sur le serveur (14 jours). Avant chaque mise à jour des modules, une sauvegarde complète est faite aussi.
@@ -94,7 +113,8 @@ Sans séance du MJ IA, c'est toi qui mènes la **Table de jeu** des Veillées ; 
 - **Parle dans le chat**, comme à une table : ce que fait ton personnage, ce qu'il dit. Le MJ répond quand tout le monde a fini d'écrire.
 - **Les jets** : quand le MJ demande un test, une fenêtre s'ouvre déjà réglée (difficulté, modificateurs) ; vérifie et lance.
 - **Ce que toi seul vois** : les messages chuchotés du MJ, les choix secrets et les votes s'ouvrent chez toi seulement.
-- **La voix** : Réglages › MJ IA › « Entendre la narration » pour l'activer ou la couper chez toi.
+- **La voix** : Réglages › MJ IA › « Entendre les voix des IA » et « Volume de la voix des IA » pour régler chez toi la voix du narrateur et des compagnons.
+- **Parler à voix haute** : si la voix de Foundry est active, quand une IA écoute (pastille « L'IA écoute » en haut de l'écran), ce que tu dis est transcrit pour le MJ IA et les compagnons qui peuvent t'entendre. Coupe ton micro pour ne pas l'être.
 - **Ta fiche** : le MJ peut la créer avec toi, et la tient à jour (expérience, argent, objets) ; tu peux toujours la consulter.
 - **Les cartes** : tu peux déplacer ton jeton ; le MJ réagit à ce que tu découvres. S'il bloque tes déplacements, c'est voulu (scène en cours).
 - **Les compagnons IA** : des personnages joués par l'IA peuvent compléter la table. Ils parlent sous leur nom et jouent comme toi, sans tricher : ils ne savent que ce que sait leur personnage.

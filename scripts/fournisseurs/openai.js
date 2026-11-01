@@ -1,5 +1,6 @@
 import { OpenAI } from "../../vendor/openai.mjs";
 import { voixRealtime, consignesLecture, wavDepuisPcm, lectureFidele } from "../voix-texte.js";
+import { GardeLecture } from "../voix-flux.js";
 
 // Fournisseur ChatGPT (API Responses), appelé depuis le navigateur du MJ avec SA clé.
 // Le fil garde les éléments de sortie tels que l'API les rend (raisonnement, appels de fonction)
@@ -120,6 +121,55 @@ export class FournisseurOpenAI {
     }
   }
 
+  // Voix en direct (docs/voix-et-ecoute.md §1) : même session Realtime que #voixRealtime, mais chaque morceau de PCM est rendu
+  // dès que la garde de lecture le laisse passer (surMorceau(b64)), au lieu d'attendre la fin. Rend { morceaux } (tout ce qui est
+  // sorti, pour le WAV de réécoute ; coupe : lecture arrêtée car elle s'emballait), ou { blob } quand il a fallu se rabattre sur
+  // un fichier entier (modèle non Realtime, ou deux lectures infidèles : ancienne voix gpt-4o-mini-tts).
+  async voixEnFlux({ texte, modele, voix, ton, surMorceau }) {
+    if (!modele.startsWith("gpt-realtime")) return { blob: await this.genererVoix({ texte, modele, voix, ton }) };
+    for (const strict of [false, true]) {
+      const secret = await this.client.realtime.clientSecrets.create({
+        expires_after: { anchor: "created_at", seconds: 60 },
+        session: {
+          type: "realtime", model: modele, output_modalities: ["audio"], instructions: consignesLecture(ton, { strict }),
+          audio: { output: { voice: voixRealtime(voix), format: { type: "audio/pcm", rate: 24000 } } }
+        }
+      });
+      const garde = new GardeLecture(texte);
+      const sortis = [];
+      const sortir = ({ sortir: liste, etat }) => {
+        for (const b64 of liste) { sortis.push(b64); surMorceau?.(b64); }
+        return etat;
+      };
+      try {
+        const r = await recevoirAudioRealtime(this.WebSocket ?? globalThis.WebSocket, modele, secret.value, texte, 180000, {
+          surMorceau: b64 => sortir(garde.morceau(b64)),
+          surTranscription: delta => sortir(garde.transcription(delta))
+        });
+        const etat = sortir(garde.finir());
+        if (etat !== "infidele" && sortis.length) return { morceaux: sortis, coupe: Boolean(r.coupe) };
+        if (etat !== "infidele") throw new Error("Voix OpenAI (Realtime) : aucun son reçu.");
+      } catch (erreur) {
+        if (!erreur?.infidele) {
+          if (sortis.length) return { morceaux: sortis, coupe: true, erreur };   // déjà entendu : on ne recommence pas
+          throw erreur;
+        }
+      }
+      console.warn(`lakour-mj-ia | voix : lecture infidèle (« ${garde.transcrit.slice(0, 80)} »)${strict ? "" : ", nouvel essai"}`);
+    }
+    return { blob: await this.genererVoix({ texte, modele: VOIX_DE_SECOURS, voix, ton }) };
+  }
+
+  // Parole d'un joueur → texte (docs/voix-et-ecoute.md §2) : un segment WAV envoyé à l'API de transcription.
+  // Rend { texte, secondes } (secondes : durée facturée si l'API la donne, sinon null).
+  async transcrire({ fichier, modele, langue = "fr", consigne = "" }) {
+    const r = await this.client.audio.transcriptions.create({
+      file: fichier, model: modele, language: langue, response_format: "json", ...(consigne ? { prompt: consigne } : {})
+    });
+    const u = r?.usage;
+    return { texte: String(r?.text ?? "").trim(), secondes: u?.type === "duration" ? Number(u.seconds) || null : null };
+  }
+
   static expliquer(erreur) {
     if (erreur instanceof OpenAI.AuthenticationError) return "Clé OpenAI refusée : vérifie-la dans la configuration du MJ IA.";
     if (erreur instanceof OpenAI.PermissionDeniedError) return "Ta clé OpenAI n'a pas accès à ce modèle.";
@@ -151,7 +201,9 @@ export function effortOpenAI(modele, effort) {
 }
 
 // Une seule réponse sur une session Realtime neuve : le texte est envoyé, l'audio reçu par morceaux base64.
-export function recevoirAudioRealtime(ClasseWebSocket, modele, cleEphemere, texte, delai = 180000) {
+// suivi (voix en direct) : surMorceau(b64) et surTranscription(delta) à chaque événement ; s'ils rendent « infidele », la
+// réponse est abandonnée (erreur marquée infidele) ; « couper », elle s'arrête là (résultat marqué coupe).
+export function recevoirAudioRealtime(ClasseWebSocket, modele, cleEphemere, texte, delai = 180000, suivi = {}) {
   return new Promise((resolve, reject) => {
     const ws = new ClasseWebSocket(`wss://api.openai.com/v1/realtime?model=${encodeURIComponent(modele)}`,
       ["realtime", `openai-insecure-api-key.${cleEphemere}`]);
@@ -166,6 +218,10 @@ export function recevoirAudioRealtime(ClasseWebSocket, modele, cleEphemere, text
       erreur ? reject(erreur) : resolve(valeur);
     };
     const minuterie = setTimeout(() => finir(new Error("La voix OpenAI (Realtime) n'a pas répondu à temps.")), delai);
+    const reagir = etat => {
+      if (etat === "infidele") finir(Object.assign(new Error("Voix OpenAI (Realtime) : lecture infidèle."), { infidele: true }));
+      else if (etat === "couper") finir(null, { morceaux, transcription, coupe: true });
+    };
     ws.addEventListener("message", e => {
       let ev;
       try { ev = JSON.parse(e.data); } catch { return; }
@@ -178,8 +234,10 @@ export function recevoirAudioRealtime(ClasseWebSocket, modele, cleEphemere, text
         ws.send(JSON.stringify({ type: "response.create" }));
       } else if (ev.type === "response.output_audio.delta") {
         morceaux.push(ev.delta);
+        reagir(suivi.surMorceau?.(ev.delta));
       } else if (ev.type === "response.output_audio_transcript.delta") {
         transcription += ev.delta ?? "";
+        reagir(suivi.surTranscription?.(ev.delta ?? ""));
       } else if (ev.type === "response.done") {
         const statut = ev.response?.status;
         if (statut === "completed" && morceaux.length) finir(null, { morceaux, transcription });

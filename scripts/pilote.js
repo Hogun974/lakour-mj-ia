@@ -20,7 +20,7 @@
 // la console.
 import { ID } from "./constantes.js";
 import { estCompagnon, compagnonsPresents } from "./compagnons-jeu.js";
-import { VoixEnDirect } from "./voix.js";
+import { voixAuRepos } from "./voix.js";
 
 export const ETAPES_MAX = 60;
 export const DEBAT_TOURS = 2;
@@ -407,17 +407,14 @@ function avisAuMJ(texte) {
   }
 }
 
-// La voix du narrateur a fini de parler : file de lecture OpenAI (commune à toutes les narrations), puis la voix du navigateur
+// Les voix des IA ont fini de parler : file des voix OpenAI (narrateur et compagnons, en direct), puis la voix du navigateur
 // du MJ (s'il l'entend). Jamais plus de max ms : une voix bloquée ne doit pas arrêter la partie.
 export async function attendreFinVoix({ max = 120000 } = {}) {
   if (reglage("voix", "aucune") === "aucune") return;
   const debut = Date.now();
   const reste = () => Math.max(0, max - (Date.now() - debut));
-  let file;
-  do {
-    file = VoixEnDirect.lecture;
-    await Promise.race([file, new Promise(r => setTimeout(r, reste()))]);
-  } while (file !== VoixEnDirect.lecture && reste() > 0);
+  // File des voix d'IA (narrateur et compagnons, voix.js) : une voix ajoutée pendant l'attente est attendue aussi.
+  await Promise.race([voixAuRepos(), new Promise(r => setTimeout(r, reste()))]);
   while (globalThis.speechSynthesis?.speaking && reste() > 0) await new Promise(r => setTimeout(r, 300));
 }
 

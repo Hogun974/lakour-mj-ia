@@ -3,7 +3,7 @@ import { enregistrerReglages, lire, migrerReglages } from "./reglages.js";
 import { adaptateur } from "./adaptateurs.js";
 import { MoteurMJ } from "./moteur.js";
 import { ConsoleMJ } from "./apps/console.js";
-import { estNarrationAudible, lireNavigateur, taireNavigateur, jouerTousLesMorceaux } from "./voix.js";
+import { estNarrationAudible, lireNavigateur, taireNavigateur, jouerTousLesMorceaux, brancherVoixDirecte, couperVoix } from "./voix.js";
 import { brancherReactions } from "./reactions.js";
 import { redessinerCartes, donnerMunitions } from "./outils.js";
 import { definirFigurants } from "./placement.js";
@@ -13,6 +13,7 @@ import { brancherDecisions, brancherCompagnonsDecisions } from "./decisions.js";
 import { installerGuide } from "./guide.js";
 import { CompagnonsSansNarrateur } from "./compagnons-veillees.js";
 import { ecouteActive } from "./ecoute.js";
+import { EcouteJoueurs, afficherEcoute } from "./transcription.js";
 import { compagnonsPresents } from "./compagnons-jeu.js";
 import { versHTML } from "./utilitaires.js";
 
@@ -24,14 +25,33 @@ Hooks.once("ready", () => {
   const moteur = new MoteurMJ();
   // Joueurs IA aux Veillées sans narrateur IA (MJ humain, hors séance) : point d'enregistrement de la Table, débat, réponses.
   const sansNarrateur = new CompagnonsSansNarrateur({ moteur });
+  // Écoute des joueurs (parole → texte), chez le MJ actif, seulement quand une IA doit entendre (docs/voix-et-ecoute.md §2).
+  const ecoute = new EcouteJoueurs({ moteur, sansNarrateur });
   // API pour les macros et les autres modules : game.modules.get("lakour-mj-ia").api
   game.modules.get(ID).api = {
     moteur,
     sansNarrateur,
     console: () => new ConsoleMJ().render({ force: true }),
     // Une IA doit-elle entendre les joueurs (transcription de la parole, docs/voix-et-ecoute.md §2) ?
-    ecouteActive: () => ecouteActive({ seanceIA: moteur.actif, compagnonsVivants: compagnonsPresents().length, moduleActif: true })
+    ecouteActive: () => ecouteActive({ seanceIA: moteur.actif, compagnonsVivants: compagnonsPresents().length, moduleActif: true }),
+    ecoute,
+    // Le joueur coupe la voix des IA chez lui (réglage « entendreNarration ») : ce qui joue s'arrête net.
+    couperVoix,
+    afficherEcoute
   };
+  // Voix des IA en direct : chaque navigateur joue les morceaux de son reçus du MJ actif (canal du module).
+  brancherVoixDirecte();
+  // L'écoute suit l'état de la table : séance, compagnons, flux A/V qui arrivent ou changent, phase des Veillées.
+  afficherEcoute();
+  if (game.user.isGM) {
+    setInterval(() => ecoute.verifier(), 4000);
+    for (const crochet of ["rtcSettingsChanged", "userConnected", "lakourLoups.phase", "lakourLoups.elimination", "createActor", "deleteActor",
+      "createToken", "deleteToken", "canvasReady"]) {
+      Hooks.on(crochet, () => ecoute.verifier());
+    }
+    ecoute.verifier();
+  }
+  Hooks.on("userConnected", () => afficherEcoute());
   // Figurants fournis par le module de contenu de ce système (lakour-40k, lakour-warcraft : même fichier figurants.json).
   figurantsDuContenu().then(f => f && definirFigurants(f.types, f.module));
   // Déplacements, portes et tour des PNJ transmis à l'IA (n'agit que dans le navigateur du MJ actif, en séance).
@@ -144,18 +164,21 @@ Hooks.on("createChatMessage", message => {
 });
 Hooks.on("updateChatMessage", (message, changements) => {
   if (lire("voix") === "navigateur" && changements.flags?.[ID]?.final && estNarrationAudible(message)) lireNavigateur(message);
+  // Voix OpenAI impossible (pas de clé, budget atteint) : chaque navigateur lit la narration avec sa propre voix.
+  if (lire("voix") === "openai" && changements.flags?.[ID]?.repliNavigateur && estNarrationAudible(message)) lireNavigateur(message);
 });
 
-// Bouton 🔊 sur chaque narration : réécouter (fichier OpenAI pour soi seul, ou voix du navigateur).
+// Bouton 🔊 sur chaque narration (et chaque réplique de compagnon dite à voix haute) : réécouter (fichier OpenAI pour soi seul,
+// ou voix du navigateur).
 Hooks.on("renderChatMessageHTML", (message, html) => {
-  if (!message.getFlag(ID, "narration") || lire("voix") === "aucune") return;
+  const audio = message.getFlag(ID, "audio");
+  if (!(message.getFlag(ID, "narration") || audio?.length) || lire("voix") === "aucune") return;
   const bouton = document.createElement("a");
   bouton.className = "lakour-mjia-ecouter";
   bouton.dataset.tooltip = game.i18n.localize("LAKOUR_MJIA.Voix.Reecouter");
   bouton.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
   bouton.addEventListener("click", event => {
     event.preventDefault();
-    const audio = message.getFlag(ID, "audio");
     if (audio?.length) jouerTousLesMorceaux(audio, false);
     else { taireNavigateur(); lireNavigateur(message); }
   });

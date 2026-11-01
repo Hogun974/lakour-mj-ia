@@ -89,12 +89,31 @@ export function reinitialiserPrive() {
 // Une nouvelle partie des Veillées : tous les compagnons oublient la précédente (mémoire et réglage « client » vidés).
 export async function effacerPrive() {
   prive = {};
+  paroles.length = 0;
   try { await game.settings.set(ID, "compagnonsPrive", {}); } catch { /* sans stockage local : la mémoire suffit */ }
 }
 
+// ------------------------------------------------------------------ la parole des joueurs (transcription, docs/voix-et-ecoute.md §2)
+// Ce que les joueurs ont dit à voix haute, transcrit chez le MJ actif, avec les compagnons qui pouvaient l'entendre (aux Veillées,
+// selon l'audibilité du système : un vivant n'entend pas un mort, la nuit seuls les loups s'entendent). En mémoire seulement.
+const paroles = [];
+const PAROLES_MAX = 40;
+
+export function entendreParole({ nom, texte, quand = Date.now() }, acteursAuditeurs = []) {
+  const acteurs = new Set(acteursAuditeurs);
+  if (!acteurs.size || !String(texte ?? "").trim()) return false;
+  paroles.push({ quand, ligne: `${nom} (à voix haute) : ${couper(String(texte).trim(), 400)}`, acteurs });
+  while (paroles.length > PAROLES_MAX) paroles.shift();
+  return true;
+}
+
+// Ce qu'un compagnon a entendu : [{ quand, ligne }].
+export const parolesPour = acteurId => paroles.filter(p => p.acteurs.has(acteurId)).map(({ quand, ligne }) => ({ quand, ligne }));
+
 // ------------------------------------------------------------------ le chat public
 // Les derniers messages que tout le monde voit : ni chuchotement (même adressé au MJ), ni message aveugle, ni message privé.
-export function chatPublic({ messages = game.messages?.contents ?? [], max = 20 } = {}) {
+// paroles : ce que le compagnon a entendu à voix haute ([{ quand, ligne }]), mêlé au chat dans l'ordre du temps.
+export function chatPublic({ messages = game.messages?.contents ?? [], max = 20, paroles: entendues = [] } = {}) {
   const lignes = [];
   for (const m of messages) {
     if (m.whisper?.length || m.blind) continue;
@@ -104,9 +123,9 @@ export function chatPublic({ messages = game.messages?.contents ?? [], max = 20 
     const texte = texteBrut(m.content);
     const jets = (m.rolls ?? []).map(r => (r?.formula ? `${r.formula} = ${r.total}` : "")).filter(Boolean).join(" ; ");
     if (!texte && !jets) continue;
-    lignes.push(`${qui} : ${couper(texte, 400)}${jets ? ` [${jets}]` : ""}`);
+    lignes.push({ quand: Number(m.timestamp) || 0, ligne: `${qui} : ${couper(texte, 400)}${jets ? ` [${jets}]` : ""}` });
   }
-  return lignes.slice(-max);
+  return [...lignes, ...entendues].sort((a, b) => a.quand - b.quand).map(l => l.ligne).slice(-max);
 }
 
 // ------------------------------------------------------------------ la vue d'un compagnon des Veillées
@@ -156,7 +175,7 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
   ].filter(Boolean).join("\n");
   return {
     id: acteur.id, nom: acteur.name, monde: MONDE_VEILLEES, jeu: "loups", personnalite: personnaliteDe(acteur), fiche,
-    prive: [...carnet, ...privesDe(acteur.id)], public: chatPublic({ messages }), scene,
+    prive: [...carnet, ...privesDe(acteur.id)], public: chatPublic({ messages, paroles: parolesPour(acteur.id) }), scene,
     autres: autres.map(a => ({ id: a.id, nom: a.name, vivant: a.system.vivant !== false })), allies, suspects,
     vivant, peutParler: vivant && !acteur.system.silence && pub.phase !== "nuit", tour: pub.tour
   };
@@ -177,7 +196,7 @@ export function vueAventure(acteur, { messages, scene = game.scenes?.active } = 
   const autres = visibles.filter(t => t.actor && t.actor.id !== acteur.id).map(t => ({ id: t.actor.id, nom: t.name, vivant: true }));
   return {
     id: acteur.id, nom: acteur.name, monde: game.world?.title ?? game.system?.title ?? "", jeu: "aventure",
-    personnalite: personnaliteDe(acteur), fiche: sys.resumer(acteur), prive: privesDe(acteur.id), public: chatPublic({ messages }),
+    personnalite: personnaliteDe(acteur), fiche: sys.resumer(acteur), prive: privesDe(acteur.id), public: chatPublic({ messages, paroles: parolesPour(acteur.id) }),
     scene: lignes.filter(Boolean).join("\n"), autres, allies: [], suspects: [], vivant: true, peutParler: true, tour: combat?.round ?? 0
   };
 }
@@ -216,8 +235,10 @@ export async function nomsPourCompagnons(n, { exclus = [] } = {}) {
 export class Compagnons {
   // moteur : le MoteurMJ (compteur et budget de la séance, file des messages). fournisseur() : le fournisseur du modèle des
   // compagnons (fournisseurs/index.js, fournisseurCompagnons), null = repli sans IA ; modele() : son identifiant (pour le coût).
-  constructor({ moteur = null, fournisseur = () => null, modele = () => "", graine = null } = {}) {
+  // dire(acteur, texte, message) : sa voix (voix.js, direReplique), facultative.
+  constructor({ moteur = null, fournisseur = () => null, modele = () => "", graine = null, dire = null } = {}) {
     this.moteur = moteur;
+    this.dire = dire;
     this.cerveaux = new CerveauxCompagnons({
       fournisseur: () => { try { return fournisseur(); } catch { return null; } },
       modele: () => { try { return modele(); } catch { return ""; } },
@@ -241,12 +262,15 @@ export class Compagnons {
   // au moteur (drapeau ia : le moteur ne la reçoit pas une seconde fois).
   // La didascalie en tête (« *Il croise les bras.* — … ») s'affiche en italique, avec le style « didascalie ». Le texte brut est
   // gardé dans les drapeaux : le MJ IA le lit tel quel (il sait ainsi ce qui est déjà montré).
-  poster(acteur, texte, { action = false } = {}) {
-    return ChatMessage.implementation.create({
+  // Sa voix (mode OpenAI) lit la parole seule, sans être attendue : la réplique suivante n'est pas retardée.
+  async poster(acteur, texte, { action = false } = {}) {
+    const message = await ChatMessage.implementation.create({
       content: versHTML(texte).replace(/^<p><em>/, '<p><em class="lakour-mjia-didascalie">'),
       speaker: { alias: acteur.name, actor: acteur.id },
       flags: { [ID]: { compagnon: acteur.id, texte: String(texte), ...(action ? { ia: true, action: true } : {}) } }
     });
+    if (this.dire) Promise.resolve().then(() => this.dire(acteur, texte, message)).catch(e => console.error(`${ID} | voix du compagnon`, e));
+    return message;
   }
 
   // Après une réponse du MJ : au plus max compagnons présents réagissent, une réplique chacun. Ceux que le texte cite

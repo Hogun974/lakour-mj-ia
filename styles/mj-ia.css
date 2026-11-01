@@ -152,3 +152,19 @@
   opacity: 0.8;
   font-style: italic;
 }
+
+/* Écoute des joueurs (transcription) : prévient chacun que sa voix est transcrite pour les IA. En haut, au centre. */
+#lakour-mjia-ecoute {
+  position: fixed;
+  left: 50%;
+  top: 8px;
+  transform: translateX(-50%);
+  z-index: 70;
+  padding: 0.2rem 0.6rem;
+  border-radius: 1rem;
+  background: rgba(20, 20, 30, 0.85);
+  color: #f0d78c;
+  border: 1px solid #f0d78c;
+  font-size: 0.8rem;
+  pointer-events: auto;
+}

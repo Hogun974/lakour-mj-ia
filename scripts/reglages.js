@@ -126,10 +126,17 @@ export function enregistrerReglages() {
     }
   });
   game.settings.register(ID, "modeleVoix", { scope: "world", config: false, type: String, default: MODELE_VOIX });
+  // Voix OpenAI en direct (voix.js) : chaque morceau de son part aux joueurs dès sa réception. Décoché : l'ancien chemin (fichier
+  // entier déposé puis joué), plus lent d'environ deux secondes.
+  game.settings.register(ID, "voixDirecte", {
+    name: "LAKOUR_MJIA.Reglages.VoixDirecte.Nom", hint: "LAKOUR_MJIA.Reglages.VoixDirecte.Aide",
+    scope: "world", config: true, type: Boolean, default: true
+  });
   game.settings.register(ID, "entendreNarration", {
     name: "LAKOUR_MJIA.Reglages.Entendre.Nom",
     hint: "LAKOUR_MJIA.Reglages.Entendre.Aide",
-    scope: "client", config: true, type: Boolean, default: true
+    scope: "client", config: true, type: Boolean, default: true,
+    onChange: entendre => { if (!entendre) game.modules.get(ID)?.api?.couperVoix?.(); }
   });
   game.settings.register(ID, "voixNavigateur", {
     name: "LAKOUR_MJIA.Reglages.VoixNavigateur.Nom",
@@ -143,6 +150,27 @@ export function enregistrerReglages() {
   game.settings.register(ID, "volumeVoix", {
     name: "LAKOUR_MJIA.Reglages.Volume.Nom",
     scope: "client", config: true, type: Number, default: 1, range: { min: 0, max: 1, step: 0.05 }
+  });
+
+  // --- Écoute des joueurs (transcription.js) : la parole dite dans la voix intégrée de Foundry, transcrite pour les IA, seulement
+  // quand une IA doit entendre. Le MJ peut la couper ; modèle vide = le moins cher (ecoute.js, MODELE_TRANSCRIPTION_DEFAUT).
+  game.settings.register(ID, "ecouteJoueurs", {
+    name: "LAKOUR_MJIA.Reglages.EcouteJoueurs.Nom", hint: "LAKOUR_MJIA.Reglages.EcouteJoueurs.Aide",
+    scope: "world", config: true, type: Boolean, default: true,
+    onChange: () => game.modules.get(ID)?.api?.ecoute?.verifier()
+  });
+  game.settings.register(ID, "modeleTranscription", {
+    name: "LAKOUR_MJIA.Reglages.ModeleTranscription.Nom", hint: "LAKOUR_MJIA.Reglages.ModeleTranscription.Aide",
+    scope: "world", config: true, type: String, default: ""
+  });
+  game.settings.register(ID, "transcriptionAuMJ", {
+    name: "LAKOUR_MJIA.Reglages.TranscriptionAuMJ.Nom", hint: "LAKOUR_MJIA.Reglages.TranscriptionAuMJ.Aide",
+    scope: "world", config: true, type: Boolean, default: false
+  });
+  // L'écoute tourne (écrit par le MJ actif) : chaque navigateur affiche l'icône « ta voix est transcrite ».
+  game.settings.register(ID, "ecouteEnCours", {
+    scope: "world", config: false, type: Boolean, default: false,
+    onChange: () => game.modules.get(ID)?.api?.afficherEcoute?.()
   });
 
   // --- État de la séance (compteurs de coût, séance ouverte ou non).

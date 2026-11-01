@@ -5,7 +5,7 @@ import { OUTILS, outil, resumerAppel, outilsDuSysteme } from "./outils.js";
 import { promptSysteme, etatDuJeu, decrireMessage, messagePourIA } from "./contexte.js";
 import { versHTML, lireJSON, ecrireJSON } from "./utilitaires.js";
 import { validerSchema } from "./schema.js";
-import { VoixEnDirect } from "./voix.js";
+import { VoixEnDirect, direReplique } from "./voix.js";
 import { estSilence } from "./voix-texte.js";
 import { Compagnons, effacerPrive } from "./compagnons-jeu.js";
 import { peuventReagir, estAnnonceSysteme } from "./compagnons.js";
@@ -125,7 +125,9 @@ export class MoteurMJ {
     this.fournisseur = null;
     this.systeme = null;
     // Compagnons IA : chacun son cerveau (appel séparé, contexte restreint), même compteur et même budget que le MJ.
-    this.compagnons = new Compagnons({ moteur: this, fournisseur: fournisseurCompagnons, modele: () => modeleCompagnons() });
+    // Leur voix (mode OpenAI) : chacun la sienne, entendue seulement de ceux qui peuvent l'entendre (voix.js).
+    this.compagnons = new Compagnons({ moteur: this, fournisseur: fournisseurCompagnons, modele: () => modeleCompagnons(),
+      dire: (acteur, texte, message) => direReplique(acteur, texte, message) });
     // Pilote automatique : quand il ne reste que des compagnons IA (mode autonome), la partie continue seule (pilote.js).
     this.toursEnFile = 0;     // tours demandés et pas encore finis (en cours ou en attente dans la chaîne)
     this.vidages = 0;         // lots de messages en cours de traitement (réponse du MJ, puis réactions des compagnons)
@@ -524,16 +526,20 @@ export class MoteurMJ {
   // Hors séance (joueurs IA d'une partie des Veillées menée par un MJ humain), le coût va au compteur « compagnons hors
   // séance », borné par le même budget.
   async compter(usage, modele = null) {
-    const seance = foundry.utils.deepClone(lire("seance"));
     const fournisseur = lire("fournisseur");
     const leModele = modele || (fournisseur === "anthropic" ? lire("modeleAnthropic") : fournisseur === "openai" ? lire("modeleOpenAI") : "");
-    const cout = coutDe(usage, prixDuModele(fournisseur, leModele));
+    return this.compterCout(coutDe(usage, prixDuModele(fournisseur, leModele)), usage);
+  }
+
+  // Un coût déjà connu en dollars (transcription de la parole des joueurs, comptée à la minute) ; usage : jetons, s'il y en a.
+  async compterCout(cout, usage = null) {
+    const seance = foundry.utils.deepClone(lire("seance"));
     if (!seance.active) {
       const hors = { ...HORS_SEANCE_VIDE, ...(lire("compagnonsHorsSeance") ?? {}) };
       await ecrire("compagnonsHorsSeance", { ...hors, cout: hors.cout + cout, appels: hors.appels + 1 });
       return;
     }
-    for (const k of Object.keys(seance.jetons)) seance.jetons[k] += usage[k] ?? 0;
+    if (usage) for (const k of Object.keys(seance.jetons)) seance.jetons[k] += usage[k] ?? 0;
     seance.cout += cout;
     await ecrire("seance", seance);
   }
