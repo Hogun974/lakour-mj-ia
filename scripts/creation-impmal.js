@@ -53,15 +53,17 @@ export function talentsDeRole(talents, preferes = []) {
   return [...voulus, ...liste.filter(u => !voulus.includes(u))].slice(0, talents?.number ?? 1);
 }
 
-// Tous les uuid de départ, sans doublon : listes de l'origine, choix de faction et de rôle, puis les objets demandés en plus.
-export function objetsDeDepart({ origine, faction, role }, preferes = []) {
+// Tous les uuid de départ : listes de l'origine, choix de faction et de rôle, puis les objets demandés en plus. Sans doublon
+// par défaut ; garderDoubles : chaque répétition reste (deux Stimm du Médicae), la fiche les fusionne ensuite (lakour-40k,
+// preparerDepart, qui sait quels doubles sont voulus).
+export function objetsDeDepart({ origine, faction, role }, preferes = [], { garderDoubles = false } = {}) {
   const uuids = [
     ...(origine?.equipment?.list ?? []).map(e => e.uuid), ...(origine?.talents?.list ?? []).map(e => e.uuid),
     ...uuidsDeChoix(faction?.character?.talents, preferes), ...uuidsDeChoix(faction?.character?.equipment, preferes),
     ...talentsDeRole(role?.talents, preferes), ...uuidsDeChoix(role?.equipment, preferes),
     ...preferes
   ];
-  return [...new Set(uuids.filter(Boolean))];
+  return garderDoubles ? uuids.filter(Boolean) : [...new Set(uuids.filter(Boolean))];
 }
 
 // Munitions par catégorie d'arme à distance (clés des munitions de lakour-40k) ; deux lots par arme à chargeur.

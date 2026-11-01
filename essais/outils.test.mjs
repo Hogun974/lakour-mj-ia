@@ -99,3 +99,14 @@ test("validation : chaque outil accepte ses propres arguments minimaux bien form
     : s.type === "array" ? [exemple(s.items)] : s.type === "integer" ? 1 : s.type === "number" ? 1 : s.type === "boolean" ? true : "x";
   for (const o of OUTILS) assert.deepEqual(validerSchema(o.schema, exemple(o.schema)), [], o.nom);
 });
+
+test("création 40k : les doubles voulus (deux Stimm du rôle) restent quand la fiche les range ensuite, sinon un seul", async () => {
+  const { objetsDeDepart } = await import("../scripts/creation-impmal.js");
+  const role = { equipment: { structure: { type: "and", options: [{ id: "a" }, { id: "b" }] }, options: [{ id: "a", type: "item", documentId: "Stimm" }, { id: "b", type: "item", documentId: "Stimm" }] } };
+  const origine = { equipment: { list: [{ uuid: "Missel" }] }, talents: { list: [] } };
+  const avec = objetsDeDepart({ origine, role }, ["Missel"], { garderDoubles: true });
+  const sans = objetsDeDepart({ origine, role }, ["Missel"]);
+  assert.equal(new Set(sans).size, sans.length, "sans rangement : aucun doublon");
+  assert.ok(avec.length >= sans.length, "avec rangement : les répétitions restent");
+  assert.equal(avec.filter(u => u === "Missel").length, 2);
+});

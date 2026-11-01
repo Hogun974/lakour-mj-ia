@@ -635,11 +635,17 @@ OUTILS.push(
       // Objets de départ : tout ce que donnent l'origine, la faction et le rôle ajoutés (choix de l'IA d'abord, sinon la
       // première option), plus les objets demandés en plus. Sur une fiche existante, seulement ceux des éléments ajoutés.
       const neuf = d => (d.parent ? undefined : d.toObject().system);
+      // Le module de contenu 40k range la fiche ensuite (armure portée, arme en main, munitions, doublons fusionnés) :
+      // on lui laisse les doubles voulus (deux Stimm). Sans lui, un seul exemplaire de chaque objet.
+      const preparerDepart = game.modules.get("lakour-40k")?.api?.preparerDepart;
       const dejaLa = new Set((existant?.items ?? []).map(i => `${i.type}:${i.name}`));
-      for (const uuid of objetsDeDepart({ origine: neuf(origine), faction: neuf(faction), role: neuf(role) }, a.objets)) {
+      const introuvables = [];
+      for (const uuid of objetsDeDepart({ origine: neuf(origine), faction: neuf(faction), role: neuf(role) }, a.objets, { garderDoubles: Boolean(preparerDepart) })) {
         const d = await fromUuid(uuid).catch(() => null);
-        if (d?.documentName !== "Item" || dejaLa.has(`${d.type}:${d.name}`)) continue;
-        dejaLa.add(`${d.type}:${d.name}`);
+        if (d?.documentName !== "Item") { introuvables.push(uuid); continue; }
+        const cle = `${d.type}:${d.name}`;
+        if (dejaLa.has(cle)) continue;
+        if (!preparerDepart) dejaLa.add(cle);
         objets.push(game.items.fromCompendium(d));
       }
 
@@ -666,10 +672,13 @@ OUTILS.push(
       if (existant) {
         const maj = Object.fromEntries(a.competences.map(c => [`system.skills.${c.competence}.advances`, c.avances]));
         if (caracteristiques) maj["system.characteristics"] = caracteristiques;
+        // La faction vient d'être ajoutée : ses solars de départ aussi.
+        if (!faction.parent) maj["system.solars"] = (existant.system.solars ?? 0) + (faction.system.character?.solars ?? 0);
         if (Object.keys(maj).length) await existant.update(maj);
       }
       // Comme l'assistant du système : on n'applique pas une seconde fois origine et faction.
       if (objets.length) await acteur.createEmbeddedDocuments("Item", objets, { skipRequirement: true, skipOrigin: true, skipFaction: true });
+      const rangement = preparerDepart ? await preparerDepart(acteur).catch(e => { console.warn(`${ID} | preparerDepart`, e); return null; }) : null;
       const munitions = await donnerMunitions(acteur);
       // Les avances de départ sont gratuites : une ligne négative annule l'expérience « dépensée ».
       const depense = acteur.system.xp?.spent ?? 0;
@@ -679,7 +688,9 @@ OUTILS.push(
       const finales = CARACS.map(c => `${c} ${acteur.system.characteristics?.[c]?.starting ?? "?"}`).join(", ");
       return { contenu: `Fiche « ${acteur.name} » ${existant ? "complétée" : "créée"} (${acteur.uuid})${utilisateur ? ` et confiée à ${utilisateur.name}` : ""}. `
         + `Caractéristiques : ${finales}. ${objets.length} objets ajoutés : ${objets.map(o => o.name).join(", ")}.`
-        + (munitions.length ? ` Munitions chargées : ${munitions.join(", ")}.` : "") };
+        + (munitions.length ? ` Munitions chargées : ${munitions.join(", ")}.` : "")
+        + (rangement ? " Fiche rangée : armure portée, arme en main, munitions reliées, doublons fusionnés." : "")
+        + (introuvables.length ? ` Introuvables, non ajoutés : ${introuvables.join(", ")} (vérifie avec chercher_compendium).` : "") };
     }
   }
 );
