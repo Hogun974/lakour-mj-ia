@@ -2,7 +2,8 @@
 // sols texturés, murs biseautés, portes, fenêtres, objets dessinés selon leur nom, halos de lumière.
 // Les murs viennent du même calcul que ceux de la scène (planVersScene) : image et murs Foundry coïncident.
 // Pur (aucune dépendance à Foundry) : éprouvé hors du navigateur (essais/cartes-rendu.test.mjs).
-import { planVersScene } from "./cartes.js";
+// Carte à étages (cartes.js) : un fond par étage (option `etage`), ou tous d'un coup avec fondsDesNiveaux.
+import { planVersScene, etagesDuPlan } from "./cartes.js";
 
 // Générateur pseudo-aléatoire déterministe : la même carte donne toujours la même image.
 function hasard(graine) {
@@ -88,12 +89,35 @@ function objet(e, t) {
     + `<path d="M${x + m} ${y + m}L${x + l - m} ${y + h - m}M${x + l - m} ${y + m}L${x + m} ${y + h - m}" stroke="#3a2a17" stroke-width="3"/>`;
 }
 
+// Escalier (carte à étages) : des marches en travers du sens de la montée (le côté le plus long du rectangle).
+function marches(s, t) {
+  const x = s.x * t, y = s.y * t, l = (s.l ?? 1) * t, h = (s.h ?? 1) * t, m = t * 0.08;
+  const enLargeur = l >= h, n = Math.max(3, Math.round((enLargeur ? l : h) / (t * 0.25)));
+  const traits = Array.from({ length: n - 1 }, (_, i) => {
+    const f = (i + 1) / n;
+    return enLargeur ? `M${r(x + l * f)} ${y + m}V${y + h - m}` : `M${x + m} ${r(y + h * f)}H${x + l - m}`;
+  }).join("");
+  return `<rect x="${x + m}" y="${y + m}" width="${l - 2 * m}" height="${h - 2 * m}" fill="#6b625a" stroke="#2b2826" stroke-width="4"/>`
+    + `<path d="${traits}" stroke="#2b2826" stroke-width="3"/>`;
+}
+
 // style : "2d" (plat, vue de dessus) ou "3d" (relief : murs en hauteur, ombres portées, objets en volume).
+// etage (carte à étages) : nom ou rang de l'étage à dessiner ; le premier par défaut.
 export const STYLES = ["2d", "3d"];
-export function planVersSVG(plan, { taille = 100, style = "2d" } = {}) {
+export function planVersSVG(plan, { taille = 100, style = "2d", etage = null } = {}) {
   const { erreurs, scene } = planVersScene(plan, { taille });
   if (erreurs.length) return { erreurs };
   if (!STYLES.includes(style)) return { erreurs: [`style « ${style} » inconnu (2d ou 3d)`] };
+  // Carte à étages : on dessine l'étage choisi, avec ses seuls murs et les escaliers qui y passent.
+  let walls = scene.walls, escaliers = [];
+  if (plan.etages?.length) {
+    const liste = etagesDuPlan(plan);
+    const choisi = etage === null ? liste[0] : liste.find(e => e.nom === etage) ?? (Number.isInteger(etage) ? liste[etage] : undefined);
+    if (!choisi) return { erreurs: [`étage « ${etage} » inconnu (${liste.map(e => e.nom).join(", ")})`] };
+    walls = scene.walls.filter(w => w.levels.includes(choisi.niveau));
+    escaliers = (plan.escaliers ?? []).filter(s => s.etages.includes(choisi.nom));
+    plan = choisi.plan;
+  }
   const relief = style === "3d";
   const t = taille, L = plan.largeur * t, H = plan.hauteur * t;
   const sols = new Set(["metal", "ferraille", "pierre", "terre", "sanctuaire", "herbe", "eau", "bois", "luxe", "cendre"]);
@@ -103,7 +127,7 @@ export function planVersSVG(plan, { taille = 100, style = "2d" } = {}) {
     + `<rect x="${p.x * t + 4}" y="${p.y * t + 4}" width="${p.l * t - 8}" height="${p.h * t - 8}" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="${r(t * 0.12)}"/>`).join("");
 
   const ep = r(t * 0.22);
-  const murs = scene.walls.map(w => {
+  const murs = walls.map(w => {
     const [x1, y1, x2, y2] = w.c;
     const horizontal = y1 === y2;
     if (w.door === 1) {
@@ -131,7 +155,7 @@ export function planVersSVG(plan, { taille = 100, style = "2d" } = {}) {
   if (relief) {
     const d = t * 0.22; // décalage de l'ombre portée
     occlusion = plan.pieces.map(p => `<rect x="${p.x * t}" y="${p.y * t}" width="${p.l * t}" height="${p.h * t}" fill="none" stroke="#000" stroke-opacity="0.6" stroke-width="${r(t * 0.35)}" filter="url(#flou)"/>`).join("");
-    const pleins = scene.walls.filter(w => w.sight !== 0);
+    const pleins = walls.filter(w => w.sight !== 0);
     // Les objets ronds (piliers, puits) projettent une ombre ronde, les autres une ombre rectangulaire.
     const forme = (e, decalage, marge, couleur, extra = "") => {
       const x = e.x * t + decalage, y = e.y * t + decalage, l = e.l * t, h = e.h * t;
@@ -153,6 +177,24 @@ export function planVersSVG(plan, { taille = 100, style = "2d" } = {}) {
     + `<circle cx="${t * 0.6}" cy="${t * 0.5}" r="${t * 0.3}" fill="#141519"/><circle cx="${t * 1.5}" cy="${t * 1.3}" r="${t * 0.4}" fill="#121317"/></pattern>`
     + (relief ? `<filter id="flou" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="${r(t * 0.07)}"/></filter>` : "")
     + `</defs><rect width="${L}" height="${H}" fill="url(#roche)"/>${pieces}${occlusion}${ombres}${epaisseurs}`
-    + `${(plan.elements ?? []).map(e => objet(e, t)).join("")}${halos}${murs}${dessus}</svg>`;
+    + `${escaliers.map(s => marches(s, t)).join("")}${(plan.elements ?? []).map(e => objet(e, t)).join("")}${halos}${murs}${dessus}</svg>`;
   return { erreurs: [], svg };
+}
+
+// Les fonds de tous les niveaux d'une carte : { erreurs, fonds: [{ niveau, nom, suffixe, svg }] }, dans l'ordre des
+// niveaux de planVersScene. niveau : identifiant du Level dont c'est le fond (background.src) ; suffixe : à ajouter au
+// nom du fichier, "" pour un plan sans étages (un seul fond, nommé comme avant), « -<étage> » sinon (unique).
+export function fondsDesNiveaux(plan, { taille = 100, style = "2d" } = {}) {
+  const fonds = [], suffixes = new Set();
+  for (const [i, e] of etagesDuPlan(plan).entries()) {
+    const { erreurs, svg } = planVersSVG(plan, { taille, style, etage: e.nom === null ? null : i });
+    if (erreurs.length) return { erreurs, fonds: [] };
+    const base = e.nom === null ? "" : String(e.nom).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || String(i);
+    let suffixe = base && `-${base}`;
+    if (suffixes.has(suffixe)) suffixe += `-${i}`;
+    suffixes.add(suffixe);
+    fonds.push({ niveau: e.niveau, nom: e.nom, suffixe, svg });
+  }
+  return { erreurs: [], fonds };
 }

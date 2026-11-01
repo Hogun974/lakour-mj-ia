@@ -15,7 +15,7 @@ import { TEMPERAMENTS, FACONS_DE_PARLER, personnaliteAuHasard } from "./compagno
 import {
   estCompagnon, personnaliteDe, compagnonsDuMonde, compagnonsPresents, trouverCompagnon, noterPrive, oublierPrive, nomsPourCompagnons
 } from "./compagnons-jeu.js";
-import { planVersScene, zoneVersRegion, idStable, cheminSon, SOLS, SONS_AMBIANCE, TYPES_ZONE } from "./cartes.js";
+import { planVersScene, zoneVersRegion, idStable, cheminSon, etagesDuPlan, SOLS, SONS_AMBIANCE, TYPES_ZONE, MAX_ETAGES } from "./cartes.js";
 import { planVersSVG } from "./cartes-rendu.js";
 import { listeSalles, trouverSalle, salleDeLaCase, centreSalle, casesLibres, casesOccupees, casesInterdites, casesDispersees, casesAutour, reperesDuPlan, trouverRepere, planDe, carteDeScene, TYPES_FIGURANTS, jetonFigurant, moduleDesFigurants } from "./placement.js";
 
@@ -1586,6 +1586,20 @@ OUTILS.push(
 // ---------------------------------------------------------------- Cartes jouables
 
 const caseXY = { x: entier("Colonne (0 = gauche)."), y: entier("Ligne (0 = haut).") };
+// Contenu d'un plan, à la racine (carte simple) ou dans chaque étage (carte à étages).
+const CONTENU_PLAN = {
+  pieces: { type: "array", items: objet({ nom: chaine("Nom (visible du MJ seulement)."), ...caseXY, l: entier("Largeur en cases."), h: entier("Hauteur en cases."), sol: { type: "string", enum: Object.keys(SOLS), description: "Matière du sol." } }) },
+  ouvertures: { type: "array", items: objet({ ...caseXY, cote: { type: "string", enum: ["nord", "sud", "est", "ouest"], description: "Bord de la case concerné." }, type: { type: "string", enum: ["porte", "secrete", "verrouillee", "fenetre", "passage"], description: "Nature de l'ouverture." } }) },
+  lumieres: { type: "array", items: objet({ ...caseXY, rayon: entier("Rayon en cases."), couleur: chaine("Couleur hexadécimale, ex. #ffaa55.") }) },
+  elements: { type: "array", items: objet({ nom: chaine("Obstacle ou couvert (caisses, pilier…)."), ...caseXY, l: entier("Largeur en cases."), h: entier("Hauteur en cases.") }) },
+  sons: { type: "array", description: "Sons d'ambiance placés ; vide = déduits des éléments et des pièces.", items: objet({ ...caseXY,
+    rayon: entier("Portée en cases."), son: { type: "string", enum: SONS_AMBIANCE, description: "Ambiance." } }) },
+  zones: { type: "array", description: "Zones invisibles des joueurs (souvent vide).", items: objet({ nom: chaine("Nom unique de la zone (dans toute la scène)."), ...caseXY,
+    l: entier("Largeur en cases."), h: entier("Hauteur en cases."), type: { type: "string", enum: TYPES_ZONE, description: "Effet de la zone." },
+    texte: chaine("Pour « texte » : ce qui s'élève au-dessus du jeton qui entre. Sinon vide."),
+    vers: chaine("Pour « teleport » : nom de la zone d'arrivée (elle peut être à un autre étage). Sinon vide."),
+    obscurite: { type: "number", description: "Pour « obscurite » : 0 (clair) à 1 (noir). Sinon 0." } }) }
+};
 OUTILS.push({
   nom: "creer_scene",
   description: "Crée une carte JOUABLE (scène Foundry) à partir d'un plan en cases : pièces rectangulaires (les couloirs sont des pièces étroites), "
@@ -1594,23 +1608,24 @@ OUTILS.push({
     + "Scène vivante : sons d'ambiance placés (sinon déduits des éléments : cheminée → feu, forge, foule d'une place…) et zones invisibles "
     + "des joueurs : texte qui s'élève quand un jeton entre (indice, inscription), téléportation vers une autre zone (escalier, trappe), "
     + "pause de la partie à l'entrée (piège, révélation), obscurité. "
-    + "image=true ajoute un fond peint par OpenAI (coût, et seulement si une clé OpenAI existe). Ensuite, pose les jetons avec placer_jetons.",
+    + "Bâtiment à plusieurs niveaux (cave, rez, étage…) : remplis `etages` (un niveau Foundry par étage, même grille, chacun son fond "
+    + "dessiné) et laisse VIDES pieces, ouvertures, lumieres, elements, sons et zones à la racine ; `escaliers` relie des étages par une "
+    + "cage d'escalier, une échelle ou une trappe aux MÊMES cases sur chaque étage relié (dans une pièce de chacun) : le jeton qui y entre "
+    + "se voit proposer de changer de niveau, dans les deux sens. Les joueurs arrivent au premier étage de la liste. Carte simple : etages et escaliers vides. "
+    + "image=true ajoute un fond peint par OpenAI (coût, et seulement si une clé OpenAI existe ; pas pour une carte à étages). Ensuite, pose les jetons avec placer_jetons.",
   schema: objet({
     nom: chaine("Nom de la scène."),
     largeur: entier("Largeur du plan en cases (4 à 80)."),
     hauteur: entier("Hauteur du plan en cases (4 à 80)."),
     lumiere: { type: "string", enum: ["jour", "penombre", "nuit"], description: "Lumière ambiante." },
-    pieces: { type: "array", items: objet({ nom: chaine("Nom (visible du MJ seulement)."), ...caseXY, l: entier("Largeur en cases."), h: entier("Hauteur en cases."), sol: { type: "string", enum: Object.keys(SOLS), description: "Matière du sol." } }) },
-    ouvertures: { type: "array", items: objet({ ...caseXY, cote: { type: "string", enum: ["nord", "sud", "est", "ouest"], description: "Bord de la case concerné." }, type: { type: "string", enum: ["porte", "secrete", "verrouillee", "fenetre", "passage"], description: "Nature de l'ouverture." } }) },
-    lumieres: { type: "array", items: objet({ ...caseXY, rayon: entier("Rayon en cases."), couleur: chaine("Couleur hexadécimale, ex. #ffaa55.") }) },
-    elements: { type: "array", items: objet({ nom: chaine("Obstacle ou couvert (caisses, pilier…)."), ...caseXY, l: entier("Largeur en cases."), h: entier("Hauteur en cases.") }) },
-    sons: { type: "array", description: "Sons d'ambiance placés ; vide = déduits des éléments et des pièces.", items: objet({ ...caseXY,
-      rayon: entier("Portée en cases."), son: { type: "string", enum: SONS_AMBIANCE, description: "Ambiance." } }) },
-    zones: { type: "array", description: "Zones invisibles des joueurs (souvent vide).", items: objet({ nom: chaine("Nom unique de la zone."), ...caseXY,
-      l: entier("Largeur en cases."), h: entier("Hauteur en cases."), type: { type: "string", enum: TYPES_ZONE, description: "Effet de la zone." },
-      texte: chaine("Pour « texte » : ce qui s'élève au-dessus du jeton qui entre. Sinon vide."),
-      vers: chaine("Pour « teleport » : nom de la zone d'arrivée. Sinon vide."),
-      obscurite: { type: "number", description: "Pour « obscurite » : 0 (clair) à 1 (noir). Sinon 0." } }) },
+    ...CONTENU_PLAN,
+    etages: { type: "array", description: `Carte à étages (${MAX_ETAGES} au plus) ; vide pour une carte simple. Le premier est celui où l'on arrive.`,
+      items: objet({ nom: chaine("Nom unique de l'étage (« Cave », « Rez-de-chaussée », « Étage »…)."),
+        elevation: { type: "number", description: "Altitude du sol de l'étage en mètres, unique (cave -3, rez 0, étage 3…)." }, ...CONTENU_PLAN }) },
+    escaliers: { type: "array", description: "Passages entre étages (vide pour une carte simple).", items: objet({
+      nom: chaine("Nom unique (« Escalier de la tour », « Trappe de la cave »)."), ...caseXY,
+      l: entier("Largeur en cases (1 en général)."), h: entier("Hauteur en cases (1 en général)."),
+      etages: { type: "array", items: chaine("Nom d'un étage relié."), description: "Les étages reliés (deux au moins), aux mêmes cases sur chacun." } }) },
     image: booleen("false (recommandé) : fond dessiné automatiquement, gratuit. true : fond peint par OpenAI (payant)."),
     description_image: chaine("Si image : description visuelle du lieu, en anglais de préférence (style, matières, ambiance). Sinon vide."),
     activer: booleen("true pour y amener les joueurs tout de suite.")
@@ -1622,9 +1637,11 @@ OUTILS.push({
     let note = "";
     const slug = plan.nom.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
     const dossier = `cartes/${game.world.id}`;
+    const aEtages = Boolean(plan.etages?.length);
     let fond = null;
+    if (plan.image && aEtages) note = " Pas de fond peint pour une carte à étages : fonds dessinés.";
     // Fond peint par OpenAI, sur demande seulement (payant).
-    if (plan.image) {
+    if (plan.image && !aEtages) {
       const images = fournisseurImages();
       if (!images) note = " Pas de clé OpenAI : fond dessiné à la place du fond peint.";
       else {
@@ -1640,14 +1657,23 @@ OUTILS.push({
         }
       }
     }
-    // Sinon, fond dessiné (gratuit) dans le style choisi (plat ou relief), aligné sur les murs de la scène.
-    if (!fond) fond = await deposerFondDessine(plan, slug, lire("styleVisuel"));
-    scene.levels[0].background.src = fond;
+    // Sinon, fond dessiné (gratuit) dans le style choisi (plat ou relief), aligné sur les murs de la scène ; un par
+    // étage pour une carte à étages, chacun au fond de son niveau (tout part dans le même Scene.create).
+    if (aEtages) {
+      for (const [i, e] of etagesDuPlan(plan).entries()) {
+        scene.levels.find(l => l._id === e.niveau).background.src = await deposerFondDessine(plan, slug, lire("styleVisuel"), i);
+      }
+    } else {
+      if (!fond) fond = await deposerFondDessine(plan, slug, lire("styleVisuel"));
+      scene.levels[0].background.src = fond;
+    }
     // L'image remplace les sols et objets dessinés ; restent les étiquettes de pièces (MJ seulement).
     scene.drawings = scene.drawings.filter(d => d.hidden);
     const doc = await Scene.implementation.create({ name: plan.nom, navigation: true, ...scene, flags: { [ID]: { cree: true, plan } } });
     if (plan.activer) await doc.activate();
-    return { contenu: `Scène « ${plan.nom} » créée (${doc.uuid}) : ${scene.walls.length} murs, ${scene.walls.filter(w => w.door).length} portes, ${scene.lights.length} lumières, ${scene.sounds?.length ?? 0} sons, ${scene.regions?.length ?? 0} zones.${plan.activer ? " Les joueurs y sont." : ""}${note} Coordonnées en cases pour placer_jetons.` };
+    const escaliers = scene.regions.filter(r => r.behaviors[0]?.type === "changeLevel").length;
+    const etages = aEtages ? `${scene.levels.length} étages (${scene.levels.map(l => l.name).join(", ")} ; on arrive à « ${scene.levels[0].name} »), ${escaliers} escaliers, ` : "";
+    return { contenu: `Scène « ${plan.nom} » créée (${doc.uuid}) : ${etages}${scene.walls.length} murs, ${scene.walls.filter(w => w.door).length} portes, ${scene.lights.length} lumières, ${scene.sounds?.length ?? 0} sons, ${scene.regions.length - escaliers} zones.${plan.activer ? " Les joueurs y sont." : ""}${note} Coordonnées en cases pour placer_jetons.` };
   }
 });
 
@@ -1681,10 +1707,11 @@ export async function aideAMontrer(uuid) {
   return { doc: pageCopie ?? copie, importe };
 }
 
-// Fond dessiné d'un plan, déposé dans Data/lakour-mj-ia/cartes/<monde>/ ; renvoie son chemin.
-export async function deposerFondDessine(plan, slug, style) {
-  const { svg } = planVersSVG(plan, { taille: 100, style });
-  const nomFichier = `${Date.now()}-${slug}-${style}.svg`;
+// Fond dessiné d'un plan, déposé dans Data/lakour-mj-ia/cartes/<monde>/ ; renvoie son chemin. etage : rang de l'étage
+// d'une carte à étages (son fond seul) ; sans lui, le premier étage.
+export async function deposerFondDessine(plan, slug, style, etage = null) {
+  const { svg } = planVersSVG(plan, { taille: 100, style, etage });
+  const nomFichier = `${Date.now()}-${slug}${etage === null ? "" : `-n${etage}`}-${style}.svg`;
   return deposerFichier(`cartes/${game.world.id}`, nomFichier, new File([svg], nomFichier, { type: "image/svg+xml" }));
 }
 
