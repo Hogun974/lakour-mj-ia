@@ -2,6 +2,7 @@ import { ID } from "../constantes.js";
 import { recevoir, versMJ, ecouterCanal, estMJActif } from "../canal.js";
 import { suiviAJour } from "../tour-par-tour.js";
 import * as L from "../tour-logique.js";
+import { appeler, themeDeCombat } from "../appel.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -123,9 +124,16 @@ export class BandeauTour extends HandlebarsApplicationMixin(ApplicationV2) {
 }
 
 let bandeau = null;
-function rafraichirBandeau() {
+let dernierAppel = "";
+export function rafraichirBandeau() {
   if (game.user.isGM) return;
   const ctx = tour()?.contexteBandeau?.();
+  // Son tour (de combat, ou de parole) vient d'arriver : on l'appelle, une fois.
+  const cle = L.cleDAppel(ctx);
+  if (cle && cle !== dernierAppel) {
+    appeler(ctx.combat ? "LAKOUR_MJIA.Appel.Combat" : "LAKOUR_MJIA.Appel.Parole", { son: !(ctx.combat && themeDeCombat()) });
+  }
+  dernierAppel = cle;
   if (!ctx) {
     if (bandeau?.rendered) bandeau.close();
     return;

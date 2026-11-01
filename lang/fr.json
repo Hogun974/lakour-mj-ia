@@ -150,7 +150,8 @@
       "panneauTourAuto": {
         "Nom": "Ouvrir le panneau Tour par tour au début d'un combat",
         "Aide": "Chez le MJ : le panneau d'aide au combat s'ouvre tout seul quand un combat commence."
-      }
+      },
+      "appelJoueur": { "Nom": "M'appeler quand c'est à moi", "Aide": "Un tintement discret, chez moi seul, quand un vote, un choix secret, mon tour de combat ou ma parole au tour de table m'attend ; si je regarde un autre onglet, son titre clignote jusqu'à mon retour. Au combat, si un thème de combat de Foundry est choisi, c'est son son qui joue." }
     },
     "Console": {
       "Titre": "MJ IA",
@@ -393,6 +394,7 @@
       "Micro": "Donner le micro aux joueurs",
       "MicroAide": "Accorde « Diffuser l'audio » au rôle Joueur (par défaut, seuls les joueurs de confiance l'ont).",
       "MicroDonne": "Les joueurs peuvent maintenant diffuser leur micro."
-    }
+    },
+    "Appel": { "Vote": "Vote du groupe", "Choix": "Un choix t'attend", "Combat": "À toi de jouer", "Parole": "À toi de parler" }
   }
 }

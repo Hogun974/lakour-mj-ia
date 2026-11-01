@@ -8,6 +8,7 @@
 // par brancherCompagnonsDecisions), ici même chez le MJ actif. Leur place dans un vote est « compagnon:<id de l'acteur> ».
 import { ID } from "./constantes.js";
 import { envoyer, versMJ, recevoir, ecouterCanal, estMJActif } from "./canal.js";
+import { appeler } from "./appel.js";
 
 export const DELAI_VOTE = 120;    // secondes, quand l'IA n'en donne pas
 export const DELAI_CHOIX = 90;
@@ -254,6 +255,7 @@ export async function ouvrirFenetreVote(demande) {
   const { FenetreVoteGroupe } = await import("./apps/vote-groupe.js");
   // L'échéance est recalculée ici : les horloges du MJ et du joueur ne sont pas forcément d'accord.
   const d = { ...demande, finit: Date.now() + demande.delai };
+  appeler("LAKOUR_MJIA.Appel.Vote");
   return retenir(d, new FenetreVoteGroupe(d, {
     voter: choix => versMJ({ type: "vote", id: d.id, choix }),
     fermee: () => fenetres.delete(cle(d.id))
@@ -263,6 +265,7 @@ export async function ouvrirFenetreVote(demande) {
 export async function ouvrirFenetreChoix(demande) {
   const { FenetreChoixSecret } = await import("./apps/choix-secret.js");
   const d = { ...demande, finit: Date.now() + demande.delai };
+  appeler("LAKOUR_MJIA.Appel.Choix");
   return retenir(d, new FenetreChoixSecret(d, {
     repondre: choix => versMJ({ type: "choix-reponse", id: d.id, choix }),
     fermee: () => fenetres.delete(cle(d.id))

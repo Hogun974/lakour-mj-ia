@@ -300,6 +300,13 @@ export function situationJoueur(combattants = [], actifId, mesIds = []) {
   return { aMoi: false, actif: actif.nom, puisMoi: Boolean(suivant && mesIds.includes(suivant.id)) };
 }
 
+// L'appel du bandeau d'un joueur : une clé par tour qui l'attend (round et combattant, ou tour et orateur du tour de table),
+// "" quand rien ne l'attend. Une clé nouvelle et non vide : on l'appelle (scripts/appel.js), une fois par tour.
+export function cleDAppel(ctx) {
+  if (!ctx?.aMoi) return "";
+  return ctx.combat ? `combat|${ctx.round ?? 0}|${ctx.actif ?? ""}` : ctx.table ? `table|${ctx.tour ?? 0}|${ctx.orateur ?? ""}` : "";
+}
+
 // ------------------------------------------------------------------ tour de table (hors combat)
 // t : { actif, ordre: [{ id, nom, userId, compagnon }], index, faits: { id: "parle" | "passe" }, tour }
 export function nouveauTourDeTable(participants = [], tour = 1) {

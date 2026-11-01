@@ -121,6 +121,11 @@ export function enregistrerReglages() {
     name: "LAKOUR_MJIA.Reglages.panneauTourAuto.Nom", hint: "LAKOUR_MJIA.Reglages.panneauTourAuto.Aide",
     scope: "client", config: true, type: Boolean, default: true
   });
+  // Le tintement (et le titre qui clignote) quand un vote, un choix secret ou son tour attend ce joueur (scripts/appel.js).
+  game.settings.register(ID, "appelJoueur", {
+    name: "LAKOUR_MJIA.Reglages.appelJoueur.Nom", hint: "LAKOUR_MJIA.Reglages.appelJoueur.Aide",
+    scope: "client", config: true, type: Boolean, default: true
+  });
   game.settings.register(ID, "tourDeTable", {
     scope: "world", config: false, type: Object, default: { actif: false, ordre: [], index: 0, faits: {}, tour: 0 },
     onChange: () => game.modules.get(ID)?.api?.tour?.rafraichir?.()

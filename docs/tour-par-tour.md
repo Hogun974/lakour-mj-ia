@@ -91,7 +91,10 @@ normale, rapide, véloce) : on montre la ressource « déplacement » et l'allur
 ## Côté joueurs
 Un bandeau léger en haut de l'écran : « ⚔️ Round 3 — À toi de jouer ! » avec ses actions restantes, son mouvement (D&D 5e) et
 ses attaques en boutons (ses vrais jets, sur son navigateur), **Fin de mon tour** (demande au MJ actif par le canal du module,
-qui vérifie qu'il tient le combattant actif) ; sinon « Au tour de X, puis toi » ou « Au tour de X ». Réglage du monde *Seul le
+qui vérifie qu'il tient le combattant actif) ; sinon « Au tour de X, puis toi » ou « Au tour de X ». Quand son tour (ou sa
+parole au tour de table) arrive, il est **appelé** une fois : un tintement chez lui seul et le titre de l'onglet qui clignote
+s'il regarde ailleurs (`scripts/appel.js`, réglage client *M'appeler quand c'est à moi* ; pas de second son si un thème de
+combat de Foundry joue déjà). Votes de groupe et choix secrets l'appellent de même. Réglage du monde *Seul le
 combattant actif peut bouger* (désactivé par défaut) : pendant un combat commencé sur la scène, un joueur ne bouge que le jeton
 dont c'est le tour ; le MJ n'est jamais bloqué.
 

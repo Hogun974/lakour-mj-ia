@@ -150,7 +150,8 @@
       "panneauTourAuto": {
         "Nom": "Open the Turn by turn panel when combat begins",
         "Aide": "For the GM: the combat helper panel opens on its own when a combat begins."
-      }
+      },
+      "appelJoueur": { "Nom": "Call me when it is my turn", "Aide": "A soft chime, for me only, when a vote, a secret choice, my combat turn or my turn to speak is waiting for me; if I am looking at another tab, its title blinks until I come back. In combat, if a Foundry combat theme is chosen, its own sound plays instead." }
     },
     "Console": {
       "Titre": "AI GM",
@@ -393,6 +394,7 @@
       "Micro": "Give players the microphone",
       "MicroAide": "Grants \"Broadcast Audio\" to the Player role (by default only trusted players have it).",
       "MicroDonne": "Players can now broadcast their microphone."
-    }
+    },
+    "Appel": { "Vote": "Group vote", "Choix": "A choice is waiting", "Combat": "Your turn", "Parole": "Your turn to speak" }
   }
 }
