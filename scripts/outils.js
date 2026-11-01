@@ -1531,7 +1531,8 @@ OUTILS.push(
     nom: "loups_jour",
     systemes: LOUPS,
     description: "Pouvoirs de JOUR, appliqués par le système : métiers publics (Forgeron, Meunière, Garde du guet, Curé, Chasseresse, "
-      + "Aubergiste, Apothicaire, Colporteur de nouvelles, Tisserande, Passeur, Tanneur, Maîtresse d'école), Juge de paix (annuler le vote "
+      + "Aubergiste, Apothicaire, Colporteur de nouvelles, Tisserande, Passeur, Tanneur, Maîtresse d'école, Ramoneuse, Éclusière ; "
+      + "la liste exacte vient du système, action « lister »), Juge de paix (annuler le vote "
       + "juste après le dépouillement : il se révèle et le village revote), Conteuse, bâtiments (Taverne, Forge, Grange, Puits pour un mort "
       + "du jour ; Chapelle : le village désigne, sans villageois). action « lister » : ce qui est possible maintenant (d'un villageois, ou "
       + "de tous si vide). action « utiliser » : quand un joueur annonce son pouvoir à voix haute (il peut aussi le faire lui-même depuis la "
