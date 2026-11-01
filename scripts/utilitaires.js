@@ -6,7 +6,17 @@ export function versTexte(html) {
   const doc = new DOMParser().parseFromString(String(html), "text/html");
   doc.querySelectorAll("br").forEach(br => br.replaceWith("\n"));
   doc.querySelectorAll("p, div, li, h1, h2, h3, h4, tr").forEach(el => el.append("\n"));
-  return doc.body.textContent.replace(/\n{3,}/g, "\n\n").trim();
+  return sansEnrichers(doc.body.textContent).replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// Les liens et jets enrichis des journaux, lus comme un joueur les voit : @UUID[…]{Nom} -> « Nom », [[/check …]]{Texte}
+// -> « Texte », [[/save dex dc=13]] -> « (save dex dc=13) ». Sans libellé, un @UUID n'est qu'un identifiant : il disparaît.
+export function sansEnrichers(texte) {
+  return String(texte ?? "")
+    .replace(/@\w+\[[^\]]*\]\{([^}]*)\}/g, "$1")
+    .replace(/@UUID\[[^\]]*\]/g, "")
+    .replace(/\[\[\/[^\]]*\]\]\{([^}]*)\}/g, "$1")
+    .replace(/\[\[\/([^\]]*)\]\]/g, "($1)");
 }
 
 export function tronquer(texte, max) {

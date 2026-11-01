@@ -15,7 +15,7 @@ import { TEMPERAMENTS, FACONS_DE_PARLER, personnaliteAuHasard } from "./compagno
 import {
   estCompagnon, personnaliteDe, compagnonsDuMonde, compagnonsPresents, trouverCompagnon, noterPrive, oublierPrive, nomsPourCompagnons
 } from "./compagnons-jeu.js";
-import { planVersScene, SOLS } from "./cartes.js";
+import { planVersScene, SOLS, SONS_AMBIANCE, TYPES_ZONE } from "./cartes.js";
 import { planVersSVG } from "./cartes-rendu.js";
 import { listeSalles, trouverSalle, salleDeLaCase, centreSalle, casesLibres, casesOccupees, casesInterdites, casesDispersees, casesAutour, reperesDuPlan, trouverRepere, planDe, carteDeScene, TYPES_FIGURANTS, jetonFigurant, moduleDesFigurants } from "./placement.js";
 
@@ -1557,6 +1557,9 @@ OUTILS.push({
   description: "Crée une carte JOUABLE (scène Foundry) à partir d'un plan en cases : pièces rectangulaires (les couloirs sont des pièces étroites), "
     + "murs automatiques entre pièces et autour, portes/fenêtres/passages sur les bords, lumières, obstacles, obscurité. "
     + "Une case = 2 mètres (1,5 m en D&D 5e). Toute ouverture doit être placée sur un bord qui sépare deux pièces (ou une pièce et l'extérieur). "
+    + "Scène vivante : sons d'ambiance placés (sinon déduits des éléments : cheminée → feu, forge, foule d'une place…) et zones invisibles "
+    + "des joueurs : texte qui s'élève quand un jeton entre (indice, inscription), téléportation vers une autre zone (escalier, trappe), "
+    + "pause de la partie à l'entrée (piège, révélation), obscurité. "
     + "image=true ajoute un fond peint par OpenAI (coût, et seulement si une clé OpenAI existe). Ensuite, pose les jetons avec placer_jetons.",
   schema: objet({
     nom: chaine("Nom de la scène."),
@@ -1567,6 +1570,13 @@ OUTILS.push({
     ouvertures: { type: "array", items: objet({ ...caseXY, cote: { type: "string", enum: ["nord", "sud", "est", "ouest"], description: "Bord de la case concerné." }, type: { type: "string", enum: ["porte", "secrete", "verrouillee", "fenetre", "passage"], description: "Nature de l'ouverture." } }) },
     lumieres: { type: "array", items: objet({ ...caseXY, rayon: entier("Rayon en cases."), couleur: chaine("Couleur hexadécimale, ex. #ffaa55.") }) },
     elements: { type: "array", items: objet({ nom: chaine("Obstacle ou couvert (caisses, pilier…)."), ...caseXY, l: entier("Largeur en cases."), h: entier("Hauteur en cases.") }) },
+    sons: { type: "array", description: "Sons d'ambiance placés ; vide = déduits des éléments et des pièces.", items: objet({ ...caseXY,
+      rayon: entier("Portée en cases."), son: { type: "string", enum: SONS_AMBIANCE, description: "Ambiance." } }) },
+    zones: { type: "array", description: "Zones invisibles des joueurs (souvent vide).", items: objet({ nom: chaine("Nom unique de la zone."), ...caseXY,
+      l: entier("Largeur en cases."), h: entier("Hauteur en cases."), type: { type: "string", enum: TYPES_ZONE, description: "Effet de la zone." },
+      texte: chaine("Pour « texte » : ce qui s'élève au-dessus du jeton qui entre. Sinon vide."),
+      vers: chaine("Pour « teleport » : nom de la zone d'arrivée. Sinon vide."),
+      obscurite: { type: "number", description: "Pour « obscurite » : 0 (clair) à 1 (noir). Sinon 0." } }) },
     image: booleen("false (recommandé) : fond dessiné automatiquement, gratuit. true : fond peint par OpenAI (payant)."),
     description_image: chaine("Si image : description visuelle du lieu, en anglais de préférence (style, matières, ambiance). Sinon vide."),
     activer: booleen("true pour y amener les joueurs tout de suite.")
@@ -1603,7 +1613,7 @@ OUTILS.push({
     scene.drawings = scene.drawings.filter(d => d.hidden);
     const doc = await Scene.implementation.create({ name: plan.nom, navigation: true, ...scene, flags: { [ID]: { cree: true, plan } } });
     if (plan.activer) await doc.activate();
-    return { contenu: `Scène « ${plan.nom} » créée (${doc.uuid}) : ${scene.walls.length} murs, ${scene.walls.filter(w => w.door).length} portes, ${scene.lights.length} lumières.${plan.activer ? " Les joueurs y sont." : ""}${note} Coordonnées en cases pour placer_jetons.` };
+    return { contenu: `Scène « ${plan.nom} » créée (${doc.uuid}) : ${scene.walls.length} murs, ${scene.walls.filter(w => w.door).length} portes, ${scene.lights.length} lumières, ${scene.sounds?.length ?? 0} sons, ${scene.regions?.length ?? 0} zones.${plan.activer ? " Les joueurs y sont." : ""}${note} Coordonnées en cases pour placer_jetons.` };
   }
 });
 
