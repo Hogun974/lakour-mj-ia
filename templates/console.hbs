@@ -16,6 +16,19 @@
       <br><small>{{jetons.entree}} entrée · {{jetons.cacheLecture}} cache · {{jetons.sortie}} sortie</small>
       {{#if horsSeance}}<br><small>{{localize "LAKOUR_MJIA.Console.HorsSeance"}} : ≈ {{horsSeance}} $</small>{{/if}}
     </p>
+    {{#if voix}}
+    <div class="lakour-mjia-voix-monde">
+      <strong><i class="fa-solid fa-microphone"></i> {{localize "LAKOUR_MJIA.VoixMonde.Titre"}}</strong>
+      {{#if voix.desactive}}
+      <p>{{localize "LAKOUR_MJIA.VoixMonde.Desactivee"}}
+        <button type="button" data-action="voixActiver" data-tooltip="{{localize 'LAKOUR_MJIA.VoixMonde.ActiverAide'}}"><i class="fa-solid fa-microphone"></i> {{localize "LAKOUR_MJIA.VoixMonde.Activer"}}</button></p>
+      {{/if}}
+      {{#if voix.muets}}
+      <p>{{localize "LAKOUR_MJIA.VoixMonde.Muets" noms=voix.muets}}
+        <button type="button" data-action="voixMicro" data-tooltip="{{localize 'LAKOUR_MJIA.VoixMonde.MicroAide'}}"><i class="fa-solid fa-user-check"></i> {{localize "LAKOUR_MJIA.VoixMonde.Micro"}}</button></p>
+      {{/if}}
+    </div>
+    {{/if}}
     {{#if pilote}}
     <p class="lakour-mjia-pilote">
       <strong>{{localize "LAKOUR_MJIA.Pilote.Titre"}}</strong> :

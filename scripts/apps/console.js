@@ -3,6 +3,7 @@ import { lire, ecrire } from "../reglages.js";
 import { ConfigIA } from "./config-ia.js";
 import { EditeurPersonnalites } from "./personnalites.js";
 import { reinitialiserCampagne } from "../reinitialiser.js";
+import { voixDuMonde, activerAudio, donnerMicro } from "../voix-monde.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -27,6 +28,17 @@ export class ConsoleMJ extends HandlebarsApplicationMixin(ApplicationV2) {
         this.render();
       },
       reinitialiser: async function () { await reinitialiserCampagne(this.moteur); this.render(); },
+      // La voix de Foundry : réparée d'un clic (audio seul, micro des joueurs).
+      voixActiver: async function () {
+        await activerAudio();
+        ui.notifications.info(game.i18n.localize("LAKOUR_MJIA.VoixMonde.Activee"));
+        this.render();
+      },
+      voixMicro: async function () {
+        await donnerMicro();
+        ui.notifications.info(game.i18n.localize("LAKOUR_MJIA.VoixMonde.MicroDonne"));
+        this.render();
+      },
       config: () => new ConfigIA().render({ force: true }),
       personnalites: () => new EditeurPersonnalites().render({ force: true })
     }
@@ -46,7 +58,9 @@ export class ConsoleMJ extends HandlebarsApplicationMixin(ApplicationV2) {
     const pilote = this.moteur?.pilote;
     const etatPilote = pilote?.resume();
     const relancable = Boolean(pilote && !etatPilote.enMarche && pilote.suspendu && pilote.conditions().ok);
+    const voix = voixDuMonde();
     return {
+      voix: voix.pret ? null : { ...voix, muets: voix.muets.join(", ") },
       pilote: etatPilote?.enMarche || relancable ? { ...etatPilote, relancable } : null,
       seance,
       enCours: this.moteur?.enCours,

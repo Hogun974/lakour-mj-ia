@@ -382,6 +382,17 @@
       "Erreurs": {
         "PasDeScene": "No scene is displayed."
       }
+    },
+    "VoixMonde": {
+      "Titre": "Table voice",
+      "Desactivee": "Foundry voice chat is disabled in this world: nobody can hear each other.",
+      "Activer": "Enable audio",
+      "ActiverAide": "Switch the world to \"Audio only\" (no video), keeping the relay server. Each player then picks a microphone in Configure Audio/Video › Client.",
+      "Activee": "Audio enabled: everyone can pick a microphone in Configure Audio/Video.",
+      "Muets": "No microphone permission: {noms}.",
+      "Micro": "Give players the microphone",
+      "MicroAide": "Grants \"Broadcast Audio\" to the Player role (by default only trusted players have it).",
+      "MicroDonne": "Players can now broadcast their microphone."
     }
   }
 }
