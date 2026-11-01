@@ -137,6 +137,14 @@ Fait, testé, validé contre Foundry v14 et déployé (redémarrage de LaKour le
 | Sous-classes d'Azeroth (8, 44 capacités) | Warcraft | fait |
 | Anneaux de jeton par faction, icônes des capacités | Warcraft | fait |
 | Création de personnage réparée (factions, équipement, munitions) | 40k + MJ IA | fait |
+| Adventure + quickstart | 40k | fait |
+| Anneaux par faction, icônes des objets des PNJ | 40k (49 PNJ, 203 icônes), Warcraft (52 PNJ) | fait |
+| Village de Brumecombe épinglé (bâtiments → pages de règles) | Veillées | fait |
+| Guides et aides de jeu visibles après installation (clearOwnership) | 3 mondes | corrigé |
+| Relecture des chemins « vrai Foundry » (installateurs, création, fiches, immersion) | 3 mondes + MJ IA | corrigé |
+| One-shot « Trois jours d'avance » (spatioport, 3 cartes) | 40k | fait |
+| One-shot « Une nuit aux Deux Lanternes » (Âprefange, 3 cartes) | Warcraft | fait |
 
-Restent : Adventure + quickstart pour 40k, village de Brumecombe épinglé, modules gratuits (feu vert de Jordan),
-donjons à niveaux (Scene Levels).
+Déploiements : 00:10 (vague 2), 00:26 (vague 3), 01:11 (one-shots), chacun précédé d'une sauvegarde dans
+`/home/amp/sauvegardes-foundry/`. Restent : modules gratuits (feu vert de Jordan), donjons à niveaux (Scene Levels, à
+tester avec 3D Canvas), essais en vrai de tout ce qui précède.
