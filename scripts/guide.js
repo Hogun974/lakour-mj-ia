@@ -61,6 +61,21 @@ En mode **Autonome**, si plus aucun joueur humain n'est en jeu (aux Veillées : 
 - **Garde-fous** : il s'arrête net à la victoire, à la fin de la séance, dès qu'un joueur humain revient, si tu repasses en *Validation*, au budget de la séance, après un nombre maximal d'étapes (réglage, 60 par défaut) ou quand la partie n'avance plus. Tu reçois un avis à chaque arrêt. Jamais deux étapes à la fois, jamais pendant que le MJ IA réfléchit.
 - **Le reprendre en main** : la console du MJ IA montre le pilote, avec **Arrêter le pilote** (ou **Relancer le pilote** après une pause). Le réglage *Pilote automatique (compagnons seuls)* le coupe tout à fait. En mode *Validation*, pas de pilote : un avis te propose de passer en autonome ou de mener la suite.
 - **Coût d'un tour de pilote aux Veillées** : par jour de jeu, sept tours du MJ IA (nuit, aube, réponses aux deux tours de parole, vote, dépouillement, exécution), soit une dizaine d'appels au modèle, plus les appels courts des compagnons (leurs choix de nuit, deux à quatre répliques, un vote chacun : une dizaine pour six compagnons).` },
+  { titre: "Tour par tour (40k et Warcraft)", texte: `
+# Le combat guidé pas à pas
+Le panneau **Tour par tour** (bouton **bouclier** dans la barre de gauche, calque des jetons) s'ouvre aussi tout seul quand un combat commence. Il s'appuie sur le combat de Foundry, sans le remplacer, et sert avec ou sans MJ IA. À chaque instant, **l'étape suivante** est écrite en haut (« Prochaine étape : … ») et le bouton qui la fait est **encadré de pointillés** : il suffit de suivre les pointillés.
+- **Préparer** : coche les jetons de la scène (joueurs, compagnons et ennemis visibles cochés d'office), **Ajouter au combat**, **Lancer l'initiative** (la vraie méthode du système : d20 + initiative en D&D 5e ; Initiative + Réflexes en Imperium Maledictum), **Commencer le combat**.
+- **Tour en cours** : qui joue (portrait, PV ou blessures, défense, états), ce qu'il lui reste (D&D 5e : action, action bonus, réaction, mouvement en mètres ; Imperium Maledictum : son action et son déplacement), ses attaques et pouvoirs en boutons qui ouvrent les **vrais jets** du système, et les **cibles** avec leur distance en mètres, leur CA ou leur défense, et si elles sont à portée.
+- **Tour d'un PNJ** : une **proposition** sans IA (l'adversaire le plus proche, la meilleure attaque à portée, sinon il se rapproche). **Accepter** la joue : déplacement, jet d'attaque, jet de dégâts du système. Puis **Appliquer N dégâts** (méthode du système : PV en D&D 5e ; armure, localisation et critiques en Imperium Maledictum). Tu peux aussi choisir une autre cible et une autre arme.
+- **Tour d'un joueur** : on l'attend ; il voit ses actions dans son bandeau. Le panneau suit ses jets au chat (attaque, dégâts, test opposé) et te propose d'**appliquer** les dégâts.
+- **Tour d'un compagnon IA** : il agit seul, même sans séance du MJ IA (sans IA : la proposition), puis le tour passe.
+- **Rappels** : effet terminé (**Fin de l'effet**), concentration et sauvegarde après des dégâts, régénération, actions légendaires en fin de tour (D&D 5e), à terre, jets contre la mort (D&D 5e), test opposé du défenseur (Imperium Maledictum : **Il esquive** ou **Sans opposition**).
+- **Fin** : « Fin du tour → au suivant », « Nouveau round », « Fin du combat (tous les ennemis à terre) ».
+- **Réglage** *Seul le combattant actif peut bouger* (désactivé par défaut) : pendant un combat, un joueur ne bouge que le jeton dont c'est le tour ; toi, jamais bloqué.
+- **Avec le MJ IA** : il lit la même étape suivante (« Tour : X ; étape suivante : … ») et peut demander l'état complet (outil combat_etat). En séance, il joue les PNJ comme avant : n'accepte la proposition que s'il ne le fait pas.
+
+# Le tour de table, hors combat
+Bouton **Commencer un tour de table** du panneau : la parole passe à chacun dans l'ordre (joueurs, puis compagnons IA). Celui qui a la parole décrit ce que fait son personnage ; son message dans le chat, ou son bouton **J'ai fini** / **Je passe**, donne la parole au suivant. Tu peux aussi presser **A parlé** ou **Passe**. Avec le MJ IA en séance, il attend que tout le monde ait parlé (ou passé) avant de raconter la suite, puis peut relancer un tour (outil tour_de_table).` },
   { titre: "Mener les Veillées soi-même, avec des joueurs IA", texte: `
 Sans séance du MJ IA, c'est toi qui mènes la **Table de jeu** des Veillées ; des **joueurs IA** peuvent quand même compléter la table.
 - **Ajouter des joueurs IA** : bouton **+ Joueur IA** de la Table. Chacun reçoit un nom du village et une personnalité ; la distribution des rôles de la Table les compte comme des joueurs.
@@ -83,6 +98,12 @@ export const GUIDE_JOUEURS = [
 - **Ta fiche** : le MJ peut la créer avec toi, et la tient à jour (expérience, argent, objets) ; tu peux toujours la consulter.
 - **Les cartes** : tu peux déplacer ton jeton ; le MJ réagit à ce que tu découvres. S'il bloque tes déplacements, c'est voulu (scène en cours).
 - **Les compagnons IA** : des personnages joués par l'IA peuvent compléter la table. Ils parlent sous leur nom et jouent comme toi, sans tricher : ils ne savent que ce que sait leur personnage.` },
+  { titre: "Tour par tour (40k et Warcraft)", texte: `
+- **En combat**, un bandeau en haut de l'écran te dit où on en est : « ⚔️ Round 3 — À toi de jouer ! », ou « Au tour de X, puis toi ».
+- **À ton tour**, il montre ce qu'il te reste (D&D 5e : action, action bonus, réaction, mouvement en mètres ; Imperium Maledictum : action et déplacement) et tes attaques en boutons : ils ouvrent tes vrais jets. Désigne d'abord ta cible (touche **T** sur son jeton).
+- **Fin de mon tour** passe la main au suivant.
+- Si le MJ l'a réglé ainsi, seul le combattant dont c'est le tour peut bouger son jeton.
+- **Hors combat**, le MJ peut faire un **tour de table** : quand vient ton tour, le bandeau dit « À toi de décrire ce que fait ton personnage ». Écris-le dans le chat (ou presse **J'ai fini**), ou **Je passe**.` },
   { titre: "Les Veillées de Brumecombe", texte: `
 - Ton **rôle** t'est donné en secret au début ; garde-le pour toi.
 - La **nuit**, si ton rôle agit, une fenêtre s'ouvre chez toi seul : choisis, ou passe.

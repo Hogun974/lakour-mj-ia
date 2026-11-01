@@ -41,7 +41,9 @@ Jamais le prompt du MJ, la mémoire de campagne secrète, les rôles des autres 
 - Outil `compagnon_ajouter` : crée un personnage complet (mêmes outils de création que pour un joueur, sans joueur
   assigné), marque l'acteur `compagnon` avec sa personnalité, pose son jeton près du groupe.
 - Après chaque narration, les compagnons présents peuvent réagir (une réplique, une proposition, une action déclarée).
-- En combat, à leur tour (suivi des combats), ils déclarent leur action ; le MJ IA la résout.
+- En combat, à leur tour (suivi des combats), ils déclarent leur action ; le MJ IA la résout. Sans séance du MJ IA (MJ humain),
+  ils agissent seuls : annonce par leur cerveau, action jouée par le système d'après la proposition sans IA du tour par tour,
+  puis le tour passe (docs/tour-par-tour.md).
 - Outil `compagnon_retirer` ; un compagnon peut aussi devenir un simple PNJ.
 
 ## Réglages et coût

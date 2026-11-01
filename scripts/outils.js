@@ -1955,6 +1955,45 @@ OUTILS.push(
       else await combat.nextTurn();
       return { contenu: `Round ${combat.round}, au tour de ${combat.combatant?.name ?? "?"}.` };
     }
+  },
+  // Tour par tour (tour-par-tour.js) : le même état que le panneau du MJ humain.
+  {
+    nom: "combat_etat",
+    systemes: ["impmal", "dnd5e"],
+    description: "État du combat tour par tour, tel que le voit le MJ humain dans son panneau : étape suivante, combattant actif (PV, "
+      + "défense, états), ce qu'il lui reste ce tour (actions, mouvement), ses attaques avec leur portée, les distances en mètres "
+      + "vers chaque combattant (défense, portée), l'ordre du tour, et pour un PNJ une proposition d'action sans IA. Lecture seule.",
+    schema: objet({}),
+    sensible: false,
+    async executer() {
+      const tour = game.modules.get(ID)?.api?.tour;
+      if (!tour?.disponible()) return { erreur: true, contenu: "Pas de tour par tour dans ce système." };
+      return { contenu: tour.rapport() };
+    }
+  },
+  {
+    nom: "tour_de_table",
+    systemes: ["impmal", "dnd5e"],
+    description: "Hors combat, donne la parole à chaque personnage présent, dans l'ordre (joueurs puis compagnons IA) : chacun décrit ce "
+      + "que fait son personnage, et tu attends que tous aient parlé (ou passé) avant de raconter la suite. « commencer » ouvre un "
+      + "tour (ou le suivant), « arreter » le ferme, « etat » dit où il en est.",
+    schema: objet({ action: { type: "string", enum: ["commencer", "arreter", "etat"], description: "Ce qu'il faut faire." } }),
+    sensible: false,
+    async executer({ action }) {
+      const tour = game.modules.get(ID)?.api?.tour;
+      if (!tour?.disponible()) return { erreur: true, contenu: "Pas de tour de table dans ce système." };
+      if (action === "arreter") {
+        await tour.arreterTable();
+        return { contenu: "Tour de table arrêté." };
+      }
+      if (action === "commencer") {
+        if (game.combats?.active?.started) return { erreur: true, contenu: "Un combat est en cours : le tour par tour s'en charge." };
+        const t = await tour.commencerTable();
+        if (!t.actif) return { erreur: true, contenu: "Personne à qui donner la parole (aucun personnage de joueur ni compagnon sur la scène)." };
+        return { contenu: `Tour de table ${t.tour} ouvert : ${t.ordre.map(o => o.nom).join(", ")}. Attends que chacun ait parlé.` };
+      }
+      return { contenu: tour.resumePourIA().join("\n") || "Aucun tour de table en cours." };
+    }
   }
 );
 

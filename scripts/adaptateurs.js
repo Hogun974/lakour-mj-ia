@@ -2,6 +2,8 @@
 // comment résumer une fiche pour l'IA. Tout le reste du module est commun.
 // Les règles elles-mêmes ne sont PAS recopiées ici : l'IA les lit dans les compendiums des livres achetés.
 
+import { versMetres, moyenneFormule } from "./tour-logique.js";
+
 const texte = v => (v === undefined || v === null || v === "" ? "?" : v);
 
 // Réglages d'un test demandé par l'IA (outil demander_jet), communs à tous les systèmes :
@@ -25,6 +27,8 @@ export function testD100(cible, jet) {
 
 const impmal = {
   id: "impmal",
+  // Tour par tour (tour-par-tour.js) : économie d'actions, défense, attaques et jets du système (plus bas, TOUR_IMPMAL).
+  get tour() { return TOUR_IMPMAL; },
   typePnj: "npc",
   // Expérience : total gagné ; ce qui est dépensé se calcule d'après les avances, talents… (system.xp.spent).
   xp: acteur => ({ total: acteur.system.xp?.total ?? 0, disponible: (acteur.system.xp?.total ?? 0) - (acteur.system.xp?.spent ?? 0) }),
@@ -94,6 +98,7 @@ const impmal = {
 
 const dnd5e = {
   id: "dnd5e",
+  get tour() { return TOUR_DND5E; },
   typePnj: "npc",
   xp: acteur => ({ total: acteur.system.details?.xp?.value ?? 0, prochainNiveau: acteur.system.details?.xp?.max ?? null }),
   cheminXp: "system.details.xp.value",
@@ -220,8 +225,316 @@ const generique = {
   resumer(acteur) { return `${acteur.name} (${acteur.type})`; }
 };
 
+// ------------------------------------------------------------------ tour par tour : ce qui est propre à chaque système
+// Même forme pour les deux systèmes (tour-par-tour.js ne connaît qu'elle) :
+//   economie : [{ cle, libelle, n }] ; ressourceDe(activation) -> cle de l'économie occupée (ou null) ;
+//   combattant(acteur) -> { pv, pvMax, pvTexte, defense, aTerre, mort, jetsMort, conditions, effets, concentration,
+//                          regeneration, legendaires, mouvementMax (m), allure } ;
+//   attaques(acteur) -> [{ id, nom, img, genre, type: "melee" | "distance", allonge, portee: { normale, longue }, moyenne,
+//                          bonus, degats, activation }] (portées en mètres) ;
+//   lancer(acteur, attaque) : le VRAI jet du système, avec sa fenêtre (MJ, joueur) ;
+//   resoudre(acteur, attaque, cible) -> { touche, degats, texte } : résolution directe, sans fenêtre (PNJ accepté, compagnon) ;
+//   degats(acteur, attaque, options) ; appliquer(acteur, n) ; jetMort(acteur, options) ; sauvegarde(acteur, obligation) ;
+//   lancerInitiative(combat) ; lireMessage(message) -> { genre, activation, attaqueId, total, touche, degats, phase… } | null.
+const etatsDe = acteur => [...(acteur?.statuses ?? [])];
+const nomCondition = id => {
+  const s = (globalThis.CONFIG?.statusEffects ?? []).find(e => e.id === id);
+  return s ? game.i18n.localize(s.name ?? s.label ?? id) : id;
+};
+const signe = n => `${n >= 0 ? "+" : ""}${n}`;
+const totalDesJets = jets => (jets ?? []).reduce((t, r) => t + Number(r?.total ?? 0), 0);
+const posterJet = (jet, acteur, texte) => jet.toMessage({ speaker: { alias: acteur?.name ?? "?" }, flavor: texte });
+// Effets à durée (v14 : duration.remaining en rounds, duration.expired) ; la concentration a son propre rappel.
+function effetsADuree(acteur) {
+  return [...(acteur?.appliedEffects ?? acteur?.effects ?? [])]
+    .filter(e => e && !e.disabled && e.isTemporary && !e.statuses?.has?.("concentrating"))
+    .map(e => {
+      const d = e.duration ?? {};
+      const restant = Number.isFinite(d.remaining) ? d.remaining : null;
+      return { id: e.uuid ?? e.id, nom: e.name, restant, fini: Boolean(d.expired ?? (restant !== null && restant <= 0)) };
+    });
+}
+
+// Imperium Maledictum ne mesure pas les portées : les armes ont une bande (courte, moyenne, longue, extrême). Repères en mètres
+// pour aider le MJ (à confirmer dans le livre de base, chapitre Combat ; le MJ tranche). Une bande plus loin : tir possible,
+// avec malus (portée « longue » de la proposition).
+export const PORTEES_IMPMAL = { immediate: 2, short: 10, medium: 30, long: 100, extreme: 300 };
+const BANDES_IMPMAL = ["immediate", "short", "medium", "long", "extreme"];
+// Allure (system.combat.speed.land.value) -> repère en mètres d'un déplacement, pour la proposition d'action des PNJ.
+export const MOUVEMENT_IMPMAL = { slow: 4, normal: 8, fast: 12, swift: 16 };
+
+// Test opposé d'Imperium Maledictum (OpposedTestResult du système) : DR de l'attaquant moins DR du défenseur ; à égalité, la
+// compétence la plus haute l'emporte.
+export function gagneOpposition(a, d, cibleA, cibleD) {
+  const dr = a.dr - d.dr;
+  return dr > 0 || (dr === 0 && cibleA > cibleD);
+}
+
+function attaqueImpmal(item, { melee, bande, degats, cible, genre }) {
+  const i = BANDES_IMPMAL.indexOf(bande);
+  const normale = melee ? null : PORTEES_IMPMAL[bande] ?? PORTEES_IMPMAL.short;
+  const longue = melee ? null : PORTEES_IMPMAL[BANDES_IMPMAL[Math.min(BANDES_IMPMAL.length - 1, Math.max(0, i) + 1)]];
+  const base = Number(degats ?? 0);
+  return {
+    id: item.id, nom: item.name, img: item.img, genre, type: melee ? "melee" : "distance", allonge: null,
+    portee: melee ? null : { normale, longue }, bande: bande ?? "", moyenne: base + 1, degatsBase: base,
+    cible: Number(cible ?? 0), bonus: `${cible ?? "?"}`, degats: `${base} + DR`, activation: "action"
+  };
+}
+
+const TOUR_IMPMAL = {
+  economie: [{ cle: "action", libelle: "Action", n: 1 }, { cle: "deplacement", libelle: "Déplacement", n: 1 }],
+  ressourceDe: activation => (activation ? "action" : null),
+  defenseLibelle: "Défense",
+  // Une attaque est un test opposé : le défenseur répond (esquive, parade, sans opposition) avant les dégâts.
+  testOppose: true,
+  combattant(acteur) {
+    const s = acteur?.system ?? {}, c = s.combat ?? {};
+    const w = c.wounds ?? {}, crit = c.criticals ?? {};
+    const etats = etatsDe(acteur);
+    const mort = etats.includes("dead") || (Number.isFinite(Number(crit.max)) && Number(crit.value ?? 0) > Number(crit.max));
+    const aTerre = mort || etats.includes("unconscious")
+      || (acteur?.type !== "character" && Number(w.max) > 0 && Number(w.value ?? 0) >= Number(w.max));
+    const allure = c.speed?.land?.value ?? "normal";
+    const comp = cle => s.skills?.[cle]?.total;
+    const libAllure = game.impmal?.config?.speeds?.[allure];
+    return {
+      pv: Math.max(0, Number(w.max ?? 0) - Number(w.value ?? 0)), pvMax: Number(w.max ?? 0),
+      pvTexte: `Blessures ${Number(w.value ?? 0)}/${Number(w.max ?? 0)}${Number(crit.value) ? ` · critiques ${crit.value}/${crit.max ?? "?"}` : ""}`,
+      defense: [comp("reflexes") !== undefined ? `Réflexes ${comp("reflexes")}` : "", comp("melee") !== undefined ? `Mêlée ${comp("melee")}` : ""]
+        .filter(Boolean).join(" · ") || "?",
+      aTerre, mort, jetsMort: null, conditions: etats.filter(e => e !== "dead").map(nomCondition), effets: effetsADuree(acteur),
+      concentration: "", regeneration: "", legendaires: null,
+      mouvementMax: MOUVEMENT_IMPMAL[allure] ?? null, allure: libAllure ? game.i18n.localize(libAllure) : allure
+    };
+  },
+  attaques(acteur) {
+    const sortie = [];
+    const cibleComp = cle => Number(acteur?.system?.skills?.[cle]?.total ?? 0);
+    for (const item of acteur?.items ?? []) {
+      const sy = item.system ?? {};
+      if (item.type === "weapon") {
+        if (sy.isEquipped === false || sy.equipped?.value === false) continue;
+        const comp = sy.getSkill?.(acteur);
+        const cible = comp && typeof comp === "object" ? Number(comp.system?.total ?? 0) : cibleComp(typeof comp === "string" ? comp : sy.attackType);
+        sortie.push(attaqueImpmal(item, { melee: sy.attackType === "melee", bande: sy.range, degats: sy.damage?.value, cible, genre: "arme" }));
+      } else if (item.type === "trait" && sy.attack?.enabled) {
+        sortie.push(attaqueImpmal(item, { melee: sy.attack.type === "melee", bande: sy.attack.range, degats: sy.attack.damage?.value,
+          cible: Number(sy.attack.target ?? 0), genre: "trait" }));
+      } else if (item.type === "power" && Number(sy.damage?.value) > 0) {
+        sortie.push(attaqueImpmal(item, { melee: sy.range === "immediate", bande: sy.range, degats: sy.damage.value, cible: cibleComp("psychic"), genre: "pouvoir" }));
+      }
+    }
+    return sortie;
+  },
+  // Le vrai test du système, avec sa fenêtre ; la cible désignée (touche T) reçoit le test opposé.
+  async lancer(acteur, attaque) {
+    if (attaque.genre === "trait") return acteur.setupTraitTest(attaque.id);
+    if (attaque.genre === "pouvoir") return acteur.setupPowerTest(attaque.id);
+    return acteur.setupWeaponTest(attaque.id);
+  },
+  // Pas de jet pour toucher séparé : le test d'arme est l'attaque (fenêtre rouverte si le MJ l'avait fermée).
+  async toucher(acteur, attaque) { return TOUR_IMPMAL.lancer(acteur, attaque); },
+  // Résolution directe, sans fenêtre (PNJ accepté d'un clic, compagnon IA) : test d'attaque au d100 contre la valeur de la
+  // fiche, test opposé du défenseur (mêlée : le meilleur de Mêlée et Réflexes ; distance : Réflexes), règle du système pour
+  // le vainqueur. Dégâts : ceux de l'arme + DR de l'opposition (l'armure est retirée à l'application, par le système).
+  async resoudre(acteur, attaque, cible) {
+    const jetA = await new Roll("1d100").evaluate();
+    const a = testD100(attaque.cible, jetA.total);
+    await posterJet(jetA, acteur, `${attaque.nom} : ${jetA.total} pour ${attaque.cible} — ${a.reussite ? "réussite" : "échec"} (${signe(a.dr)} DR)`);
+    const sd = cible?.system?.skills ?? {};
+    const defense = attaque.type === "melee" ? Math.max(Number(sd.melee?.total ?? 0), Number(sd.reflexes?.total ?? 0)) : Number(sd.reflexes?.total ?? 0);
+    const jetD = await new Roll("1d100").evaluate();
+    const d = testD100(defense, jetD.total);
+    await posterJet(jetD, cible, `Défense contre ${attaque.nom} : ${jetD.total} pour ${defense} — ${d.reussite ? "réussite" : "échec"} (${signe(d.dr)} DR)`);
+    const touche = gagneOpposition(a, d, attaque.cible, defense);
+    const degats = touche ? Math.max(0, Number(attaque.degatsBase ?? 0) + Math.max(0, a.dr - d.dr)) : 0;
+    return { touche, degats, texte: `${acteur.name} ${touche ? `touche ${cible?.name ?? "?"} (${degats} dégâts avant armure)` : `manque ${cible?.name ?? "?"}`}.` };
+  },
+  // Dégâts d'Imperium Maledictum : ils viennent du test opposé (pas de jet séparé).
+  async degats() { return null; },
+  // Méthode du système : localisation tirée, armure retirée, blessures et critiques, carte au chat.
+  async appliquer(acteur, n) { return acteur.applyDamage(n, { location: "roll", message: true }); },
+  async jetMort() { return null; },
+  async sauvegarde(acteur, o = {}) { return acteur.setupCharacteristicTest(o.carac || "tgh"); },
+  lancerInitiative: combat => combat.rollAll(),
+  // Test opposé d'une attaque (messages « opposed » du système) : appliquer ses dégâts, ou répondre pour le défenseur.
+  async appliquerOpposition(message) { return message?.system?.applyDamage?.(); },
+  async defendre(message, type = "dodge") { return message?.system?.performResponse?.(type); },
+  // Action de combat choisie sur la fiche (system.combat.action : viser, charger, courir…) : elle occupe l'action du tour.
+  actionChoisie: changements => Boolean(changements?.system?.combat?.action),
+  lireMessage(message) {
+    if (message?.type === "test") {
+      const test = message.system?.test;
+      const item = test?.item;
+      const genre = ["weapon", "trait", "power"].includes(item?.type) ? "attaque" : "test";
+      return { genre, activation: item ? "action" : null, attaqueId: item?.id ?? null, nom: item?.name ?? "", phase: genre === "attaque" ? "defense" : null };
+    }
+    if (message?.type === "opposed") {
+      const s = message.system ?? {};
+      const r = s.result ?? {};
+      const applique = s.applied && Object.keys(s.applied).length > 0;
+      const repondu = Boolean(s.defenderMessageId || s.unopposed);
+      let phase = "defense";
+      if (applique) phase = "fini";
+      else if (repondu) phase = r.winner === "attacker" && Number(r.damage) > 0 ? "appliquer" : r.winner ? "fini" : "defense";
+      return { genre: "opposition", phase, degats: Number(r.damage ?? 0), cibleUuid: s.targetTokenUuid ?? "", messageId: message.id,
+        auteur: s.attackerMessageId ? game.messages?.get?.(s.attackerMessageId)?.speaker ?? null : null };
+    }
+    return null;
+  }
+};
+
+// D&D 5e : activités des objets (attaque, sauvegarde, dégâts), jets du système, application des dégâts, jets contre la mort.
+const metresDe = (valeur, unites) => (Number(valeur) > 0 ? versMetres(valeur, unites || "ft") : null);
+function activiteDe(acteur, attaque) {
+  const item = acteur?.items?.get?.(attaque.itemId) ?? [...(acteur?.items ?? [])].find(i => i.id === attaque.itemId);
+  const activites = item?.system?.activities;
+  return activites?.get?.(attaque.activiteId) ?? [...(activites ?? [])].find(a => a.id === attaque.activiteId) ?? null;
+}
+
+const TOUR_DND5E = {
+  economie: [{ cle: "action", libelle: "Action", n: 1 }, { cle: "bonus", libelle: "Action bonus", n: 1 }, { cle: "reaction", libelle: "Réaction", n: 1 }],
+  ressourceDe: activation => ({ action: "action", bonus: "bonus", reaction: "reaction" }[activation] ?? null),
+  defenseLibelle: "CA",
+  // Jet pour toucher contre la CA, puis jet de dégâts : pas de test opposé.
+  testOppose: false,
+  async appliquerOpposition() { return null; },
+  async defendre() { return null; },
+  combattant(acteur) {
+    const a = acteur?.system?.attributes ?? {};
+    const hp = a.hp ?? {};
+    const etats = etatsDe(acteur);
+    const personnage = acteur?.type === "character";
+    const mortSauv = a.death ?? {};
+    const zero = Number(hp.value ?? 1) <= 0;
+    const mort = etats.includes("dead") || (personnage && Number(mortSauv.failure ?? 0) >= 3) || (!personnage && zero);
+    const stable = personnage && Number(mortSauv.success ?? 0) >= 3;
+    const legact = acteur?.system?.resources?.legact;
+    const concentration = [...(acteur?.concentration?.items ?? [])].map(i => i.name).join(", ")
+      || ([...(acteur?.concentration?.effects ?? [])].length ? "un effet" : "");
+    const regen = [...(acteur?.items ?? [])].find(i => /r[ée]g[ée]n[ée]ration|regeneration/i.test(i.name ?? ""));
+    const mv = a.movement ?? {};
+    return {
+      pv: Number(hp.value ?? 0), pvMax: Number(hp.max ?? 0),
+      pvTexte: `PV ${Number(hp.value ?? 0)}/${Number(hp.max ?? 0)}${Number(hp.temp) ? ` (+${hp.temp})` : ""}`,
+      defense: `CA ${a.ac?.value ?? "?"}`, ca: Number(a.ac?.value ?? 0),
+      aTerre: zero || mort || etats.includes("unconscious"), mort,
+      jetsMort: personnage && zero && !mort && !stable ? { succes: Number(mortSauv.success ?? 0), echecs: Number(mortSauv.failure ?? 0) } : null,
+      conditions: etats.filter(e => !["dead", "concentrating"].includes(e)).map(nomCondition), effets: effetsADuree(acteur),
+      concentration, regeneration: regen ? regen.name : "",
+      legendaires: Number(legact?.max) > 0 ? { reste: Number(legact.value ?? 0), max: Number(legact.max) } : null,
+      mouvementMax: metresDe(mv.speeds?.walk ?? mv.walk ?? mv.speed, mv.units), allure: ""
+    };
+  },
+  attaques(acteur) {
+    const sortie = [];
+    const personnage = acteur?.type === "character";
+    for (const item of acteur?.items ?? []) {
+      const sy = item.system ?? {};
+      if (personnage && item.type === "weapon" && sy.equipped === false) continue;
+      if (item.type === "spell" && Number(sy.level ?? 0) > 0 && !Number(sy.prepared ?? 1) && sy.method !== "innate" && sy.method !== "atwill") continue;
+      for (const act of sy.activities ?? []) {
+        if (!["attack", "save", "damage"].includes(act.type)) continue;
+        const r = act.range ?? {};
+        const unites = r.units || sy.range?.units || "ft";
+        const typeAttaque = act.attack?.type?.value ?? (act.validAttackTypes?.has?.("melee") ? "melee" : "");
+        const contact = r.units === "touch" || typeAttaque === "melee" || (item.type === "weapon" && !Number(r.long) && Number(sy.range?.reach || 0) > 0);
+        const allonge = contact ? metresDe(sy.range?.reach || (r.units === "touch" ? 5 : r.reach || 5), sy.range?.units || "ft") : null;
+        const formule = act.labels?.damage?.[0]?.formula ?? act.labels?.damages?.[0]?.formula ?? act.damage?.parts?.[0]?.formula ?? "";
+        const sauv = act.save;
+        sortie.push({
+          id: `${item.id}.${act.id}`, itemId: item.id, activiteId: act.id, nom: item.name === act.name || !act.name ? item.name : `${item.name} (${act.name})`,
+          img: item.img, genre: act.type, type: contact ? "melee" : "distance", allonge,
+          portee: contact ? null : { normale: metresDe(r.value, unites) ?? 1.5, longue: metresDe(r.long, unites) },
+          moyenne: moyenneFormule(formule), degats: formule,
+          bonus: act.type === "attack" ? act.labels?.toHit ?? "" : sauv ? `DD ${sauv.dc?.value ?? "?"} ${[...(sauv.ability ?? [])].join("/")}` : "",
+          sauvegarde: act.type === "save" ? { carac: [...(sauv?.ability ?? [])][0] ?? "dex", dd: Number(sauv?.dc?.value ?? 10), moitie: act.damage?.onSave === "half" } : null,
+          activation: act.activation?.type ?? "action"
+        });
+      }
+    }
+    return sortie;
+  },
+  // Le vrai flux du système : l'activité s'utilise (fenêtre, consommation, carte au chat avec ses boutons de jets).
+  async lancer(acteur, attaque) {
+    const act = activiteDe(acteur, attaque);
+    if (!act) throw new Error(`Activité introuvable : ${attaque.nom}.`);
+    return act.use();
+  },
+  // Le jet pour toucher du système (fenêtre d'attaque), après la carte d'utilisation.
+  async toucher(acteur, attaque) { return activiteDe(acteur, attaque)?.rollAttack?.(); },
+  // Résolution directe (PNJ accepté, compagnon) : jet d'attaque du système sans fenêtre contre la CA de la cible, puis jet de
+  // dégâts (critique compris) ; une activité de sauvegarde : la cible sauvegarde, dégâts pleins, moitié ou rien.
+  async resoudre(acteur, attaque, cible) {
+    const act = activiteDe(acteur, attaque);
+    if (!act) throw new Error(`Activité introuvable : ${attaque.nom}.`);
+    const sansFenetre = { configure: false };
+    if (act.type === "save" && cible) {
+      const s = attaque.sauvegarde ?? { carac: "dex", dd: 10, moitie: true };
+      const jets = await cible.rollSavingThrow({ ability: s.carac, target: s.dd }, sansFenetre);
+      const reussie = Number((Array.isArray(jets) ? jets[0] : jets)?.total ?? 0) >= s.dd;
+      const brut = totalDesJets(await act.rollDamage({}, sansFenetre));
+      const degats = reussie ? (s.moitie ? Math.floor(brut / 2) : 0) : brut;
+      return { touche: degats > 0, degats, texte: `${cible.name} ${reussie ? "réussit" : "rate"} sa sauvegarde (DD ${s.dd}) : ${degats} dégâts.` };
+    }
+    let critique = false, touche = true;
+    if (act.type === "attack") {
+      const jets = await act.rollAttack({}, sansFenetre);
+      const jet = Array.isArray(jets) ? jets[0] : jets;
+      if (!jet) throw new Error("Le jet d'attaque n'a pas eu lieu.");
+      const ca = Number(cible?.system?.attributes?.ac?.value ?? 10);
+      critique = Boolean(jet.isCritical);
+      touche = critique || (!jet.isFumble && Number(jet.total) >= ca);
+      if (!touche) return { touche: false, degats: 0, texte: `${acteur.name} manque ${cible?.name ?? "?"} (${jet.total} contre CA ${ca}).` };
+    }
+    const degats = totalDesJets(await act.rollDamage({ isCritical: critique }, sansFenetre));
+    return { touche: true, degats, critique, texte: `${acteur.name} touche ${cible?.name ?? "?"}${critique ? " (critique)" : ""} : ${degats} dégâts.` };
+  },
+  // Le jet de dégâts du système pour l'attaque en cours (bouton du panneau, quand le MJ joue un PNJ à la main).
+  async degats(acteur, attaque, { critique = false } = {}) {
+    const act = activiteDe(acteur, attaque);
+    return act?.rollDamage?.({ isCritical: critique });
+  },
+  // Méthode du système (actor.applyDamage) : PV temporaires d'abord, puis PV ; à 0, le système gère l'état.
+  async appliquer(acteur, n) { return acteur.applyDamage(n); },
+  async jetMort(acteur, { direct = false } = {}) { return acteur.rollDeathSave({}, direct ? { configure: false } : {}); },
+  async sauvegarde(acteur, o = {}) {
+    if (o.concentration) return acteur.rollConcentration({ target: o.dd ?? 10 });
+    return acteur.rollSavingThrow({ ability: o.carac || "con", target: o.dd ?? 10 });
+  },
+  lancerInitiative: combat => combat.rollAll(),
+  actionChoisie: () => false,
+  // Messages du système (ChatMessage5e, type) : carte d'utilisation (activité et son activation), jet d'attaque (touché
+  // contre la CA de la cible désignée), jet de dégâts.
+  lireMessage(message) {
+    const s = message?.system ?? {};
+    if (message?.type === "attack") {
+      const jet = message.rolls?.[0];
+      const ca = s.targets?.[0]?.ac;
+      const critique = Boolean(jet?.isCritical);
+      const touche = Number.isFinite(Number(ca)) && ca !== null && ca !== undefined ? critique || Number(jet?.total) >= Number(ca) : null;
+      return { genre: "attaque", total: Number(jet?.total ?? 0), touche, critique, phase: touche === false ? "fini" : "degats",
+        cibleUuid: s.targets?.[0]?.uuid ?? "" };
+    }
+    if (message?.type === "damage") return { genre: "degats", degats: totalDesJets(message.rolls), phase: "appliquer", cibleUuid: s.targets?.[0]?.uuid ?? "" };
+    const uuid = s.activity?.uuid ?? message?.flags?.dnd5e?.activity?.uuid;
+    if (uuid) {
+      let act = null;
+      try { act = globalThis.fromUuidSync?.(uuid) ?? null; } catch { act = null; }
+      const type = act?.type ?? s.activity?.type ?? "";
+      return { genre: "usage", activation: act?.activation?.type ?? "action", attaqueId: act ? `${act.item?.id}.${act.id}` : null,
+        nom: act?.item?.name ?? s.item?.name ?? "", phase: type === "attack" ? "toucher" : ["save", "damage"].includes(type) ? "degats" : null };
+    }
+    return null;
+  }
+};
+
 const ADAPTATEURS = { impmal, dnd5e, "lakour-loups": loups };
 
 export function adaptateur() {
   return ADAPTATEURS[game.system.id] ?? generique;
 }
+
+// L'adaptateur d'un système donné (essais, parité).
+export const adaptateurDe = id => ADAPTATEURS[id] ?? generique;

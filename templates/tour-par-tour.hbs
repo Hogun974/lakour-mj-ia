@@ -1,0 +1,152 @@
+<section class="lakour-mjia-tour-corps">
+  {{#unless disponible}}
+  <p class="hint">{{localize "LAKOUR_MJIA.Tour.Indisponible"}}</p>
+  {{else}}
+
+  {{#if etape}}
+  <div class="lakour-mjia-etape-ligne {{#if etape.attente}}attente{{/if}}" aria-live="polite">
+    <i class="fa-solid {{#if etape.attente}}fa-hourglass-half{{else}}fa-shoe-prints{{/if}}"></i>
+    <span class="lakour-mjia-etiquette">{{localize "LAKOUR_MJIA.Tour.Prochaine"}}</span>
+    <strong>{{etape.texte}}</strong>{{#if etape.detail}} <small>{{etape.detail}}</small>{{/if}}
+  </div>
+  {{/if}}
+
+  {{#if preparation}}
+  <fieldset class="lakour-mjia-tour-preparer">
+    <legend><i class="fa-solid fa-users"></i> {{localize "LAKOUR_MJIA.Tour.Preparer"}}</legend>
+    {{#if preparation.candidats.length}}
+    <ul class="lakour-mjia-tour-liste">
+      {{#each preparation.candidats}}
+      <li class="camp-{{camp}}">
+        <label><input type="checkbox" name="candidat" value="{{id}}" {{#if coche}}checked{{/if}}>
+          <img src="{{img}}" alt=""> <span>{{nom}}</span> <small>{{campLibelle}}{{#if cache}} · {{localize "LAKOUR_MJIA.Tour.Cache"}}{{/if}}</small></label>
+      </li>
+      {{/each}}
+    </ul>
+    {{else}}
+    <p class="hint">{{localize "LAKOUR_MJIA.Tour.AucunCandidat"}}</p>
+    {{/if}}
+    {{#if preparation.combattants.length}}
+    <p class="lakour-mjia-tour-deja"><strong>{{localize "LAKOUR_MJIA.Tour.AuCombat"}}</strong> :
+      {{#each preparation.combattants}}<span class="camp-{{camp}}">{{nom}}{{#if initiative}} [{{initiative}}]{{/if}}</span>{{#unless @last}}, {{/unless}}{{/each}}</p>
+    {{/if}}
+    <div class="lakour-mjia-boutons">
+      <button type="button" data-action="ajouter"><i class="fa-solid fa-user-plus"></i> {{localize "LAKOUR_MJIA.Tour.Ajouter"}}</button>
+      <button type="button" data-action="initiative"><i class="fa-solid fa-dice-d20"></i> {{localize "LAKOUR_MJIA.Tour.Initiative"}}</button>
+      <button type="button" data-action="commencer"><i class="fa-solid fa-play"></i> {{localize "LAKOUR_MJIA.Tour.Commencer"}}</button>
+    </div>
+  </fieldset>
+  {{/if}}
+
+  {{#if combat}}
+  <ol class="lakour-mjia-tour-ordre">
+    {{#each combat.ordre}}
+    <li class="camp-{{camp}} {{#if actif}}actif{{/if}} {{#if aTerre}}a-terre{{/if}}" data-tooltip="{{campLibelle}} · {{pvTexte}}">
+      <img src="{{img}}" alt=""><span>{{nom}}</span>
+    </li>
+    {{/each}}
+  </ol>
+  <h3 class="lakour-mjia-tour-round">{{localize "LAKOUR_MJIA.Tour.Round" n=combat.round}}</h3>
+
+  {{#with combat.actif}}
+  <div class="lakour-mjia-tour-actif camp-{{camp}}">
+    <img src="{{img}}" alt="">
+    <div>
+      <p class="lakour-mjia-tour-nom"><strong>{{nom}}</strong> <small>{{campLibelle}}</small>{{#if etat}} <span class="lakour-mjia-tour-etat">{{etat}}</span>{{/if}}</p>
+      <p>{{pvTexte}} · {{defense}}{{#if allure}} · {{localize "LAKOUR_MJIA.Tour.Allure"}} {{allure}}{{/if}}</p>
+      {{#if pvPct includeZero=true}}<div class="lakour-mjia-tour-pv"><span style="width: {{pvPct}}%"></span></div>{{/if}}
+      {{#if conditions.length}}<p class="lakour-mjia-tour-conditions">{{#each conditions}}<span>{{this}}</span>{{/each}}</p>{{/if}}
+    </div>
+  </div>
+  {{/with}}
+
+  {{#if combat.restantes}}
+  <ul class="lakour-mjia-tour-restantes">
+    {{#each combat.restantes.lignes}}<li class="{{#unless reste}}pris{{/unless}}">{{libelle}} <strong>{{reste}}/{{max}}</strong></li>{{/each}}
+    {{#if combat.restantes.mouvement}}<li class="{{#unless combat.restantes.mouvement.reste}}pris{{/unless}}">{{localize "LAKOUR_MJIA.Tour.Mouvement"}} <strong>{{combat.restantes.mouvement.texte}}</strong></li>{{/if}}
+  </ul>
+  {{/if}}
+
+  {{#if combat.obligations.length}}
+  <ul class="lakour-mjia-tour-rappels obligations">
+    {{#each combat.obligations}}<li><i class="fa-solid fa-bell"></i> {{texte}}</li>{{/each}}
+  </ul>
+  <div class="lakour-mjia-boutons"><button type="button" data-action="obligation"><i class="fa-solid fa-check"></i> {{localize "LAKOUR_MJIA.Tour.Faire"}}</button></div>
+  {{/if}}
+  {{#if combat.rappels.length}}
+  <ul class="lakour-mjia-tour-rappels">{{#each combat.rappels}}<li><i class="fa-solid fa-circle-info"></i> {{texte}}</li>{{/each}}</ul>
+  {{/if}}
+
+  {{#if combat.proposition}}
+  <div class="lakour-mjia-tour-proposition">
+    <p><i class="fa-solid fa-lightbulb"></i> <strong>{{localize "LAKOUR_MJIA.Tour.Propose"}}</strong> {{combat.proposition.texte}}</p>
+    {{#if combat.iaJoue}}<p class="hint">{{localize "LAKOUR_MJIA.Tour.IAJoue"}}</p>{{/if}}
+    <button type="button" data-action="proposition"><i class="fa-solid fa-check"></i> {{localize "LAKOUR_MJIA.Tour.Accepter"}}</button>
+  </div>
+  {{/if}}
+
+  {{#if combat.cibles.length}}
+  <h4>{{localize "LAKOUR_MJIA.Tour.Cibles"}}</h4>
+  <ul class="lakour-mjia-tour-cibles">
+    {{#each combat.cibles}}
+    <li class="camp-{{camp}} {{#if aTerre}}a-terre{{/if}} {{#if choisie}}choisie{{/if}}">
+      <button type="button" data-action="cible" data-jeton="{{jetonId}}">
+        <img src="{{img}}" alt=""><span>{{nom}}</span>
+        <small>{{distanceTexte}} · {{defense}} · {{pvTexte}}</small>
+        <em class="portee-{{portee}}">{{localize (concat "LAKOUR_MJIA.Tour.Portee." portee)}}</em>
+      </button>
+    </li>
+    {{/each}}
+  </ul>
+  {{/if}}
+
+  {{#if combat.attaques.length}}
+  <h4>{{localize "LAKOUR_MJIA.Tour.Attaques"}}</h4>
+  <div class="lakour-mjia-tour-attaques">
+    {{#each combat.attaques}}
+    <button type="button" data-action="attaquer" data-attaque="{{id}}" data-tooltip="{{degats}}">
+      <img src="{{img}}" alt=""><span>{{nom}}</span><small>{{bonus}} · {{porteeTexte}}</small>
+    </button>
+    {{/each}}
+  </div>
+  {{/if}}
+
+  <div class="lakour-mjia-boutons lakour-mjia-tour-gestes">
+    {{#if combat.gestes.toucher}}<button type="button" data-action="toucher"><i class="fa-solid fa-crosshairs"></i> {{localize "LAKOUR_MJIA.Tour.Toucher"}}</button>{{/if}}
+    {{#if combat.gestes.degats}}<button type="button" data-action="degats"><i class="fa-solid fa-burst"></i> {{localize "LAKOUR_MJIA.Tour.Degats"}}</button>{{/if}}
+    {{#if combat.gestes.defense}}
+    <button type="button" data-action="defense" data-type="dodge"><i class="fa-solid fa-person-running"></i> {{localize "LAKOUR_MJIA.Tour.Esquive"}}</button>
+    <button type="button" data-action="defense" data-type="unopposed"><i class="fa-solid fa-ban"></i> {{localize "LAKOUR_MJIA.Tour.SansOpposition"}}</button>
+    {{/if}}
+    {{#if combat.gestes.appliquer}}<button type="button" data-action="appliquer"><i class="fa-solid fa-heart-crack"></i> {{localize "LAKOUR_MJIA.Tour.Appliquer"}}{{#if combat.attaque.degats}} ({{combat.attaque.degats}}){{/if}}</button>{{/if}}
+    {{#if combat.gestes.jetMort}}<button type="button" data-action="jetMort"><i class="fa-solid fa-skull"></i> {{localize "LAKOUR_MJIA.Tour.JetMort"}}</button>{{/if}}
+    {{#if combat.gestes.compagnon}}<button type="button" data-action="compagnon"><i class="fa-solid fa-robot"></i> {{localize "LAKOUR_MJIA.Tour.Compagnon"}}</button>{{/if}}
+    <button type="button" data-action="suivant"><i class="fa-solid fa-forward-step"></i> {{localize "LAKOUR_MJIA.Tour.Suivant"}}</button>
+    <button type="button" data-action="finCombat"><i class="fa-solid fa-flag-checkered"></i> {{localize "LAKOUR_MJIA.Tour.FinCombat"}}</button>
+  </div>
+  {{/if}}
+
+  <fieldset class="lakour-mjia-tour-table">
+    <legend><i class="fa-solid fa-comments"></i> {{localize "LAKOUR_MJIA.Tour.Table.Titre"}}</legend>
+    {{#if table}}
+    <div class="lakour-mjia-etape-ligne {{#if table.etape.attente}}attente{{/if}}">
+      <i class="fa-solid {{#if table.etape.attente}}fa-hourglass-half{{else}}fa-shoe-prints{{/if}}"></i>
+      <strong>{{table.etape.texte}}</strong>
+    </div>
+    <ol class="lakour-mjia-tour-parole">
+      {{#each table.ordre}}<li class="{{#if courant}}courant{{/if}} {{fait}}">{{nom}}{{#if compagnon}} <small>IA</small>{{/if}}</li>{{/each}}
+    </ol>
+    <div class="lakour-mjia-boutons">
+      <button type="button" data-action="tableParle"><i class="fa-solid fa-check"></i> {{localize "LAKOUR_MJIA.Tour.Table.AParle"}}</button>
+      <button type="button" data-action="tablePasse"><i class="fa-solid fa-forward"></i> {{localize "LAKOUR_MJIA.Tour.Table.Passe"}}</button>
+      <button type="button" data-action="tableCompagnon"><i class="fa-solid fa-robot"></i> {{localize "LAKOUR_MJIA.Tour.Table.FaireParler"}}</button>
+      <button type="button" data-action="tableNouveau"><i class="fa-solid fa-rotate"></i> {{localize "LAKOUR_MJIA.Tour.Table.Nouveau"}}</button>
+      <button type="button" data-action="tableArreter"><i class="fa-solid fa-stop"></i> {{localize "LAKOUR_MJIA.Tour.Table.Arreter"}}</button>
+    </div>
+    {{else}}
+    <p class="hint">{{localize "LAKOUR_MJIA.Tour.Table.Aide"}}</p>
+    <div class="lakour-mjia-boutons"><button type="button" data-action="tableCommencer"><i class="fa-solid fa-comments"></i> {{localize "LAKOUR_MJIA.Tour.Table.Commencer"}}</button></div>
+    {{/if}}
+  </fieldset>
+  {{/unless}}
+</section>

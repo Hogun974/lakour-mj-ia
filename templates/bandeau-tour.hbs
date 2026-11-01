@@ -1,0 +1,31 @@
+<div class="lakour-mjia-bt-corps {{#if aMoi}}a-toi{{/if}}">
+  {{#if combat}}
+  <span class="lakour-mjia-bt-titre">⚔️ {{localize "LAKOUR_MJIA.Tour.Round" n=round}} —
+    {{#if aMoi}}<strong>{{localize "LAKOUR_MJIA.Tour.Bandeau.AToi"}}</strong>
+    {{else if puisMoi}}{{localize "LAKOUR_MJIA.Tour.Bandeau.PuisToi" nom=actif}}
+    {{else}}{{localize "LAKOUR_MJIA.Tour.Bandeau.AuTourDe" nom=actif}}{{/if}}
+  </span>
+  {{#if aMoi}}
+  <span class="lakour-mjia-bt-restantes">
+    {{#each restantes.lignes}}<span class="{{#unless reste}}pris{{/unless}}">{{libelle}} {{reste}}/{{max}}</span>{{/each}}
+    {{#if mouvement}}<span>{{localize "LAKOUR_MJIA.Tour.Mouvement"}} {{mouvement}}</span>{{/if}}
+  </span>
+  <span class="lakour-mjia-bt-attaques">
+    {{#each attaques}}<button type="button" data-action="bandeauAttaque" data-attaque="{{id}}" data-tooltip="{{bonus}}"><img src="{{img}}" alt=""> {{nom}}</button>{{/each}}
+    <button type="button" data-action="bandeauFin"><i class="fa-solid fa-forward-step"></i> {{localize "LAKOUR_MJIA.Tour.Bandeau.Fin"}}</button>
+  </span>
+  {{/if}}
+  {{else if table}}
+  <span class="lakour-mjia-bt-titre">💬 {{localize "LAKOUR_MJIA.Tour.Table.Titre"}} —
+    {{#if fini}}{{localize "LAKOUR_MJIA.Tour.Bandeau.TableFinie"}}
+    {{else if aMoi}}<strong>{{localize "LAKOUR_MJIA.Tour.Bandeau.ADecrire"}}</strong>
+    {{else}}{{localize "LAKOUR_MJIA.Tour.Bandeau.Parole" nom=orateur}}{{/if}}
+  </span>
+  {{#if aMoi}}
+  <span class="lakour-mjia-bt-attaques">
+    <button type="button" data-action="bandeauParle"><i class="fa-solid fa-check"></i> {{localize "LAKOUR_MJIA.Tour.Bandeau.Fini"}}</button>
+    <button type="button" data-action="bandeauPasse"><i class="fa-solid fa-forward"></i> {{localize "LAKOUR_MJIA.Tour.Bandeau.Passe"}}</button>
+  </span>
+  {{/if}}
+  {{/if}}
+</div>

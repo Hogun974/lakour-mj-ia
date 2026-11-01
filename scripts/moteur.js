@@ -292,6 +292,9 @@ export class MoteurMJ {
 
   async vider() {
     if (this.enCours || !this.attente.length) return;
+    // Tour de table en cours (tour-par-tour.js) : le MJ IA attend que chacun ait parlé (ou passé) avant de raconter ; la fin
+    // du tour de table lui est signalée et relance la file.
+    if (this.tourParTour?.retientIA?.()) return;
     const lot = this.attente.splice(0);
     const textes = lot.map(e => e.texte);
     // Compté jusqu'à la fin des réactions des compagnons : le pilote automatique attend que tout soit retombé.
@@ -306,9 +309,10 @@ export class MoteurMJ {
 
   // Après la réponse du MJ, les compagnons présents peuvent réagir (au plus le bavardage réglé, une réplique chacun) ;
   // leurs répliques entrent ensuite dans la file comme des messages de joueurs. Jamais quand le lot ne contenait que des
-  // répliques de compagnons (pas de boucle entre compagnons sans message humain), ni en plein combat (ils agissent à leur tour).
+  // répliques de compagnons (pas de boucle entre compagnons sans message humain), ni en plein combat (ils agissent à leur tour),
+  // ni pendant un tour de table (ils parlent quand vient leur tour de parole).
   async faireReagirCompagnons(lot) {
-    if (!this.actif || !peuventReagir(lot) || game.combats?.active?.started) return [];
+    if (!this.actif || !peuventReagir(lot) || game.combats?.active?.started || this.tourParTour?.tableActive?.()) return [];
     try {
       return await this.compagnons.reagir({ mentions: lot.map(e => e.texte).join("\n") });
     } catch (erreur) {
