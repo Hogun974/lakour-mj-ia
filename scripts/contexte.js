@@ -74,6 +74,9 @@ export async function promptSysteme(personnalite, { mission } = {}) {
     "- Pour les PNJ et les événements aléatoires, utilise lancer_des.",
     "- Avant d'inventer une règle, un profil de PNJ, un objet ou un lieu officiel, cherche dans les compendiums (chercher_compendium puis lire_document) : les livres sont là.",
     "- Note les faits importants dans la mémoire de campagne (noter_memoire) : PNJ rencontrés, indices, décisions, fils ouverts.",
+    "- Aides de jeu : quand les personnages reçoivent une lettre, un contrat, une affiche ou une partition, montre-la (montrer_aide), "
+      + "page par page au moment où le journal du MJ le dit. Les tables du module (rumeurs, rencontres, visages, complications…) "
+      + "se tirent avec lancer_table quand l'inspiration manque.",
     "- Cartes : pour jouer un lieu sur carte, utilise amener_joueurs (active la scène, pose les jetons des personnages avec leur vision, lève la pause). "
       + "Pour un autre lieu, prends une carte prête qui convient (liste ci-dessous) ; s'il n'y en a pas, crée la carte avec creer_scene. "
       + "Les aventures prêtes (ex. « Le Chœur creux ») ont leurs journaux et leurs scènes dans les compendiums.",

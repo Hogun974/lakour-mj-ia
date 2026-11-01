@@ -261,6 +261,28 @@ export const OUTILS = [
     }
   },
   {
+    nom: "montrer_aide",
+    description: "Montre aux joueurs une aide de jeu, comme le MJ qui la pose sur la table : un journal visible des joueurs (lettre, "
+      + "contrat, affiche, partition…) ou une page précise (les aides découpées se montrent page par page, au bon moment du récit, "
+      + "d'après le journal du MJ). Jamais un journal réservé au MJ : il est refusé. Ou une image, par son chemin.",
+    schema: objet({
+      uuid: chaine("uuid du journal ou de la page (lien @UUID du journal du MJ, ou chercher_compendium). Vide pour une image."),
+      image: chaine("Chemin d'une image à montrer (illustration, portrait). Vide pour un journal.")
+    }),
+    sensible: false,
+    async executer({ uuid, image }) {
+      const { Journal } = foundry.documents.collections;
+      if (!uuid && image) {
+        Journal.showImage(image, {});
+        return { contenu: "Image montrée aux joueurs." };
+      }
+      const r = await aideAMontrer(uuid);
+      if (r.erreur) return r;
+      await Journal.show(r.doc, { force: true });
+      return { contenu: `Montré aux joueurs : « ${r.doc.name} »${r.importe ? " (importé du compendium dans le monde)" : ""}.` };
+    }
+  },
+  {
     nom: "modifier_scenario",
     description: "Fait évoluer un scénario EN COURS DE PARTIE (journal du monde : aventure, campagne, notes du MJ), selon ta liberté avec le scénario "
       + "(voir ta personnalité) : ajouter une page (nouvelle scène, PNJ, rebondissement, intrigue secondaire), réécrire une page (la version "
@@ -1616,6 +1638,34 @@ OUTILS.push({
     return { contenu: `Scène « ${plan.nom} » créée (${doc.uuid}) : ${scene.walls.length} murs, ${scene.walls.filter(w => w.door).length} portes, ${scene.lights.length} lumières, ${scene.sounds?.length ?? 0} sons, ${scene.regions?.length ?? 0} zones.${plan.activer ? " Les joueurs y sont." : ""}${note} Coordonnées en cases pour placer_jetons.` };
   }
 });
+
+// L'aide de jeu à montrer (montrer_aide) : un journal ou une page que les joueurs ont le droit de lire. Venue d'un compendium,
+// on montre sa copie du monde (installée par le module de contenu), ou on l'importe. -> { doc, importe } | { erreur, contenu }.
+const VISIBLE = () => CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
+const lisibleDesJoueurs = (entree, page) => (page && page.ownership?.default >= 0
+  ? page.ownership.default >= VISIBLE() : (entree.ownership?.default ?? 0) >= VISIBLE());
+export async function aideAMontrer(uuid) {
+  const doc = uuid ? await fromUuid(uuid) : null;
+  if (!doc || !["JournalEntry", "JournalEntryPage"].includes(doc.documentName)) return { erreur: true, contenu: `Aucun journal ni page à cet uuid : ${uuid}.` };
+  const page = doc.documentName === "JournalEntryPage" ? doc : null;
+  const entree = page ? page.parent : doc;
+  if (!lisibleDesJoueurs(entree, page)) {
+    return { erreur: true, contenu: `« ${doc.name} » est réservé au MJ : il ne se montre pas aux joueurs. Raconte-le, ou montre une aide de jeu.` };
+  }
+  if (!entree.pack) return { doc, importe: false };
+  // La copie du monde : même source de compendium, ou même clé de module de contenu.
+  const cle = Object.values(entree.flags ?? {}).find(f => f?.cle)?.cle;
+  let copie = game.journal.find(j => j._stats?.compendiumSource === entree.uuid
+    || (cle && Object.values(j.flags ?? {}).some(f => f?.cle === cle)));
+  let importe = false;
+  if (!copie) {
+    copie = await JournalEntry.implementation.create(game.journal.fromCompendium(entree, { keepId: true, clearOwnership: false }));
+    importe = true;
+  }
+  if (!page) return { doc: copie, importe };
+  const pageCopie = copie.pages.get(page.id) ?? copie.pages.find(p => p.name === page.name);
+  return pageCopie ? { doc: pageCopie, importe } : { erreur: true, contenu: `La page « ${page.name} » manque dans la copie du monde de « ${copie.name} ».` };
+}
 
 // Fond dessiné d'un plan, déposé dans Data/lakour-mj-ia/cartes/<monde>/ ; renvoie son chemin.
 export async function deposerFondDessine(plan, slug, style) {
