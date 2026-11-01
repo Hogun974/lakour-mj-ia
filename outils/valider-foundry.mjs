@@ -29,7 +29,7 @@ for (const m of voisins) {
 }
 const packs = { get: id => PACKS.get(id) ?? (id?.startsWith("dnd5e.") ? { documentName: "Item" } : undefined) };
 globalThis.game = { packs, release: { version: "14.369", generation: 14 }, system: systeme, model: new Proxy({}, { get: () => parType }), documentTypes: new Proxy({}, { get: () => [...types] }) };
-const classes = { Scene: foundry.documents.BaseScene, JournalEntry: foundry.documents.BaseJournalEntry, RollTable: foundry.documents.BaseRollTable,
+const classes = { Adventure: foundry.documents.BaseAdventure, Scene: foundry.documents.BaseScene, JournalEntry: foundry.documents.BaseJournalEntry, RollTable: foundry.documents.BaseRollTable,
   Item: foundry.documents.BaseItem, Actor: foundry.documents.BaseActor };
 const racine = process.argv[2];
 const typePack = JSON.parse(readFileSync(join(racine, "module.json"), "utf8")).packs;
