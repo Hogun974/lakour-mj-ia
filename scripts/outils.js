@@ -15,7 +15,7 @@ import { TEMPERAMENTS, FACONS_DE_PARLER, personnaliteAuHasard } from "./compagno
 import {
   estCompagnon, personnaliteDe, compagnonsDuMonde, compagnonsPresents, trouverCompagnon, noterPrive, oublierPrive, nomsPourCompagnons
 } from "./compagnons-jeu.js";
-import { planVersScene, SOLS, SONS_AMBIANCE, TYPES_ZONE } from "./cartes.js";
+import { planVersScene, zoneVersRegion, idStable, cheminSon, SOLS, SONS_AMBIANCE, TYPES_ZONE } from "./cartes.js";
 import { planVersSVG } from "./cartes-rendu.js";
 import { listeSalles, trouverSalle, salleDeLaCase, centreSalle, casesLibres, casesOccupees, casesInterdites, casesDispersees, casesAutour, reperesDuPlan, trouverRepere, planDe, carteDeScene, TYPES_FIGURANTS, jetonFigurant, moduleDesFigurants } from "./placement.js";
 
@@ -2500,6 +2500,189 @@ OUTILS.push(
       if (r.raison === "delai") return { contenu: `${nom} n'a pas répondu dans les ${secondes} s (« ${q} ») : considère qu'il hésite et n'a rien fait, ou repose la question plus tard.` };
       if (r.raison === "deconnecte") return { contenu: `${nom} s'est déconnecté avant de répondre (« ${q} »).` };
       return { erreur: true, contenu: `${nom} n'est pas connecté : impossible de lui poser ce choix.` };
+    }
+  }
+);
+
+// ---------------------------------------------------------------- La scène se modifie en jouant
+// Zones (Region), épingles (Note) et sons localisés (AmbientSound) ajoutés à la scène affichée, en cases comme placer_jetons,
+// sur le niveau v14 affiché. Les zones sont invisibles des joueurs ; une épingle n'est vue que de qui peut lire son journal.
+
+const nomEgal = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
+const zoneNommee = (scene, nom) => scene.regions.find(r => nomEgal(r.name, nom)) ?? scene.regions.get(nom.trim()) ?? null;
+const dansLaGrille = (g, x, y, l = 1, h = 1) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x + l <= g.largeur && y + h <= g.hauteur;
+const centreDeCase = (g, x, y) => ({ x: Math.round(g.sceneX + (x + 0.5) * g.size), y: Math.round(g.sceneY + (y + 0.5) * g.size) });
+const niveauxDe = scene => { const n = niveauAffiche(scene); return n ? [n] : []; };
+const casesDeBornes = (b, g) => {
+  const x = Math.round((b.x - g.sceneX) / g.size), y = Math.round((b.y - g.sceneY) / g.size);
+  return `cases ${x},${y} (${Math.max(1, Math.round(b.width / g.size))}×${Math.max(1, Math.round(b.height / g.size))})`;
+};
+const LIBELLES_COMPORTEMENT = { displayScrollingText: "texte", teleportToken: "teleport", pauseGame: "pause", adjustDarknessLevel: "obscurite" };
+
+// Le journal du monde d'un journal ou d'une page (une épingle ne vise que le monde) : venu d'un compendium, sa copie (même
+// source, ou même clé de module de contenu), sinon importée avec ses droits. -> { entree, page, importe } | { erreur }.
+async function journalAEpingler(uuid) {
+  const doc = uuid ? await fromUuid(uuid) : null;
+  if (!doc || !["JournalEntry", "JournalEntryPage"].includes(doc.documentName)) return { erreur: `Aucun journal ni page à cet uuid : ${uuid || "(vide)"}.` };
+  let page = doc.documentName === "JournalEntryPage" ? doc : null;
+  let entree = page ? page.parent : doc, importe = false;
+  if (entree.pack) {
+    const cle = Object.values(entree.flags ?? {}).find(f => f?.cle)?.cle;
+    let copie = game.journal.find(j => j._stats?.compendiumSource === entree.uuid || (cle && Object.values(j.flags ?? {}).some(f => f?.cle === cle)));
+    if (!copie) {
+      copie = await JournalEntry.implementation.create(game.journal.fromCompendium(entree, { keepId: true, clearOwnership: false }));
+      importe = true;
+    }
+    if (page) {
+      const nom = page.name;
+      page = copie.pages.get(page.id) ?? copie.pages.find(p => p.name === nom);
+      if (!page) return { erreur: `La page « ${nom} » manque dans la copie du monde de « ${copie.name} ».` };
+    }
+    entree = copie;
+  }
+  return { entree, page, importe };
+}
+
+OUTILS.push(
+  {
+    nom: "lieux_scene",
+    description: "Ce qui est posé sur la carte affichée, invisible ou discret : zones (nom, effet, cases), épingles vers les journaux "
+      + "(case, texte, journal et page avec leur uuid pour lire_document, réservées au MJ ou non) et sons localisés. "
+      + "Regarde-le avant d'ajouter ou de retirer une zone, une épingle ou un son, ou pour savoir quelle page du journal du MJ décrit un lieu.",
+    schema: objet({}),
+    sensible: false,
+    async executer() {
+      const scene = sceneJouee();
+      if (!scene) return { erreur: true, contenu: "Aucune scène affichée." };
+      const g = grilleDe(scene);
+      const zones = scene.regions.contents.map(r => {
+        const effets = r.behaviors.contents.map(b => LIBELLES_COMPORTEMENT[b.type] ?? b.type).join(", ") || "aucun effet";
+        return `- « ${r.name} » (${r.id}) — ${effets}, ${casesDeBornes(r.bounds, g)}`;
+      });
+      const epingles = scene.notes.contents.map(n => {
+        const entree = n.entry, page = n.page;
+        const cible = page ? `page « ${page.name} » de « ${entree.name} » (${page.uuid})` : entree ? `« ${entree.name} » (${entree.uuid})` : "journal introuvable";
+        const secret = entree && !lisibleDesJoueurs(entree, page) ? ", MJ seulement" : "";
+        return `- ${n.id} — case ${caseDe(scene, n.x, n.y)}${n.text ? `, « ${n.text} »` : ""} → ${cible}${secret}`;
+      });
+      const sons = scene.sounds.contents.map(s => `- ${s.id} — ${s.name || s.path}, case ${caseDe(scene, s.x, s.y)}, `
+        + `portée ${Math.round(s.radius / scene.grid.distance)} cases${s.hidden ? ", coupé" : ""}`);
+      const partie = (titre, l) => `${titre} :\n${l.length ? l.join("\n") : "(aucune)"}`;
+      return { contenu: [`« ${scene.name} » :`, partie("Zones", zones), partie("Épingles", epingles), partie("Sons localisés", sons)].join("\n") };
+    }
+  },
+  {
+    nom: "zone_scene",
+    description: "Ajoute ou retire une zone invisible des joueurs sur la carte affichée, en cases (x, y, l, h) : « texte » s'élève "
+      + "au-dessus du jeton qui entre (inscription, odeur, indice) ; « pause » met la partie en pause à l'entrée d'un personnage (piège, "
+      + "révélation : tu reprends la main) ; « obscurite » règle l'obscurité dans la zone ; « teleport » envoie le jeton vers une autre zone "
+      + "de la même scène (escalier, trappe, passage secret : crée d'abord la zone d'arrivée). Le nom d'une zone est unique ; lieux_scene les liste.",
+    schema: objet({
+      action: { type: "string", enum: ["ajouter", "retirer"], description: "ajouter une zone, ou retirer la zone de ce nom." },
+      nom: chaine("Nom de la zone (unique sur la scène ; pour retirer : son nom ou son identifiant)."),
+      ...caseXY,
+      l: entier("Largeur en cases (1 au moins). Pour retirer : 0."),
+      h: entier("Hauteur en cases (1 au moins). Pour retirer : 0."),
+      type: { type: "string", enum: TYPES_ZONE, description: "Effet de la zone (ignoré pour retirer)." },
+      texte: chaine("Pour « texte » : ce qui s'élève au-dessus du jeton qui entre. Sinon vide."),
+      vers: chaine("Pour « teleport » : nom d'une AUTRE zone existante de la scène, l'arrivée. Sinon vide."),
+      obscurite: { type: "number", description: "Pour « obscurite » : 0 (clair) à 1 (noir). Sinon 0." },
+      unique: booleen("Pour « texte » et « pause » : true = une seule fois (conseillé) ; false = à chaque entrée.")
+    }),
+    sensible: true,
+    async executer({ action, nom, x, y, l, h, type, texte, vers, obscurite, unique }) {
+      const scene = sceneJouee();
+      if (!scene) return { erreur: true, contenu: "Aucune scène affichée." };
+      const noms = () => scene.regions.map(r => `« ${r.name} »`).join(", ") || "aucune";
+      if (!nom?.trim()) return { erreur: true, contenu: "Donne un nom à la zone." };
+      nom = nom.trim();
+      if (action === "retirer") {
+        const zone = zoneNommee(scene, nom);
+        if (!zone) return { erreur: true, contenu: `Zone « ${nom} » introuvable (zones : ${noms()}).` };
+        // Une téléportation qui y menait ne mène plus nulle part : à retirer aussi, ou à refaire.
+        const orphelines = scene.regions.filter(r => r.id !== zone.id
+          && r.behaviors.some(b => [...(b.system?.destinations ?? [])].some(d => String(d).endsWith(zone.id))));
+        await scene.deleteEmbeddedDocuments("Region", [zone.id]);
+        return { contenu: `Zone « ${zone.name} » retirée.${orphelines.length
+          ? ` Ces téléportations y menaient et ne mènent plus nulle part : ${orphelines.map(r => `« ${r.name} »`).join(", ")}.` : ""}` };
+      }
+      const g = grilleDe(scene);
+      if (!TYPES_ZONE.includes(type)) return { erreur: true, contenu: `Type de zone « ${type} » inconnu (${TYPES_ZONE.join(", ")}).` };
+      if (!(l >= 1 && h >= 1 && dansLaGrille(g, x, y, l, h))) {
+        return { erreur: true, contenu: `Zone « ${nom} » (${x},${y} ${l}×${h}) hors de la carte (${g.largeur}×${g.hauteur} cases).` };
+      }
+      if (zoneNommee(scene, nom)) return { erreur: true, contenu: `Une zone « ${nom} » existe déjà : choisis un autre nom, ou retire-la d'abord.` };
+      const arrivee = type === "teleport" ? zoneNommee(scene, vers ?? "") : null;
+      if (type === "teleport" && !arrivee) return { erreur: true, contenu: `Zone d'arrivée « ${vers} » inconnue sur cette scène (zones : ${noms()}). Crée-la d'abord.` };
+      // Identifiant libre de la nouvelle région ; la téléportation vise la vraie région d'arrivée (UUID relatif « ..id »).
+      let id, n = scene.regions.size;
+      do id = idStable(`zone:${scene.id}:${nom}:${n++}`); while (scene.regions.has(id));
+      const idZone = z => (z === nom ? id : zoneNommee(scene, z)?.id);
+      const nomsZones = new Set([...scene.regions.map(r => r.name), nom]);
+      const r = zoneVersRegion({ nom, x, y, l, h, type, texte, vers: arrivee?.name, obscurite, unique },
+        { taille: g.size, idZone, nomsZones, niveau: niveauAffiche(scene) });
+      if (r.erreur) return { erreur: true, contenu: `Zone refusée : ${r.erreur}.` };
+      const { region } = r;
+      for (const f of region.shapes) { f.x += g.sceneX; f.y += g.sceneY; }
+      region.flags = { [ID]: { zone: true } };
+      await scene.createEmbeddedDocuments("Region", [region], { keepId: true });
+      const effet = { texte: `texte « ${texte} »`, teleport: `téléportation vers « ${arrivee?.name} »`, pause: "pause de la partie", obscurite: `obscurité ${obscurite}` }[type];
+      const fois = ["texte", "pause"].includes(type) ? (unique === false ? ", à chaque entrée" : ", une seule fois") : "";
+      return { contenu: `Zone « ${nom} » ajoutée (${id}) en ${x},${y} (${l}×${h} cases) : ${effet}${fois}. Invisible des joueurs.` };
+    }
+  },
+  {
+    nom: "epingle",
+    description: "Sur la carte affichée, en cases : épingle un lieu clé vers son journal ou sa page (uuid : lien @UUID du journal du MJ, "
+      + "ou lieux_scene), ou pose un son d'ambiance localisé (feu d'une forge, mer, foule…), ou retire une épingle ou un son par son identifiant "
+      + "(lieux_scene). Une épingle n'est visible que de qui peut lire son journal : celle d'un journal du MJ reste au MJ ; celle d'une aide "
+      + "de jeu se voit des joueurs, texte compris (n'y écris aucun secret).",
+    schema: objet({
+      action: { type: "string", enum: ["epingler", "son", "retirer"], description: "epingler un journal, poser un son, ou retirer (par identifiant)." },
+      uuid: chaine("Pour epingler : uuid du journal ou de la page. Sinon vide."),
+      ...caseXY,
+      texte: chaine("Pour epingler : libellé de l'épingle (vide = nom de la page). Pour son : ce qui sonne (ex. « Forge de Brann »). Sinon vide."),
+      son: { type: "string", enum: ["aucun", ...SONS_AMBIANCE], description: "Pour son : l'ambiance. Sinon « aucun »." },
+      rayon: entier("Pour son : portée en cases. Sinon 0."),
+      volume: { type: "number", description: "Pour son : volume de 0 à 1 (0,3 discret). Sinon 0." },
+      id: chaine("Pour retirer : identifiant de l'épingle ou du son (lieux_scene). Sinon vide.")
+    }),
+    sensible: true,
+    async executer({ action, uuid, x, y, texte, son, rayon, volume, id }) {
+      const scene = sceneJouee();
+      if (!scene) return { erreur: true, contenu: "Aucune scène affichée." };
+      if (action === "retirer") {
+        const type = scene.notes.has(id) ? "Note" : scene.sounds.has(id) ? "AmbientSound" : null;
+        if (!type) return { erreur: true, contenu: `Aucune épingle ni aucun son « ${id} » sur cette carte : appelle lieux_scene pour les identifiants.` };
+        await scene.deleteEmbeddedDocuments(type, [id]);
+        return { contenu: type === "Note" ? `Épingle ${id} retirée.` : `Son ${id} retiré.` };
+      }
+      const g = grilleDe(scene);
+      if (!dansLaGrille(g, x, y)) return { erreur: true, contenu: `Case ${x},${y} hors de la carte (${g.largeur}×${g.hauteur} cases).` };
+      const centre = centreDeCase(g, x, y);
+      if (action === "son") {
+        if (!SONS_AMBIANCE.includes(son)) return { erreur: true, contenu: `Son « ${son} » inconnu (${SONS_AMBIANCE.join(", ")}).` };
+        if (!(rayon >= 1)) return { erreur: true, contenu: `Portée ${rayon} : 1 case au moins.` };
+        if (!(volume > 0 && volume <= 1)) return { erreur: true, contenu: `Volume ${volume} : entre 0 (exclu) et 1.` };
+        const [cree] = await scene.createEmbeddedDocuments("AmbientSound", [{
+          name: texte?.trim() ? `${son} — ${texte.trim()}` : son, ...centre, elevation: 0, levels: niveauxDe(scene),
+          radius: rayon * scene.grid.distance, path: cheminSon(son), repeat: true, volume,
+          walls: true, easing: true, hidden: false, locked: false, flags: { [ID]: { son: true } }
+        }]);
+        return { contenu: `Son « ${son} » posé en ${x},${y} (portée ${rayon} cases, identifiant ${cree.id}) : on l'entend en approchant.` };
+      }
+      const cible = await journalAEpingler(uuid);
+      if (cible.erreur) return { erreur: true, contenu: cible.erreur };
+      const { entree, page, importe } = cible;
+      const [cree] = await scene.createEmbeddedDocuments("Note", [{
+        entryId: entree.id, pageId: page?.id ?? null, ...centre, elevation: 0, levels: niveauxDe(scene), sort: 0, locked: false,
+        texture: { src: "icons/svg/book.svg", anchorX: 0.5, anchorY: 0.5, fit: "contain", scaleX: 1, scaleY: 1, tint: "#ffffff" },
+        iconSize: 40, text: texte?.trim() ?? "", fontFamily: "", fontSize: 24, textAnchor: CONST.TEXT_ANCHOR_POINTS.BOTTOM,
+        textColor: "#ffffff", global: false, flags: { [ID]: { epingle: true } }
+      }]);
+      const qui = lisibleDesJoueurs(entree, page) ? "visible des joueurs (ils peuvent lire ce journal)" : "réservée au MJ (journal du MJ)";
+      return { contenu: `Épingle posée en ${x},${y} (${cree.id}) vers ${page ? `la page « ${page.name} » de ` : ""}« ${entree.name} »`
+        + `${importe ? " (journal importé du compendium)" : ""}, ${qui}.` };
     }
   }
 );

@@ -113,6 +113,41 @@ function sonsDeduits(plan, piece) {
   return retenus;
 }
 
+// Une zone (en cases, type déjà vérifié, dans le plan) -> région native v14 et son comportement : { region } | { erreur }.
+// Sert à planVersScene et, en cours de partie, à l'outil zone_scene. idZone(nom) : identifiant de la région de ce nom
+// (la téléportation vise sa zone d'arrivée par UUID relatif) ; nomsZones : les noms de zones existants ; niveau : le
+// niveau v14 de la région (aucun = tous les niveaux). Coordonnées en pixels à partir de l'origine du plan.
+export function zoneVersRegion(z, { taille = 100, idZone = nom => idStable(`zone:${nom}`), nomsZones = new Set(), niveau = null } = {}) {
+  const ou = `zone « ${z.nom} »`;
+  let comportement;
+  if (z.type === "texte") {
+    if (!z.texte) return { erreur: `${ou} : texte manquant` };
+    comportement = { type: "displayScrollingText", system: { events: [ENTREE_JETON], text: z.texte, color: z.couleur || "#ffffff", visibility: TEXTE_VISIBLE.ANYONE, once: z.unique !== false } };
+  } else if (z.type === "teleport") {
+    if (!nomsZones.has(z.vers) || z.vers === z.nom) return { erreur: `${ou} : zone d'arrivée « ${z.vers} » introuvable (une autre zone de la scène)` };
+    comportement = { type: "teleportToken", system: { destinations: [`..${idZone(z.vers)}`], placement: "random", snap: true, choice: false, revealed: false,
+      dialog: { revealed: null, unrevealed: null }, transition: { type: null, duration: 1500 } } };
+  } else if (z.type === "pause") {
+    comportement = { type: "pauseGame", system: { once: z.unique !== false } };
+  } else {
+    const mode = MODES_OBSCURITE[z.mode ?? "fixer"];
+    if (mode === undefined) return { erreur: `${ou} : mode « ${z.mode} » inconnu (${Object.keys(MODES_OBSCURITE).join(", ")})` };
+    if (!(z.obscurite >= 0 && z.obscurite <= 1)) return { erreur: `${ou} : obscurite ${z.obscurite} hors de 0 à 1` };
+    comportement = { type: "adjustDarknessLevel", system: { mode, modifier: z.obscurite } };
+  }
+  return { region: {
+    _id: idZone(z.nom), name: z.nom, color: COULEURS_ZONE[z.type],
+    shapes: [{ type: "rectangle", x: z.x * taille, y: z.y * taille, width: z.l * taille, height: z.h * taille, anchorX: 0, anchorY: 0, rotation: 0, hole: false, gridBased: false }],
+    elevation: { bottom: null, top: null, topInclusive: false }, levels: niveau ? [niveau] : [],
+    restriction: { enabled: false, type: "move", priority: 0 }, attachment: { token: null },
+    // Jamais `hidden` : une région cachée désactive ses comportements. Les joueurs ne l'observent pas (propriété
+    // « aucune ») : visible seulement du MJ, sur le calque des régions.
+    visibility: VISIBILITE_REGION.LAYER, highlightMode: "shapes", displayMeasurements: false, hidden: false, locked: false,
+    ownership: { default: 0 },
+    behaviors: [{ _id: idStable(`comportement:${z.nom}`), name: z.nom, disabled: false, flags: {}, ...comportement }]
+  } };
+}
+
 export function planVersScene(plan, { taille = 100, distance = 2 } = {}) {
   const erreurs = [];
   const L = plan.largeur, H = plan.hauteur;
@@ -239,34 +274,9 @@ export function planVersScene(plan, { taille = 100, distance = 2 } = {}) {
   }
   const regions = [];
   for (const z of zones) {
-    const ou = `zone « ${z.nom} »`;
-    let comportement;
-    if (z.type === "texte") {
-      if (!z.texte) { erreurs.push(`${ou} : texte manquant`); continue; }
-      comportement = { type: "displayScrollingText", system: { events: [ENTREE_JETON], text: z.texte, color: z.couleur || "#ffffff", visibility: TEXTE_VISIBLE.ANYONE, once: z.unique !== false } };
-    } else if (z.type === "teleport") {
-      if (!nomsZones.has(z.vers) || z.vers === z.nom) { erreurs.push(`${ou} : zone d'arrivée « ${z.vers} » introuvable (une autre zone de la scène)`); continue; }
-      comportement = { type: "teleportToken", system: { destinations: [`..${idZone(z.vers)}`], placement: "random", snap: true, choice: false, revealed: false,
-        dialog: { revealed: null, unrevealed: null }, transition: { type: null, duration: 1500 } } };
-    } else if (z.type === "pause") {
-      comportement = { type: "pauseGame", system: { once: z.unique !== false } };
-    } else {
-      const mode = MODES_OBSCURITE[z.mode ?? "fixer"];
-      if (mode === undefined) { erreurs.push(`${ou} : mode « ${z.mode} » inconnu (${Object.keys(MODES_OBSCURITE).join(", ")})`); continue; }
-      if (!(z.obscurite >= 0 && z.obscurite <= 1)) { erreurs.push(`${ou} : obscurite ${z.obscurite} hors de 0 à 1`); continue; }
-      comportement = { type: "adjustDarknessLevel", system: { mode, modifier: z.obscurite } };
-    }
-    regions.push({
-      _id: idZone(z.nom), name: z.nom, color: COULEURS_ZONE[z.type],
-      shapes: [{ type: "rectangle", x: z.x * taille, y: z.y * taille, width: z.l * taille, height: z.h * taille, anchorX: 0, anchorY: 0, rotation: 0, hole: false, gridBased: false }],
-      elevation: { bottom: null, top: null, topInclusive: false }, levels: [],
-      restriction: { enabled: false, type: "move", priority: 0 }, attachment: { token: null },
-      // Jamais `hidden` : une région cachée désactive ses comportements. Les joueurs ne l'observent pas (propriété
-      // « aucune ») : visible seulement du MJ, sur le calque des régions.
-      visibility: VISIBILITE_REGION.LAYER, highlightMode: "shapes", displayMeasurements: false, hidden: false, locked: false,
-      ownership: { default: 0 },
-      behaviors: [{ _id: idStable(`comportement:${z.nom}`), name: z.nom, disabled: false, flags: {}, ...comportement }]
-    });
+    const r = zoneVersRegion(z, { taille, idZone, nomsZones });
+    if (r.erreur) erreurs.push(r.erreur);
+    else regions.push(r.region);
   }
 
   // 8. Notes de carte (Note) : épingles vers une page de journal fournie par le monde.

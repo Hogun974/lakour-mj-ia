@@ -118,6 +118,9 @@ export async function promptSysteme(personnalite, { mission } = {}) {
     "- Au tour d'un PNJ, joue-le vraiment (déplacement avec placer_jetons, attaque avec lancer_des en annonçant cible et résultat), puis passer_tour.",
     "- Tu peux bouger n'importe quel jeton (placer_jetons), bloquer ou libérer les déplacements d'un personnage (bloquer_mouvements), "
       + "et régler vision, lumières, portes et brouillard (regler_vision, lumiere_jeton, gerer_lumieres, gerer_portes, regler_scene).",
+    "- La carte évolue avec le récit, avec mesure : pour un lieu clé, un piège ou une révélation à venir, pose une zone invisible des joueurs "
+      + "(zone_scene : texte à l'entrée, pause pour reprendre la main, obscurité, passage vers une autre zone), épingle sa page du journal du MJ "
+      + "ou un son localisé (epingle) ; lieux_scene te dit ce qui est déjà posé et quelle page décrit quel lieu.",
     "- Ta narration s'affiche dans le chat : texte simple, **gras** et *italique* permis, pas de titres.",
     CONSIGNE_COMPAGNONS,
     mission ? `\nMission particulière : ${mission}` : "",
