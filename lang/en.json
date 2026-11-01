@@ -142,6 +142,14 @@
       "TranscriptionAuMJ": {
         "Nom": "Show transcriptions to the GM",
         "Aide": "Each transcribed sentence is also whispered to the GMs in the chat (never shown to players)."
+      },
+      "seulActifBouge": {
+        "Nom": "Only the active combatant can move",
+        "Aide": "During combat, a player can only move the token whose turn it is. The GM is never blocked."
+      },
+      "panneauTourAuto": {
+        "Nom": "Open the Turn by turn panel when combat begins",
+        "Aide": "For the GM: the combat helper panel opens on its own when a combat begins."
       }
     },
     "Console": {
@@ -215,7 +223,8 @@
       "Reecouter": "Listen again"
     },
     "Mouvement": {
-      "Bloque": "The GM prevents this movement."
+      "Bloque": "The GM prevents this movement.",
+      "HorsTour": "It is not this combatant's turn."
     },
     "Style": {
       "Redessinees": "{n} map(s) redrawn in the new style."
@@ -251,6 +260,128 @@
       "Icone": "The AI is listening",
       "Aide": "What you say in Foundry voice chat is transcribed for the AI GM and the AI companions (only those who can hear you). The GM can turn listening off.",
       "Budget": "Players listening paused: budget reached."
+    },
+    "Tour": {
+      "Titre": "Turn by turn",
+      "Indisponible": "Turn by turn is for Imperium Maledictum and D&D 5e combats.",
+      "Prochaine": "Next step:",
+      "Preparer": "Prepare the combat",
+      "Cache": "hidden",
+      "AucunCandidat": "No token to add on this scene.",
+      "AuCombat": "Already in combat",
+      "Ajouter": "Add to combat",
+      "Initiative": "Roll initiative",
+      "Commencer": "Begin combat",
+      "Round": "Round {n}",
+      "Allure": "speed",
+      "Mouvement": "Movement",
+      "Faire": "Done",
+      "Propose": "Suggestion:",
+      "IAJoue": "The AI GM is in session: it plays this NPC on its own. Accept the suggestion only if it does not.",
+      "Accepter": "Accept",
+      "Cibles": "Targets",
+      "Portee": {
+        "ok": "in range",
+        "longue": "long range",
+        "hors": "out of range"
+      },
+      "Attaques": "Attacks and powers",
+      "Toucher": "Attack roll",
+      "Degats": "Damage roll",
+      "Esquive": "Dodges",
+      "SansOpposition": "Unopposed",
+      "Appliquer": "Apply damage",
+      "JetMort": "Death save",
+      "Compagnon": "Play the companion",
+      "Suivant": "End turn",
+      "FinCombat": "End combat",
+      "Contact": "reach",
+      "Table": {
+        "Titre": "Round of the table",
+        "Aide": "Out of combat: give each player the floor, in order. The player with the floor describes what their character does; their message, or their button, passes the floor on. With the AI GM in session, it waits until everyone has spoken before narrating.",
+        "Commencer": "Start a round of the table",
+        "AParle": "Has spoken",
+        "Passe": "Passes",
+        "FaireParler": "Let the companion speak",
+        "Nouveau": "New round of the table",
+        "Arreter": "Stop"
+      },
+      "Bandeau": {
+        "AToi": "Your turn!",
+        "PuisToi": "{nom}'s turn, then you",
+        "AuTourDe": "{nom}'s turn",
+        "Fin": "End my turn",
+        "TableFinie": "everyone has spoken, the GM narrates",
+        "ADecrire": "Describe what your character does",
+        "Parole": "{nom} has the floor",
+        "Fini": "I'm done",
+        "Passe": "I pass"
+      },
+      "Etapes": {
+        "ajouter": "Add the combatants",
+        "initiative": "Roll initiative ({n} without initiative)",
+        "commencer": "Begin combat",
+        "victoire": "End of combat (every enemy is down)",
+        "defaite": "End of combat (the whole party is down)",
+        "sauvegarde": "Saving throw for {nom} ({raison}, DC {dd})",
+        "finEffet": "End of the effect \"{effet}\" on {nom}",
+        "rappel": {
+          "concentration": "Reminder: concentration ({nom} maintains {texte})",
+          "regeneration": "Reminder: {nom} regenerates ({texte})",
+          "autre": "Reminder for {nom}: {texte}"
+        },
+        "appliquer": "Apply {n} damage to {cible}",
+        "degats": "Damage roll ({nom})",
+        "toucher": "Attack roll ({nom} against {cible})",
+        "defense": "{cible} defends (opposed test: dodge, parry or unopposed)",
+        "jetMort": "Death save for {nom} ({succes} success(es), {echecs} failure(s))",
+        "aTerre": "{nom} is down: end turn → next",
+        "compagnon": "{nom}'s turn (AI companion): it acts",
+        "attenteJoueur": "{nom}'s turn: waiting for their action",
+        "pnjIA": "{nom}'s turn: the AI GM plays it",
+        "cible": "{nom}'s turn: choose a target",
+        "attaquer": "{nom} attacks {cible}: choose the weapon or power",
+        "suivant": "End turn → next ({nom})",
+        "round": "New round ({round})",
+        "tableFini": "Round of the table done: narrate what happens, then a new round",
+        "tableCompagnon": "{nom} has the floor (AI companion)",
+        "tableParole": "{nom} has the floor: describe what the character does"
+      },
+      "Detail": {
+        "aucunJeton": "Place the tokens on the scene first.",
+        "rappel": {
+          "concentration": "Damage forces a Constitution save (DC 10 or half the damage).",
+          "regeneration": "It regains HP at the start of its turn, unless something prevents it.",
+          "autre": "Settle this before going on."
+        }
+      },
+      "Proposition": {
+        "Attendre": "nobody in range or reachable: it waits or takes cover",
+        "Approche": "moves towards {cible} ({metres}), nobody is in range",
+        "ApprocheAttaque": "moves towards {cible} ({metres}) and attacks with {attaque}",
+        "Attaque": "attacks {cible} with {attaque} ({distance})",
+        "AttaqueLongue": "attacks {cible} with {attaque} ({distance}, long range)"
+      },
+      "Camps": {
+        "joueur": "player",
+        "compagnon": "AI companion",
+        "allie": "ally",
+        "ennemi": "enemy",
+        "neutre": "neutral"
+      },
+      "Etat": {
+        "Mort": "dead",
+        "ATerre": "down"
+      },
+      "Infos": {
+        "effet": "Effect:",
+        "conditions": "Conditions:",
+        "legendaires": "Legendary actions:",
+        "legendairesAutre": "Legendary action possible at the end of the turn:"
+      },
+      "Erreurs": {
+        "PasDeScene": "No scene is displayed."
+      }
     }
   }
 }

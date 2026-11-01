@@ -142,6 +142,14 @@
       "TranscriptionAuMJ": {
         "Nom": "Montrer les transcriptions au MJ",
         "Aide": "Chaque phrase transcrite est aussi chuchotée aux MJ dans le chat (jamais montrée aux joueurs)."
+      },
+      "seulActifBouge": {
+        "Nom": "Seul le combattant actif peut bouger",
+        "Aide": "Pendant un combat, un joueur ne peut déplacer que le jeton dont c'est le tour. Le MJ n'est jamais bloqué."
+      },
+      "panneauTourAuto": {
+        "Nom": "Ouvrir le panneau Tour par tour au début d'un combat",
+        "Aide": "Chez le MJ : le panneau d'aide au combat s'ouvre tout seul quand un combat commence."
       }
     },
     "Console": {
@@ -215,7 +223,8 @@
       "Reecouter": "Réécouter"
     },
     "Mouvement": {
-      "Bloque": "Le MJ empêche ce déplacement."
+      "Bloque": "Le MJ empêche ce déplacement.",
+      "HorsTour": "Ce n'est pas le tour de ce combattant."
     },
     "Style": {
       "Redessinees": "{n} carte(s) redessinée(s) dans le nouveau style."
@@ -251,6 +260,128 @@
       "Icone": "L'IA écoute",
       "Aide": "Ce que tu dis dans la voix de Foundry est transcrit pour le MJ IA et les compagnons IA (seulement ceux qui peuvent t'entendre). Le MJ peut couper l'écoute.",
       "Budget": "Écoute des joueurs en pause : budget atteint."
+    },
+    "Tour": {
+      "Titre": "Tour par tour",
+      "Indisponible": "Le tour par tour sert aux combats d'Imperium Maledictum et de D&D 5e.",
+      "Prochaine": "Prochaine étape :",
+      "Preparer": "Préparer le combat",
+      "Cache": "caché",
+      "AucunCandidat": "Aucun jeton à ajouter sur cette scène.",
+      "AuCombat": "Déjà au combat",
+      "Ajouter": "Ajouter au combat",
+      "Initiative": "Lancer l'initiative",
+      "Commencer": "Commencer le combat",
+      "Round": "Round {n}",
+      "Allure": "allure",
+      "Mouvement": "Mouvement",
+      "Faire": "Fait",
+      "Propose": "Proposition :",
+      "IAJoue": "Le MJ IA est en séance : il joue ce PNJ de lui-même. Accepte la proposition seulement s'il ne le fait pas.",
+      "Accepter": "Accepter",
+      "Cibles": "Cibles",
+      "Portee": {
+        "ok": "à portée",
+        "longue": "portée longue",
+        "hors": "hors de portée"
+      },
+      "Attaques": "Attaques et pouvoirs",
+      "Toucher": "Jet pour toucher",
+      "Degats": "Jet de dégâts",
+      "Esquive": "Il esquive",
+      "SansOpposition": "Sans opposition",
+      "Appliquer": "Appliquer les dégâts",
+      "JetMort": "Jet contre la mort",
+      "Compagnon": "Faire jouer le compagnon",
+      "Suivant": "Fin du tour",
+      "FinCombat": "Fin du combat",
+      "Contact": "contact",
+      "Table": {
+        "Titre": "Tour de table",
+        "Aide": "Hors combat : donne la parole à chacun, dans l'ordre. Le joueur qui a la parole décrit ce que fait son personnage ; son message, ou son bouton, passe la parole au suivant. Avec le MJ IA en séance, il attend que tout le monde ait parlé avant de raconter.",
+        "Commencer": "Commencer un tour de table",
+        "AParle": "A parlé",
+        "Passe": "Passe",
+        "FaireParler": "Faire parler le compagnon",
+        "Nouveau": "Nouveau tour de table",
+        "Arreter": "Arrêter"
+      },
+      "Bandeau": {
+        "AToi": "À toi de jouer !",
+        "PuisToi": "Au tour de {nom}, puis toi",
+        "AuTourDe": "Au tour de {nom}",
+        "Fin": "Fin de mon tour",
+        "TableFinie": "chacun a parlé, le MJ raconte",
+        "ADecrire": "À toi de décrire ce que fait ton personnage",
+        "Parole": "{nom} a la parole",
+        "Fini": "J'ai fini",
+        "Passe": "Je passe"
+      },
+      "Etapes": {
+        "ajouter": "Ajouter les combattants",
+        "initiative": "Lancer l'initiative ({n} sans initiative)",
+        "commencer": "Commencer le combat",
+        "victoire": "Fin du combat (tous les ennemis à terre)",
+        "defaite": "Fin du combat (tout le groupe est à terre)",
+        "sauvegarde": "Jet de sauvegarde de {nom} ({raison}, DD {dd})",
+        "finEffet": "Fin de l'effet « {effet} » sur {nom}",
+        "rappel": {
+          "concentration": "Rappel : concentration ({nom} maintient {texte})",
+          "regeneration": "Rappel : régénération de {nom} ({texte})",
+          "autre": "Rappel pour {nom} : {texte}"
+        },
+        "appliquer": "Appliquer {n} dégâts à {cible}",
+        "degats": "Jet de dégâts ({nom})",
+        "toucher": "Jet pour toucher ({nom} contre {cible})",
+        "defense": "Défense de {cible} (test opposé : esquive, parade ou sans opposition)",
+        "jetMort": "Jet contre la mort de {nom} ({succes} réussite(s), {echecs} échec(s))",
+        "aTerre": "{nom} est à terre : fin du tour → au suivant",
+        "compagnon": "Tour de {nom} (compagnon IA) : il agit",
+        "attenteJoueur": "Tour de {nom} : on attend son action",
+        "pnjIA": "Tour de {nom} : le MJ IA le joue",
+        "cible": "Tour de {nom} : choisir une cible",
+        "attaquer": "Attaque de {nom} sur {cible} : choisir l'arme ou le pouvoir",
+        "suivant": "Fin du tour → au suivant ({nom})",
+        "round": "Nouveau round ({round})",
+        "tableFini": "Tour de table fini : raconter la suite, puis un nouveau tour",
+        "tableCompagnon": "Parole à {nom} (compagnon IA)",
+        "tableParole": "Parole à {nom} : à lui de décrire ce que fait son personnage"
+      },
+      "Detail": {
+        "aucunJeton": "Pose d'abord les jetons sur la scène.",
+        "rappel": {
+          "concentration": "Des dégâts l'obligent à une sauvegarde de Constitution (DD 10 ou la moitié des dégâts).",
+          "regeneration": "Il regagne des PV au début de son tour, si rien ne l'en empêche.",
+          "autre": "À régler avant de continuer."
+        }
+      },
+      "Proposition": {
+        "Attendre": "personne à portée ni à atteindre : il attend ou se met à couvert",
+        "Approche": "se rapproche de {cible} ({metres}), personne n'est à portée",
+        "ApprocheAttaque": "se rapproche de {cible} ({metres}) et attaque avec {attaque}",
+        "Attaque": "attaque {cible} avec {attaque} ({distance})",
+        "AttaqueLongue": "attaque {cible} avec {attaque} ({distance}, portée longue)"
+      },
+      "Camps": {
+        "joueur": "joueur",
+        "compagnon": "compagnon IA",
+        "allie": "allié",
+        "ennemi": "ennemi",
+        "neutre": "neutre"
+      },
+      "Etat": {
+        "Mort": "mort",
+        "ATerre": "à terre"
+      },
+      "Infos": {
+        "effet": "Effet :",
+        "conditions": "États :",
+        "legendaires": "Actions légendaires :",
+        "legendairesAutre": "Action légendaire possible en fin de tour :"
+      },
+      "Erreurs": {
+        "PasDeScene": "Aucune scène affichée."
+      }
     }
   }
 }

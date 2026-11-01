@@ -16,6 +16,8 @@ import { ecouteActive } from "./ecoute.js";
 import { EcouteJoueurs, afficherEcoute } from "./transcription.js";
 import { compagnonsPresents } from "./compagnons-jeu.js";
 import { versHTML } from "./utilitaires.js";
+import { TourParTour, mouvementHorsTour } from "./tour-par-tour.js";
+import { brancherTourParTour, ouvrirPanneau } from "./apps/tour-par-tour.js";
 
 Hooks.once("init", () => {
   enregistrerReglages();
@@ -27,10 +29,16 @@ Hooks.once("ready", () => {
   const sansNarrateur = new CompagnonsSansNarrateur({ moteur });
   // Écoute des joueurs (parole → texte), chez le MJ actif, seulement quand une IA doit entendre (docs/voix-et-ecoute.md §2).
   const ecoute = new EcouteJoueurs({ moteur, sansNarrateur });
+
+  // Tour par tour (40k, Warcraft) : panneau du MJ, bandeau des joueurs, tour de table ; le MJ IA lit le même état.
+  const tour = new TourParTour({ moteur });
+  moteur.tourParTour = tour;
   // API pour les macros et les autres modules : game.modules.get("lakour-mj-ia").api
   game.modules.get(ID).api = {
     moteur,
     sansNarrateur,
+    tour,
+    tourParTour: () => ouvrirPanneau(),
     console: () => new ConsoleMJ().render({ force: true }),
     // Une IA doit-elle entendre les joueurs (transcription de la parole, docs/voix-et-ecoute.md §2) ?
     ecouteActive: () => ecouteActive({ seanceIA: moteur.actif, compagnonsVivants: compagnonsPresents().length, moduleActif: true }),
@@ -56,6 +64,8 @@ Hooks.once("ready", () => {
   figurantsDuContenu().then(f => f && definirFigurants(f.types, f.module));
   // Déplacements, portes et tour des PNJ transmis à l'IA (n'agit que dans le navigateur du MJ actif, en séance).
   brancherReactions(moteur);
+  // Tour par tour : suivi du tour, lecture des jets au chat, compagnons à leur tour, panneau et bandeau.
+  brancherTourParTour(tour);
   // Canal du module : votes de groupe et choix secrets (fenêtres chez les joueurs, réponses au MJ actif).
   brancherDecisions();
   // Compagnons IA : leur cerveau répond aux votes de groupe et choix secrets, et aux demandes des Veillées (nuit, vote),
@@ -189,6 +199,11 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 // d'atteindre le serveur. Le MJ (humain ou IA) n'est jamais bloqué.
 function mouvementInterdit(jeton) {
   if (game.user.isGM) return false;
+  // Réglage « Seul le combattant actif peut bouger » (tour-par-tour.js).
+  if (mouvementHorsTour(jeton)) {
+    ui.notifications.warn(game.i18n.localize("LAKOUR_MJIA.Mouvement.HorsTour"));
+    return true;
+  }
   const raison = lire("mouvementsBloques")?.[jeton.actorId];
   if (!raison) return false;
   ui.notifications.warn(raison);
@@ -215,6 +230,18 @@ Hooks.on("getSceneControlButtons", controles => {
     visible: true,
     onChange: () => new ConsoleMJ().render({ force: true })
   };
+  // Le panneau Tour par tour (Imperium Maledictum, D&D 5e).
+  if (game.modules.get(ID)?.api?.tour?.disponible()) {
+    jetons.tools.lakourTour = {
+      name: "lakourTour",
+      title: "LAKOUR_MJIA.Tour.Titre",
+      icon: "fa-solid fa-shield-halved",
+      order: Object.keys(jetons.tools).length,
+      button: true,
+      visible: true,
+      onChange: () => ouvrirPanneau()
+    };
+  }
 });
 
 // Réparations faites une fois par monde, au premier chargement d'une version qui les apporte.

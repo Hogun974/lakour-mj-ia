@@ -157,7 +157,7 @@
 #lakour-mjia-ecoute {
   position: fixed;
   left: 50%;
-  top: 8px;
+  top: 64px; /* sous les bandeaux du haut (Veillées, tour par tour) */
   transform: translateX(-50%);
   z-index: 70;
   padding: 0.2rem 0.6rem;
@@ -168,3 +168,121 @@
   font-size: 0.8rem;
   pointer-events: auto;
 }
+
+/* ------------------------------------------------------------------ Tour par tour (panneau du MJ) */
+.lakour-mj-ia.lakour-mjia-tour {
+  --tour-lanterne: #f0a742;
+  --tour-lanterne-doux: rgba(240, 167, 66, 0.12);
+  --tour-brume: #8fa3b8;
+  --tour-joueur: #6fa8dc;
+  --tour-compagnon: #9fc5a8;
+  --tour-allie: #b6d7a8;
+  --tour-ennemi: #e06666;
+  --tour-neutre: #b4a7d6;
+}
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-corps { display: flex; flex-direction: column; gap: 0.45rem; }
+.lakour-mj-ia.lakour-mjia-tour h3, .lakour-mj-ia.lakour-mjia-tour h4 { margin: 0.3rem 0 0.2rem; border: none; }
+.lakour-mj-ia.lakour-mjia-tour h4 { font-size: var(--font-size-13, 0.85rem); text-transform: uppercase; opacity: 0.75; }
+.lakour-mj-ia.lakour-mjia-tour img { border: none; object-fit: cover; border-radius: 4px; }
+
+/* L'étape suivante : une ligne en pointillés, et chaque bouton qui la fait encadré de pointillés (comme aux Veillées). */
+.lakour-mj-ia .lakour-mjia-etape-ligne {
+  display: flex; align-items: baseline; gap: 0.5em; flex-wrap: wrap;
+  padding: 0.4em 0.8em; border-radius: 6px;
+  border: 1px dashed var(--tour-lanterne, #f0a742); background: var(--tour-lanterne-doux, rgba(240, 167, 66, 0.12));
+}
+.lakour-mj-ia .lakour-mjia-etape-ligne i { color: var(--tour-lanterne, #f0a742); }
+.lakour-mj-ia .lakour-mjia-etape-ligne small { opacity: 0.75; }
+.lakour-mj-ia .lakour-mjia-etape-ligne.attente { border-color: var(--tour-brume, #8fa3b8); background: rgba(143, 163, 184, 0.1); }
+.lakour-mj-ia .lakour-mjia-etape-ligne.attente i { color: var(--tour-brume, #8fa3b8); }
+.lakour-mj-ia .lakour-mjia-etiquette { font-size: var(--font-size-12, 0.75rem); text-transform: uppercase; opacity: 0.7; }
+.lakour-mj-ia button.lakour-mjia-etape {
+  outline: 2px dashed var(--tour-lanterne, #f0a742); outline-offset: 3px;
+  animation: lakour-mjia-etape 1.6s ease-in-out infinite;
+}
+@keyframes lakour-mjia-etape {
+  0%, 100% { outline-color: var(--tour-lanterne, #f0a742); box-shadow: 0 0 0 rgba(240, 167, 66, 0); }
+  50% { outline-color: rgba(240, 167, 66, 0.35); box-shadow: 0 0 14px rgba(240, 167, 66, 0.35); }
+}
+@media (prefers-reduced-motion: reduce) { .lakour-mj-ia button.lakour-mjia-etape { animation: none; } }
+
+/* Camps : un liseré de couleur */
+.lakour-mj-ia.lakour-mjia-tour .camp-joueur { --camp: var(--tour-joueur); }
+.lakour-mj-ia.lakour-mjia-tour .camp-compagnon { --camp: var(--tour-compagnon); }
+.lakour-mj-ia.lakour-mjia-tour .camp-allie { --camp: var(--tour-allie); }
+.lakour-mj-ia.lakour-mjia-tour .camp-ennemi { --camp: var(--tour-ennemi); }
+.lakour-mj-ia.lakour-mjia-tour .camp-neutre { --camp: var(--tour-neutre); }
+.lakour-mj-ia.lakour-mjia-tour .a-terre { opacity: 0.5; text-decoration: line-through; }
+
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; max-height: 260px; overflow-y: auto; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-liste label { display: flex; align-items: center; gap: 0.4rem; border-left: 3px solid var(--camp, transparent); padding-left: 0.3rem; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-liste img { width: 26px; height: 26px; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-liste span { flex: 1; }
+
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-ordre { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.3rem; overflow-x: auto; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-ordre li { display: flex; flex-direction: column; align-items: center; width: 56px; font-size: 0.7rem; text-align: center; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-ordre img { width: 40px; height: 40px; border: 2px solid var(--camp, #777); border-radius: 50%; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-ordre li.actif img { border-color: var(--tour-lanterne); box-shadow: 0 0 8px var(--tour-lanterne); }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-ordre span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-round { text-align: center; }
+
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-actif { display: flex; gap: 0.6rem; padding: 0.4rem; border-left: 4px solid var(--camp, #777); background: rgba(0, 0, 0, 0.06); border-radius: 4px; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-actif > img { width: 64px; height: 64px; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-actif > div { flex: 1; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-actif p { margin: 0.1rem 0; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-nom strong { font-size: 1.1rem; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-etat { color: var(--tour-ennemi); font-weight: bold; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-pv { height: 6px; background: rgba(0, 0, 0, 0.25); border-radius: 3px; overflow: hidden; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-pv span { display: block; height: 100%; background: linear-gradient(90deg, #c0392b, #e67e22 40%, #27ae60); }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-conditions span { display: inline-block; margin: 0 0.2rem 0.1rem 0; padding: 0 0.4rem; border-radius: 999px; border: 1px solid var(--tour-neutre); font-size: 0.75rem; }
+
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-restantes { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-restantes li { padding: 0.15rem 0.5rem; border-radius: 999px; border: 1px solid var(--tour-lanterne); }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-restantes li.pris { opacity: 0.45; border-style: dotted; }
+
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-rappels { list-style: none; margin: 0; padding: 0; font-size: 0.85rem; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-rappels.obligations li { padding: 0.2rem 0.4rem; border-left: 3px solid #b8860b; background: rgba(184, 134, 11, 0.12); }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-proposition { padding: 0.4rem; border: 1px solid var(--tour-lanterne); border-radius: 6px; background: var(--tour-lanterne-doux); }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-proposition p { margin: 0 0 0.3rem; }
+
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-cibles { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-cibles button { display: grid; grid-template-columns: 28px 1fr auto; grid-template-rows: auto auto; column-gap: 0.4rem; align-items: center; text-align: left; border-left: 3px solid var(--camp, #777); width: 100%; height: auto; line-height: 1.2; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-cibles img { width: 28px; height: 28px; grid-row: span 2; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-cibles small { grid-column: 2; opacity: 0.8; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-cibles em { grid-column: 3; grid-row: 1 / span 2; font-style: normal; font-size: 0.75rem; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-cibles .choisie button { background: var(--tour-lanterne-doux); font-weight: bold; }
+.lakour-mj-ia.lakour-mjia-tour .portee-ok { color: #27ae60; }
+.lakour-mj-ia.lakour-mjia-tour .portee-longue { color: #e67e22; }
+.lakour-mj-ia.lakour-mjia-tour .portee-hors { color: var(--tour-ennemi); }
+
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-attaques { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.3rem; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-attaques button { display: grid; grid-template-columns: 28px 1fr; grid-template-rows: auto auto; column-gap: 0.35rem; text-align: left; align-items: center; line-height: 1.15; padding: 0.25rem; height: auto; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-attaques img { width: 28px; height: 28px; grid-row: span 2; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-attaques small { opacity: 0.75; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-gestes button { flex: 1 1 30%; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-parole { margin: 0.3rem 0; padding-left: 1.4rem; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-parole li.courant { font-weight: bold; color: var(--tour-lanterne); }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-parole li.parle::after { content: " ✓"; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-parole li.passe { opacity: 0.6; }
+.lakour-mj-ia.lakour-mjia-tour .lakour-mjia-tour-parole li.passe::after { content: " (passe)"; }
+
+/* ------------------------------------------------------------------ Tour par tour (bandeau des joueurs) */
+.lakour-mjia-bandeau-tour {
+  position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 70; pointer-events: none;
+  max-width: min(760px, calc(100vw - 32px));
+}
+.lakour-mjia-bandeau-tour .lakour-mjia-bt-corps {
+  pointer-events: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.7rem;
+  padding: 0.35rem 0.8rem; border-radius: 10px; color: #f2e8d5;
+  background: rgba(24, 20, 26, 0.88); border: 1px solid #5a4a3f; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+.lakour-mjia-bandeau-tour .lakour-mjia-bt-corps.a-toi { border-color: #f0a742; animation: lakour-mjia-appel 2.2s ease-in-out infinite; }
+@keyframes lakour-mjia-appel { 50% { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 18px rgba(240, 167, 66, 0.5); } }
+@media (prefers-reduced-motion: reduce) { .lakour-mjia-bandeau-tour .lakour-mjia-bt-corps.a-toi { animation: none; } }
+.lakour-mjia-bandeau-tour .lakour-mjia-bt-titre strong { color: #f0a742; }
+.lakour-mjia-bandeau-tour .lakour-mjia-bt-restantes { display: flex; flex-wrap: wrap; gap: 0.25rem; font-size: 0.8rem; }
+.lakour-mjia-bandeau-tour .lakour-mjia-bt-restantes span { padding: 0 0.45rem; border: 1px solid #f0a742; border-radius: 999px; }
+.lakour-mjia-bandeau-tour .lakour-mjia-bt-restantes span.pris { opacity: 0.45; border-style: dotted; }
+.lakour-mjia-bandeau-tour .lakour-mjia-bt-attaques { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.lakour-mjia-bandeau-tour button { width: auto; height: auto; line-height: 1.2; padding: 0.15rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.3rem; }
+.lakour-mjia-bandeau-tour button img { width: 18px; height: 18px; border: none; }

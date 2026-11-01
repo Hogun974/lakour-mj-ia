@@ -96,6 +96,12 @@ export async function promptSysteme(personnalite, { mission } = {}) {
     "- Tu reçois aussi ce que les joueurs font sur le plateau : 🚶 entrée dans une pièce ou déplacement, 🚪 porte ouverte ou fermée, "
       + "⚔️ tour d'un PNJ en combat. Réagis comme un vrai MJ : décris le lieu découvert, déclenche un piège, fais parler un PNJ. "
       + "Si un déplacement n'appelle aucune réaction, réponds seulement « — » (rien ne s'affiche) : ne commente pas chaque pas.",
+    ["impmal", "dnd5e"].includes(game.system?.id)
+      ? "- Tour par tour : en combat, l'état du jeu te donne « Tour : X ; étape suivante : … », le même guide que celui du MJ humain "
+        + "(panneau Tour par tour) ; reste cohérent avec lui. combat_etat te donne les distances en mètres, les défenses, les actions "
+        + "restantes et une proposition d'action pour un PNJ. Hors combat, un tour de table (tour_de_table) donne la parole à chacun : "
+        + "pendant qu'il dure, tu attends que tout le monde ait parlé avant de raconter."
+      : "",
     "- Le plateau montre ce que vit le joueur : il doit toujours refléter ton récit. Ta réponse est d'abord écrite sans être affichée ; "
       + "une étape « [Mise en place] » te demande ensuite de placer ce qu'elle décrit (mettre_en_scene, avec pres_de pour situer "
       + "quelqu'un près d'un repère), puis elle s'affiche.",
@@ -180,6 +186,9 @@ export function etatDuJeu() {
     lignes.push(`Combat en cours : round ${combat.round}, tour de ${combat.combatant?.name ?? "?"}. `
       + `Ordre : ${combat.turns.map(c => c.name).join(", ")}.`);
   }
+  // Tour par tour (tour-par-tour.js) : le même état et la même étape suivante que le panneau du MJ humain, pour rester cohérent
+  // (détails : outil combat_etat) ; le tour de table en cours.
+  try { lignes.push(...(game.modules.get(ID)?.api?.tour?.resumePourIA?.() ?? [])); } catch { /* pas de tour par tour */ }
   return lignes.join("\n");
 }
 

@@ -111,6 +111,20 @@ export function enregistrerReglages() {
       scope: "world", config: true, type: Boolean, default: def
     });
   }
+  // --- Tour par tour (tour-par-tour.js) : un joueur ne bouge que le jeton dont c'est le tour (le MJ jamais bloqué) ; le
+  // panneau du MJ s'ouvre au début d'un combat ; le tour de table en cours (écrit par le MJ actif, lu par les bandeaux).
+  game.settings.register(ID, "seulActifBouge", {
+    name: "LAKOUR_MJIA.Reglages.seulActifBouge.Nom", hint: "LAKOUR_MJIA.Reglages.seulActifBouge.Aide",
+    scope: "world", config: true, type: Boolean, default: false
+  });
+  game.settings.register(ID, "panneauTourAuto", {
+    name: "LAKOUR_MJIA.Reglages.panneauTourAuto.Nom", hint: "LAKOUR_MJIA.Reglages.panneauTourAuto.Aide",
+    scope: "client", config: true, type: Boolean, default: true
+  });
+  game.settings.register(ID, "tourDeTable", {
+    scope: "world", config: false, type: Object, default: { actif: false, ordre: [], index: 0, faits: {}, tour: 0 },
+    onChange: () => game.modules.get(ID)?.api?.tour?.rafraichir?.()
+  });
   // Personnages dont l'IA a bloqué les déplacements : { idActeur: raison }. Lu par chaque navigateur de joueur.
   game.settings.register(ID, "mouvementsBloques", { scope: "world", config: false, type: Object, default: {} });
 
