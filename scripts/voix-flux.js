@@ -2,7 +2,7 @@
 // - Calendrier : quand jouer chaque morceau de PCM (petite mémoire tampon, reprise après un trou, plafond de mémoire) ;
 //   sert au navigateur qui joue ET au MJ qui estime la fin de la voix.
 // - RecepteurFlux : dans chaque navigateur, quels morceaux jouer (flux inconnu ignoré, doublon ou retard jeté, perte comptée).
-// - FileDesVoix : une seule voix à la fois, le narrateur avant les compagnons.
+// - FileDesVoix : une seule voix à la fois, dans l'ordre où les textes paraissent dans le chat.
 // - destinatairesVoix : qui doit entendre une voix (aux Veillées, selon l'audibilité du système lakour-loups).
 // - GardeLecture : retient le début de l'audio tant qu'on ne sait pas si le modèle dit bien le texte.
 // - voixPourCompagnon, tonPourCompagnon, paroleSeule : la voix d'un compagnon et ce qu'elle lit (pas la didascalie).
@@ -104,27 +104,34 @@ export class RecepteurFlux {
   }
 }
 
-// Une seule voix à la fois. prendre(priorite) rend une promesse résolue, à son tour, par la fonction qui rend la parole.
-// Le narrateur passe avant les compagnons qui attendent ; personne n'est coupé ; à priorité égale, premier arrivé.
-export const RANGS_VOIX = { narrateur: 0, compagnon: 1 };
-
+// Une seule voix à la fois, dans l'ordre du chat. prendre(priorite, etiquette, affiche) rend une promesse résolue, à son
+// tour, par la fonction qui rend la parole. Le tour d'une voix se compte quand son texte paraît dans le chat (affiche :
+// promesse ; sans elle, tout de suite) : narrateur et compagnons parlent dans l'ordre où on les lit, sans passe-droit. Une
+// voix déjà prête dont le texte n'est pas encore affiché laisse passer celles qui le sont. Personne n'est coupé.
 export class FileDesVoix {
   constructor() {
     this.attente = [];
     this.occupant = null;
     this.compteur = 0;
     this.reposAttendus = [];
+    this.enPreparation = 0;
   }
 
-  prendre(priorite = "compagnon", etiquette = "") {
+  prendre(priorite = "compagnon", etiquette = "", affiche = null) {
     return new Promise(resolve => {
-      this.attente.push({ rang: RANGS_VOIX[priorite] ?? 1, ordre: this.compteur++, resolve, etiquette, priorite });
-      this.#suivant();
+      const entrer = () => {
+        this.attente.push({ ordre: this.compteur++, resolve, etiquette, priorite });
+        this.#suivant();
+      };
+      if (!affiche) return entrer();
+      // Un affichage raté ne bloque pas la voix : elle prend son tour quand même.
+      this.enPreparation++;
+      Promise.resolve(affiche).catch(() => {}).then(() => { this.enPreparation--; entrer(); });
     });
   }
 
   get libre() {
-    return !this.occupant && !this.attente.length;
+    return !this.occupant && !this.attente.length && !this.enPreparation;
   }
 
   // Résolue quand plus personne ne parle ni n'attend (le pilote automatique attend la fin des voix).
@@ -136,10 +143,9 @@ export class FileDesVoix {
   #suivant() {
     if (this.occupant) return;
     if (!this.attente.length) {
-      for (const r of this.reposAttendus.splice(0)) r();
+      if (!this.enPreparation) for (const r of this.reposAttendus.splice(0)) r();
       return;
     }
-    this.attente.sort((a, b) => a.rang - b.rang || a.ordre - b.ordre);
     const e = this.attente.shift();
     this.occupant = e;
     let rendu = false;

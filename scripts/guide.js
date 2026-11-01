@@ -2,7 +2,7 @@
 // joueurs, visible) et recopié dans docs/guide-utilisation.md par outils/ecrire-guide.mjs.
 // Texte au format des journaux du module (paragraphes, **gras**, *italique*, listes « - », titres « # »).
 
-export const VERSION_GUIDE = 4;
+export const VERSION_GUIDE = 5;
 
 export const GUIDE_MJ = [
   { titre: "Démarrer", texte: `
@@ -86,7 +86,7 @@ Sans séance du MJ IA, c'est toi qui mènes la **Table de jeu** des Veillées ; 
 # Les IA parlent en direct
 Avec la voix **OpenAI**, chaque morceau de voix part aux joueurs dès qu'il est produit : la voix démarre presque aussitôt, sans les deux secondes d'attente d'avant. Le fichier complet est gardé ensuite pour le bouton 🔊 (réécouter).
 - **Toutes les IA parlent** : le narrateur, et chaque compagnon IA avec sa propre voix, choisie selon son tempérament (jamais celle du narrateur, autant que possible différente de celle des autres compagnons) et gardée sur sa fiche. Un compagnon ne dit que sa parole : son geste en italique ne se lit pas.
-- **Une seule voix à la fois** : les voix attendent leur tour ; le narrateur passe avant les compagnons qui attendent. L'ambiance sonore baisse pendant qu'une IA parle.
+- **Une seule voix à la fois** : les voix attendent leur tour et parlent dans l'ordre du chat (narrateur et compagnons, comme on les lit). L'ambiance sonore baisse pendant qu'une IA parle.
 - **Qui entend** : tout le monde, sauf aux Veillées, où le système dit qui peut entendre qui (un compagnon mort ne parle qu'aux morts, un loup la nuit qu'aux loups). Le narrateur est entendu de tous.
 - **Réglages** : *Voix OpenAI en direct* (décoché : l'ancienne voix, enregistrée en entière puis jouée). Chaque joueur règle chez lui *Entendre les voix des IA* et *Volume de la voix des IA*.
 - **Sans clé OpenAI ou budget atteint** : la narration est lue par la voix du navigateur de chacun, les compagnons restent en texte.

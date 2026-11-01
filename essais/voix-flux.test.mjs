@@ -69,23 +69,41 @@ test("réception : un flux resté sans nouvelles est oublié", () => {
   assert.equal(r.enCours, 1);
 });
 
-test("file des voix : une seule à la fois, le narrateur passe avant les compagnons qui attendent, sans couper personne", async () => {
+test("file des voix : une seule à la fois, dans l'ordre du chat, sans passe-droit pour le narrateur ni couper personne", async () => {
   const f = new V.FileDesVoix();
   const ordre = [];
-  const parler = async (qui, priorite) => { const rendre = await f.prendre(priorite); ordre.push(qui); return rendre; };
+  const parler = async (qui, priorite, affiche) => { const rendre = await f.prendre(priorite, "", affiche); ordre.push(qui); return rendre; };
   const premier = parler("compagnon A", "compagnon");
   const rendreA = await premier;
+  // La narration est prête (synthèse en cours) mais pas encore affichée : son tour ne compte qu'à l'affichage.
+  let afficher;
+  const n = parler("narrateur", "narrateur", new Promise(r => { afficher = r; }));
   const b = parler("compagnon B", "compagnon");
-  const n = parler("narrateur", "narrateur");
+  await prochain();
+  afficher();
+  await prochain();
   const c = parler("compagnon C", "compagnon");
   await prochain();
   assert.deepEqual(ordre, ["compagnon A"], "personne ne parle par-dessus A");
   rendreA();
   rendreA();   // rendre deux fois ne libère pas deux places
-  (await n)();
   (await b)();
+  (await n)();
   (await c)();
-  assert.deepEqual(ordre, ["compagnon A", "narrateur", "compagnon B", "compagnon C"]);
+  assert.deepEqual(ordre, ["compagnon A", "compagnon B", "narrateur", "compagnon C"], "l'ordre où on les lit dans le chat");
+});
+
+test("file des voix : un affichage raté n'empêche pas la voix ; une voix en préparation n'est pas un repos", async () => {
+  const f = new V.FileDesVoix();
+  let rater;
+  const n = f.prendre("narrateur", "", new Promise((_, rej) => { rater = rej; }));
+  assert.equal(f.libre, false, "une narration en préparation compte");
+  let repos = false;
+  f.attendreRepos().then(() => { repos = true; });
+  rater(new Error("affichage"));
+  (await n)();
+  await prochain();
+  assert.equal(repos, true);
 });
 
 test("file des voix : le repos attendu arrive quand plus personne ne parle ni n'attend", async () => {
@@ -252,7 +270,8 @@ const MUTATIONS = {
   "flux inconnu joué": ["    if (!f || f.fini) return false;                    // flux inconnu", "    if (f?.fini) return false;                    // flux inconnu"],
   "doublon rejoué": ["n < f.attendu) return false;", "n < f.attendu - 1) return false;"],
   "perte non comptée": ["    if (n > f.attendu) f.pertes += n - f.attendu;      // morceaux perdus", "    // morceaux perdus"],
-  "compagnon avant le narrateur": ["this.attente.sort((a, b) => a.rang - b.rang || a.ordre - b.ordre);", "this.attente.sort((a, b) => a.ordre - b.ordre);"],
+  "tour pris avant l'affichage": ["      if (!affiche) return entrer();", "      return entrer();"],
+  "préparation comptée comme repos": ["    return !this.occupant && !this.attente.length && !this.enPreparation;", "    return !this.occupant && !this.attente.length;"],
   "deux voix à la fois": ["  #suivant() {\n    if (this.occupant) return;", "  #suivant() {"],
   "voix du compagnon à tous": ["  return tous.filter(id => auditeurs.has(id) || mj.includes(id));", "  return tous;"],
   "compagnon muet entendu": ["  if (a.peutParler === false) return [];\n", ""],
@@ -276,16 +295,25 @@ async function batterie(M) {
   await verifier("inconnu", () => assert.equal(new M.RecepteurFlux().morceau("x", 0), false));
   await verifier("doublon", () => { const r = new M.RecepteurFlux(); r.debut("f"); r.morceau("f", 0); r.morceau("f", 1); assert.equal(r.morceau("f", 1), false); });
   await verifier("perte", () => { const r = new M.RecepteurFlux(); r.debut("f"); r.morceau("f", 0); r.morceau("f", 3); assert.equal(r.fin("f", 4).pertes, 2); });
-  await verifier("priorité", async () => {
+  await verifier("ordre du chat", async () => {
     const f = new M.FileDesVoix();
     const ordre = [];
     const rendre = await f.prendre("compagnon");
     // Chacun rend la parole aussitôt reçue : aucune attente croisée, même sur un code cassé.
+    let afficher;
+    const n = f.prendre("narrateur", "", new Promise(r => { afficher = r; })).then(r => { ordre.push("n"); r(); });
     const c = f.prendre("compagnon").then(r => { ordre.push("c"); r(); });
-    const n = f.prendre("narrateur").then(r => { ordre.push("n"); r(); });
+    await prochain();
+    afficher();
+    await prochain();
     rendre();
     await Promise.all([c, n]);
-    assert.deepEqual(ordre, ["n", "c"]);
+    assert.deepEqual(ordre, ["c", "n"]);
+  });
+  await verifier("préparation", () => {
+    const f = new M.FileDesVoix();
+    f.prendre("narrateur", "", new Promise(() => {}));
+    assert.equal(f.libre, false);
   });
   await verifier("une à la fois", async () => {
     const f = new M.FileDesVoix();

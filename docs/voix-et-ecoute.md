@@ -74,7 +74,7 @@ voix Foundry de chaque navigateur, choisir les destinataires de la voix des IA (
 - `scripts/voix-flux.js` (logique pure) : `Calendrier` (lecture bout à bout, 200 ms de tampon au départ et après un trou, au plus
   300 s d'avance en mémoire), `RecepteurFlux` (flux inconnu ignoré : un joueur arrivé en cours de route attend le flux suivant ;
   doublon ou retardataire jeté ; perte comptée, la lecture continue ; flux muet 20 s oublié), `FileDesVoix` (une voix à la fois,
-  narrateur avant les compagnons qui attendent, personne n'est coupé), `destinatairesVoix`, `GardeLecture` (le début de l'audio est
+  dans l'ordre où les textes paraissent dans le chat, sans passe-droit pour le narrateur ; personne n'est coupé), `destinatairesVoix`, `GardeLecture` (le début de l'audio est
   retenu jusqu'à ce que la transcription renvoyée par l'API montre que le modèle dit bien le texte, ou 1,5 s d'audio : une lecture
   infidèle n'est jamais entendue ; une lecture qui s'emballe est coupée), `voixPourCompagnon`, `tonPourCompagnon`, `paroleSeule`.
 - `fournisseurs/openai.js`, `voixEnFlux` : même session Realtime qu'avant, chaque morceau rendu dès que la garde le laisse passer ;

@@ -112,7 +112,7 @@ test("narrateur : texte encore caché (mise en place) → la synthèse avance, m
   assert.deepEqual(emis.map(([e]) => e.type), ["voix-debut", "voix-morceau", "voix-morceau", "voix-morceau", "voix-fin"]);
 });
 
-test("une seule voix à la fois : le narrateur passe avant le compagnon qui attend ; la didascalie n'est pas lue", async () => {
+test("une seule voix à la fois, dans l'ordre du chat (le narrateur n'a pas de passe-droit) ; la didascalie n'est pas lue", async () => {
   vider();
   const a = acteur("ca", "Valentin"), b = acteur("cb", "Clémence");
   game.actors.set("ca", a); game.actors.set("cb", b);
@@ -124,7 +124,7 @@ test("une seule voix à la fois : le narrateur passe avant le compagnon qui atte
   n.suivre("Le soleil se couche.", true);
   await Promise.all([premier, second, n.terminer(null)]);
   const debuts = emis.filter(([e]) => e.type === "voix-debut").map(([e]) => e.priorite);
-  assert.deepEqual(debuts, ["compagnon", "narrateur", "compagnon"]);
+  assert.deepEqual(debuts, ["compagnon", "compagnon", "narrateur"]);
   // Les flux ne se chevauchent pas : chaque fin vient avant le début suivant.
   const ordre = emis.filter(([e]) => ["voix-debut", "voix-fin"].includes(e.type)).map(([e]) => e.type);
   assert.deepEqual(ordre, ["voix-debut", "voix-fin", "voix-debut", "voix-fin", "voix-debut", "voix-fin"]);
@@ -132,6 +132,22 @@ test("une seule voix à la fois : le narrateur passe avant le compagnon qui atte
   assert.ok(!dits.some(d => /croise/.test(d.texte)), "le geste n'est pas dit");
   assert.notEqual(a.flags["lakour-mj-ia"].voix.voix, "cedar", "pas la voix du narrateur");
   assert.notEqual(a.flags["lakour-mj-ia"].voix.voix, b.flags["lakour-mj-ia"].voix.voix, "chacun la sienne");
+  await V.voixAuRepos();
+});
+
+test("narration mise en place (préparée avant) : un compagnon affiché pendant ce temps parle d'abord, comme dans le chat", async () => {
+  vider();
+  let afficher;
+  const n = new V.VoixEnDirect(reglages.personnalites[0], { attendre: new Promise(r => { afficher = r; }) });
+  n.suivre("La brume se lève sur le village.", true);
+  await new Promise(r => setTimeout(r, 20));
+  const a = acteur("cc", "Honoré");
+  game.actors.set("cc", a);
+  const replique = V.direReplique(a, "Moi, je dis que c'est le forgeron.");
+  await new Promise(r => setTimeout(r, 20));
+  afficher();
+  await Promise.all([replique, n.terminer(null)]);
+  assert.deepEqual(emis.filter(([e]) => e.type === "voix-debut").map(([e]) => e.priorite), ["compagnon", "narrateur"]);
   await V.voixAuRepos();
 });
 

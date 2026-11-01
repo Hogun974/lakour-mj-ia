@@ -17,7 +17,7 @@ import { envoyer, recevoir, estMJActif, ecouterCanal } from "./canal.js";
 //    réception aux navigateurs qui doivent l'entendre (canal du MJ IA) ; chacun le joue aussitôt (WebAudio, petite mémoire
 //    tampon). Le WAV complet est ensuite déposé dans Data, seulement pour la réécoute (bouton 🔊). Si le flux échoue, repli sur
 //    l'ancien chemin : fichier entier déposé puis joué par Foundry (docs/voix-et-ecoute.md §1).
-// Une seule voix à la fois (file d'attente, le narrateur avant les compagnons). Chaque joueur peut couper la voix chez lui
+// Une seule voix à la fois, dans l'ordre où les textes paraissent dans le chat (file des voix). Chaque joueur peut couper la voix chez lui
 // (réglage client « entendreNarration ») et régler son volume (« volumeVoix »).
 
 // Message de narration finale, public, du MJ IA ?
@@ -116,8 +116,8 @@ class TourDeParole {
   // La parole (une seule voix à la fois), puis l'affichage du texte ; alors le flux s'ouvre chez les destinataires.
   #prendre() {
     this.pret ??= (async () => {
-      this.liberer = await file.prendre(this.priorite);
-      try { await this.attendre; } catch { /* l'affichage a échoué : la voix parle quand même */ }
+      // Le tour se compte à l'affichage du texte : la voix suit le fil du chat (un affichage raté la laisse parler quand même).
+      this.liberer = await file.prendre(this.priorite, "", this.attendre);
       await attenuerAmbiance().catch(() => {});
       if (this.enDirect) envoyer({ type: "voix-debut", flux: this.flux, priorite: this.priorite }, this.destinataires);
       this.ouvert = true;
