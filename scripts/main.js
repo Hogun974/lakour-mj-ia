@@ -11,6 +11,9 @@ import { figurantsDuContenu } from "./contenus.js";
 import { brancherVue3d } from "./vue3d.js";
 import { brancherDecisions, brancherCompagnonsDecisions } from "./decisions.js";
 import { installerGuide } from "./guide.js";
+import { CompagnonsSansNarrateur } from "./compagnons-veillees.js";
+import { ecouteActive } from "./ecoute.js";
+import { compagnonsPresents } from "./compagnons-jeu.js";
 import { versHTML } from "./utilitaires.js";
 
 Hooks.once("init", () => {
@@ -19,10 +22,15 @@ Hooks.once("init", () => {
 
 Hooks.once("ready", () => {
   const moteur = new MoteurMJ();
+  // Joueurs IA aux Veillées sans narrateur IA (MJ humain, hors séance) : point d'enregistrement de la Table, débat, réponses.
+  const sansNarrateur = new CompagnonsSansNarrateur({ moteur });
   // API pour les macros et les autres modules : game.modules.get("lakour-mj-ia").api
   game.modules.get(ID).api = {
     moteur,
-    console: () => new ConsoleMJ().render({ force: true })
+    sansNarrateur,
+    console: () => new ConsoleMJ().render({ force: true }),
+    // Une IA doit-elle entendre les joueurs (transcription de la parole, docs/voix-et-ecoute.md §2) ?
+    ecouteActive: () => ecouteActive({ seanceIA: moteur.actif, compagnonsVivants: compagnonsPresents().length, moduleActif: true })
   };
   // Figurants fournis par le module de contenu de ce système (lakour-40k, lakour-warcraft : même fichier figurants.json).
   figurantsDuContenu().then(f => f && definirFigurants(f.types, f.module));
@@ -33,13 +41,27 @@ Hooks.once("ready", () => {
   // Compagnons IA : leur cerveau répond aux votes de groupe et choix secrets, et aux demandes des Veillées (nuit, vote),
   // que le système lakour-loups adresse à son résolveur au lieu du socket.
   brancherCompagnonsDecisions((acteurId, demande) => moteur.compagnons.deciderOption(acteurId, demande));
+  // Séance ou non : avec un MJ humain aussi, les compagnons choisissent la nuit et votent par leur cerveau.
   const brancherVeillees = api => {
     if (!api) return;
     api.resolveurs ??= {};
     api.resolveurs.compagnon = demande => moteur.compagnons.resoudreLoups(demande);
+    sansNarrateur.enregistrer();
   };
   brancherVeillees(game.lakourLoups);
   Hooks.on("lakourLoups.pret", brancherVeillees);
+  // Une nouvelle partie des Veillées (Table de jeu, « Tout recommencer », loups_rejouer) : fil archivé, fil neuf, ouverture ;
+  // les compagnons oublient la partie précédente (moteur.nouvellePartie ; une demande déjà faite par l'outil n'est pas doublée).
+  Hooks.on("lakourLoups.nouvellePartie", () => moteur.nouvellePartie({ ouverture: true }));
+  // Sans narrateur IA : le jour, les compagnons débattent ; une nouvelle partie remet leur compteur hors séance à zéro.
+  Hooks.on("lakourLoups.phase", phase => { sansNarrateur.surPhase(phase).catch(e => console.error(`${ID} | compagnons`, e)); });
+  Hooks.on("createChatMessage", message => sansNarrateur.surMessage(message));
+  // Pilote automatique : une mort, une victoire, une phase, un joueur qui arrive ou part, un jeton posé ou retiré… il revoit s'il
+  // doit mener la partie (il ne reste que des compagnons IA) ou rendre la main (un humain vivant est là).
+  for (const crochet of ["lakourLoups.phase", "lakourLoups.elimination", "lakourLoups.victoire", "updateActor", "userConnected",
+    "createToken", "deleteToken", "canvasReady", "updateCombat", "deleteCombat"]) {
+    Hooks.on(crochet, () => moteur.pilote.verifierBientot());
+  }
   // Vue 3D demandée par l'IA (3D Canvas) : ouverture et cadrage, dans chaque navigateur.
   if (game.modules.get("levels-3d-preview")?.active) brancherVue3d();
 

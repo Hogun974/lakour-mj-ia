@@ -146,3 +146,9 @@
 .lakour-mjia-vote li.gagnant {
   font-weight: bold;
 }
+
+/* Didascalie d'un compagnon IA (« *Valentin croise les bras.* — … ») : le geste, en retrait de la parole. */
+.chat-message .lakour-mjia-didascalie {
+  opacity: 0.8;
+  font-style: italic;
+}

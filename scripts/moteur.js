@@ -7,10 +7,12 @@ import { versHTML, lireJSON, ecrireJSON } from "./utilitaires.js";
 import { validerSchema } from "./schema.js";
 import { VoixEnDirect } from "./voix.js";
 import { estSilence } from "./voix-texte.js";
-import { Compagnons } from "./compagnons-jeu.js";
-import { peuventReagir } from "./compagnons.js";
+import { Compagnons, effacerPrive } from "./compagnons-jeu.js";
+import { peuventReagir, estAnnonceSysteme } from "./compagnons.js";
+import { PiloteAutomatique, attendreFinVoix } from "./pilote.js";
 
 const MAX_TOURS_OUTILS = 12;
+const HORS_SEANCE_VIDE = { cout: 0, appels: 0, depuis: 0 };
 const MAX_TOURS_PLATEAU = 3;
 // Demandes adressées aux joueurs : pendant le brouillon, elles attendent que la narration soit affichée.
 const DIFFEREES = ["demander_jet", "demander_des"];
@@ -48,6 +50,33 @@ export function consigneCreation(nomJoueur, { enParenthese = false, systeme = "i
     ] : [])
   ].join("\n");
 }
+
+// ---------- Veillées de Brumecombe : chaque partie repart de zéro pour le narrateur (fil neuf, sans mémoire des précédentes).
+export const OUVERTURE_NOUVELLE_PARTIE = "Nouvelle partie : la précédente est finie et archivée, ne la raconte pas et n'y fais aucune allusion. "
+  + "Présente le village, annonce la composition sans dire qui (les rôles en jeu, groupés par camp), et lance la première nuit (loups_nuit).";
+export const OUVERTURE_NOUVELLE_VEILLEE = "Nouvelle veillée, sans aucune partie précédente à rappeler. Accueille les joueurs, propose une composition "
+  + "équilibrée (loups_composer) pour les joueurs présents (et des compagnons IA s'ils en veulent), puis loups_distribuer.";
+export const OUVERTURE_PARTIE_EN_COURS = "La séance reprend en pleine partie. En une phrase, dis où en est le village (phase et tour : voir l'état du jeu), "
+  + "sans rappeler aucune autre partie, puis continue.";
+export const PARTIE_DEJA_ANNONCEE = "Nouvelle partie distribuée et déjà annoncée dans le fil précédent (archivé) : poursuis-la, sans jamais évoquer "
+  + "une partie précédente.";
+
+// Pour le narrateur seul : qui tient quel rôle dans la partie qui commence (le fil neuf ne contient pas la distribution).
+export function distributionSecrete(api = game.lakourLoups) {
+  const lignes = (api?.villageois?.() ?? []).map(a => {
+    const role = a.items?.find?.(i => i.type === "role");
+    const qui = a.system?.joueur ? game.users.get(a.system.joueur)?.name ?? "joueur" : "compagnon IA";
+    return `- ${a.name} (${qui}) : ${role?.name ?? "?"}, camp ${a.system?.camp ?? role?.system?.camp ?? "?"}`;
+  });
+  return lignes.length ? `[Distribution — secret, pour toi seul]\n${lignes.join("\n")}` : "";
+}
+
+// La partie des Veillées en cours (phase ni « preparation » ni « fin ») ?
+const partieLoupsEnCours = api => {
+  const e = api?.etat?.();
+  return Boolean(e && !e.vainqueur && !["preparation", "fin"].includes(e.phase));
+};
+const filNonVide = fil => Boolean(fil?.messages?.length || fil?.elements?.length);
 
 // Systèmes où la création guidée existe.
 export const CREATION_GUIDEE = ["impmal", "dnd5e"];
@@ -97,6 +126,10 @@ export class MoteurMJ {
     this.systeme = null;
     // Compagnons IA : chacun son cerveau (appel séparé, contexte restreint), même compteur et même budget que le MJ.
     this.compagnons = new Compagnons({ moteur: this, fournisseur: fournisseurCompagnons, modele: () => modeleCompagnons() });
+    // Pilote automatique : quand il ne reste que des compagnons IA (mode autonome), la partie continue seule (pilote.js).
+    this.toursEnFile = 0;     // tours demandés et pas encore finis (en cours ou en attente dans la chaîne)
+    this.vidages = 0;         // lots de messages en cours de traitement (réponse du MJ, puis réactions des compagnons)
+    this.pilote = new PiloteAutomatique({ moteur: this, attendreVoix: () => attendreFinVoix(), etatDuJeu });
   }
 
   get personnalite() {
@@ -118,13 +151,25 @@ export class MoteurMJ {
     // la mémoire de campagne assure la continuité.
     const sauve = await lireJSON("fils", this.nomFichier());
     this.fil = sauve?.fournisseur === this.fournisseur.nom ? sauve : this.fournisseur.nouveauFil();
+    // Aux Veillées, hors d'une partie en cours, la séance commence une partie neuve : l'ancien fil est archivé, les compagnons oublient.
+    const loups = game.system.id === "lakour-loups" ? game.lakourLoups : null;
+    const enPartie = loups && partieLoupsEnCours(loups);
+    if (loups && !enPartie) {
+      await this.#archiverFil(sauve);
+      this.fil = this.fournisseur.nouveauFil();
+      await effacerPrive();
+    }
     this.systeme = await promptSysteme(this.personnalite);
     await ecrire("seance", { active: true, debut: Date.now(), jetons: { entree: 0, cacheLecture: 0, cacheEcriture: 0, sortie: 0 }, cout: 0 });
+    this.pilote.suspendu = false;
     ui.notifications.info(game.i18n.localize("LAKOUR_MJIA.Seance.Demarree"));
     // Foundry met le jeu en pause à chaque lancement du monde : le MJ IA la lève pour que les joueurs jouent.
     if (game.paused) game.togglePause(false, { broadcast: true });
     if (silencieux) return;
-    const ouverture = this.fil.messages?.length || this.fil.elements?.length
+    const distribuee = loups && loups.etat().phase === "preparation" && loups.villageois().some(a => a.items?.find?.(i => i.type === "role"));
+    const ouverture = loups
+      ? (enPartie ? OUVERTURE_PARTIE_EN_COURS : distribuee ? `${distributionSecrete(loups)}\n\n${OUVERTURE_NOUVELLE_PARTIE}` : OUVERTURE_NOUVELLE_VEILLEE)
+      : filNonVide(this.fil)
       ? "La séance reprend. En deux ou trois phrases, « Précédemment… », rappelle où en était l'histoire (mémoire de campagne, chronique), "
         + "puis relance la scène avec son ambiance sonore."
       : "C'est la toute première séance. Présente le cadre, accueille les personnages et lance une première scène.";
@@ -136,12 +181,67 @@ export class MoteurMJ {
   async arreter() {
     if (!lire("seance").active) return;
     clearTimeout(this.minuterie);
+    this.pilote.arreter("seance");
     await this.tour("[Fin de séance] Donne l'expérience méritée (donner_xp), écris pour les joueurs le résumé de la séance dans la chronique "
       + "(ecrire_chronique, sans les secrets du MJ), coupe l'ambiance sonore (ambiance_sonore « aucune »). "
       + "Mets à jour la mémoire de campagne avec noter_memoire : résumé de la séance, "
       + "PNJ rencontrés, lieux, fils ouverts. Puis dis au revoir aux joueurs en une phrase.");
     await ecrire("seance", { ...lire("seance"), active: false });
     ui.notifications.info(game.i18n.localize("LAKOUR_MJIA.Seance.Arretee"));
+  }
+
+  // ---------- Veillées : une nouvelle partie (loups_distribuer, loups_rejouer, hook lakourLoups.nouvellePartie, Table de jeu).
+  // Le fil de la partie précédente est archivé (autre nom, dans Data/lakour-mj-ia/fils/, jamais supprimé) et un fil NEUF commence,
+  // avec un prompt système recalculé (les nouveaux rôles) ; les compagnons IA oublient la partie précédente.
+  // ouverture : le narrateur ouvre la nouvelle partie dans le fil neuf (présente le village, annonce la composition sans dire
+  // qui, lance la première nuit) ; sinon (loups_distribuer, où il vient de l'annoncer), le fil neuf commence par la distribution.
+  // Passe dans la file des tours : appelée par un outil pendant un tour, elle attend la fin de ce tour (la partie précédente
+  // finit dans son fil). Plusieurs demandes rapprochées (outil et hook) n'en font qu'une.
+  nouvellePartie({ ouverture = false } = {}) {
+    if (game.user !== game.users.activeGM) return Promise.resolve(null);
+    effacerPrive().catch(e => console.error(`${ID} | mémoire des compagnons`, e));
+    this.pilote.suspendu = false;
+    if (!this.actif || !this.fil || !this.fournisseur) return Promise.resolve(null);
+    if (this.partieDemandee) {
+      this.partieDemandee.ouverture ||= ouverture;
+      return this.partieDemandee.promesse;
+    }
+    const demande = { ouverture };
+    this.partieDemandee = demande;
+    this.toursEnFile++;
+    demande.promesse = this.chaine.then(() => this.#commencerPartie(demande)).finally(() => { this.toursEnFile--; });
+    this.chaine = demande.promesse.catch(() => null);
+    return demande.promesse;
+  }
+
+  async #commencerPartie(demande) {
+    this.partieDemandee = null;
+    await this.#archiverFil(this.fil);
+    this.fil = this.fournisseur.nouveauFil();
+    try { this.systeme = await promptSysteme(this.personnalite); } catch (e) { console.error(`${ID} | prompt système`, e); }
+    await ecrireJSON("fils", this.nomFichier(), this.fil).catch(e => console.error(`${ID} | sauvegarde du fil`, e));
+    const distribution = distributionSecrete();
+    if (!demande.ouverture) {
+      this.preambule = [distribution, PARTIE_DEJA_ANNONCEE].filter(Boolean).join("\n");
+      return this.fil;
+    }
+    this.preambule = "";
+    // Déjà dans la file des tours : le tour d'ouverture passe tout de suite (this.tour attendrait la fin de cette étape).
+    await this.#tour(`[Nouvelle partie]\n${etatDuJeu()}\n\n${distribution}\n\n${OUVERTURE_NOUVELLE_PARTIE}`, { miseEnPlace: false });
+    return this.fil;
+  }
+
+  // Le fil d'une partie finie, gardé sous un autre nom (<monde>-partie-<date>.json) ; un fil vide n'est pas archivé.
+  async #archiverFil(fil) {
+    if (!filNonVide(fil)) return null;
+    const nom = `${game.world.id}-partie-${new Date().toISOString().replace(/[:.]/g, "-")}-${Math.random().toString(36).slice(2, 6)}.json`;
+    try {
+      await ecrireJSON("fils", nom, fil);
+      return nom;
+    } catch (e) {
+      console.error(`${ID} | archive du fil`, e);
+      return null;
+    }
   }
 
   // Joueurs connectés qui n'ont pas encore de personnage.
@@ -168,6 +268,12 @@ export class MoteurMJ {
 
   recevoir(message) {
     if (!this.actif || !messagePourIA(message)) return;
+    // Une annonce du système des Veillées (mort, vote…) : le MJ la lit, mais elle ne réveille pas les compagnons. Pendant le pilote
+    // automatique, celles qui naissent d'un tour du MJ viennent de ses propres outils (aucun humain vivant n'agit) : il les a déjà.
+    if (estAnnonceSysteme(message.content)) {
+      if (this.enCours && this.pilote.enMarche) return;
+      return this.signaler(decrireMessage(message), { source: "annonce" });
+    }
     // Une réplique de compagnon IA arrive comme un message de joueur, mais ne relance pas les compagnons (pas de boucle).
     this.signaler(decrireMessage(message), { source: message.flags?.[ID]?.compagnon ? "compagnon" : "humain" });
   }
@@ -188,8 +294,14 @@ export class MoteurMJ {
     if (this.enCours || !this.attente.length) return;
     const lot = this.attente.splice(0);
     const textes = lot.map(e => e.texte);
-    await this.tour(`[État du jeu]\n${etatDuJeu()}\n\n[Messages et actions des joueurs]\n${textes.join("\n")}`, { miseEnPlace: this.miseEnPlaceVoulue() });
-    await this.faireReagirCompagnons(lot);
+    // Compté jusqu'à la fin des réactions des compagnons : le pilote automatique attend que tout soit retombé.
+    this.vidages++;
+    try {
+      await this.tour(`[État du jeu]\n${etatDuJeu()}\n\n[Messages et actions des joueurs]\n${textes.join("\n")}`, { miseEnPlace: this.miseEnPlaceVoulue() });
+      await this.faireReagirCompagnons(lot);
+    } finally {
+      this.vidages--;
+    }
   }
 
   // Après la réponse du MJ, les compagnons présents peuvent réagir (au plus le bavardage réglé, une réplique chacun) ;
@@ -245,13 +357,24 @@ export class MoteurMJ {
   // Les tours passent un par un : deux tours simultanés mélangeraient le fil.
 
   tour(entree, options = {}) {
-    const suite = this.chaine.then(() => this.#tour(entree, options));
+    this.toursEnFile++;
+    const suite = this.chaine.then(() => this.#tour(entree, options)).finally(() => { this.toursEnFile--; });
     this.chaine = suite.catch(() => null);
     return suite;
   }
 
+  // Au repos : aucun tour en cours ni en attente, aucun message en file (le pilote automatique n'avance qu'ainsi).
+  auRepos() {
+    return !this.enCours && this.toursEnFile === 0 && !this.vidages && !this.attente.length;
+  }
+
   async #tour(entree, { fil = this.fil, systeme = this.systeme, outils = outilsDuSysteme(), sauver = true, chuchoter = false, miseEnPlace = false } = {}) {
     this.enCours = true;
+    // Premier tour d'un fil neuf commencé sans ouverture (loups_distribuer) : la distribution secrète passe devant.
+    if (this.preambule && fil === this.fil) {
+      entree = `${this.preambule}\n\n${entree}`;
+      this.preambule = "";
+    }
     try {
       if (miseEnPlace) await this.#tourMisEnPlace(entree, fil, systeme, outils, chuchoter);
       else await this.#tourDirect(entree, fil, systeme, outils, chuchoter);
@@ -260,9 +383,12 @@ export class MoteurMJ {
       await this.prevenirMJ(expliquerErreur(erreur));
     } finally {
       this.enCours = false;
-      if (sauver) await ecrireJSON("fils", this.nomFichier(), fil).catch(e => console.error(`${ID} | sauvegarde du fil`, e));
+      // Un fil remplacé pendant ce tour (nouvelle partie) n'écrase pas le fil neuf : il est archivé par la nouvelle partie.
+      if (sauver && fil === this.fil) await ecrireJSON("fils", this.nomFichier(), fil).catch(e => console.error(`${ID} | sauvegarde du fil`, e));
       // Des joueurs ont écrit pendant que l'IA répondait : on leur répond à leur tour.
       if (this.attente.length) setTimeout(() => this.vider(), 0);
+      // Une mort, une victoire, un joueur parti : le pilote automatique regarde s'il doit démarrer ou s'arrêter.
+      if (sauver) this.pilote?.verifierBientot();
     }
   }
 
@@ -395,18 +521,34 @@ export class MoteurMJ {
   // ---------- Coût
 
   // modele : celui de l'appel (les compagnons IA ont le leur, moins cher) ; par défaut celui du MJ.
+  // Hors séance (joueurs IA d'une partie des Veillées menée par un MJ humain), le coût va au compteur « compagnons hors
+  // séance », borné par le même budget.
   async compter(usage, modele = null) {
     const seance = foundry.utils.deepClone(lire("seance"));
-    for (const k of Object.keys(seance.jetons)) seance.jetons[k] += usage[k] ?? 0;
     const fournisseur = lire("fournisseur");
     const leModele = modele || (fournisseur === "anthropic" ? lire("modeleAnthropic") : fournisseur === "openai" ? lire("modeleOpenAI") : "");
-    seance.cout += coutDe(usage, prixDuModele(fournisseur, leModele));
+    const cout = coutDe(usage, prixDuModele(fournisseur, leModele));
+    if (!seance.active) {
+      const hors = { ...HORS_SEANCE_VIDE, ...(lire("compagnonsHorsSeance") ?? {}) };
+      await ecrire("compagnonsHorsSeance", { ...hors, cout: hors.cout + cout, appels: hors.appels + 1 });
+      return;
+    }
+    for (const k of Object.keys(seance.jetons)) seance.jetons[k] += usage[k] ?? 0;
+    seance.cout += cout;
     await ecrire("seance", seance);
   }
 
   budgetDepasse() {
     const budget = lire("budgetSeance");
-    return budget > 0 && lire("seance").cout >= budget;
+    if (!(budget > 0)) return false;
+    const seance = lire("seance");
+    const cout = seance.active ? seance.cout : (lire("compagnonsHorsSeance")?.cout ?? 0);
+    return cout >= budget;
+  }
+
+  // Une nouvelle partie hors séance : le compteur « compagnons hors séance » repart de zéro.
+  async remettreHorsSeance() {
+    await ecrire("compagnonsHorsSeance", { ...HORS_SEANCE_VIDE, depuis: Date.now() });
   }
 
   async prevenirMJ(texte) {

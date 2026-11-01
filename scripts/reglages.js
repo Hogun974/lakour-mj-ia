@@ -45,7 +45,8 @@ export function enregistrerReglages() {
     choices: {
       validation: "LAKOUR_MJIA.Reglages.Autonomie.Validation",
       autonome: "LAKOUR_MJIA.Reglages.Autonomie.Autonome"
-    }
+    },
+    onChange: revoirPilote
   });
   game.settings.register(ID, "delaiReponse", {
     name: "LAKOUR_MJIA.Reglages.Delai.Nom",
@@ -73,6 +74,25 @@ export function enregistrerReglages() {
   // Ce que chaque compagnon sait en privé (messages qui lui sont destinés, ses choix secrets) : portée « client », donc rangé
   // dans le navigateur du MJ (localStorage) et jamais envoyé au serveur ni aux joueurs, comme les secrets des Veillées.
   game.settings.register(ID, "compagnonsPrive", { scope: "client", config: false, type: Object, default: {} });
+  // Coût des compagnons IA hors séance (Veillées menées par un MJ humain, sans narrateur IA) : borné par le budget de séance,
+  // remis à zéro à chaque nouvelle partie (compagnons-veillees.js).
+  game.settings.register(ID, "compagnonsHorsSeance", { scope: "world", config: false, type: Object, default: { cout: 0, appels: 0, depuis: 0 } });
+
+  // --- Pilote automatique (pilote.js) : quand il ne reste que des compagnons IA, en mode autonome, la partie continue seule,
+  // étape par étape. Délai entre deux étapes (après la voix du narrateur) et plafond d'étapes (valeurs par défaut : celles de
+  // pilote.js, DELAI_DEFAUT et ETAPES_MAX).
+  game.settings.register(ID, "pilote", {
+    name: "LAKOUR_MJIA.Reglages.Pilote.Nom", hint: "LAKOUR_MJIA.Reglages.Pilote.Aide",
+    scope: "world", config: true, type: Boolean, default: true, onChange: revoirPilote
+  });
+  game.settings.register(ID, "piloteDelai", {
+    name: "LAKOUR_MJIA.Reglages.PiloteDelai.Nom", hint: "LAKOUR_MJIA.Reglages.PiloteDelai.Aide",
+    scope: "world", config: true, type: Number, default: 4, range: { min: 0, max: 30, step: 1 }
+  });
+  game.settings.register(ID, "piloteEtapes", {
+    name: "LAKOUR_MJIA.Reglages.PiloteEtapes.Nom", hint: "LAKOUR_MJIA.Reglages.PiloteEtapes.Aide",
+    scope: "world", config: true, type: Number, default: 60, range: { min: 10, max: 300, step: 10 }
+  });
 
   // --- Style visuel des cartes et des jetons : plat (2D) ou relief (3D). Un changement redessine les cartes du
   // MJ IA et prévient les modules de contenu (hook « lakourStyleVisuel ») pour qu'ils basculent leurs images.
@@ -147,6 +167,11 @@ export function enregistrerReglages() {
     type: EditeurPersonnalites,
     restricted: true
   });
+}
+
+// Le pilote automatique revoit s'il doit marcher (autonomie ou réglage du pilote changés).
+function revoirPilote() {
+  game.modules.get(ID)?.api?.moteur?.pilote?.verifierBientot();
 }
 
 export const lire = cle => game.settings.get(ID, cle);

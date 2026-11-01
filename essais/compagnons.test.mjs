@@ -173,6 +173,9 @@ test("rythme : un lot de seules répliques de compagnons ne relance pas les comp
   assert.equal(C.peuventReagir([{ source: "compagnon" }, { source: "humain" }]), true);
   assert.equal(C.peuventReagir([{ source: "evenement" }]), true);
   assert.equal(C.peuventReagir([{ texte: "ancien format sans source" }]), true);
+  assert.equal(C.peuventReagir([{ source: "annonce" }, { source: "compagnon" }]), false, "une annonce du système (mort, vote) ne réveille personne");
+  assert.equal(C.estAnnonceSysteme('<div class="lakour-loups annonce">Aubin meurt.</div>'), true);
+  assert.equal(C.estAnnonceSysteme("<p>Aubin ment.</p>"), false);
 });
 
 test("rythme : au plus N orateurs, une fois chacun ; les cités d'abord, puis ceux qui ont parlé le moins récemment", () => {
@@ -227,7 +230,8 @@ const MUTATIONS = {
   "budget ignoré": ["if (this.budgetDepasse()) return null;", ""],
   "factice appelé": ['if (!f || f.nom === "factice" || typeof f.envoyerCourt !== "function") return null;', 'if (!f || typeof f.envoyerCourt !== "function") return null;'],
   "coût non compté": ["await this.compter(r?.usage ?? {}, this.modele());", ""],
-  "boucle : les compagnons se relancent entre eux": ['export const peuventReagir = lot => (lot ?? []).some(e => (e?.source ?? "humain") !== "compagnon");', "export const peuventReagir = lot => (lot ?? []).length > 0;"],
+  "boucle : les compagnons se relancent entre eux": ['export const peuventReagir = lot => (lot ?? []).some(e => !SANS_REACTION.includes(e?.source ?? "humain"));', "export const peuventReagir = lot => (lot ?? []).length > 0;"],
+  "une annonce du système réveille les compagnons": ['export const SANS_REACTION = ["compagnon", "annonce"];', 'export const SANS_REACTION = ["compagnon"];'],
   "un compagnon parle deux fois": [".slice(0, max);\n}", ".flatMap(c => [c, c]).slice(0, max);\n}"],
   "repli non déterministe": ["const h = hasard(`decider|${graine}|${vue.id}|${demande.cle ?? demande.invite ?? demande.question ?? \"\"}`);", "const h = Math.random;"],
   "un loup vise les siens": ["const permis = (allies.size ? pasSoi.filter(c => !allies.has(c.id)) : pasSoi);", "const permis = pasSoi;"],
@@ -265,6 +269,7 @@ async function batterie(M) {
     assert.equal(comptes.length, 1);
   });
   await verifier("boucle", () => assert.equal(M.peuventReagir([{ source: "compagnon" }]), false));
+  await verifier("annonce", () => assert.equal(M.peuventReagir([{ source: "annonce" }, { source: "compagnon" }]), false));
   await verifier("orateurs", () => assert.equal(M.choisirOrateurs([{ id: "a", nom: "A" }, { id: "b", nom: "B" }], { max: 2 }).map(c => c.id).join(), "a,b"));
   await verifier("repli déterministe", () => {
     const serie = () => Array.from({ length: 30 }, (_, i) => M.repliDecision(vue(), demandeCibles({ cle: `d${i}`, nombre: 2 }), "g"));

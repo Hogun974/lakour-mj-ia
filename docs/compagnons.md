@@ -69,3 +69,89 @@ autres secrets du jeu (voir `docs/loups-contrat.md`, section sur les secrets).
 - Outils : `compagnon_ajouter`, `compagnon_retirer`, `compagnons`, `jet_compagnon` ; `loups_distribuer` avec `compagnons` ;
   `vote_groupe`, `choix_secret` et `message_prive` acceptent un compagnon ; `demander_jet` sur un compagnon lance directement.
 - Essais : `essais/compagnons*.test.mjs` de ce dépôt ; dans le dépôt lakour-veillees, `essais/compagnons-veillees.test.mjs` et les parties avec compagnons d'`essais/integration-loups.test.mjs`.
+
+## Répliques en style théâtre (MJ IA 0.27.0)
+
+Un compagnon dit lui-même ses gestes : sa réplique peut commencer par UNE didascalie brève, en italique, à la troisième
+personne, puis sa parole : « *Valentin regarde Clémence, les bras croisés.* — Moi, je l'ai vue sortir hier soir. »
+- La didascalie n'est qu'un geste, un regard, une attitude : jamais une action de jeu (on vote, on agit la nuit et on use d'un
+  pouvoir par les fenêtres du jeu ; en 40k et en Warcraft, une action qui compte se dit dans la parole et le MJ la résout), et
+  aucun secret.
+- `nettoyerReplique` garde au plus une didascalie, en tête (`*…*`, `**…**`, `_…_` ou `(…)`), bornée à `DIDASCALIE_MAX`
+  (140 caractères), et la parole à `PAROLE_MAX` (400) ; les autres didascalies disparaissent. Le chat l'affiche en italique
+  (classe `lakour-mjia-didascalie`) ; le MJ IA lit la réplique telle quelle (drapeau `texte`).
+- Le narrateur ne raconte plus ces gestes ni ces répliques. Aux Veillées, il s'en tient à la nuit, à l'aube et aux morts, à
+  l'animation du débat (tours de parole, temps, relances) et aux résultats. En 40k et en Warcraft, il décrit le monde et les
+  conséquences, pas le geste qu'un compagnon vient de décrire.
+
+## Pilote automatique : quand il ne reste que des IA (MJ IA 0.27.0)
+
+Demande de Jordan : « quand il ne reste que des IA, il faut que les actions continuent (si en mode autonome) ». Le moteur ne
+réagit qu'aux messages des joueurs et refuse de relancer les compagnons sur leurs seules répliques (pas de boucle) : sans humain,
+la partie se bloquait. `scripts/pilote.js` (`PiloteAutomatique`, un par `MoteurMJ`, `moteur.pilote`).
+
+**Démarrage** (vérifié après chaque tour du MJ, à chaque phase, mort, victoire, connexion, jeton posé ou retiré, combat, et au
+changement des réglages) : séance active, autonomie « autonome », réglage `pilote` coché, et
+- aux Veillées : partie en cours (phase ni « preparation » ni « fin ») et AUCUN vivant tenu par un humain (des humains morts
+  peuvent regarder ; un villageois sans compagnon compte comme humain, même déconnecté) ;
+- en 40k et en Warcraft : aucun personnage d'un joueur connecté présent (jeton visible sur la scène active ; sans scène, le
+  personnage assigné) et au moins un compagnon présent.
+En mode Validation : pas de pilote, un seul avis au MJ humain (« passe en autonome ou mène la suite »).
+
+**Étapes aux Veillées**, une à la fois, chacune une consigne au MJ IA qui raconte et appelle lui-même ses outils `loups_*` :
+nuit (`loups_nuit`, puis « — ») → aube (récit ; le pilote passe ensuite la phase à « jour ») → débat (au plus `DEBAT_TOURS` = 2
+tours de parole : le pilote appelle lui-même `compagnons.debattre`, leurs répliques entrent dans la file du MJ qui y répond une
+fois ; c'est l'exception voulue à la règle anti-boucle, seulement en pilote et seulement au débat ; `peuventReagir` reste
+inchangé ailleurs ; aucun débat si le bavardage est « silencieux ») → vote (ouvrir ; les compagnons votent par le résolveur) →
+dépouillement (clore) → exécution (`loups_eliminer`) → victoire vérifiée (`api.verifierVictoire`) → nuit suivante. À la
+victoire : une étape « dénouement », puis arrêt. Le pilote ne relance jamais une autre partie (`loups_rejouer`).
+
+**Rythme** : `piloteDelai` secondes (4 par défaut) entre deux étapes, après la fin de la voix du narrateur (file de lecture
+OpenAI, voix du navigateur du MJ ; deux minutes au plus) et une fois le moteur au repos (`moteur.auRepos()` : aucun tour en cours
+ni en attente, aucun lot de messages en traitement, réactions des compagnons comprises).
+
+**Garde-fous** : arrêt net (l'étape en cours finit, aucune autre ne commence) à la victoire, à la fin de la séance, au retour d'un
+humain vivant, en mode Validation, réglage coupé ; arrêt avec avis et pause (il ne repart pas seul) au budget atteint, après
+`piloteEtapes` étapes (60 par défaut), quand la même étape revient trois fois sur le même état (« la partie n'avance plus »), sur
+une erreur, ou par le MJ humain (bouton **Arrêter le pilote** de la console ; **Relancer le pilote** ensuite).
+
+**En 40k et en Warcraft (choix retenu)** : on se limite à ce qui reste sûr.
+- Les combats se poursuivent tour après tour, comme avant (`reactions.js` : tour d'un PNJ → le MJ le joue ; tour d'un compagnon
+  → il déclare, le MJ résout). Le pilote compte chaque tour de combat comme une étape (le plafond borne donc aussi les combats),
+  et relance un combat arrêté depuis 30 s (moteur au repos) : le compagnon redéclare son action, ou le MJ joue le PNJ ou fait
+  passer le tour d'un personnage de joueur absent. En pause (plafond, MJ…), alors qu'il ne reste que des compagnons, le combat
+  est retenu : les tours ne se jouent plus d'eux-mêmes jusqu'à ce qu'un humain revienne ou que le MJ relance le pilote.
+- Hors combat, au plus `ECHANGES_MAX` = 6 échanges : le MJ fait avancer la scène d'un pas, puis les compagnons réagissent (le MJ
+  leur répond par sa file) ; ensuite pause et avis au MJ humain. Pas d'aventure qui tourne seule sans fin.
+
+**Coût d'un tour de pilote** (un jour de jeu aux Veillées) : 7 tours du MJ IA (nuit, aube, deux réponses au débat, vote,
+dépouillement, exécution ; un de plus pour le dénouement), soit 10 à 12 appels au modèle (un tour avec outil en fait deux), sans
+mise en place du plateau ; mesuré par `essais/pilote-automatique.test.mjs` des Veillées (≈ 10,5 appels au narrateur et ≈ 10 aux
+compagnons par jour, 6 compagnons) ; côté compagnons, un appel court par
+choix de nuit, 2 à 4 répliques (2 tours × bavardage) et un vote par compagnon vivant. En 40k et en Warcraft : 2 appels au MJ par
+échange (scène, réponse) plus une réplique par compagnon ; en combat, ce que coûtait déjà chaque tour.
+
+## Chaque partie des Veillées repart de zéro (MJ IA 0.27.0)
+
+À une nouvelle partie (`loups_distribuer`, `loups_rejouer`, hook `lakourLoups.nouvellePartie` de la Table), `moteur.nouvellePartie`
+archive le fil de la précédente sous un autre nom (`Data/lakour-mj-ia/fils/<monde>-partie-<date>.json`, jamais supprimé) et
+commence un fil neuf, avec un prompt système recalculé (les nouveaux rôles) et la distribution secrète en tête. L'ouverture dit
+« nouvelle partie : présente le village, annonce la composition sans dire qui, lance la première nuit » ; au démarrage d'une
+séance hors partie en cours, idem (fil neuf) ; en pleine partie, une phrase sur l'état du village. La mémoire de campagne n'entre
+pas dans le prompt aux Veillées (l'historique des compositions `historiqueLoups` reste, pour varier). Les compagnons oublient la
+partie précédente (`effacerPrive`). Outil `loups_rejouer` (mêmes joueurs, même nombre de compagnons, nouvelle composition
+équilibrée sauf rôles ou composition donnés) ; le narrateur le propose en fin de partie.
+
+## Sans narrateur IA : un MJ humain et des joueurs IA (MJ IA 0.27.0)
+
+`scripts/compagnons-veillees.js` (`CompagnonsSansNarrateur`) : au « ready », chez le MJ actif, `game.lakourLoups.compagnons =
+{ disponible: true, creer(n), retirer(acteurId) }` (le système appelle le hook `lakourLoups.compagnons`) ; le bouton « + Joueur IA »
+de la Table appelle `creer`. Le résolveur des compagnons est branché séance ou non : nuits et votes marchent avec un MJ humain.
+Hors séance, quand la phase passe à « jour », les compagnons vivants parlent (au plus le bavardage) ; ils répondent aux messages
+publics des humains (regroupés), jamais aux leurs. Coût : compteur « compagnons hors séance » (réglage `compagnonsHorsSeance`,
+affiché dans la console), borné par `budgetSeance`, remis à zéro à chaque distribution ; sans clé ou budget atteint, repli.
+`scripts/ecoute.js` : `ecouteActive({ seanceIA, compagnonsVivants, moduleActif })`, la règle de `docs/voix-et-ecoute.md` §2
+(écouter la parole seulement si une séance est lancée ou si un compagnon vivant est à la table).
+
+Essais : `essais/pilote.test.mjs`, `essais/nouvelle-partie.test.mjs`, `essais/didascalies.test.mjs`, `essais/sans-narrateur.test.mjs`
+de ce dépôt ; dans lakour-veillees, `essais/pilote-automatique.test.mjs` et `essais/compagnons-sans-narrateur.test.mjs`.

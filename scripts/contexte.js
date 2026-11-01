@@ -20,6 +20,9 @@ export const CONSIGNE_COMPAGNONS = [
   "  • En combat, à son tour, son action déclarée t'arrive : résous-la avec les vrais jets de sa fiche, lancés directement "
     + "(jet_compagnon ; lancer_des pour les dégâts), puis passer_tour. Hors combat, quand l'issue de son action est incertaine, jet_compagnon "
     + "aussi (pas de demander_jet : personne n'est là pour cliquer).",
+  "  • Ils disent eux-mêmes leurs gestes : une réplique peut commencer par une didascalie en italique (« *Valentin croise les bras.* — "
+    + "Je n'ai rien vu. »), déjà affichée. Ne la raconte pas de nouveau et ne répète ni ne paraphrase ce qu'ils disent : décris le monde, "
+    + "les PNJ et les conséquences, pas le geste qu'ils viennent de décrire. Une didascalie ne change rien au jeu.",
   "  • compagnon_ajouter, compagnon_retirer et compagnons gèrent la troupe ; un vote de groupe et un choix secret les incluent."
 ].join("\n");
 
@@ -120,7 +123,8 @@ export async function promptSysteme(personnalite, { mission } = {}) {
     compagnonsDuMonde().map(a => `- ${sys.resumer(a)} [compagnon IA, ${TEMPERAMENTS[personnaliteDe(a).temperament].libelle}]`).join("\n") || "(aucun)",
     "",
     "Mémoire de campagne :",
-    await lireMemoire()
+    // Aux Veillées, chaque partie repart de zéro : rien des parties précédentes (seul l'historique des compositions reste, pour varier).
+    game.system.id === "lakour-loups" ? "(aux Veillées, chaque partie est neuve : aucune mémoire des parties précédentes)" : await lireMemoire()
   ].join("\n");
 }
 
@@ -185,7 +189,8 @@ export function decrireMessage(message) {
   const alias = message.speaker?.alias;
   const compagnon = message.flags?.[ID]?.compagnon;
   const qui = compagnon ? `${alias} (compagnon IA)` : alias && alias !== auteur ? `${alias} (joué par ${auteur})` : auteur;
-  const texte = versTexte(message.content);
+  // Une réplique de compagnon telle qu'il l'a dite : la didascalie (*…*) reste visible comme telle.
+  const texte = compagnon && typeof message.flags[ID].texte === "string" ? message.flags[ID].texte : versTexte(message.content);
   const jets = (message.rolls ?? []).map(r => `${r.formula} = ${r.total}`).join(" ; ");
   const saveur = versTexte(message.flavor);
   if (jets) return `🎲 ${qui}${saveur ? ` — ${saveur}` : ""} : ${jets}${texte ? `\n${tronquer(texte, 1500)}` : ""}`;

@@ -21,6 +21,11 @@ export class ConsoleMJ extends HandlebarsApplicationMixin(ApplicationV2) {
       scenario: ConsoleMJ.#scenario,
       creation: ConsoleMJ.#creation,
       vision: ConsoleMJ.#vision,
+      arreterPilote: function () { this.moteur.pilote.arreter("manuel"); this.render(); },
+      relancerPilote: function () {
+        if (!this.moteur.pilote.relancer()) ui.notifications.warn(game.i18n.localize("LAKOUR_MJIA.Pilote.PasMaintenant"));
+        this.render();
+      },
       reinitialiser: async function () { await reinitialiserCampagne(this.moteur); this.render(); },
       config: () => new ConfigIA().render({ force: true }),
       personnalites: () => new EditeurPersonnalites().render({ force: true })
@@ -37,7 +42,12 @@ export class ConsoleMJ extends HandlebarsApplicationMixin(ApplicationV2) {
     const modele = fournisseur === "anthropic" ? MODELES_ANTHROPIC[lire("modeleAnthropic")]?.libelle
       : fournisseur === "openai" ? lire("modeleOpenAI") : "factice";
     const personnalites = lire("personnalites");
+    // Pilote automatique : en marche, en pause (relançable si la situation s'y prête), ou rien à montrer.
+    const pilote = this.moteur?.pilote;
+    const etatPilote = pilote?.resume();
+    const relancable = Boolean(pilote && !etatPilote.enMarche && pilote.suspendu && pilote.conditions().ok);
     return {
+      pilote: etatPilote?.enMarche || relancable ? { ...etatPilote, relancable } : null,
       seance,
       enCours: this.moteur?.enCours,
       modele,
@@ -45,6 +55,7 @@ export class ConsoleMJ extends HandlebarsApplicationMixin(ApplicationV2) {
       personnalites: Object.fromEntries(personnalites.map(p => [p.id, p.nom])),
       active: lire("personnaliteActive"),
       cout: seance.cout.toFixed(2),
+      horsSeance: game.system.id === "lakour-loups" ? (lire("compagnonsHorsSeance")?.cout ?? 0).toFixed(2) : null,
       budget: lire("budgetSeance"),
       jetons: seance.jetons,
       prixConnus: fournisseur === "anthropic" || (fournisseur === "openai" && Boolean(prixOpenAI(lire("modeleOpenAI")))),

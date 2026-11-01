@@ -160,16 +160,27 @@ export function consigneDemande(vue, demande) {
   return null;
 }
 
+// Une réplique, à la manière du théâtre : une didascalie brève (facultative, une seule), puis la parole. Le compagnon dit
+// lui-même ses gestes : le narrateur ne les raconte plus. Exemple : « *Valentin regarde Clémence, les bras croisés.* — Moi, je
+// l'ai vue sortir hier soir. »
+export const DIDASCALIE_MAX = 140;
+export const PAROLE_MAX = 400;
 export const CONSIGNE_PARLER = "Écris UNE courte réplique (une à trois phrases) que ton personnage dit maintenant à la table, à la première "
-  + "personne, sans narration, sans guillemets et sans ton nom devant. Si tu n'as rien d'utile à dire, réponds seulement « — ».";
+  + "personne, sans guillemets et sans ton nom devant. Tu peux la faire précéder d'UNE didascalie brève, en italique, à la troisième "
+  + "personne, comme au théâtre : « *Valentin regarde Clémence, les bras croisés.* — Moi, je l'ai vue sortir hier soir. » La didascalie "
+  + "n'est qu'un geste, un regard ou une attitude, au plus une, jamais une action qui change la partie, et elle ne trahit aucun secret. "
+  + "Si tu n'as rien d'utile à dire, réponds seulement « — ».";
 export const CONSIGNE_PARLER_LOUPS = " Tu peux accuser, te défendre, poser une question ou mentir si ton camp l'exige ; ne révèle ton rôle "
-  + "que si tu le juges utile.";
+  + "que si tu le juges utile. Voter, agir la nuit ou user d'un pouvoir ne se fait jamais dans une réplique : cela passe par les "
+  + "fenêtres du jeu.";
+export const CONSIGNE_PARLER_AVENTURE = " Une action qui compte (attaquer, fouiller, partir…) se dit dans ta parole, le meneur la résout ; "
+  + "la didascalie n'est qu'un geste.";
 export const CONSIGNE_COMBAT = "C'est ton tour de combat. Déclare en une ou deux phrases, à la première personne, ce que fait ton personnage "
   + "(déplacement, attaque et sur qui, sort, aide…). Le meneur lancera les dés de ta fiche : ne donne aucun résultat.";
 
 // Le contexte complet d'un appel : { systeme, texte }. Seule la vue (et la demande) y entrent.
 export function contexteCompagnon(vue, { demande = null, consigne = "" } = {}) {
-  const attendu = consigneDemande(vue, demande) ?? (consigne || (CONSIGNE_PARLER + (vue.jeu === "loups" ? CONSIGNE_PARLER_LOUPS : "")));
+  const attendu = consigneDemande(vue, demande) ?? (consigne || (CONSIGNE_PARLER + (vue.jeu === "loups" ? CONSIGNE_PARLER_LOUPS : CONSIGNE_PARLER_AVENTURE)));
   return { systeme: consigneSysteme(vue), texte: [...blocs(vue), "[Ce qu'on attend de toi]", attendu].join("\n") };
 }
 
@@ -215,14 +226,27 @@ export function passer(demande) {
   return { cibles: [] };
 }
 
-// Une réplique propre : ni guillemets autour, ni « Nom : » devant, ni méta ; « — » ou vide = rien à dire.
+// Une réplique propre : ni guillemets autour, ni « Nom : » devant, ni méta ; « — » ou vide = rien à dire. Une didascalie en tête
+// (*…*, _…_ ou (…)) est gardée, une seule, bornée, au format « *Didascalie.* — Parole » ; toute autre didascalie est retirée.
 export function nettoyerReplique(texte, nom = "") {
   let t = String(texte ?? "").trim();
   if (nom) t = t.replace(new RegExp(`^\\**${nom.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\**\\s*[:：—-]\\s*`, "i"), "");
   t = t.split("\n").filter(l => !/^\s*\[.*\]\s*$/.test(l)).join(" ").replace(/\s+/g, " ").trim();
-  t = t.replace(/^[«"“]\s*/, "").replace(/\s*[»"”]$/, "").trim();
-  if (!t || /^[—–-]+$/.test(t) || /^\(?rien\)?\.?$/i.test(t)) return "";
-  return couper(t, 500);
+  let didascalie = "";
+  const tete = /^(?:\*{1,2}([^*]+)\*{1,2}|_([^_]+)_|\(([^()]+)\))\s*(?:[—–-]+\s*)?([\s\S]*)$/.exec(t);
+  if (tete) {
+    didascalie = (tete[1] ?? tete[2] ?? tete[3]).replace(/^[«"“\s]+|[»"”\s]+$/g, "").trim();
+    t = tete[4];
+  }
+  // Une seule didascalie : les suivantes, au milieu de la parole, disparaissent.
+  const parole = t.replace(/\*{1,2}[^*]*\*{1,2}|(^|\s)_[^_]+_(?=\s|$)/g, "$1").replace(/\s+/g, " ").replace(/\s+([.,])/g, "$1").replace(/([.,]),+/g, "$1").trim()
+    .replace(/^[—–-]+\s*/, "").replace(/^[«"“]\s*/, "").replace(/\s*[»"”]$/, "").trim();
+  const vide = x => !x || /^[—–-]+$/.test(x) || /^\(?rien\)?\.?$/i.test(x);
+  if (vide(didascalie)) didascalie = "";
+  const dit = vide(parole) ? "" : couper(parole, PAROLE_MAX);
+  if (didascalie) didascalie = couper(/[.!?…]$/.test(didascalie) ? didascalie : `${didascalie}.`, DIDASCALIE_MAX);
+  if (!didascalie) return dit;
+  return dit ? `*${didascalie}* — ${dit}` : `*${didascalie}*`;
 }
 
 // ------------------------------------------------------------------ repli sans IA (déterministe)
@@ -289,7 +313,12 @@ export function repliDecision(vue, demande, graine) {
 // ------------------------------------------------------------------ rythme de parole (pas de boucle entre compagnons)
 // Un lot de messages transmis au MJ ne déclenche une réaction des compagnons que s'il contient autre chose que des
 // répliques de compagnons (un joueur humain, un événement du plateau) : deux compagnons ne se répondent jamais en boucle.
-export const peuventReagir = lot => (lot ?? []).some(e => (e?.source ?? "humain") !== "compagnon");
+// Une annonce du système (mort, vote ouvert…) ne les réveille pas non plus : ce n'est pas quelqu'un qui leur parle.
+export const SANS_REACTION = ["compagnon", "annonce"];
+export const peuventReagir = lot => (lot ?? []).some(e => !SANS_REACTION.includes(e?.source ?? "humain"));
+
+// Une annonce publique du système des Veillées (lakour-loups), postée au chat par le navigateur du MJ actif.
+export const estAnnonceSysteme = html => /class="lakour-loups annonce"/.test(String(html ?? ""));
 
 // Qui parle, au plus max, une fois chacun : ceux que le texte cite d'abord, puis ceux qui ont parlé le moins récemment.
 export function choisirOrateurs(candidats, { max = 1, mentions = "", derniere = new Map() } = {}) {

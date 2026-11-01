@@ -14,7 +14,20 @@
       <strong>{{localize "LAKOUR_MJIA.Console.Cout"}}</strong> :
       {{#if prixConnus}}≈ {{cout}} $ / {{budget}} ${{else}}{{localize "LAKOUR_MJIA.Console.PrixInconnus"}}{{/if}}
       <br><small>{{jetons.entree}} entrée · {{jetons.cacheLecture}} cache · {{jetons.sortie}} sortie</small>
+      {{#if horsSeance}}<br><small>{{localize "LAKOUR_MJIA.Console.HorsSeance"}} : ≈ {{horsSeance}} $</small>{{/if}}
     </p>
+    {{#if pilote}}
+    <p class="lakour-mjia-pilote">
+      <strong>{{localize "LAKOUR_MJIA.Pilote.Titre"}}</strong> :
+      {{#if pilote.enMarche}}
+      <span class="actif">{{localize "LAKOUR_MJIA.Pilote.EnMarche"}}</span> ({{pilote.etapes}} / {{pilote.max}})
+      <button type="button" data-action="arreterPilote"><i class="fa-solid fa-hand"></i> {{localize "LAKOUR_MJIA.Pilote.Arreter"}}</button>
+      {{else}}
+      {{localize "LAKOUR_MJIA.Pilote.EnPause"}}
+      <button type="button" data-action="relancerPilote"><i class="fa-solid fa-forward"></i> {{localize "LAKOUR_MJIA.Pilote.Relancer"}}</button>
+      {{/if}}
+    </p>
+    {{/if}}
   </div>
 
   <div class="lakour-mjia-boutons">

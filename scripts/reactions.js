@@ -50,6 +50,8 @@ export function brancherReactions(moteur) {
   // tour d'un PNJ, l'IA le joue.
   Hooks.on("updateCombat", (combat, changements) => {
     if (!moteur.actif || !("turn" in changements || "round" in changements)) return;
+    // Pilote automatique en pause (plafond d'étapes, MJ humain…) alors qu'il ne reste que des compagnons : le combat attend.
+    if (moteur.pilote?.combatRetenu()) return;
     const c = combat.combatant;
     if (c && !c.defeated && estCompagnon(c.actor)) {
       moteur.compagnons.tourDeCombat(combat).catch(e => console.error(`${ID} | tour du compagnon`, e));

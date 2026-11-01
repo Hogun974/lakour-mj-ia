@@ -1268,6 +1268,8 @@ OUTILS.push(
       const nomRole = id => game.actors.get(id)?.items.find(i => i.type === "role")?.name ?? "?";
       const historique = [...(game.settings.get(ID, "historiqueLoups") ?? []), { roles: cles, batiments: compo.batiments ?? [], quand: Date.now() }].slice(-10);
       await game.settings.set(ID, "historiqueLoups", historique);
+      // Une nouvelle partie : après ce tour, le fil de la précédente est archivé et un fil neuf commence (moteur.nouvellePartie).
+      game.modules?.get(ID)?.api?.moteur?.nouvellePartie({ ouverture: false });
       // Pour toi seul (narrateur) : qui est qui. L'annonce publique, elle, ne dit que les rôles en jeu.
       return { contenu: `Partie prête, composition « ${compo.libelle ?? compo.cle} » (${total} joueurs${nbCompagnons ? `, dont ${nbCompagnons} compagnons IA` : ""}).\n`
         + `À annoncer à tous (sans dire qui) : ${annoncerComposition(cles, contenu.equilibre, contenu.noms)}.\n`
@@ -1275,6 +1277,35 @@ OUTILS.push(
         + (nbCompagnons ? "\nLes compagnons IA jouent seuls (choix de nuit, débat, vote) et ne savent que ce que sait leur villageois : "
           + "traite-les comme des joueurs, ne leur souffle rien." : "")
         + `\nBâtiments en jeu : ${batiments.map(u => fromUuidSync(u)?.name).filter(Boolean).join(", ") || "aucun"}. Ne révèle aucun rôle.` };
+    }
+  },
+  {
+    nom: "loups_rejouer",
+    systemes: LOUPS,
+    description: "Rejoue une partie avec les mêmes joueurs et le même nombre de compagnons ; nouvelle composition équilibrée, sauf si des "
+      + "rôles sont donnés (ou une composition prête). À proposer en fin de partie (« une autre partie avec les mêmes joueurs ? »), "
+      + "seulement si les joueurs le veulent. La partie précédente est archivée et la nouvelle s'ouvre dans un fil NEUF, où tu présenteras "
+      + "le village : après l'outil, dis seulement une phrase de transition.",
+    schema: objet({
+      niveau: { type: "string", enum: ["", "debutants", "classique", "chaos"], description: "Niveau ; vide = celui de la partie précédente." },
+      roles: { type: "array", items: chaine("Rôle (nom ou clé)."), description: "Rôles voulus (vide = composition équilibrée générée)." },
+      composition: chaine("Clé d'une composition prête (vide = aucune).")
+    }),
+    sensible: true,
+    async executer({ niveau = "", roles = [], composition = "" }) {
+      const api = apiLoups();
+      if (typeof api?.nouvellePartie !== "function") return { erreur: true, contenu: "Le système lakour-loups de ce monde ne sait pas rejouer une partie : mets-le à jour." };
+      let r;
+      try { r = await api.nouvellePartie({ memesJoueurs: true, niveau, roles, composition }); } catch (e) { return { erreur: true, contenu: e.message }; }
+      const c = r?.composition ?? {};
+      if (c.roles?.length) {
+        const historique = [...(game.settings.get(ID, "historiqueLoups") ?? []), { roles: c.roles, batiments: c.batiments ?? [], quand: Date.now() }].slice(-10);
+        await game.settings.set(ID, "historiqueLoups", historique);
+      }
+      game.modules?.get(ID)?.api?.moteur?.nouvellePartie({ ouverture: true });
+      return { contenu: `Nouvelle partie prête : ${r?.joueurs?.length ?? 0} joueurs et ${r?.compagnons?.length ?? 0} compagnons IA, composition « ${c.libelle ?? c.cle ?? "?"} ». `
+        + "La partie précédente est archivée ; l'ouverture de la nouvelle (village, composition, première nuit) suit dans un fil neuf. "
+        + "Dis maintenant une seule phrase de transition, sans rien annoncer d'autre." };
     }
   },
   {

@@ -61,6 +61,24 @@ Pour combler une table : des personnages côté joueurs, joués par une IA comme
 - **Les retirer** : « Varn nous quitte » (son jeton part, sa fiche reste) ou « Varn reste au village » (il devient un simple PNJ).
 - **Réglages** : *Modèle des compagnons IA* (vide = Claude Haiku 5.5, ou le moins cher d'OpenAI) et *Bavardage des compagnons IA* (silencieux, discret, normal, bavard : de 0 à 3 répliques après chaque réponse du MJ, une par compagnon ; jamais deux compagnons qui se répondent sans qu'un joueur ait écrit).
 - **Coût** : un appel court par réplique ou par décision, au modèle des compagnons, compté dans le coût et le budget de la séance. Sans clé, budget atteint ou fournisseur factice : ils jouent en mode simple, sans IA, et la partie n'est jamais bloquée.
+- **Leurs gestes** : un compagnon dit lui-même ce qu'il fait, à la manière du théâtre, par une courte didascalie en italique avant sa parole (« *Valentin regarde Clémence, les bras croisés.* — Moi, je l'ai vue sortir hier soir. »). Le MJ IA ne raconte plus ces gestes ni ces répliques : aux Veillées, il s'en tient à la nuit, à l'aube, aux morts, à l'animation du débat et aux résultats.
+
+#### Pilote automatique : quand il ne reste que des IA
+En mode **Autonome**, si plus aucun joueur humain n'est en jeu (aux Veillées : plus aucun vivant tenu par un joueur, les morts peuvent regarder ; en 40k et en Warcraft : plus aucun personnage d'un joueur connecté sur la scène), la partie **continue seule**, étape par étape, sous les yeux des spectateurs.
+- **Aux Veillées** : nuit, aube, un débat court entre compagnons (deux tours de parole), vote, exécution, puis la nuit suivante, jusqu'à la victoire et son dénouement. Le pilote ne relance jamais une autre partie.
+- **En 40k et en Warcraft** : les combats se poursuivent tour après tour (un combat arrêté est relancé) ; hors combat, quelques échanges entre le MJ IA et les compagnons, puis une pause avec un avis.
+- **Rythme** : une pause entre deux étapes (réglage *Pilote automatique : pause entre deux étapes*, 4 s par défaut), comptée après la fin de la voix du narrateur.
+- **Garde-fous** : il s'arrête net à la victoire, à la fin de la séance, dès qu'un joueur humain revient, si tu repasses en *Validation*, au budget de la séance, après un nombre maximal d'étapes (réglage, 60 par défaut) ou quand la partie n'avance plus. Tu reçois un avis à chaque arrêt. Jamais deux étapes à la fois, jamais pendant que le MJ IA réfléchit.
+- **Le reprendre en main** : la console du MJ IA montre le pilote, avec **Arrêter le pilote** (ou **Relancer le pilote** après une pause). Le réglage *Pilote automatique (compagnons seuls)* le coupe tout à fait. En mode *Validation*, pas de pilote : un avis te propose de passer en autonome ou de mener la suite.
+- **Coût d'un tour de pilote aux Veillées** : par jour de jeu, sept tours du MJ IA (nuit, aube, réponses aux deux tours de parole, vote, dépouillement, exécution), soit une dizaine d'appels au modèle, plus les appels courts des compagnons (leurs choix de nuit, deux à quatre répliques, un vote chacun : une dizaine pour six compagnons).
+
+### Mener les Veillées soi-même, avec des joueurs IA
+
+Sans séance du MJ IA, c'est toi qui mènes la **Table de jeu** des Veillées ; des **joueurs IA** peuvent quand même compléter la table.
+- **Ajouter des joueurs IA** : bouton **+ Joueur IA** de la Table. Chacun reçoit un nom du village et une personnalité ; la distribution des rôles de la Table les compte comme des joueurs.
+- **La nuit** : quand tu réveilles un rôle tenu par un joueur IA, il choisit seul, en secret. **Le jour**, dès que la phase passe à « jour », les joueurs IA vivants prennent la parole (selon le *Bavardage des compagnons IA*), et ils répondent aux messages des joueurs humains — jamais entre eux sans un humain. **Au vote**, ils votent dans le même vote que tout le monde.
+- **Coût** : leurs appels vont au compteur *Compagnons hors séance* de la console, remis à zéro à chaque nouvelle partie et borné par le budget de séance ; sans clé ou budget atteint, ils jouent en mode simple, sans IA.
+- **Une autre partie** : avec le MJ IA, en fin de partie, il propose « une autre partie avec les mêmes joueurs ? » ; chaque partie repart de zéro (l'ancienne conversation est archivée, les joueurs IA oublient tout).
 
 ### Sauvegardes et dépannage
 

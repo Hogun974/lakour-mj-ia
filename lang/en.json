@@ -114,6 +114,18 @@
         "discret": "Quiet (1 line)",
         "normal": "Normal (2 lines)",
         "bavard": "Chatty (3 lines)"
+      },
+      "Pilote": {
+        "Nom": "Autopilot (companions only)",
+        "Aide": "In autonomous mode, when only AI companions remain (Veillées: no living villager held by a player; 40k and Warcraft: no connected player's character on the scene), the game goes on by itself, step by step, and stops at victory, at the budget or when a player comes back. Uncheck to always keep control."
+      },
+      "PiloteDelai": {
+        "Nom": "Autopilot: pause between two steps (s)",
+        "Aide": "Time left to spectators between two autopilot steps, counted after the narrator's voice has finished."
+      },
+      "PiloteEtapes": {
+        "Nom": "Autopilot: maximum steps",
+        "Aide": "Beyond this, the autopilot stops and warns you (in combat, each combat turn counts as a step). You can restart it from the console."
       }
     },
     "Console": {
@@ -145,7 +157,27 @@
       "CreationLancee": "Character creation started with {joueur}: follow the chat.",
       "Vision": "Player vision",
       "AideVision": "Enables vision on player characters (and their tokens already placed). Without it, a player sees nothing on a token-vision map.",
+      "HorsSeance": "Companions outside a session",
       "VisionFaite": "Vision checked for {persos} character(s): {modeles} prototype token(s) and {jetons} token(s) fixed."
+    },
+    "Pilote": {
+      "Titre": "Autopilot",
+      "EnMarche": "running",
+      "EnPause": "paused",
+      "Arreter": "Stop the autopilot",
+      "Relancer": "Restart the autopilot",
+      "PasMaintenant": "The autopilot cannot resume now (a player is here, the game is over, or the mode is not autonomous).",
+      "Demarre": "Only AI companions remain: the autopilot carries on. You can stop it from the AI GM console.",
+      "Validation": "Only AI companions remain: set autonomy to “Autonomous” for the game to go on by itself, or carry on yourself.",
+      "Victoire": "Game over: the autopilot stops.",
+      "Budget": "Session budget reached: the autopilot stops.",
+      "Max": "The autopilot stops after {n} steps (set limit): restart it from the console or carry on yourself.",
+      "Bloque": "The game no longer moves forward (step “{detail}” repeated): the autopilot stops. Carry on or restart it from the console.",
+      "Pause": "Out of combat, the autopilot pauses after {echanges} exchanges between the AI GM and the companions: restart it from the console or carry on yourself.",
+      "Humain": "A human player is here: the autopilot hands control back.",
+      "Arrete": "Autopilot stopped.",
+      "Coupe": "Autopilot turned off in the settings.",
+      "Erreur": "The autopilot stops after an error: {detail}"
     },
     "Seance": {
       "Demarree": "AI GM session started.",

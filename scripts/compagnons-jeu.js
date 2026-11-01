@@ -86,6 +86,12 @@ export function reinitialiserPrive() {
   prive = null;
 }
 
+// Une nouvelle partie des Veillées : tous les compagnons oublient la précédente (mémoire et réglage « client » vidés).
+export async function effacerPrive() {
+  prive = {};
+  try { await game.settings.set(ID, "compagnonsPrive", {}); } catch { /* sans stockage local : la mémoire suffit */ }
+}
+
 // ------------------------------------------------------------------ le chat public
 // Les derniers messages que tout le monde voit : ni chuchotement (même adressé au MJ), ni message aveugle, ni message privé.
 export function chatPublic({ messages = game.messages?.contents ?? [], max = 20 } = {}) {
@@ -233,11 +239,13 @@ export class Compagnons {
 
   // Une réplique dans le chat, sous le nom du compagnon (comme un joueur). action : déclaration de combat, déjà transmise
   // au moteur (drapeau ia : le moteur ne la reçoit pas une seconde fois).
+  // La didascalie en tête (« *Il croise les bras.* — … ») s'affiche en italique, avec le style « didascalie ». Le texte brut est
+  // gardé dans les drapeaux : le MJ IA le lit tel quel (il sait ainsi ce qui est déjà montré).
   poster(acteur, texte, { action = false } = {}) {
     return ChatMessage.implementation.create({
-      content: versHTML(texte),
+      content: versHTML(texte).replace(/^<p><em>/, '<p><em class="lakour-mjia-didascalie">'),
       speaker: { alias: acteur.name, actor: acteur.id },
-      flags: { [ID]: { compagnon: acteur.id, ...(action ? { ia: true, action: true } : {}) } }
+      flags: { [ID]: { compagnon: acteur.id, texte: String(texte), ...(action ? { ia: true, action: true } : {}) } }
     });
   }
 

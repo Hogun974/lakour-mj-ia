@@ -114,6 +114,18 @@
         "discret": "Discret (1 réplique)",
         "normal": "Normal (2 répliques)",
         "bavard": "Bavard (3 répliques)"
+      },
+      "Pilote": {
+        "Nom": "Pilote automatique (compagnons seuls)",
+        "Aide": "En mode autonome, quand il ne reste que des compagnons IA (aux Veillées : plus aucun vivant tenu par un joueur ; en 40k et en Warcraft : plus aucun personnage de joueur connecté sur la scène), la partie continue seule, étape par étape, et s'arrête à la victoire, au budget ou au retour d'un joueur. Décoche pour toujours garder la main."
+      },
+      "PiloteDelai": {
+        "Nom": "Pilote automatique : pause entre deux étapes (s)",
+        "Aide": "Temps laissé aux spectateurs entre deux étapes du pilote, compté après la fin de la voix du narrateur."
+      },
+      "PiloteEtapes": {
+        "Nom": "Pilote automatique : étapes au plus",
+        "Aide": "Au-delà, le pilote s'arrête et te prévient (en combat, chaque tour de combat compte comme une étape). Tu peux le relancer depuis la console."
       }
     },
     "Console": {
@@ -145,7 +157,27 @@
       "CreationLancee": "Création de personnage lancée avec {joueur} : suivez le chat.",
       "Vision": "Vision des joueurs",
       "AideVision": "Active la vision des personnages des joueurs (et de leurs jetons déjà posés). Sans elle, un joueur ne voit rien sur une carte à vision par jeton.",
+      "HorsSeance": "Compagnons hors séance",
       "VisionFaite": "Vision vérifiée pour {persos} personnage(s) : {modeles} modèle(s) de jeton et {jetons} jeton(s) corrigé(s)."
+    },
+    "Pilote": {
+      "Titre": "Pilote automatique",
+      "EnMarche": "en marche",
+      "EnPause": "en pause",
+      "Arreter": "Arrêter le pilote",
+      "Relancer": "Relancer le pilote",
+      "PasMaintenant": "Le pilote automatique ne peut pas reprendre maintenant (un joueur est là, la partie est finie, ou le mode n'est pas autonome).",
+      "Demarre": "Il ne reste que des compagnons IA : le pilote automatique mène la suite. Tu peux l'arrêter depuis la console du MJ IA.",
+      "Validation": "Il ne reste que des compagnons IA : passe l'autonomie en « Autonome » pour que la partie continue seule, ou mène la suite toi-même.",
+      "Victoire": "Partie terminée : le pilote automatique s'arrête.",
+      "Budget": "Budget de la séance atteint : le pilote automatique s'arrête.",
+      "Max": "Le pilote automatique s'arrête après {n} étapes (plafond réglé) : relance-le depuis la console ou mène la suite.",
+      "Bloque": "La partie n'avance plus (étape « {detail} » répétée) : le pilote automatique s'arrête. Mène la suite ou relance-le depuis la console.",
+      "Pause": "Hors combat, le pilote automatique se met en pause après {echanges} échanges entre le MJ IA et les compagnons : relance-le depuis la console ou mène la suite.",
+      "Humain": "Un joueur humain est là : le pilote automatique lui rend la main.",
+      "Arrete": "Pilote automatique arrêté.",
+      "Coupe": "Pilote automatique coupé dans les réglages.",
+      "Erreur": "Le pilote automatique s'arrête après une erreur : {detail}"
     },
     "Seance": {
       "Demarree": "Séance du MJ IA démarrée.",
