@@ -115,3 +115,28 @@ fabriqué, testé et déployé ensemble. Un seul redémarrage de LaKour suffit, 
 - Chaque chantier vient avec ses essais.
 - Les compendiums changés demandent **un redémarrage** de LaKour : les changements sont groupés, et on ne redémarre qu'avec le
   feu vert de Jordan, quand personne ne joue.
+
+## Avancement (nuit du 1er au 2 novembre 2026)
+
+Fait, testé, validé contre Foundry v14 et déployé (redémarrage de LaKour le 02/11 à 00:10, sauvegarde
+`avant-vague2-20261102-001000.tgz`) :
+
+| Chantier | Où | État |
+|---|---|---|
+| 1. Scènes vivantes (sons, zones, notes) | moteur + 3 mondes | fait ; outils `creer_scene` (sons, zones), `zone_scene`, `epingle`, `lieux_scene` |
+| 2. Dons (22) et afflictions (17) | Warcraft | fait |
+| 3. Arsenal (44 objets) | Warcraft | fait |
+| 4. Sorts (19) et affiliations (8 + 6 atouts/handicaps) | Warcraft | fait, listes de sorts de classe |
+| 5. Journaux liés et handouts | 40k (225 liens), Warcraft (184 liens, 82 jets) | fait ; `montrer_aide` pour le MJ IA |
+| 6. Tables du MJ (14) | 40k | fait |
+| 7. Veillées : immersion v14, fiches à la dnd5e | Veillées | fait |
+| 8. Épingles et zones des cartes d'aventure | 40k, Warcraft | fait ; installateur qui raccorde et complète |
+| 10. Adventure + quickstart | Warcraft | fait |
+| Fiche La Kour (inspirée de dnd5e) | 40k | fait |
+| Une icône par objet | 40k (367), Warcraft (205) | fait |
+| Sous-classes d'Azeroth (8, 44 capacités) | Warcraft | fait |
+| Anneaux de jeton par faction, icônes des capacités | Warcraft | fait |
+| Création de personnage réparée (factions, équipement, munitions) | 40k + MJ IA | fait |
+
+Restent : Adventure + quickstart pour 40k, village de Brumecombe épinglé, modules gratuits (feu vert de Jordan),
+donjons à niveaux (Scene Levels).
