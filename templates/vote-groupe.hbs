@@ -1,0 +1,25 @@
+<section class="lakour-mjia-decision-corps">
+  <header class="lakour-mjia-decision-tete">
+    <i class="fa-solid fa-check-to-slot"></i>
+    <p class="lakour-mjia-question">{{question}}</p>
+    <div class="lakour-mjia-minuteur"></div>
+  </header>
+  <p class="hint">{{localize "LAKOUR_MJIA.Decisions.VotesCaches"}} · {{exprimes}} / {{total}} {{localize "LAKOUR_MJIA.Decisions.OntVote"}}</p>
+  <ul class="lakour-mjia-options">
+    {{#each options}}
+    <li>
+      <button type="button" class="lakour-mjia-option {{#if choisi}}choisi{{/if}}" data-action="voter" data-index="{{index}}" aria-pressed="{{#if choisi}}true{{else}}false{{/if}}">
+        {{#if img}}<img src="{{img}}" alt="">{{/if}}
+        <span>{{libelle}}</span>
+        {{#if choisi}}<i class="fa-solid fa-check"></i>{{/if}}
+      </button>
+    </li>
+    {{/each}}
+  </ul>
+  <p class="lakour-mjia-ma-voix">
+    {{#if aVote}}{{localize "LAKOUR_MJIA.Decisions.TaVoix"}} <strong>{{#if abstenu}}{{localize "LAKOUR_MJIA.Decisions.Abstention"}}{{else}}{{maVoix}}{{/if}}</strong> · {{localize "LAKOUR_MJIA.Decisions.ChangerAvis"}}{{else}}{{localize "LAKOUR_MJIA.Decisions.PasEncoreVote"}}{{/if}}
+  </p>
+  <footer class="lakour-mjia-boutons">
+    <button type="button" class="{{#if abstenu}}choisi{{/if}}" data-action="abstenir"><i class="fa-solid fa-hand"></i> {{localize "LAKOUR_MJIA.Decisions.Abstenir"}}</button>
+  </footer>
+</section>

@@ -1,0 +1,55 @@
+<section class="lakour-mjia-config">
+  <div class="form-group">
+    <label>{{localize "LAKOUR_MJIA.ConfigIA.Fournisseur"}}</label>
+    <select name="fournisseur">{{selectOptions fournisseurs selected=fournisseur}}</select>
+  </div>
+
+  <fieldset>
+    <legend>Claude (Anthropic)</legend>
+    <div class="form-group">
+      <label>{{localize "LAKOUR_MJIA.ConfigIA.Cle"}}</label>
+      <input type="password" name="cleAnthropic" autocomplete="off"
+             placeholder="{{#if aCleAnthropic}}{{localize "LAKOUR_MJIA.ConfigIA.CleEnregistree"}}{{else}}sk-ant-…{{/if}}">
+      <button type="button" data-action="verifier" data-fournisseur="anthropic">{{localize "LAKOUR_MJIA.ConfigIA.Verifier"}}</button>
+    </div>
+    {{#if aCleAnthropic}}
+    <div class="form-group"><label><input type="checkbox" name="effacer_cleAnthropic"> {{localize "LAKOUR_MJIA.ConfigIA.Effacer"}}</label></div>
+    {{/if}}
+    <div class="form-group">
+      <label>{{localize "LAKOUR_MJIA.ConfigIA.Modele"}}</label>
+      <select name="modeleAnthropic">{{selectOptions modelesAnthropic selected=modeleAnthropic}}</select>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>ChatGPT (OpenAI)</legend>
+    <div class="form-group">
+      <label>{{localize "LAKOUR_MJIA.ConfigIA.Cle"}}</label>
+      <input type="password" name="cleOpenAI" autocomplete="off"
+             placeholder="{{#if aCleOpenAI}}{{localize "LAKOUR_MJIA.ConfigIA.CleEnregistree"}}{{else}}sk-…{{/if}}">
+      <button type="button" data-action="verifier" data-fournisseur="openai">{{localize "LAKOUR_MJIA.ConfigIA.Verifier"}}</button>
+    </div>
+    {{#if aCleOpenAI}}
+    <div class="form-group"><label><input type="checkbox" name="effacer_cleOpenAI"> {{localize "LAKOUR_MJIA.ConfigIA.Effacer"}}</label></div>
+    {{/if}}
+    <div class="form-group">
+      <label>{{localize "LAKOUR_MJIA.ConfigIA.Modele"}}</label>
+      <input type="text" name="modeleOpenAI" value="{{modeleOpenAI}}">
+    </div>
+    <div class="form-group">
+      <label>{{localize "LAKOUR_MJIA.ConfigIA.ModeleImage"}}</label>
+      <input type="text" name="modeleImage" value="{{modeleImage}}">
+    </div>
+    <p class="hint">{{localize "LAKOUR_MJIA.ConfigIA.AideImages"}}</p>
+  </fieldset>
+
+  <div class="form-group">
+    <label>{{localize "LAKOUR_MJIA.ConfigIA.Effort"}}</label>
+    <select name="effort">{{selectOptions efforts selected=effort}}</select>
+  </div>
+  <p class="hint">{{localize "LAKOUR_MJIA.ConfigIA.AideCles"}}</p>
+
+  <footer class="form-footer">
+    <button type="submit"><i class="fa-solid fa-floppy-disk"></i> {{localize "LAKOUR_MJIA.Enregistrer"}}</button>
+  </footer>
+</section>

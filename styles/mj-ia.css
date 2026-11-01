@@ -1,0 +1,148 @@
+.lakour-mj-ia fieldset {
+  margin: 0.5rem 0;
+}
+
+.lakour-mj-ia .hint {
+  font-size: var(--font-size-12);
+  opacity: 0.8;
+}
+
+.lakour-mj-ia .lakour-mjia-boutons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.lakour-mj-ia .lakour-mjia-console textarea {
+  width: 100%;
+  margin-bottom: 0.3rem;
+}
+
+.lakour-mj-ia .lakour-mjia-console .actif {
+  color: var(--color-level-success, #3a3);
+  font-weight: bold;
+}
+
+.lakour-mj-ia .lakour-mjia-liste {
+  overflow-y: auto;
+  max-height: 560px;
+}
+
+.lakour-mj-ia .lakour-mjia-perso textarea {
+  width: 100%;
+}
+
+/* Messages du MJ IA dans le chat */
+.lakour-mjia-jet button {
+  width: 100%;
+  margin-top: 0.3rem;
+}
+
+.lakour-mjia-image img {
+  max-width: 100%;
+  border: none;
+}
+
+.lakour-mjia-image figcaption {
+  text-align: center;
+  font-style: italic;
+}
+
+/* Bouton « réécouter » sur les narrations */
+.lakour-mjia-ecouter {
+  float: right;
+  opacity: 0.6;
+  margin-left: 0.3rem;
+}
+
+.lakour-mjia-ecouter:hover {
+  opacity: 1;
+}
+
+/* Fenêtres de décision : vote de groupe et choix secret */
+.lakour-mj-ia.lakour-mjia-decision .lakour-mjia-decision-tete {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.lakour-mj-ia.lakour-mjia-decision .lakour-mjia-decision-tete > i {
+  font-size: 1.6rem;
+  opacity: 0.8;
+}
+
+.lakour-mj-ia.lakour-mjia-decision .lakour-mjia-decision-tete > :nth-child(2) {
+  flex: 1;
+}
+
+.lakour-mj-ia.lakour-mjia-decision .lakour-mjia-question {
+  margin: 0;
+  font-weight: bold;
+}
+
+.lakour-mj-ia.lakour-mjia-decision .lakour-mjia-etiquette {
+  font-size: var(--font-size-12);
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.lakour-mj-ia.lakour-mjia-decision .lakour-mjia-minuteur {
+  font-family: monospace;
+  font-size: 1.1rem;
+  min-width: 3rem;
+  text-align: right;
+}
+
+.lakour-mj-ia.lakour-mjia-decision .lakour-mjia-minuteur.urgent {
+  color: var(--color-level-error, #c33);
+  font-weight: bold;
+}
+
+.lakour-mj-ia.lakour-mjia-decision .lakour-mjia-options {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.lakour-mj-ia.lakour-mjia-decision .lakour-mjia-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+}
+
+.lakour-mj-ia.lakour-mjia-decision .lakour-mjia-option span {
+  flex: 1;
+}
+
+.lakour-mj-ia.lakour-mjia-decision .lakour-mjia-option img {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border: none;
+  border-radius: 4px;
+}
+
+.lakour-mj-ia.lakour-mjia-decision button.choisi {
+  outline: 2px solid var(--color-warm-2, #c9593f);
+  font-weight: bold;
+}
+
+.lakour-mj-ia.lakour-mjia-decision .lakour-mjia-boutons {
+  justify-content: flex-end;
+}
+
+/* Résultat d'un vote dans le chat */
+.lakour-mjia-vote ul {
+  margin: 0.3rem 0;
+  padding-left: 1.2rem;
+}
+
+.lakour-mjia-vote li.gagnant {
+  font-weight: bold;
+}

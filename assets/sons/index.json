@@ -1,0 +1,52 @@
+{
+  "vent": {
+    "libelle": "Vent et rafales",
+    "fichier": "modules/lakour-mj-ia/assets/sons/vent.wav",
+    "pour": "Extérieur venteux : lande, col de montagne, remparts, plaine désolée, tempête sèche."
+  },
+  "pluie": {
+    "libelle": "Pluie régulière",
+    "fichier": "modules/lakour-mj-ia/assets/sons/pluie.wav",
+    "pour": "Voyage ou scène sous la pluie, ville mouillée, campement sous la toile."
+  },
+  "orage": {
+    "libelle": "Orage",
+    "fichier": "modules/lakour-mj-ia/assets/sons/orage.wav",
+    "pour": "Tempête, nuit d'orage, scène dramatique, château battu par la pluie."
+  },
+  "feu": {
+    "libelle": "Feu de camp",
+    "fichier": "modules/lakour-mj-ia/assets/sons/feu.wav",
+    "pour": "Bivouac, veillée, âtre d'auberge, cheminée de manoir, repos au coin du feu."
+  },
+  "grotte": {
+    "libelle": "Grotte et souterrain",
+    "fichier": "modules/lakour-mj-ia/assets/sons/grotte.wav",
+    "pour": "Grotte, donjon, crypte, mine, égouts, tunnels de ruche."
+  },
+  "mer": {
+    "libelle": "Vagues",
+    "fichier": "modules/lakour-mj-ia/assets/sons/mer.wav",
+    "pour": "Côte, plage, falaises, port, pont d'un navire par mer calme."
+  },
+  "foule": {
+    "libelle": "Foule et taverne",
+    "fichier": "modules/lakour-mj-ia/assets/sons/foule.wav",
+    "pour": "Taverne, auberge, marché, place publique, banquet, salle des fêtes."
+  },
+  "forge": {
+    "libelle": "Forge et machines",
+    "fichier": "modules/lakour-mj-ia/assets/sons/forge.wav",
+    "pour": "Forge, atelier, manufactorum, salle des machines, ruche industrielle (40k)."
+  },
+  "nuit": {
+    "libelle": "Nuit en campagne",
+    "fichier": "modules/lakour-mj-ia/assets/sons/nuit.wav",
+    "pour": "Nuit calme : campagne, tour de garde au camp, village endormi, lisière de forêt."
+  },
+  "tension": {
+    "libelle": "Tension",
+    "fichier": "modules/lakour-mj-ia/assets/sons/tension.wav",
+    "pour": "Suspense, horreur, menace imminente : loup-garou, crypte maudite, présence du Warp (40k)."
+  }
+}

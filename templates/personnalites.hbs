@@ -1,0 +1,27 @@
+<section class="lakour-mjia-personnalites">
+  <div class="lakour-mjia-liste">
+    {{#each personnalites as |p i|}}
+    <fieldset class="lakour-mjia-perso">
+      <legend>
+        <label><input type="radio" name="active" value="{{p.id}}" {{checked (eq p.id ../active)}}> {{p.nom}}</label>
+      </legend>
+      <input type="hidden" name="p.{{i}}.id" value="{{p.id}}">
+      <div class="form-group"><label>{{localize "LAKOUR_MJIA.Personnalites.Nom"}}</label><input type="text" name="p.{{i}}.nom" value="{{p.nom}}"></div>
+      <div class="form-group"><label>{{localize "LAKOUR_MJIA.Personnalites.NomAffiche"}}</label><input type="text" name="p.{{i}}.nomAffiche" value="{{p.nomAffiche}}"></div>
+      <div class="form-group"><label>{{localize "LAKOUR_MJIA.Personnalites.Violence"}}</label><select name="p.{{i}}.violence">{{selectOptions ../violences selected=p.violence}}</select></div>
+      <div class="form-group"><label>{{localize "LAKOUR_MJIA.Personnalites.Longueur"}}</label><select name="p.{{i}}.longueur">{{selectOptions ../longueurs selected=p.longueur}}</select></div>
+      <div class="form-group"><label>{{localize "LAKOUR_MJIA.Personnalites.Rigueur"}}</label><select name="p.{{i}}.rigueur">{{selectOptions ../rigueurs selected=p.rigueur}}</select></div>
+      <div class="form-group"><label>{{localize "LAKOUR_MJIA.Personnalites.Improvisation"}}</label><select name="p.{{i}}.improvisation">{{selectOptions ../improvisations selected=p.improvisation}}</select></div>
+      <div class="form-group stacked"><label>{{localize "LAKOUR_MJIA.Personnalites.Consignes"}}</label><textarea name="p.{{i}}.consignes" rows="4">{{p.consignes}}</textarea></div>
+      <div class="form-group"><label>{{localize "LAKOUR_MJIA.Personnalites.VoixOpenAI"}}</label><select name="p.{{i}}.voixOpenAI">{{selectOptions ../voixOpenAI selected=p.voixOpenAI blank="—"}}</select></div>
+      <div class="form-group stacked"><label>{{localize "LAKOUR_MJIA.Personnalites.TonVoix"}}</label><textarea name="p.{{i}}.tonVoix" rows="2" placeholder="{{localize "LAKOUR_MJIA.Personnalites.ExempleTon"}}">{{p.tonVoix}}</textarea></div>
+      <button type="button" data-action="supprimer" data-id="{{p.id}}"><i class="fa-solid fa-trash"></i> {{localize "LAKOUR_MJIA.Supprimer"}}</button>
+    </fieldset>
+    {{/each}}
+  </div>
+  <footer class="form-footer">
+    <button type="button" data-action="ajouter"><i class="fa-solid fa-plus"></i> {{localize "LAKOUR_MJIA.Personnalites.Ajouter"}}</button>
+    <button type="button" data-action="reinitialiser"><i class="fa-solid fa-rotate-left"></i> {{localize "LAKOUR_MJIA.Personnalites.Reinitialiser"}}</button>
+    <button type="submit"><i class="fa-solid fa-floppy-disk"></i> {{localize "LAKOUR_MJIA.Enregistrer"}}</button>
+  </footer>
+</section>

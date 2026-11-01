@@ -1,0 +1,202 @@
+{
+  "LAKOUR_MJIA": {
+    "Enregistrer": "Save",
+    "Supprimer": "Delete",
+    "Efforts": {
+      "low": "Low (fast, cheap)",
+      "medium": "Medium (recommended)",
+      "high": "High",
+      "xhigh": "Very high",
+      "max": "Maximum (slow, expensive)"
+    },
+    "ConfigIA": {
+      "Titre": "AI GM configuration",
+      "Ouvrir": "Configure",
+      "Aide": "Provider (Claude or ChatGPT), API keys, models and reasoning effort.",
+      "Fournisseur": "GM provider",
+      "Cle": "API key",
+      "CleEnregistree": "•••• key saved (leave empty to keep it)",
+      "Effacer": "Erase the saved key",
+      "Verifier": "Check key",
+      "CleValide": "Valid key: {n} models available.",
+      "Modele": "Model",
+      "ModeleImage": "Image model",
+      "AideImages": "Images (maps, portraits, illustrations) always go through OpenAI: without an OpenAI key the AI GM does not generate images.",
+      "Effort": "Reasoning effort",
+      "AideCles": "Keys are stored in this browser only, never in the world nor on players' machines. The AI GM therefore runs in the GM's browser: keep it open during the game.",
+      "Enregistre": "AI GM configuration saved."
+    },
+    "Personnalites": {
+      "Titre": "AI GM personalities",
+      "Ouvrir": "Edit",
+      "Aide": "Tone, violence, answer length, rules strictness and free instructions for each personality.",
+      "Nom": "Name",
+      "NomAffiche": "Name in chat",
+      "Violence": "Violence",
+      "Longueur": "Answer length",
+      "Rigueur": "Rules strictness",
+      "Consignes": "Instructions (style, setting, taboos…)",
+      "Ajouter": "Add",
+      "Reinitialiser": "Reset",
+      "ConfirmerReinit": "Replace all personalities with the ones shipped with the module?",
+      "Enregistre": "Personalities saved.",
+      "VoixOpenAI": "Voice (OpenAI)",
+      "TonVoix": "Voice tone (OpenAI)",
+      "ExempleTon": "E.g.: deep, slow voice, menacing tone, long pauses.",
+      "Improvisation": "Freedom with the scenario"
+    },
+    "Reglages": {
+      "Autonomie": {
+        "Nom": "AI GM autonomy",
+        "Aide": "In approval mode, the human GM accepts or refuses every action that changes the world or costs money (NPCs, journals, tokens, images…).",
+        "Validation": "Human GM approval",
+        "Autonome": "Autonomous"
+      },
+      "Delai": {
+        "Nom": "Delay before answering (seconds)",
+        "Aide": "The AI GM waits this long after the last message, to answer the whole group at once."
+      },
+      "Budget": {
+        "Nom": "Budget per session (dollars)",
+        "Aide": "The AI GM stops when the session's estimated cost reaches this amount (0 = no limit). Estimate available for Claude only."
+      },
+      "Voix": {
+        "Nom": "Narrator voice",
+        "Aide": "Browser: each player hears the narration with a voice from their own computer (free; on Edge, the \"Natural\" voices are the best). OpenAI: very realistic voice (gpt-realtime-2.1-mini), generated with the GM's OpenAI key and broadcast to everyone (about 2–3 cents per minute).",
+        "Aucune": "None",
+        "Navigateur": "Browser voice (free)",
+        "OpenAI": "OpenAI voice (paid, broadcast to all)"
+      },
+      "Entendre": {
+        "Nom": "Hear the narration",
+        "Aide": "Personal setting: turns the narrator voice on or off on this computer."
+      },
+      "VoixNavigateur": {
+        "Nom": "Preferred voice (browser)",
+        "Aide": "Part of the voice name to use, e.g. \"Denise\" or \"Henri\". Empty: the best available French voice."
+      },
+      "Vitesse": {
+        "Nom": "Reading speed (browser)"
+      },
+      "Volume": {
+        "Nom": "Voice volume (browser)"
+      },
+      "reagirDeplacements": {
+        "Nom": "The AI GM reacts to movement",
+        "Aide": "When a player enters a new room, the AI GM is told and can react (describe, trap, have an NPC speak)."
+      },
+      "reagirPortes": {
+        "Nom": "The AI GM reacts to doors",
+        "Aide": "When a player opens or closes a door, the AI GM is told."
+      },
+      "jouerPnj": {
+        "Nom": "The AI GM plays NPCs in combat",
+        "Aide": "On an NPC's turn, the AI GM plays its action then moves to the next turn."
+      },
+      "Style": {
+        "Nom": "Visual style of maps and tokens",
+        "Aide": "Flat (2D): classic top-down view. Relief (3D): tall walls, cast shadows, objects and tokens with volume. Changing it redraws the AI GM maps and switches the content modules maps and tokens.",
+        "Plat": "Flat (2D)",
+        "Relief": "Relief (3D)"
+      },
+      "miseEnPlace": {
+        "Nom": "Set up the board before narrating",
+        "Aide": "Before each reply, the AI GM first places the tokens (characters, NPCs, extras), then narrates a scene that is already visible on the map. Slightly slower and slightly more expensive; always off during combat."
+      },
+      "ModeleCompagnons": {
+        "Nom": "AI companions model",
+        "Aide": "Model that plays the AI companions (player-side characters run by the AI). Empty: a cheap model from the active provider (Claude Haiku 5.5, or OpenAI's cheapest). Their cost counts toward the session budget."
+      },
+      "BavardageCompagnons": {
+        "Nom": "AI companions chattiness",
+        "Aide": "Maximum number of companion lines after each GM answer (each companion speaks at most once, and companions never answer each other without a player writing).",
+        "silencieux": "Silent (they only speak in combat and when asked to decide)",
+        "discret": "Quiet (1 line)",
+        "normal": "Normal (2 lines)",
+        "bavard": "Chatty (3 lines)"
+      }
+    },
+    "Console": {
+      "Titre": "AI GM",
+      "Modele": "Model",
+      "Personnalite": "Personality",
+      "PersonnaliteProchaine": "Personality changed: it applies from the next session start.",
+      "Seance": "Session",
+      "Active": "running",
+      "Inactive": "stopped",
+      "Reflechit": "the GM is thinking…",
+      "Cout": "Estimated cost",
+      "PrixInconnus": "prices unknown for this provider (see its console)",
+      "Demarrer": "Start session",
+      "Arreter": "End session",
+      "Souffler": "Whisper a secret instruction",
+      "ExempleConsigne": "E.g.: have an assassin show up in the next scene.",
+      "Envoyer": "Send",
+      "Scenario": "Prepare a scenario",
+      "ExempleTheme": "E.g.: an investigation into a cult in the underhive, with a traitor among the allies.",
+      "Preparer": "Prepare",
+      "ThemeManquant": "Give a theme for the scenario.",
+      "ScenarioEnCours": "The AI GM is preparing the scenario… (steps are whispered in the chat)",
+      "ScenarioPret": "Scenario ready: check the created journals and actors.",
+      "Creation": "Create a character with the GM",
+      "Joueur": "Player",
+      "AideCreation": "The AI GM guides the player in the chat: they roll their own characteristics (2d10+20), then origin and faction are rolled, the role is chosen, and the sheet is created and given to the player.",
+      "Creer": "Start creation",
+      "CreationLancee": "Character creation started with {joueur}: follow the chat.",
+      "Vision": "Player vision",
+      "AideVision": "Enables vision on player characters (and their tokens already placed). Without it, a player sees nothing on a token-vision map.",
+      "VisionFaite": "Vision checked for {persos} character(s): {modeles} prototype token(s) and {jetons} token(s) fixed."
+    },
+    "Seance": {
+      "Demarree": "AI GM session started.",
+      "Arretee": "AI GM session ended, campaign memory updated."
+    },
+    "Validation": {
+      "Titre": "AI GM action"
+    },
+    "Erreurs": {
+      "PasDeCle": "No API key for this provider: open the AI GM configuration.",
+      "Budget": "Session budget reached (${budget}): the AI GM stops. Raise the budget in the settings to continue.",
+      "Refus": "The model declined to answer this turn. {detail}",
+      "PasTonPersonnage": "Not your character: only its player can roll this test.",
+      "PasTonJet": "This roll is requested from another player.",
+      "CreationImpmal": "Guided creation is only available for Imperium Maledictum and D&D 5e.",
+      "PasDeCleVoix": "OpenAI voice selected, but no OpenAI key is saved: open the AI GM configuration."
+    },
+    "Voix": {
+      "Reecouter": "Listen again"
+    },
+    "Mouvement": {
+      "Bloque": "The GM prevents this movement."
+    },
+    "Style": {
+      "Redessinees": "{n} map(s) redrawn in the new style."
+    },
+    "Reinit": {
+      "Titre": "Reset the campaign",
+      "Aide": "Start from scratch: erases chat, scenes, journals, NPCs, combats and the AI GM memory, then reinstalls the content fresh. Ticked characters are kept.",
+      "Bouton": "Start over…",
+      "Explication": "All content of this world will be erased, then the game content module reinstalled fresh (tables, guide, adventure and its maps). The AI GM forgets its conversation and campaign memory.",
+      "Supprime": "Will be deleted:",
+      "Garder": "Characters to keep (they get their role token):",
+      "Conserve": "Untouched: users, settings (API keys included), macros, playlists and compendiums. This cannot be undone from Foundry.",
+      "Confirmer": "Erase everything and start over",
+      "Fait": "Campaign reset. Characters kept: {gardes}."
+    },
+    "Decisions": {
+      "VoteTitre": "Group vote",
+      "ChoixTitre": "Secret choice",
+      "VotesCaches": "Votes stay hidden until the vote closes",
+      "OntVote": "have voted",
+      "TaVoix": "Your vote:",
+      "Abstention": "abstain",
+      "ChangerAvis": "you may change your mind while the vote is open.",
+      "PasEncoreVote": "You have not voted yet.",
+      "Abstenir": "Abstain",
+      "Secret": "Only you can see this question: the other players will not know what you choose.",
+      "Passer": "Pass",
+      "Valider": "Confirm"
+    },
+    "Migration": "AI GM settings updated: {faits}."
+  }
+}

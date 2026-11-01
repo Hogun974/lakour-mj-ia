@@ -1,0 +1,60 @@
+<section class="lakour-mjia-console">
+  <div class="lakour-mjia-etat">
+    <p><strong>{{localize "LAKOUR_MJIA.Console.Modele"}}</strong> : {{modele}}</p>
+    <div class="form-group">
+      <label>{{localize "LAKOUR_MJIA.Console.Personnalite"}}</label>
+      <select name="personnalite">{{selectOptions personnalites selected=active}}</select>
+    </div>
+    <p>
+      <strong>{{localize "LAKOUR_MJIA.Console.Seance"}}</strong> :
+      {{#if seance.active}}<span class="actif">{{localize "LAKOUR_MJIA.Console.Active"}}</span>{{else}}{{localize "LAKOUR_MJIA.Console.Inactive"}}{{/if}}
+      {{#if enCours}} — <em>{{localize "LAKOUR_MJIA.Console.Reflechit"}}</em>{{/if}}
+    </p>
+    <p>
+      <strong>{{localize "LAKOUR_MJIA.Console.Cout"}}</strong> :
+      {{#if prixConnus}}≈ {{cout}} $ / {{budget}} ${{else}}{{localize "LAKOUR_MJIA.Console.PrixInconnus"}}{{/if}}
+      <br><small>{{jetons.entree}} entrée · {{jetons.cacheLecture}} cache · {{jetons.sortie}} sortie</small>
+    </p>
+  </div>
+
+  <div class="lakour-mjia-boutons">
+    {{#if seance.active}}
+    <button type="button" data-action="arreter"><i class="fa-solid fa-stop"></i> {{localize "LAKOUR_MJIA.Console.Arreter"}}</button>
+    {{else}}
+    <button type="button" data-action="demarrer"><i class="fa-solid fa-play"></i> {{localize "LAKOUR_MJIA.Console.Demarrer"}}</button>
+    {{/if}}
+    <button type="button" data-action="config"><i class="fa-solid fa-key"></i> {{localize "LAKOUR_MJIA.ConfigIA.Titre"}}</button>
+    <button type="button" data-action="personnalites"><i class="fa-solid fa-masks-theater"></i> {{localize "LAKOUR_MJIA.Personnalites.Titre"}}</button>
+    <button type="button" data-action="vision" data-tooltip="{{localize "LAKOUR_MJIA.Console.AideVision"}}"><i class="fa-solid fa-eye"></i> {{localize "LAKOUR_MJIA.Console.Vision"}}</button>
+  </div>
+
+  <fieldset>
+    <legend>{{localize "LAKOUR_MJIA.Console.Souffler"}}</legend>
+    <textarea name="consigne" rows="2" placeholder="{{localize "LAKOUR_MJIA.Console.ExempleConsigne"}}"></textarea>
+    <button type="button" data-action="souffler" {{#unless seance.active}}disabled{{/unless}}><i class="fa-solid fa-user-secret"></i> {{localize "LAKOUR_MJIA.Console.Envoyer"}}</button>
+  </fieldset>
+
+  {{#if creationPossible}}
+  <fieldset>
+    <legend>{{localize "LAKOUR_MJIA.Console.Creation"}}</legend>
+    <div class="form-group">
+      <label>{{localize "LAKOUR_MJIA.Console.Joueur"}}</label>
+      <select name="joueurCreation">{{selectOptions joueurs}}</select>
+    </div>
+    <p class="hint">{{localize "LAKOUR_MJIA.Console.AideCreation"}}</p>
+    <button type="button" data-action="creation"><i class="fa-solid fa-user-plus"></i> {{localize "LAKOUR_MJIA.Console.Creer"}}</button>
+  </fieldset>
+  {{/if}}
+
+  <fieldset>
+    <legend>{{localize "LAKOUR_MJIA.Reinit.Titre"}}</legend>
+    <p class="hint">{{localize "LAKOUR_MJIA.Reinit.Aide"}}</p>
+    <button type="button" data-action="reinitialiser"><i class="fa-solid fa-rotate-left"></i> {{localize "LAKOUR_MJIA.Reinit.Bouton"}}</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "LAKOUR_MJIA.Console.Scenario"}}</legend>
+    <textarea name="theme" rows="3" placeholder="{{localize "LAKOUR_MJIA.Console.ExempleTheme"}}"></textarea>
+    <button type="button" data-action="scenario"><i class="fa-solid fa-scroll"></i> {{localize "LAKOUR_MJIA.Console.Preparer"}}</button>
+  </fieldset>
+</section>

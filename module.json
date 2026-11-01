@@ -1,0 +1,18 @@
+{
+  "id": "lakour-mj-ia",
+  "title": "La Kour – MJ IA (Claude / ChatGPT)",
+  "description": "Un meneur de jeu IA (Claude ou ChatGPT, avec ta propre clé) : personnalités configurables, narration dans le chat, jets demandés aux joueurs, PNJ, journaux, scénarios et cartes. Fonctionne avec Imperium Maledictum, D&D 5e et les autres systèmes en mode générique.",
+  "version": "0.26.0",
+  "authors": [{ "name": "Jordan" }],
+  "compatibility": {
+    "minimum": "14",
+    "verified": "14.368"
+  },
+  "esmodules": ["scripts/main.js"],
+  "socket": true,
+  "styles": ["styles/mj-ia.css"],
+  "languages": [
+    { "lang": "fr", "name": "Français", "path": "lang/fr.json" },
+    { "lang": "en", "name": "English", "path": "lang/en.json" }
+  ]
+}

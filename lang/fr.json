@@ -1,0 +1,202 @@
+{
+  "LAKOUR_MJIA": {
+    "Enregistrer": "Enregistrer",
+    "Supprimer": "Supprimer",
+    "Efforts": {
+      "low": "Faible (rapide, économique)",
+      "medium": "Moyen (recommandé)",
+      "high": "Élevé",
+      "xhigh": "Très élevé",
+      "max": "Maximum (lent, coûteux)"
+    },
+    "ConfigIA": {
+      "Titre": "Configuration du MJ IA",
+      "Ouvrir": "Configurer",
+      "Aide": "Fournisseur (Claude ou ChatGPT), clés API, modèles et effort de réflexion.",
+      "Fournisseur": "Fournisseur du MJ",
+      "Cle": "Clé API",
+      "CleEnregistree": "•••• clé enregistrée (laisser vide pour la garder)",
+      "Effacer": "Effacer la clé enregistrée",
+      "Verifier": "Vérifier la clé",
+      "CleValide": "Clé valide : {n} modèles accessibles.",
+      "Modele": "Modèle",
+      "ModeleImage": "Modèle d'images",
+      "AideImages": "Les images (cartes, portraits, illustrations) passent toujours par OpenAI : sans clé OpenAI, le MJ IA ne génère pas d'images.",
+      "Effort": "Effort de réflexion",
+      "AideCles": "Les clés sont stockées uniquement dans ce navigateur, jamais dans le monde ni chez les joueurs. Le MJ IA tourne donc dans le navigateur du MJ : garde-le ouvert pendant la partie.",
+      "Enregistre": "Configuration du MJ IA enregistrée."
+    },
+    "Personnalites": {
+      "Titre": "Personnalités du MJ IA",
+      "Ouvrir": "Modifier",
+      "Aide": "Ton, violence, longueur des réponses, rigueur des règles et consignes libres de chaque personnalité.",
+      "Nom": "Nom",
+      "NomAffiche": "Nom dans le chat",
+      "Violence": "Violence",
+      "Longueur": "Longueur des réponses",
+      "Rigueur": "Rigueur des règles",
+      "Consignes": "Consignes (style, univers, interdits…)",
+      "Ajouter": "Ajouter",
+      "Reinitialiser": "Réinitialiser",
+      "ConfirmerReinit": "Remplacer toutes les personnalités par celles livrées avec le module ?",
+      "Enregistre": "Personnalités enregistrées.",
+      "VoixOpenAI": "Voix (OpenAI)",
+      "TonVoix": "Ton de la voix (OpenAI)",
+      "ExempleTon": "Ex. : voix grave et lente, ton menaçant, longues pauses.",
+      "Improvisation": "Liberté avec le scénario"
+    },
+    "Reglages": {
+      "Autonomie": {
+        "Nom": "Autonomie du MJ IA",
+        "Aide": "En mode validation, le MJ humain accepte ou refuse chaque action qui modifie le monde ou coûte de l'argent (création de PNJ, journaux, jetons, images…).",
+        "Validation": "Validation par le MJ humain",
+        "Autonome": "Autonome"
+      },
+      "Delai": {
+        "Nom": "Délai avant réponse (secondes)",
+        "Aide": "Le MJ IA attend ce délai après le dernier message, pour répondre à tout le groupe d'un coup."
+      },
+      "Budget": {
+        "Nom": "Budget par séance (dollars)",
+        "Aide": "Le MJ IA s'arrête quand l'estimation du coût de la séance atteint ce montant (0 = sans limite). Estimation pour Claude uniquement."
+      },
+      "Voix": {
+        "Nom": "Voix du narrateur",
+        "Aide": "Navigateur : chaque joueur entend la narration avec une voix de son ordinateur (gratuit ; sous Edge, les voix « Naturelles » sont les meilleures). OpenAI : voix très réaliste (gpt-realtime-2.1-mini), générée avec la clé OpenAI du MJ et diffusée à tous (environ 2 à 3 centimes par minute).",
+        "Aucune": "Aucune",
+        "Navigateur": "Voix du navigateur (gratuite)",
+        "OpenAI": "Voix OpenAI (payante, diffusée à tous)"
+      },
+      "Entendre": {
+        "Nom": "Entendre la narration",
+        "Aide": "Réglage personnel : coupe ou active la voix du narrateur sur cet ordinateur."
+      },
+      "VoixNavigateur": {
+        "Nom": "Voix préférée (navigateur)",
+        "Aide": "Une partie du nom de la voix à utiliser, par exemple « Denise », « Henri » ou « Hortense ». Vide : la meilleure voix française disponible."
+      },
+      "Vitesse": {
+        "Nom": "Vitesse de lecture (navigateur)"
+      },
+      "Volume": {
+        "Nom": "Volume de la voix (navigateur)"
+      },
+      "reagirDeplacements": {
+        "Nom": "Le MJ IA réagit aux déplacements",
+        "Aide": "Quand un joueur entre dans une nouvelle pièce, le MJ IA est prévenu et peut réagir (décrire, piéger, faire parler un PNJ)."
+      },
+      "reagirPortes": {
+        "Nom": "Le MJ IA réagit aux portes",
+        "Aide": "Quand un joueur ouvre ou ferme une porte, le MJ IA est prévenu."
+      },
+      "jouerPnj": {
+        "Nom": "Le MJ IA joue les PNJ en combat",
+        "Aide": "Quand vient le tour d'un PNJ, le MJ IA joue son action puis passe au tour suivant."
+      },
+      "Style": {
+        "Nom": "Style visuel des cartes et jetons",
+        "Aide": "Plat (2D) : vue de dessus classique. Relief (3D) : murs en hauteur, ombres portées, objets et jetons en volume. Changer ce réglage redessine les cartes du MJ IA et bascule les cartes et jetons des modules de contenu.",
+        "Plat": "Plat (2D)",
+        "Relief": "Relief (3D)"
+      },
+      "miseEnPlace": {
+        "Nom": "Mettre en place le plateau avant de raconter",
+        "Aide": "Avant chaque réponse, le MJ IA place d'abord les jetons (personnages, PNJ, figurants), puis raconte une scène déjà visible sur la carte. Un peu plus lent et un peu plus cher ; désactivé d'office pendant les combats."
+      },
+      "ModeleCompagnons": {
+        "Nom": "Modèle des compagnons IA",
+        "Aide": "Modèle qui fait jouer les compagnons IA (personnages côté joueurs tenus par l'IA). Vide : un modèle bon marché du fournisseur actif (Claude Haiku 5.5, ou le moins cher d'OpenAI). Leur coût compte dans le budget de la séance."
+      },
+      "BavardageCompagnons": {
+        "Nom": "Bavardage des compagnons IA",
+        "Aide": "Nombre maximal de répliques de compagnons après chaque réponse du MJ (un compagnon parle au plus une fois, et jamais deux compagnons ne se répondent sans qu'un joueur ait écrit).",
+        "silencieux": "Silencieux (ils ne parlent qu'en combat et quand on leur demande de décider)",
+        "discret": "Discret (1 réplique)",
+        "normal": "Normal (2 répliques)",
+        "bavard": "Bavard (3 répliques)"
+      }
+    },
+    "Console": {
+      "Titre": "MJ IA",
+      "Modele": "Modèle",
+      "Personnalite": "Personnalité",
+      "PersonnaliteProchaine": "Personnalité changée : elle s'applique au prochain démarrage de séance.",
+      "Seance": "Séance",
+      "Active": "en cours",
+      "Inactive": "arrêtée",
+      "Reflechit": "le MJ réfléchit…",
+      "Cout": "Coût estimé",
+      "PrixInconnus": "prix inconnus pour ce fournisseur (voir sa console)",
+      "Demarrer": "Démarrer la séance",
+      "Arreter": "Terminer la séance",
+      "Souffler": "Souffler une consigne secrète",
+      "ExempleConsigne": "Ex. : fais intervenir un assassin dans la prochaine scène.",
+      "Envoyer": "Envoyer",
+      "Scenario": "Préparer un scénario",
+      "ExempleTheme": "Ex. : une enquête sur un culte dans les sous-niveaux d'une ruche, avec un traître parmi les alliés.",
+      "Preparer": "Préparer",
+      "ThemeManquant": "Indique un thème pour le scénario.",
+      "ScenarioEnCours": "Le MJ IA prépare le scénario… (les étapes s'affichent en chuchoté dans le chat)",
+      "ScenarioPret": "Scénario préparé : regarde les journaux et les acteurs créés.",
+      "Creation": "Créer un personnage avec le MJ",
+      "Joueur": "Joueur",
+      "AideCreation": "Le MJ IA guide le joueur dans le chat : il lance lui-même ses caractéristiques (2d10+20), puis on tire origine et faction, on choisit le rôle, et la fiche est créée et confiée au joueur.",
+      "Creer": "Commencer la création",
+      "CreationLancee": "Création de personnage lancée avec {joueur} : suivez le chat.",
+      "Vision": "Vision des joueurs",
+      "AideVision": "Active la vision des personnages des joueurs (et de leurs jetons déjà posés). Sans elle, un joueur ne voit rien sur une carte à vision par jeton.",
+      "VisionFaite": "Vision vérifiée pour {persos} personnage(s) : {modeles} modèle(s) de jeton et {jetons} jeton(s) corrigé(s)."
+    },
+    "Seance": {
+      "Demarree": "Séance du MJ IA démarrée.",
+      "Arretee": "Séance du MJ IA terminée, mémoire de campagne mise à jour."
+    },
+    "Validation": {
+      "Titre": "Action du MJ IA"
+    },
+    "Erreurs": {
+      "PasDeCle": "Aucune clé API pour ce fournisseur : ouvre la configuration du MJ IA.",
+      "Budget": "Budget de la séance atteint ({budget} $) : le MJ IA s'arrête. Augmente le budget dans les réglages pour continuer.",
+      "Refus": "Le modèle a refusé de répondre à ce tour. {detail}",
+      "PasTonPersonnage": "Ce n'est pas ton personnage : seul son joueur peut lancer ce test.",
+      "PasTonJet": "Ce jet est demandé à un autre joueur.",
+      "CreationImpmal": "La création guidée n'est disponible que pour Imperium Maledictum et D&D 5e.",
+      "PasDeCleVoix": "Voix OpenAI choisie, mais aucune clé OpenAI n'est enregistrée : ouvre la configuration du MJ IA."
+    },
+    "Voix": {
+      "Reecouter": "Réécouter"
+    },
+    "Mouvement": {
+      "Bloque": "Le MJ empêche ce déplacement."
+    },
+    "Style": {
+      "Redessinees": "{n} carte(s) redessinée(s) dans le nouveau style."
+    },
+    "Reinit": {
+      "Titre": "Réinitialiser la campagne",
+      "Aide": "Repart de zéro : efface chat, scènes, journaux, PNJ, combats et mémoire du MJ IA, puis réinstalle le contenu à neuf. Les personnages cochés sont gardés.",
+      "Bouton": "Tout recommencer…",
+      "Explication": "Tout le contenu de ce monde va être effacé, puis le contenu du module de jeu réinstallé à neuf (tables, guide, aventure et ses cartes). Le MJ IA oublie sa conversation et sa mémoire de campagne.",
+      "Supprime": "Sera supprimé :",
+      "Garder": "Personnages à garder (ils reçoivent le jeton de leur rôle) :",
+      "Conserve": "Restent intacts : utilisateurs, réglages (clés API comprises), macros, musiques et compendiums. Cette action ne peut pas être annulée depuis Foundry.",
+      "Confirmer": "Tout effacer et recommencer",
+      "Fait": "Campagne remise à zéro. Personnages gardés : {gardes}."
+    },
+    "Decisions": {
+      "VoteTitre": "Vote du groupe",
+      "ChoixTitre": "Choix secret",
+      "VotesCaches": "Les voix restent cachées jusqu'à la clôture",
+      "OntVote": "ont voté",
+      "TaVoix": "Ta voix :",
+      "Abstention": "abstention",
+      "ChangerAvis": "tu peux changer d'avis tant que le vote est ouvert.",
+      "PasEncoreVote": "Tu n'as pas encore voté.",
+      "Abstenir": "S'abstenir",
+      "Secret": "Toi seul vois cette question : les autres joueurs ne sauront pas ce que tu choisis.",
+      "Passer": "Passer",
+      "Valider": "Valider"
+    },
+    "Migration": "Réglages du MJ IA mis à jour : {faits}."
+  }
+}
