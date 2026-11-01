@@ -5,9 +5,11 @@ import { ecrireJSON } from "./utilitaires.js";
 // Remise à zéro de la campagne, dans le navigateur du MJ, par l'API de Foundry (qui défait proprement
 // tous les liens) : chat, combats, scènes, journaux, objets, tables, dossiers, brouillard, acteurs — sauf les
 // personnages cochés. Restent : utilisateurs, réglages (clés comprises), macros, musiques, compendiums.
-// Le personnage gardé reçoit le jeton de son rôle ; le contenu 40k est ensuite réinstallé à neuf.
+// Le personnage gardé reçoit le jeton de son rôle ; le contenu du jeu (40k, Warcraft, Veillées) est ensuite réinstallé
+// à neuf et une scène activée (sans elle, plus de barre d'outils pour le MJ).
 
 const COLLECTIONS = ["ChatMessage", "Combat", "Scene", "JournalEntry", "Item", "RollTable"];
+const CONTENU_PAR_SYSTEME = { impmal: "lakour-40k", dnd5e: "lakour-warcraft", "lakour-loups": "lakour-veillees" };
 
 async function choisirPersonnagesGardes() {
   const persos = game.actors.filter(a => a.type === "character");
@@ -84,12 +86,17 @@ export async function reinitialiserCampagne(moteur) {
     });
   }
 
-  // 4. Contenu 40k réinstallé à neuf (tables, guide, aventure, cartes), s'il est là.
-  const quarante = game.modules.get("lakour-40k");
-  if (quarante?.active && game.system.id === "impmal") {
-    await game.settings.set("lakour-40k", "installe", "");
-    await quarante.api?.installer?.();
+  // 4. Le contenu du jeu de ce monde réinstallé à neuf (guides, tables, aventure, cartes), s'il est là.
+  const contenu = game.modules.get(CONTENU_PAR_SYSTEME[game.system.id]);
+  if (contenu?.active) {
+    await game.settings.set(contenu.id, "installe", "");
+    await contenu.api?.installer?.();
   }
+  // La partie des Veillées désignait des villageois effacés : retour aux préparatifs.
+  const partie = game.settings.settings.get(`${game.system.id}.partie`);
+  if (game.system.id === "lakour-loups" && partie) await game.settings.set(game.system.id, "partie", foundry.utils.deepClone(partie.default));
+  // Sans scène active, Foundry masque la barre d'outils (console du MJ IA, Table de veillée, tour par tour).
+  if (!game.scenes.active && game.scenes.size) await game.scenes.contents[0].activate();
   if (game.paused) game.togglePause(false, { broadcast: true });
   ui.notifications.info(game.i18n.format("LAKOUR_MJIA.Reinit.Fait", { gardes: game.actors.map(a => a.name).join(", ") || "—" }));
 }
