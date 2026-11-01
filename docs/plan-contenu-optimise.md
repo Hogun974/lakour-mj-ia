@@ -144,7 +144,9 @@ Fait, testé, validé contre Foundry v14 et déployé (redémarrage de LaKour le
 | Relecture des chemins « vrai Foundry » (installateurs, création, fiches, immersion) | 3 mondes + MJ IA | corrigé |
 | One-shot « Trois jours d'avance » (spatioport, 3 cartes) | 40k | fait |
 | One-shot « Une nuit aux Deux Lanternes » (Âprefange, 3 cartes) | Warcraft | fait |
+| 4 rôles et 2 métiers (Loup des roseaux, Louvetier, Pêcheur de nuit, Dame du gué, Ramoneuse, Éclusière) | Veillées | fait |
+| 11. Cartes à étages (Scene Levels) | moteur (`creer_scene`, plans) | fait côté moteur ; aucune carte à étages livrée avant essai en vrai |
 
-Déploiements : 00:10 (vague 2), 00:26 (vague 3), 01:11 (one-shots), chacun précédé d'une sauvegarde dans
+Déploiements : 00:10 (vague 2), 00:26 (vague 3), 01:11 (one-shots), 01:30 (rôles des Veillées), plus des mises à jour à chaud, chacun précédé d'une sauvegarde dans
 `/home/amp/sauvegardes-foundry/`. Restent : modules gratuits (feu vert de Jordan), donjons à niveaux (Scene Levels, à
 tester avec 3D Canvas), essais en vrai de tout ce qui précède.
