@@ -2,7 +2,7 @@ import { ID, MODELE_VOIX } from "./constantes.js";
 import { lire } from "./reglages.js";
 import { fournisseurImages, expliquerErreur } from "./fournisseurs/index.js";
 import { versTexte, deposerFichier } from "./utilitaires.js";
-import { decouperPourVoix, choisirVoix, morceauxPrets } from "./voix-texte.js";
+import { decouperPourVoix, choisirVoix, morceauxPrets, planAttenuation } from "./voix-texte.js";
 import { voixDe } from "./personnalites.js";
 
 // Voix du narrateur. Deux modes, au choix du MJ (réglage « voix ») :
@@ -96,10 +96,48 @@ export class VoixEnDirect {
   }
 }
 
-// Joue les morceaux l'un après l'autre ; diffuser = pour tous les joueurs connectés.
+// Ambiance sonore baissée pendant que le narrateur parle. C'est le MJ qui modifie le volume des pistes de la playlist
+// « Ambiances (MJ IA) » : Foundry répercute ce volume chez chaque joueur, alors que la voix, elle, est jouée par Foundry
+// chez chacun sans passer par notre code. Volumes d'origine mémorisés ici, rendus quand plus aucune voix ne parle.
+const attenuees = {};
+let voixEnCours = 0;
+
+function pistesAmbiance() {
+  return game.playlists?.find(p => p.getFlag(ID, "ambiances"))?.sounds.contents ?? [];
+}
+
+async function attenuerAmbiance() {
+  voixEnCours++;
+  if (!game.user.isGM) return;
+  const plan = planAttenuation(pistesAmbiance().map(s => ({ id: s.id, playing: s.playing, volume: s.volume })), attenuees);
+  const pistes = pistesAmbiance();
+  for (const { id, origine, pendant } of plan) {
+    attenuees[id] = origine;
+    const piste = pistes.find(s => s.id === id);
+    if (piste && piste.volume !== pendant) await piste.update({ volume: pendant });
+  }
+}
+
+async function rendreAmbiance() {
+  voixEnCours = Math.max(0, voixEnCours - 1);
+  if (voixEnCours || !game.user.isGM) return;
+  const pistes = pistesAmbiance();
+  for (const [id, origine] of Object.entries(attenuees)) {
+    delete attenuees[id];
+    const piste = pistes.find(s => s.id === id);
+    if (piste?.playing) await piste.update({ volume: origine });
+  }
+}
+
+// Joue les morceaux l'un après l'autre ; diffuser = pour tous les joueurs connectés (l'ambiance est baissée pendant ce temps).
 export async function jouerTousLesMorceaux(chemins, diffuser) {
-  for (const src of chemins) {
-    const son = await foundry.audio.AudioHelper.play({ src, volume: 0.9, autoplay: true, loop: false }, diffuser);
-    if (son?.duration) await new Promise(resolve => setTimeout(resolve, son.duration * 1000 + 150));
+  if (diffuser) await attenuerAmbiance().catch(() => {});
+  try {
+    for (const src of chemins) {
+      const son = await foundry.audio.AudioHelper.play({ src, volume: 0.9, autoplay: true, loop: false }, diffuser);
+      if (son?.duration) await new Promise(resolve => setTimeout(resolve, son.duration * 1000 + 150));
+    }
+  } finally {
+    if (diffuser) await rendreAmbiance().catch(() => {});
   }
 }

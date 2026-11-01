@@ -8,6 +8,7 @@ import { CARACS, calculerCaracteristiques, objetsDeDepart, munitionPour } from "
 import { ajouterAvecAvancements, donnerEquipement, monterNiveau } from "./creation-dnd5e.js";
 import { jetonJoueur } from "./contenus.js";
 import { lire, ecrire } from "./reglages.js";
+import { volumeAmbiance } from "./voix-texte.js";
 import { ouvrirVote, cloreVote, demanderChoix, nomPourIA, DELAI_VOTE, DELAI_CHOIX, MAX_OPTIONS } from "./decisions.js";
 import { validerSchema } from "./schema.js";
 import { TEMPERAMENTS, FACONS_DE_PARLER, personnaliteAuHasard } from "./compagnons.js";
@@ -1064,7 +1065,7 @@ OUTILS.push(
       + "tension (suspense, horreur). Change-la quand le lieu ou l'ambiance change.",
     schema: objet({
       ambiance: { type: "string", enum: ["aucune", ...AMBIANCES], description: "Ambiance voulue." },
-      volume: { type: "number", description: "Volume de 0,1 à 1 (0,5 en général)." }
+      volume: { type: "number", description: "Volume de 0,05 à 0,6 (0,3 en général : la voix du narrateur doit rester devant ; elle baisse d'elle-même l'ambiance quand il parle)." }
     }),
     sensible: false,
     async executer({ ambiance, volume }) {
@@ -1080,7 +1081,7 @@ OUTILS.push(
       let piste = playlist.sounds.find(s => s.getFlag(ID, "ambiance") === ambiance);
       if (!piste) [piste] = await playlist.createEmbeddedDocuments("PlaylistSound", [{ name: son.libelle, path: son.fichier, repeat: true, fade: 2000, flags: { [ID]: { ambiance } } }]);
       for (const autre of playlist.sounds.filter(s => s.playing && s.id !== piste.id)) await autre.update({ playing: false });
-      await piste.update({ playing: true, volume: Math.min(1, Math.max(0.1, volume || 0.5)) });
+      await piste.update({ playing: true, volume: volumeAmbiance(volume) });
       return { contenu: `Ambiance « ${son.libelle} » lancée pour tous.` };
     }
   }

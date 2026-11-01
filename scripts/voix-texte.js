@@ -78,6 +78,21 @@ export function lectureFidele(texte, transcription) {
 }
 
 // Morceaux d'audio PCM 16 bits mono (base64, renvoyés par l'API Realtime) → fichier WAV complet.
+// Atténuation de l'ambiance pendant que le narrateur parle : volume réduit à cette fraction, puis rendu.
+export const ATTENUATION_AMBIANCE = 0.3;
+// Volume par défaut et plafond d'une ambiance (la voix doit toujours passer devant).
+export const VOLUME_AMBIANCE = { defaut: 0.3, min: 0.05, max: 0.6 };
+export const volumeAmbiance = v => Math.min(VOLUME_AMBIANCE.max, Math.max(VOLUME_AMBIANCE.min, Number(v) || VOLUME_AMBIANCE.defaut));
+
+// Pistes à atténuer : { id, volume d'origine, volume pendant la voix }. Une piste déjà atténuée garde son volume d'origine
+// mémorisé (deux narrations qui s'enchaînent ne la font pas descendre deux fois).
+export function planAttenuation(pistes, memorises = {}) {
+  return pistes.filter(p => p.playing).map(p => {
+    const origine = memorises[p.id] ?? p.volume;
+    return { id: p.id, origine, pendant: Math.round(origine * ATTENUATION_AMBIANCE * 1000) / 1000 };
+  });
+}
+
 export function wavDepuisPcm(morceauxBase64, frequence = 24000) {
   const parties = morceauxBase64.map(b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
   const taille = parties.reduce((t, p) => t + p.length, 0);
