@@ -2,7 +2,7 @@
 // joueurs, visible) et recopié dans docs/guide-utilisation.md par outils/ecrire-guide.mjs.
 // Texte au format des journaux du module (paragraphes, **gras**, *italique*, listes « - », titres « # »).
 
-export const VERSION_GUIDE = 5;
+export const VERSION_GUIDE = 6;
 
 export const GUIDE_MJ = [
   { titre: "Démarrer", texte: `
@@ -28,20 +28,20 @@ export const GUIDE_MJ = [
 - **Réactions** : l'IA peut réagir aux déplacements des joueurs, aux portes ouvertes, et jouer les PNJ en combat.
 - **Style visuel** : cartes et jetons plats ou en relief.` },
   { titre: "Ce que l'IA sait faire", texte: `
-- **Plateau** : créer des cartes jouables (murs, portes, lumières), y amener les personnages, poser PNJ et figurants « près du puits », les retirer, régler vision, lumières, portes et brouillard, passer en vue 3D (3D Canvas) et cadrer la caméra.
-- **Récit** : voix, images (OpenAI), ambiances sonores (vent, pluie, taverne, forge, tension…), messages secrets à un seul joueur, votes de groupe et choix secrets.
+- **Plateau** : créer des cartes jouables (murs, portes, lumières, sons d'ambiance, zones invisibles des joueurs), les faire évoluer en jeu (zone de lore qui s'affiche quand un jeton entre, piège qui met en pause, escalier qui téléporte, obscurité, épingle vers un journal, son localisé), y amener les personnages, poser PNJ et figurants « près du puits », les retirer, régler vision, lumières, portes et brouillard, passer en vue 3D (3D Canvas) et cadrer la caméra.
+- **Récit** : voix, images (OpenAI), ambiances sonores (vent, pluie, taverne, forge, tension…), messages secrets à un seul joueur, votes de groupe et choix secrets ; **montrer une aide de jeu** aux joueurs (lettre, contrat, page par page), jamais un journal réservé au MJ ; tirer dans les tables du module (rumeurs, visages, complications…).
 - **Règles** : demander des jets pré-remplis (difficulté, modificateurs), lancer les dés des PNJ, mener les combats.
 - **Campagne** : expérience, montée de niveau (D&D 5e) ou dépense d'XP (Imperium Maledictum), argent, objets, marchands, chronique visible des joueurs, mémoire de campagne.
 - **Scénario** : suivre l'aventure écrite, ou l'adapter en jeu selon sa liberté (fidèle, adaptative, libre) ; chaque page réécrite garde sa version précédente.` },
   { titre: "Les trois mondes", texte: `
 # Warhammer 40 000 — Imperium Maledictum
-Modules **lakour-mj-ia** et **lakour-40k**. Contenu original du sous-secteur de la Kour : origines, factions, rôles, talents (une partie automatisés), armement, bestiaire, deux aventures et une campagne, lieux prêts à l'emploi. Installer : Réglages › La Kour 40k › Installer.
+Modules **lakour-mj-ia** et **lakour-40k**. Contenu original du sous-secteur de la Kour : origines, factions, rôles, talents (une partie automatisés), armement, bestiaire, deux aventures et une campagne, lieux prêts à l'emploi, 21 tables du MJ (Patron, missions, enquête, ruche, Warp, butin…). **Fiche La Kour** : en-tête avec Origine, Faction, Rôle et Patron, jauges, inventaire par catégories avec icônes et encombrement (on peut revenir à la fiche d'impmal dans la configuration de la fiche). L'assistant de création équipe le personnage (armure portée, arme en main, munitions). Cartes d'aventure épinglées sur le journal du MJ, avec sons et zones. Installer : Réglages › La Kour 40k › Installer, ou importer l'aventure du compendium **Aventures** (proposée aussi à la création d'un monde).
 
 # Warcraft — D&D 5e
-Modules **lakour-mj-ia**, **lakour-warcraft**, **dnd5e_fr-FR**, **babele**, **fr-core**. Peuples d'Azeroth, historiques, objets, bestiaire, aventure de départ et campagne, unités métriques. Installer : Réglages › La Kour Warcraft › Installer.
+Modules **lakour-mj-ia**, **lakour-warcraft**, **dnd5e_fr-FR**, **babele**, **fr-core**. Peuples d'Azeroth, historiques, **8 sous-classes** (Domaine des Éléments, Main d'argent, Rêve d'émeraude, Gladiateur d'Orgrimmar, Chasseur de démons illidari, Pacte de la Gangrène, Kirin Tor, SI:7), **dons** et **affiliations**, **sorts** maison (dans les listes des classes), **arsenal** (armes de faction, armures, munitions, prothèses, objets magiques), **afflictions** (blessures, maladies, corruption gangrenée), bestiaire aux couleurs des factions, aventure de départ et campagne, unités métriques. Journaux liés et jets cliquables ; cartes épinglées, avec sons et zones. Installer : Réglages › La Kour Warcraft › Installer, ou importer l'aventure du compendium **Aventures** (proposée aussi à la création d'un monde).
 
 # Les Veillées de Brumecombe — loup-garou original
-Modules **lakour-mj-ia**, **lakour-veillees**, **fr-core**, système **lakour-loups**. Personnalité conseillée : *La Voix de la brume*. L'IA compose une partie équilibrée pour le nombre de joueurs (ou prend votre liste), distribue les rôles en secret, mène les nuits, l'aube et le vote. La **Table de jeu** (bouton dans la barre de gauche) montre la partie à tous.` },
+Modules **lakour-mj-ia**, **lakour-veillees**, **fr-core**, système **lakour-loups**. Personnalité conseillée : *La Voix de la brume*. L'IA compose une partie équilibrée pour le nombre de joueurs (ou prend votre liste), distribue les rôles en secret, mène les nuits, l'aube et le vote. La **Table de jeu** (bouton dans la barre de gauche) montre la partie à tous. Le vote à minuteur se clôt seul à zéro ; chaque partie finie entre aux **Chroniques de Brumecombe** (palmarès). La brume tombe la nuit, l'écran tremble à une mort (réglage client « Effets visuels »). Chaque bâtiment de la carte est épinglé sur sa page de règles.` },
   { titre: "Compagnons IA", texte: `
 # Des joueurs tenus par l'IA
 Pour combler une table : des personnages côté joueurs, joués par une IA comme s'ils étaient des joueurs. Chacun a **son propre cerveau** (un appel au modèle séparé de celui du MJ) et ne sait que ce que sait son personnage : sa fiche, ce qu'on lui a dit en privé, le chat public, ce qu'il voit. Il ne triche pas : ni le prompt du MJ, ni la mémoire de campagne, ni les rôles des autres, ni les jetons cachés, ni les chuchotements.
@@ -120,6 +120,7 @@ export const GUIDE_JOUEURS = [
 - **En combat**, un bandeau en haut de l'écran te dit où on en est : « ⚔️ Round 3 — À toi de jouer ! », ou « Au tour de X, puis toi ».
 - **À ton tour**, il montre ce qu'il te reste (D&D 5e : action, action bonus, réaction, mouvement en mètres ; Imperium Maledictum : action et déplacement) et tes attaques en boutons : ils ouvrent tes vrais jets. Désigne d'abord ta cible (touche **T** sur son jeton).
 - **Fin de mon tour** passe la main au suivant.
+- Quand ton tour arrive, un **tintement** discret sonne chez toi seul (réglage « M'appeler quand c'est à moi » du MJ IA) ; de même pour un vote de groupe ou un choix secret.
 - Si le MJ l'a réglé ainsi, seul le combattant dont c'est le tour peut bouger son jeton.
 - **Hors combat**, le MJ peut faire un **tour de table** : quand vient ton tour, le bandeau dit « À toi de décrire ce que fait ton personnage ». Écris-le dans le chat (ou presse **J'ai fini**), ou **Je passe**.` },
   { titre: "Les Veillées de Brumecombe", texte: `
@@ -127,7 +128,9 @@ export const GUIDE_JOUEURS = [
 - La **nuit**, si ton rôle agit, une fenêtre s'ouvre chez toi seul : choisis, ou passe.
 - Le **jour**, débattez, puis **votez** dans la fenêtre de vote ou la Table de jeu. Les voix restent cachées jusqu'à la fin du vote.
 - Les **morts** se taisent et ne votent plus.
-- Le guide du joueur de Brumecombe (journal du monde) décrit tous les rôles, métiers et bâtiments.` }
+- Le guide du joueur de Brumecombe (journal du monde) décrit tous les rôles, métiers et bâtiments ; sur la carte, clique l'épingle d'un bâtiment pour lire sa règle.
+- Quand c'est à toi (choix de nuit, vote), un **tintement** discret sonne chez toi seul et l'onglet clignote si tu regardes ailleurs (réglage « Signal quand c'est à moi »).
+- À la fin, les **Chroniques de Brumecombe** racontent la partie et tiennent le palmarès.` }
 ];
 
 // Installe ou met à jour les deux journaux du guide dans le monde (MJ actif seulement, une fois par version du guide).
