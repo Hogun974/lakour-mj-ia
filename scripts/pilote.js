@@ -70,7 +70,9 @@ export const nouvelleMemoire = () => ({ tour: -1, aube: false, debats: 0, voteFa
 // La prochaine étape d'après l'état du système et la mémoire du pilote ; null = rien à faire.
 // elusVivants : désignés du vote du jour encore vivants ; debatMax : tours de parole des compagnons au débat.
 // election : l'élection du Bailli est due (api.bailli().election.ok, système 0.6.0 et plus) : après le débat, elle passe avant le
-// vote d'exécution ; sa clôture (« bailli-clore ») n'exécute personne.
+// vote d'exécution ; sa clôture (« bailli-clore ») n'exécute personne. Le pilote ouvre et clôt lui-même l'élection (au débat, sans
+// changer de phase), sans tour du narrateur : elle ne dépend pas d'un outil oublié par le modèle et ne coûte aucun appel ; le
+// narrateur annonce le Bailli en ouvrant le vote d'exécution (CONSIGNES_LOUPS.annonceBailli).
 export function prochaineEtapeLoups(etat, m, { elusVivants = [], debatMax = DEBAT_TOURS, election = false } = {}) {
   if (etat.vainqueur || etat.phase === "fin") return m.denouement ? null : "denouement";
   if (etat.phase === "preparation") return null;
@@ -80,6 +82,12 @@ export function prochaineEtapeLoups(etat, m, { elusVivants = [], debatMax = DEBA
   if (etat.phase === "aube" && !m.aube) return "aube";
   if (m.debats < debatMax) return "debat";
   return election ? "bailli" : "vote-ouvrir";
+}
+
+// Le résultat d'une élection du Bailli (api.cloreVote, objet « bailli »), en clair pour la consigne du narrateur.
+export function resultatElection(r, nom = id => id) {
+  if (r?.bailli) return `${nom(r.bailli)} est élu Bailli${r.sort ? " (par le sort, entre les ex aequo)" : ""}`;
+  return r ? "personne n'est élu, la charge reste vacante jusqu'au prochain jour" : "l'élection n'a pas pu être close";
 }
 
 // Le vote d'exécution de ce tour a eu lieu (clos, non prolongé) ?
@@ -99,10 +107,8 @@ export const CONSIGNES_LOUPS = {
     + "Après son résultat, réponds seulement « — » : l'aube sera racontée à l'étape suivante, même si une victoire est annoncée.",
   aube: "Étape : l'aube. Raconte l'aube de cette nuit (les morts et leur sort, sans trahir qui a fait quoi ni aucun rôle secret), "
     + "puis ouvre le débat du jour en une phrase. N'ouvre pas encore le vote.",
-  bailli: "Étape : l'élection du Bailli. Annonce l'élection en une phrase, puis loups_vote ouvrir objet « bailli », duree_secondes 0 ; "
-    + "ne la clos pas : les villageois votent.",
-  "bailli-clore": "Étape : le dépouillement de l'élection. Clos-la (loups_vote, action « clore ») et annonce le Bailli en une phrase (ou la "
-    + "charge vacante), sans réciter les voix. Personne n'est exécuté par ce vote : le vote d'exécution vient ensuite.",
+  annonceBailli: resultat => `Avant cela, le village vient d'élire son Bailli (élection menée au débat) : ${resultat}. Annonce-le d'abord `
+    + "en une phrase, sans réciter les voix (sa voix comptera double à ce vote, il tranchera les égalités) ; personne n'a été exécuté par l'élection.",
   "vote-ouvrir": "Étape : le vote. Clos le débat en une phrase, puis ouvre le vote d'exécution (loups_vote, action « ouvrir », candidats "
     + "vides, duree_secondes 0). Ne le clos pas : les villageois votent.",
   "vote-clore": "Étape : le dépouillement. Clos le vote (loups_vote, action « clore ») et annonce le désigné, sans réciter les voix (la carte et la Table les montrent). N'exécute personne à cette "
@@ -313,13 +319,13 @@ export class PiloteAutomatique {
     await api.verifierVictoire?.();
     const etat = api.etat();
     const m = this.memoire;
-    if (m.tour !== etat.tour) Object.assign(m, { tour: etat.tour, aube: false, debats: 0, voteFait: false });
+    if (m.tour !== etat.tour) Object.assign(m, { tour: etat.tour, aube: false, debats: 0, voteFait: false, annonceBailli: "" });
     if (voteDuJour(etat)) m.voteFait = true;
     const vivant = id => api.villageois().find(a => a.id === id)?.system?.vivant !== false;
     const elusVivants = m.voteFait ? (etat.vote.resultat?.elus ?? []).filter(vivant) : [];
     // L'élection du Bailli due maintenant (système 0.6.0 et plus ; un système plus ancien n'a pas api.bailli).
     let election = false;
-    try { election = Boolean(api.bailli?.()?.election?.ok); } catch { /* pas de Bailli */ }
+    try { election = Boolean(api.bailli?.()?.election?.ok) && m.electionRefusee !== etat.tour; } catch { /* pas de Bailli */ }
     const etape = prochaineEtapeLoups(etat, m, { elusVivants, debatMax: this.debatMax(), election });
     if (!etape) return null;
     const vivants = api.villageois().filter(a => a.system?.vivant !== false).length;
@@ -382,10 +388,26 @@ export class PiloteAutomatique {
         if (!dits.length) m.debats = Math.max(m.debats, this.debatMax());
         return;
       }
-      case "vote-ouvrir": return this.#tour(ENTETE, CONSIGNES_LOUPS["vote-ouvrir"]);
+      case "vote-ouvrir": {
+        const annonce = m.annonceBailli ? ` ${CONSIGNES_LOUPS.annonceBailli(m.annonceBailli)}` : "";
+        m.annonceBailli = "";
+        return this.#tour(ENTETE, `${CONSIGNES_LOUPS["vote-ouvrir"]}${annonce}`);
+      }
       case "vote-clore": return this.#tour(ENTETE, CONSIGNES_LOUPS["vote-clore"]);
-      case "bailli": return this.#tour(ENTETE, CONSIGNES_LOUPS.bailli);
-      case "bailli-clore": return this.#tour(ENTETE, CONSIGNES_LOUPS["bailli-clore"]);
+      case "bailli": {
+        // Refusée (raison du système) : on n'y revient pas ce jour-là, le vote d'exécution suit.
+        try { await api.ouvrirVote({ objet: "bailli", duree: 0 }); } catch (e) {
+          m.electionRefusee = api.etat().tour;
+          console.warn(`${ID} | pilote : élection du Bailli refusée`, e);
+        }
+        return;
+      }
+      case "bailli-clore": {
+        let r = null;
+        try { r = await api.cloreVote(); } catch (e) { console.warn(`${ID} | pilote : clôture de l'élection`, e); }
+        m.annonceBailli = resultatElection(r, nom);
+        return;
+      }
       case "eliminer": {
         const etat = api.etat();
         const elus = (etat.vote.resultat?.elus ?? []).filter(id => api.villageois().find(a => a.id === id)?.system?.vivant !== false);

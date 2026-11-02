@@ -182,7 +182,7 @@ export const CONSIGNE_PARLER_LOUPS = " Tu peux accuser, te défendre, poser une 
   + "exactement « C'est la peste noire ! ». Si c'est vrai, le village gagne aussitôt ; si c'est faux, tu es pendu pour avoir semé la "
   + "panique. C'est rarissime : sans preuves solides, ne le crie jamais. Pour faire inscrire une déclaration au Registre du greffier "
   + "(public, une phrase, trois par jour au plus), commence ta réplique par « Au Registre : » suivi de ce que tu déclares (« Au "
-  + "Registre : je suis la Liseuse de cendres, j'ai lu Berthe cette nuit. »). Le greffier ne vérifie rien : on peut y mentir.";
+  + "Registre : cette nuit, j'ai vu une lanterne s'éteindre chez Berthe. »). Le greffier ne vérifie rien : on peut y mentir.";
 
 // La déclaration au Registre en tête d'une réplique de compagnon (« Au Registre : … », après une éventuelle didascalie) : le
 // texte à inscrire, ou null. compagnons-jeu.js la transmet au système des Veillées (api.declarer).

@@ -81,6 +81,7 @@ function veillees({ phase = "jour", bailli = null, registre = [], masques = [], 
     async changerPhase(p) { api.appels.changerPhase.push(p); etat.phase = p; },
     async ouvrirVote(args) {
       api.appels.ouvrirVote.push(args);
+      if (args.objet === "bailli") api.electionFaite = true;
       etat.vote = { ouvert: true, objet: args.objet ?? "execution", candidats: args.candidats ?? ["v0", "v1", "v2", "v3", "v4"], exprimes: [], votes: {} };
     },
     async cloreVote() { etat.vote = { ouvert: false, resultat }; return structuredClone(resultat); },
@@ -88,7 +89,9 @@ function veillees({ phase = "jour", bailli = null, registre = [], masques = [], 
   };
   if (!ancien) {
     Object.assign(api, {
-      bailli: () => structuredClone(bailli ?? { actif: true, acteurId: "", nom: "", depuis: 0, succession: null, election: { ok: true, raison: "" } }),
+      // Sans Bailli donné : l'élection est due tant qu'elle n'a pas été ouverte ce jour-là.
+      bailli: () => structuredClone(bailli ?? { actif: true, acteurId: "", nom: "", depuis: 0, succession: null,
+        election: api.electionFaite ? { ok: false, raison: "deja" } : { ok: true, raison: "" } }),
       registreTexte: ({ max = 30 } = {}) => { api.appels.registreMax.push(max); return registre.slice(-max); },
       async declarer(id, texte) {
         if (api.refus) throw new Error(api.refus);
@@ -253,12 +256,17 @@ const VERIFICATIONS = {
     assert.equal(P.prochaineEtapeLoups(e("jour"), { ...m, debats: 0 }, { election: true }), "debat", "le débat d'abord");
     assert.equal(P.prochaineEtapeLoups(e("vote", { vote: { ouvert: true, objet: "bailli" } }), m), "bailli-clore");
     assert.equal(P.prochaineEtapeLoups(e("vote", { vote: { ouvert: true } }), m), "vote-clore");
-    assert.match(P.CONSIGNES_LOUPS.bailli, /loups_vote ouvrir objet « bailli », duree_secondes 0 ; ne la clos pas/);
-    assert.doesNotMatch(P.CONSIGNES_LOUPS["bailli-clore"], /loups_eliminer/);
-    assert.match(P.CONSIGNES_LOUPS["bailli-clore"], /Personne n'est exécuté/);
-    // En marche : l'élection due (api.bailli) est demandée au narrateur.
-    const consigne = async options => {
-      veillees(options);
+    const annonce = P.CONSIGNES_LOUPS.annonceBailli("Désiré est élu Bailli");
+    assert.match(annonce, /vient d'élire son Bailli \(élection menée au débat\) : Désiré est élu Bailli\./);
+    assert.doesNotMatch(annonce, /loups_eliminer|loups_vote/);
+    assert.match(annonce, /personne n'a été exécuté par l'élection/);
+    assert.equal(P.resultatElection({ bailli: "v3", sort: true }, id => (id === "v3" ? "Désiré" : id)), "Désiré est élu Bailli (par le sort, entre les ex aequo)");
+    assert.match(P.resultatElection({ bailli: "" }), /la charge reste vacante/);
+    // En marche : le pilote ouvre lui-même l'élection due (au débat, sans changer de phase) et la clôt, sans tour du narrateur ;
+    // le narrateur annonce le Bailli en ouvrant le vote d'exécution.
+    const consigne = async (options, prep = () => {}) => {
+      const api = veillees(options);
+      prep(api);
       for (const a of game.actors.contents) { a.system.joueur = ""; a.system.compagnon = true; }
       const vues = [];
       const moteur = { actif: true, auRepos: () => true, budgetDepasse: () => false, compagnons: { maxRepliques: () => 0 } };
@@ -266,10 +274,18 @@ const VERIFICATIONS = {
       moteur.tour = async texte => { vues.push(texte); p.arreter("manuel"); };
       p.demarrer();
       await p.boucle;
-      return vues.join("\n");
+      return { texte: vues.join("\n"), api, etapes: p.journal.map(j => j.etape) };
     };
-    assert.match(await consigne({}), /l'élection du Bailli/);
-    assert.match(await consigne({ ancien: true }), /Étape : le vote\./, "système ancien : le vote d'exécution");
+    let x = await consigne({ resultat: { objet: "bailli", decompte: { v3: 3 }, elus: ["v3"], bailli: "v3", sort: false } });
+    assert.deepEqual(x.etapes, ["bailli", "bailli-clore", "vote-ouvrir"]);
+    assert.deepEqual(x.api.appels.ouvrirVote.map(a => a.objet), ["bailli"], "le pilote ouvre l'élection lui-même");
+    assert.deepEqual(x.api.appels.changerPhase, [], "au débat, sans passer en phase vote");
+    assert.match(x.texte, /^[\s\S]*Étape : le vote\.[\s\S]*Désiré est élu Bailli/, "un seul tour du narrateur : le vote, avec l'annonce");
+    // Refusée par le système : pas d'élection ce jour-là, le vote d'exécution suit (sans boucler), sans annonce.
+    x = await consigne({}, api => { api.ouvrirVote = async () => { throw new Error("Une élection a déjà eu lieu aujourd'hui."); }; });
+    assert.deepEqual(x.etapes, ["bailli", "vote-ouvrir"]);
+    assert.doesNotMatch(x.texte, /élire son Bailli/);
+    assert.match((await consigne({ ancien: true })).texte, /Étape : le vote\./, "système ancien : le vote d'exécution");
   },
 
   async "consignes : Bailli public, Registre jamais confirmé, Masques jamais mentionnés ; nommer pour désigner seulement"(M) {
@@ -348,7 +364,11 @@ const MUTATIONS = [
   ["outils.js", "        try { await api.nommerBailli(id); }", "        try { await null; }", "loups_bailli ne nomme pas"],
   ["pilote.js", "  return election ? \"bailli\" : \"vote-ouvrir\";", "  return \"vote-ouvrir\";", "pilote : pas d'élection"],
   ["pilote.js", "return etat.vote.objet === \"bailli\" ? \"bailli-clore\" : \"vote-clore\";", "return \"vote-clore\";", "pilote : élection close comme une exécution"],
-  ["pilote.js", "try { election = Boolean(api.bailli?.()?.election?.ok); }", "try { election = false; }", "pilote : élection jamais vue"],
+  ["pilote.js", "try { election = Boolean(api.bailli?.()?.election?.ok) && m.electionRefusee !== etat.tour; }", "try { election = false; }", "pilote : élection jamais vue"],
+  ["pilote.js", " && m.electionRefusee !== etat.tour; }", "; }", "pilote : élection refusée redemandée sans fin"],
+  ["pilote.js", "        try { await api.ouvrirVote({ objet: \"bailli\", duree: 0 }); } catch (e) {", "        try { await null; } catch (e) {", "pilote : élection jamais ouverte"],
+  ["pilote.js", "        try { r = await api.cloreVote(); }", "        try { r = null; }", "pilote : élection jamais close"],
+  ["pilote.js", "const annonce = m.annonceBailli ? ` ${CONSIGNES_LOUPS.annonceBailli(m.annonceBailli)}` : \"\";", "const annonce = \"\";", "pilote : Bailli jamais annoncé"],
   ["adaptateurs.js", "ne la confirme ni ne l'infirme jamais", "confirme-la si tu le sais", "narrateur : déclaration confirmée"],
   ["adaptateurs.js", "Les Masques de veillée sont un secret de la meute : ne les mentionne jamais, et ne dis jamais qu'un \"\n    + \"rôle n'est pas en jeu. \"",
     "\"", "narrateur : Masques non tus"]
