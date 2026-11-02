@@ -38,6 +38,7 @@ Ce guide est aussi installé dans chaque monde par le MJ IA (journaux « MJ IA �
 - **Récit** : voix, images (OpenAI), ambiances sonores (vent, pluie, taverne, forge, tension…), messages secrets à un seul joueur, votes de groupe et choix secrets ; **montrer une aide de jeu** aux joueurs (lettre, contrat, page par page), jamais un journal réservé au MJ ; tirer dans les tables du module (rumeurs, visages, complications…).
 - **Règles** : demander des jets pré-remplis (difficulté, modificateurs), lancer les dés des PNJ, mener les combats.
 - **Campagne** : expérience, montée de niveau (D&D 5e) ou dépense d'XP (Imperium Maledictum), argent, objets, marchands, chronique visible des joueurs, mémoire de campagne.
+- **Modules d'effets** (seulement s'ils sont actifs dans le monde) : animations de sorts, tirs, explosions et soins (**Sequencer** + **JB2A**), météo sur la carte (**FXMaster** : pluie, orage, neige, brouillard, braises…), date, heure et météo du jour (**Calendaria**, 40k et Warcraft), tas de butin, coffres et marchands (**Item Piles**, Warcraft).
 - **Scénario** : suivre l'aventure écrite, ou l'adapter en jeu selon sa liberté (fidèle, adaptative, libre) ; chaque page réécrite garde sa version précédente.
 
 ### Les trois mondes

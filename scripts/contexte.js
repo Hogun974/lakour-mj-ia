@@ -26,6 +26,35 @@ export const CONSIGNE_COMPAGNONS = [
   "  • compagnon_ajouter, compagnon_retirer et compagnons gèrent la troupe ; un vote de groupe et un choix secret les incluent."
 ].join("\n");
 
+// Consignes des outils liés à des modules tiers (scripts/outils.js, champ « modules ») : une phrase par module actif, et
+// seulement dans les systèmes où l'outil existe. actif : id de module -> booléen.
+export function consignesModulesTiers(actif = id => Boolean(game.modules.get(id)?.active), systeme = game.system?.id) {
+  const aventure = ["impmal", "dnd5e"].includes(systeme);
+  const lignes = [];
+  if (actif("sequencer") && actif("JB2A_DnD5e")) {
+    lignes.push("- Animations (animation) : rends visibles les moments forts — sort, tir, explosion, soin, apparition — sur un jeton, "
+      + "sur une case ou de la source à la cible ; avec mesure, pas à chaque coup."
+      + (systeme === "dnd5e" && actif("autoanimations")
+        ? " Les attaques et sorts lancés depuis une fiche s'animent déjà seuls (Automated Animations) : n'anime que le reste "
+          + "(jets de lancer_des, magie racontée, décor)."
+        : ""));
+  }
+  if (actif("fxmaster")) {
+    lignes.push("- Météo visible (meteo) : pluie, orage, neige, brouillard, braises… sur la carte quand le temps ou le lieu change ; "
+      + "lance aussi l'ambiance_sonore assortie, et coupe-la (« aucune ») en entrant à l'abri.");
+  }
+  if (aventure && actif("calendaria")) {
+    lignes.push("- Calendrier (calendrier) : Calendaria tient la date du monde. Avance-le quand le récit fait passer le temps (voyage, "
+      + "repos, attente) et consulte-le pour l'heure, la lune et la météo du jour"
+      + (actif("fxmaster") ? " ; si la météo du jour s'affiche déjà sur la carte, ne la double pas avec meteo." : "."));
+  }
+  if (systeme === "dnd5e" && actif("item-piles")) {
+    lignes.push("- Butin (butin) : après un combat, change les ennemis vaincus en tas de butin à fouiller ; un coffre ou une cache "
+      + "trouvés se posent avec coffre ou tas, un marchand ouvre boutique avec marchand. donner_objets reste pour une récompense remise en main.");
+  }
+  return lignes;
+}
+
 // Personnages joueurs : ceux assignés aux joueurs, à défaut ceux qu'un joueur possède.
 export function personnagesJoueurs() {
   const joueurs = game.users.filter(u => !u.isGM);
@@ -96,6 +125,7 @@ export async function promptSysteme(personnalite, { mission } = {}) {
       ? "- La vue 3D (vue_3d) est disponible : active-la pour un lieu marquant, puis cadre la caméra sur une arrivée, une révélation "
         + "ou un PNJ qui entre en scène. Avec mesure : chaque cadrage déplace la caméra de tous les joueurs."
       : "",
+    ...consignesModulesTiers(),
     "- Tu reçois aussi ce que les joueurs font sur le plateau : 🚶 entrée dans une pièce ou déplacement, 🚪 porte ouverte ou fermée, "
       + "⚔️ tour d'un PNJ en combat. Réagis comme un vrai MJ : décris le lieu découvert, déclenche un piège, fais parler un PNJ. "
       + "Si un déplacement n'appelle aucune réaction, réponds seulement « — » (rien ne s'affiche) : ne commente pas chaque pas.",
