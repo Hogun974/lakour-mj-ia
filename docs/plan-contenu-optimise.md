@@ -146,7 +146,7 @@ Fait, testé, validé contre Foundry v14 et déployé (redémarrage de LaKour le
 | One-shot « Une nuit aux Deux Lanternes » (Âprefange, 3 cartes) | Warcraft | fait |
 | 4 rôles et 2 métiers (Loup des roseaux, Louvetier, Pêcheur de nuit, Dame du gué, Ramoneuse, Éclusière) | Veillées | fait |
 | 11. Cartes à étages (Scene Levels) | moteur (`creer_scene`, plans) | fait côté moteur ; aucune carte à étages livrée avant essai en vrai |
+| 9. Modules gratuits installés et activés (02/11, 07:12) | Sequencer, JB2A gratuit, FXMaster, socketlib (3 mondes) ; Calendaria + 3DS:ATLAS (40k, Warcraft) ; Item Piles + Item Piles D&D 5e, Automated Animations (Warcraft) | fait ; outils `animation`, `meteo`, `calendrier`, `butin` du MJ IA |
 
 Déploiements : 00:10 (vague 2), 00:26 (vague 3), 01:11 (one-shots), 01:30 (rôles des Veillées), plus des mises à jour à chaud, chacun précédé d'une sauvegarde dans
-`/home/amp/sauvegardes-foundry/`. Restent : modules gratuits (feu vert de Jordan), donjons à niveaux (Scene Levels, à
-tester avec 3D Canvas), essais en vrai de tout ce qui précède.
+`/home/amp/sauvegardes-foundry/`. Restent : essais en vrai de tout ce qui précède (dont cartes à étages avec 3D Canvas).
