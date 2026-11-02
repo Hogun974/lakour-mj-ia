@@ -106,7 +106,9 @@ const REGLES = {
     + "PUBLIQUE : élu par le village avant le vote d'exécution, sa voix y compte double, il tranche les égalités et, à sa mort, remet "
     + "le sceau à un vivant de son choix ; le jeu s'en charge. Le Registre du greffier, public, garde les votes voix par voix, les morts "
     + "et les déclarations des villageois ; une déclaration n'est qu'une parole, que personne ne vérifie. Selon la veillée, un mort garde son "
-    + "Dernier souffle (une seule voix, au vote d'exécution) et l'Almanach des brumes annonce chaque matin un présage qui change la journée.",
+    + "Dernier souffle (une seule voix, au vote d'exécution) et l'Almanach des brumes annonce chaque matin un présage qui change la journée. "
+    + "Des gens de passage peuvent arriver (leur rôle est public, leur camp secret) ; avec le Banc des accusés, seul un accusé est jugé, "
+    + "et sans accusation, personne n'est exécuté ce jour-là.",
   aventure: "C'est une partie de jeu de rôle : le meneur décrit le monde et joue les PNJ, chaque joueur joue son personnage. "
     + "Tu dis ce que fait et dit ton personnage, jamais ce que font les autres ni ce qui leur arrive."
 };
@@ -187,6 +189,17 @@ export const CONSIGNE_PARLER_LOUPS = " Tu peux accuser, te défendre, poser une 
 
 // La déclaration au Registre en tête d'une réplique de compagnon (« Au Registre : … », après une éventuelle didascalie) : le
 // texte à inscrire, ou null. compagnons-jeu.js la transmet au système des Veillées (api.declarer).
+// L'accusation au Banc dans une réplique (« J'accuse Berthe ! ») : le villageois visé (parmi candidats : [{ id, nom }], nom exact,
+// casse et accents ignorés, ou le premier dont le nom commence par le texte), ou null. compagnons-jeu.js la porte au système.
+const plierNom = t => String(t ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+export function accusationDans(texte, candidats = []) {
+  const m = /j['’]accuse\s+([^.!?,;:—–\n]+)/i.exec(String(texte ?? ""));
+  if (!m) return null;
+  const vise = plierNom(m[1]);
+  const c = candidats.find(x => plierNom(x.nom) === vise) ?? candidats.find(x => vise.startsWith(plierNom(x.nom)));
+  return c?.id ?? null;
+}
+
 export const DECLARATION_REGISTRE = /^\s*(?:\*[^*]*\*\s*(?:[—–-]\s*)?)?au registre\s*:\s*(.+)$/is;
 export function declarationAuRegistre(texte) {
   const m = DECLARATION_REGISTRE.exec(String(texte ?? ""));
@@ -330,6 +343,12 @@ export function repliDecision(vue, demande, graine) {
     const surs = vivants.filter(c => !suspects.has(c.id));
     const c = choisir(amis.length ? amis : surs.length ? surs : vivants, h);
     return { cibles: c ? [c.id] : [] };
+  }
+  // Le Banc : un seul accusé ; sans IA, un loup acquitte les siens, un villageois condamne un suspect, sinon une fois sur deux.
+  if (demande.objet === "banc") {
+    const accuse = demande.candidats[0];
+    if (!accuse || allies.has(accuse.id)) return { cibles: [] };
+    return { cibles: suspects.has(accuse.id) || h() < 0.5 ? [accuse.id] : [] };
   }
   // Le Dernier souffle : une voix unique ; sans IA, on ne la donne que contre un suspect connu, une fois sur deux.
   if (demande.objet === "souffle") {

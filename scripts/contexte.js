@@ -285,7 +285,8 @@ export function etatPartieLoups(api) {
   const e = api.etat();
   const nom = id => game.actors.get(id)?.name ?? id;
   const tous = api.villageois();
-  const vainqueur = v => (v === "village" || v === "meute" ? v : v === "peste" ? "la peste noire" : nom(v));
+  const vainqueur = v => (v === "village" || v === "meute" ? v : v === "peste" ? "la peste noire"
+    : v === "brume" ? "la brume (Saint-Martin : un innocent pendu, personne ne gagne)" : nom(v));
   const lignes = [`Partie : phase « ${e.phase} », tour ${e.tour}${e.vainqueur ? ` — TERMINÉE, victoire : ${vainqueur(e.vainqueur)}` : ""}.`];
   // La peste noire (état complet du MJ : le narrateur a le droit de savoir, jamais de le dire avant la fin).
   if (e.peste?.active && !e.vainqueur) {
@@ -305,6 +306,46 @@ export function etatPartieLoups(api) {
   if (silences.length) lignes.push(`Réduits au silence aujourd'hui : ${silences.join(", ")}.`);
   lignes.push(...etatBailliRegistreMasques(api, e));
   lignes.push(...etatCalendrierSouffle(api, e, nom));
+  lignes.push(...etatPassageBancDeuil(api, e, nom));
+  return lignes;
+}
+
+// Le lot 0.8.0 des Veillées (Gens de passage, départs et exil, Banc des accusés, Glas du deuil, Nuit de la Saint-Martin). Défensif :
+// un système plus ancien n'a ni ces fonctions ni ces champs.
+export function etatPassageBancDeuil(api, e = {}, nom = id => id) {
+  const lignes = [];
+  const fn = cle => (typeof api?.[cle] === "function" ? essayer(() => api[cle]()) : null);
+  if (e.format === "saint-martin" && !e.vainqueur) {
+    lignes.push("Nuit de la Saint-Martin : un seul jour, un seul vote d'exécution ; la nuit suivante ne tombe pas, la partie s'arrête au soir.");
+  }
+  if (e.partis?.length) {
+    lignes.push(`Partis (ni morts ni révélés, hors jeu) : ${e.partis.map(p => `${nom(p.acteurId)} (${p.comment === "exil" ? "exilé" : "parti"}, tour ${p.tour})`).join(", ")}.`);
+  }
+  const gens = (fn("gensDePassage") ?? []).filter(g => !g.parti);
+  if (gens.length) {
+    lignes.push(`Gens de passage (rôle PUBLIC, camp secret : ne le dis jamais) : ${gens.map(g => `${g.nom} — ${g.role || g.cle} (arrivé au tour ${g.tour})`).join(" ; ")}. `
+      + "Un vote d'exil (loups_vote ouvrir, objet « exil ») peut les faire partir.");
+  }
+  const banc = fn("banc");
+  if (banc?.actif && !e.vainqueur) {
+    const acc = banc.accusations ?? [];
+    lignes.push(`Banc des accusés (public) : ${acc.length ? acc.map(a => `${a.parNom} accuse ${a.contreNom}${a.juge ? " (jugé)" : ""}`).join(" ; ") : "aucune accusation aujourd'hui"}. `
+      + (banc.prochain ? `Prochain jugé : ${banc.prochainNom} (loups_vote ouvrir : un vote pour ou contre lui seul).`
+        : "Sans accusé, pas de vote d'exécution : la nuit tombera.")
+      + " Un joueur qui accuse à voix haute : loups_banc, accuser.");
+  }
+  const deuil = fn("deuil");
+  if (deuil?.actif && deuil.compte > 0 && !e.vainqueur) lignes.push(`Glas du deuil (public) : il a sonné ${deuil.compte} fois (un innocent exécuté à chaque fois).`);
+  if (e.vainqueur) return lignes;
+  // Les secrets du MJ actif (ailleurs, ces fonctions lèvent une erreur).
+  const p = fn("pouvoirsDuDeuil");
+  if (p && (p.visions > 0 || p.voix || p.linceul > 0)) {
+    lignes.push(`Pouvoirs du deuil de la meute — SECRET : ${[p.visions > 0 ? `${p.visions} vision(s) (la nuit, loups_nuit les réveille)` : "",
+      p.voix ? `une voix sans visage au vote${p.cible?.cible ? ` (placée sur ${nom(p.cible.cible)})` : ""}` : "",
+      p.linceul > 0 ? `le linceul à la nuit ${p.linceul}` : ""].filter(Boolean).join(", ")}. Ne les évoque jamais.`);
+  }
+  const autel = fn("autel") ?? [];
+  if (autel.length) lignes.push(`Sous l'autel de la Chapelle — SECRET : ${autel.map(r => r.nom || r.cle).join(", ")}. Ces rôles ne sont pas en jeu : ne les nomme jamais.`);
   return lignes;
 }
 

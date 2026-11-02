@@ -76,12 +76,23 @@ export const nouvelleMemoire = () => ({ tour: -1, aube: false, debats: 0, voteFa
 // victoire : le système dit que la partie est gagnée (api.etapeSuivante().cle === "victoire", système 0.7.0 : le Glas final, par
 // exemple) avant même de l'avoir déclarée. Le Glas final atteint (etat.glas, jour N) : après le vote du jour N, pas de nuit.
 export const glasAtteint = etat => Number(etat?.glas) > 0 && Number(etat.tour) >= Number(etat.glas);
-export function prochaineEtapeLoups(etat, m, { elusVivants = [], debatMax = DEBAT_TOURS, election = false, victoire = false } = {}) {
+// systeme : l'étape suivante du système (api.etapeSuivante(), 0.8.0) : avec le Banc des accusés, « juger » (le prochain accusé,
+// jusqu'à une condamnation) ou la nuit (détail « bancVide », personne à juger). La Nuit de la Saint-Martin : après son unique
+// vote, le dénouement (la nuit ne tombe pas).
+export function prochaineEtapeLoups(etat, m, { elusVivants = [], debatMax = DEBAT_TOURS, election = false, victoire = false, systeme = null } = {}) {
   if (etat.vainqueur || etat.phase === "fin" || victoire) return m.denouement ? null : "denouement";
   if (etat.phase === "preparation") return null;
   if (etat.vote?.ouvert) return etat.vote.objet === "bailli" ? "bailli-clore" : "vote-clore";
   if (etat.phase === "nuit") return "nuit";
-  if (m.voteFait) return elusVivants.length ? "eliminer" : glasAtteint(etat) ? (m.denouement ? null : "denouement") : "nuit";
+  const finDuDebat = m.voteFait || m.debats >= debatMax;
+  if (systeme?.cle === "juger" && finDuDebat && !elusVivants.length) return "vote-ouvrir";
+  if (systeme?.cle === "nuit" && systeme.detail?.cle === "bancVide" && finDuDebat && !elusVivants.length) {
+    return etat.format === "saint-martin" ? (m.denouement ? null : "denouement") : "nuit";
+  }
+  if (m.voteFait) {
+    if (elusVivants.length) return "eliminer";
+    return glasAtteint(etat) || etat.format === "saint-martin" ? (m.denouement ? null : "denouement") : "nuit";
+  }
   if (etat.phase === "aube" && !m.aube) return "aube";
   if (m.debats < debatMax) return "debat";
   return election ? "bailli" : "vote-ouvrir";
@@ -110,6 +121,8 @@ export const CONSIGNES_LOUPS = {
     + "Après son résultat, réponds seulement « — » : l'aube sera racontée à l'étape suivante, même si une victoire est annoncée.",
   aube: "Étape : l'aube. Raconte l'aube de cette nuit (les morts et leur sort, sans trahir qui a fait quoi ni aucun rôle secret), "
     + "puis ouvre le débat du jour en une phrase. N'ouvre pas encore le vote.",
+  juger: nom => `Avec le Banc des accusés, ce vote est le jugement de ${nom}, lui seul : voter pour lui le condamne, ne rien voter `
+    + "l'acquitte (le suivant sera jugé à l'étape d'après).",
   annonceBailli: resultat => `Avant cela, le village vient d'élire son Bailli (élection menée au débat) : ${resultat}. Annonce-le d'abord `
     + "en une phrase, sans réciter les voix (sa voix comptera double à ce vote, il tranchera les égalités) ; personne n'a été exécuté par l'élection.",
   "vote-ouvrir": "Étape : le vote. Clos le débat en une phrase, puis ouvre le vote d'exécution (loups_vote, action « ouvrir », candidats "
@@ -133,6 +146,7 @@ export const CONSIGNE_PESTE_NUIT = "SECRET (peste noire, ne la nomme jamais) : l
 export function libelleVainqueurPilote(v, nom = id => id, peste = false, glas = 0) {
   const fin = glas > 0 ? ` — le Glas final a sonné au soir du jour ${glas} : dis que c'est lui qui a mis fin à la veillée` : "";
   if (!v) return `personne pour l'instant${fin}`;
+  if (v === "brume") return `la brume : à la Saint-Martin, le village a pendu un innocent sans qu'aucun loup ne soit parmi eux ; personne ne gagne${fin}`;
   if (v === "peste") return `la peste noire (il n'y avait aucun loup : la peste a emporté Brumecombe)${fin}`;
   if (v === "village" && peste) return `le camp « village », qui a reconnu la peste noire (il n'y avait aucun loup)${fin}`;
   return `${v === "village" || v === "meute" ? `le camp « ${v} »` : nom(v)}${fin}`;
@@ -332,10 +346,10 @@ export class PiloteAutomatique {
     // L'élection du Bailli due maintenant (système 0.6.0 et plus ; un système plus ancien n'a pas api.bailli).
     let election = false;
     try { election = Boolean(api.bailli?.()?.election?.ok) && m.electionRefusee !== etat.tour; } catch { /* pas de Bailli */ }
-    // La victoire que le système voit venir (système 0.7.0 ; un système plus ancien n'a pas etapeSuivante).
-    let victoire = false;
-    try { victoire = api.etapeSuivante?.()?.cle === "victoire"; } catch { /* pas d'étapes */ }
-    const etape = prochaineEtapeLoups(etat, m, { elusVivants, debatMax: this.debatMax(), election, victoire });
+    // L'étape que le système voit venir (0.7.0 et plus ; un système plus ancien n'a pas etapeSuivante) : la victoire, le Banc.
+    let systeme = null;
+    try { systeme = api.etapeSuivante?.() ?? null; } catch { /* pas d'étapes */ }
+    const etape = prochaineEtapeLoups(etat, m, { elusVivants, debatMax: this.debatMax(), election, victoire: systeme?.cle === "victoire", systeme });
     if (!etape) return null;
     const vivants = api.villageois().filter(a => a.system?.vivant !== false).length;
     return { etape, cle: [etape, etat.phase, etat.tour, etat.vote?.numero ?? 0, Boolean(etat.vote?.ouvert), vivants, m.debats].join("|") };
@@ -400,7 +414,10 @@ export class PiloteAutomatique {
       case "vote-ouvrir": {
         const annonce = m.annonceBailli ? ` ${CONSIGNES_LOUPS.annonceBailli(m.annonceBailli)}` : "";
         m.annonceBailli = "";
-        return this.#tour(ENTETE, `${CONSIGNES_LOUPS["vote-ouvrir"]}${annonce}`);
+        // Le Banc des accusés (système 0.8.0) : ce vote juge le prochain accusé, lui seul.
+        let banc = "";
+        try { const b = api.banc?.(); if (b?.actif && b.prochain) banc = ` ${CONSIGNES_LOUPS.juger(b.prochainNom)}`; } catch { /* pas de Banc */ }
+        return this.#tour(ENTETE, `${CONSIGNES_LOUPS["vote-ouvrir"]}${annonce}${banc}`);
       }
       case "vote-clore": return this.#tour(ENTETE, CONSIGNES_LOUPS["vote-clore"]);
       case "bailli": {

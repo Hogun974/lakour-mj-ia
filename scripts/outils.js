@@ -1257,7 +1257,10 @@ const sansMeute = (roles, equilibre) => roles.map(c => (equilibre.roles?.[c]?.ca
 const PESTE_CHOIX = { type: "string", enum: ["", "oui", "non"],
   description: "Peste noire (aucun loup) : « oui » si les joueurs ou le MJ la veulent, « non » pour l'exclure ; vide (par défaut) : le hasard en décide, très rarement." };
 // Le vainqueur d'une partie, pour le narrateur.
-const nomVainqueur = v => (v === "village" || v === "meute" ? v : v === "peste" ? "la peste noire" : nomActeur(v));
+// Le nom du rôle de passage d'un arrivant (le résumé du système donne la clé).
+const contenuNomRole = r => game.actors.get(r.acteurId)?.items?.find(i => i.type === "role")?.name ?? r.cle;
+const nomVainqueur = v => (v === "village" || v === "meute" ? v : v === "peste" ? "la peste noire"
+  : v === "brume" ? "la brume (Saint-Martin : un innocent pendu, personne ne gagne)" : nomActeur(v));
 const NOTE_PESTE = "PESTE NOIRE (secret absolu, ne la nomme jamais et n'y fais aucune allusion avant la fin) : aucun loup. Chaque nuit, "
   + "la peste emporte un villageois, raconté exactement comme une victime de la meute ; la première nuit, c'est toi qui choisis sa "
   + "victime (loups_nuit, peste_victime), ensuite sa dernière victime la désigne. Si quelqu'un crie « C'est la peste noire ! » : loups_peste.";
@@ -1321,9 +1324,11 @@ OUTILS.push(
         + "hasard), en plus des joueurs : ils choisissent la nuit, parlent au débat et votent seuls. 0 = aucun."),
       peste: PESTE_CHOIX,
       glas: entier("Glas final (public, annoncé au chat) : la partie s'arrête au soir de ce jour (après son vote d'exécution) ; 0 = jamais."),
+      format: { type: "string", enum: ["", "saint-martin"], description: "« saint-martin » : la Nuit de la Saint-Martin (un jour, un vote ; "
+        + "trois rôles sous l'autel, SECRETS) ; vide = une veillée ordinaire." },
     }),
     sensible: true,
-    async executer({ joueurs, mode, niveau, roles = [], batiments: batimentsVoulus = [], inclure = [], exclure = [], composition = "", compagnons = 0, peste = "", glas = 0 }) {
+    async executer({ joueurs, mode, niveau, roles = [], batiments: batimentsVoulus = [], inclure = [], exclure = [], composition = "", compagnons = 0, peste = "", glas = 0, format = "" }) {
       const api = apiLoups();
       // Une composition nommée sans mode : c'est le mode « composition » ; sinon la génération équilibrée.
       mode ||= composition ? "composition" : "auto";
@@ -1340,7 +1345,13 @@ OUTILS.push(
       // La peste noire : voulue (« oui »), exclue (« non ») ; sinon, la composition de peste proposée par loups_composer, ou, en
       // mode auto, le hasard (très rarement).
       let enPeste = pesteVoulue(peste);
-      if (mode === "roles") {
+      // La Nuit de la Saint-Martin (système 0.8.0) : sa propre composition (le générateur du système), trois rôles sous l'autel.
+      if (format === "saint-martin") {
+        if (typeof api.logique?.composerSaintMartin !== "function") return { erreur: true, contenu: "Ce système des Veillées ne connaît pas la Saint-Martin (il faut lakour-loups 0.8.0 ou plus)." };
+        const sm = api.logique.composerSaintMartin(total, { disponibles: [...contenu.roles.keys()] });
+        compo = { cle: "saint-martin", libelle: "Nuit de la Saint-Martin", roles: sm.joueurs, batiments: [], autel: sm.autel };
+        enPeste = false;
+      } else if (mode === "roles") {
         const cles = enCles(roles);
         if (cles.some(c => !c)) return { erreur: true, contenu: `Rôles inconnus : ${roles.filter((_, i) => !cles[i]).join(", ")}.` };
         if (cles.length > total) return { erreur: true, contenu: `${cles.length} rôles pour ${total} joueurs : retire-en.` };
@@ -1376,7 +1387,8 @@ OUTILS.push(
       const nomsCompagnons = nbCompagnons ? await nomsPourCompagnons(nbCompagnons, { exclus }) : [];
       const resultat = await api.distribuer({
         roles: cles.map(c => contenu.roles.get(c)), metiers, joueurs: utilisateurs.map(u => u.id), compagnons: nomsCompagnons,
-        maisons, composition: compo.cle, batiments, ...(enPeste ? { peste: true } : {}), ...(glas > 0 ? { glas: Math.floor(glas) } : {})
+        maisons, composition: compo.cle, batiments, ...(enPeste ? { peste: true } : {}), ...(glas > 0 ? { glas: Math.floor(glas) } : {}),
+        ...(compo.autel ? { format: "saint-martin", autel: compo.autel } : {})
       });
       // Une personnalité au hasard pour chaque compagnon (drapeau du MJ IA : rien de secret).
       for (const r of resultat.filter(x => x.compagnon)) {
@@ -1395,7 +1407,8 @@ OUTILS.push(
         + (nbCompagnons ? "\nLes compagnons IA jouent seuls (choix de nuit, débat, vote) et ne savent que ce que sait leur villageois : "
           + "traite-les comme des joueurs, ne leur souffle rien." : "")
         + `\nBâtiments en jeu : ${batiments.map(u => fromUuidSync(u)?.name).filter(Boolean).join(", ") || "aucun"}. Ne révèle aucun rôle.`
-        + (glas > 0 ? `\nGlas final : la partie s'arrêtera au soir du jour ${Math.floor(glas)} (annoncé au chat).` : "") };
+        + (glas > 0 ? `\nGlas final : la partie s'arrêtera au soir du jour ${Math.floor(glas)} (annoncé au chat).` : "")
+        + (compo.autel ? `\nNuit de la Saint-Martin : un seul jour, un seul vote. Sous l'autel (SECRET, ne les nomme jamais) : ${compo.autel.map(c => contenu.noms.get(c) ?? c).join(", ")}.` : "") };
     }
   },
   {
@@ -1411,9 +1424,13 @@ OUTILS.push(
       composition: chaine("Clé d'une composition prête (vide = aucune)."),
       peste: PESTE_CHOIX,
       glas: entier("Glas final (public, annoncé au chat) : la partie s'arrête au soir de ce jour (après son vote d'exécution) ; 0 = jamais."),
+      format: { type: "string", enum: ["", "ordinaire", "saint-martin"], description: "« saint-martin » : la Nuit de la Saint-Martin (un jour, "
+        + "un vote ; trois rôles sous l'autel, SECRETS) ; « ordinaire » : une veillée ordinaire ; vide = le format de la partie précédente." },
     }),
     sensible: true,
-    async executer({ niveau = "", roles = [], composition = "", peste = "", glas = 0 }) {
+    async executer({ niveau = "", roles = [], composition = "", peste = "", glas = 0, format = "" }) {
+      // Le format : vide = celui de la partie précédente (le système le garde) ; « ordinaire » = une veillée ordinaire.
+      const formatVoulu = format === "saint-martin" ? { format } : format === "ordinaire" ? { format: "" } : {};
       const api = apiLoups();
       if (typeof api?.nouvellePartie !== "function") return { erreur: true, contenu: "Le système lakour-loups de ce monde ne sait pas rejouer une partie : mets-le à jour." };
       let r;
@@ -1423,7 +1440,7 @@ OUTILS.push(
       await consignerComposition();
       try {
         r = await api.nouvellePartie({ memesJoueurs: true, niveau, roles, composition, ...(voulue !== undefined ? { peste: voulue } : {}),
-          ...(glas > 0 ? { glas: Math.floor(glas) } : {}) });
+          ...(glas > 0 ? { glas: Math.floor(glas) } : {}), ...formatVoulu });
       }
       catch (e) { return { erreur: true, contenu: e.message }; }
       const c = r?.composition ?? {};
@@ -1458,12 +1475,21 @@ OUTILS.push(
       if (finie()) return { erreur: true, contenu: `La partie est finie (victoire : ${nomVainqueur(finie().vainqueur)}) : pas de nuit. Raconte le dénouement.` };
       await api.changerPhase("nuit");
       // Le Glas final (système 0.7.0) : la nuit du jour N ne tombe pas, la partie s'arrête au soir et le système a tranché.
-      if (finie()) return { contenu: `Le Glas final a sonné : la partie s'arrête ce soir, sans nuit. VICTOIRE : ${nomVainqueur(finie().vainqueur)}. `
-        + "Raconte le dénouement : dis que le glas a mis fin à la veillée." };
+      if (finie()) {
+        const sm = finie().format === "saint-martin";
+        return { contenu: `${sm ? "La Nuit de la Saint-Martin s'achève" : "Le Glas final a sonné"} : la partie s'arrête ce soir, sans nuit. `
+          + `VICTOIRE : ${nomVainqueur(finie().vainqueur)}. Raconte le dénouement : dis que ${sm ? "la Saint-Martin" : "le glas"} a mis fin à la veillée.` };
+      }
       const journal = [];
       const proies = [];   // attaqués par la meute (et les loups qui tuent seuls) cette nuit
       for (const { roleCle, acteurIds } of api.ordreDeNuit()) {
         // La peste noire : le système demande au porteur (ou prend ta victime, ou le hasard) et note l'action.
+        // Le Glas du deuil (système 0.8.0) : la vision de la meute, demandée par le système comme une chasse.
+        if (roleCle === "deuil") {
+          const r = await api.reveiller("deuil", { delai });
+          journal.push(`la vision du deuil (meute) → ${(r?.cibles ?? []).map(nomActeur).join(", ") || "personne"}`);
+          continue;
+        }
         if (roleCle === "peste") {
           const voulue = String(peste_victime ?? "").trim();
           const cible = voulue && !/^(au )?hasard$/i.test(voulue) ? idVillageois(voulue) ?? "" : "";
@@ -1523,7 +1549,7 @@ OUTILS.push(
       await api.changerPhase("aube");
       // Le système applique l'aube (morts, révélations, bâtiments) ; ce que chaque rôle a appris est remis en SECRET au seul
       // joueur concerné (carnet secret, par le socket) : un chuchotement du chat serait livré à tous les navigateurs.
-      const { morts = [], revelations = [], messages = [], sauves = [], narrateur = [], narration = [], enAttente = [], annonces = [] } = await api.resoudreNuit();
+      const { morts = [], revelations = [], messages = [], sauves = [], narrateur = [], narration = [], enAttente = [], annonces = [], deuil = "" } = await api.resoudreNuit();
       for (const m of messages) {
         const acteurId = m.acteurId ?? m.destinataire;
         if (api.envoyerSecret) { await api.envoyerSecret(acteurId, m.texte); continue; }
@@ -1536,6 +1562,7 @@ OUTILS.push(
       return { contenu: [
         "Nuit (secret, pour toi seul) :", ...journal.map(l => `- ${l}`),
         `Morts de la nuit : ${morts.map(nomActeur).join(", ") || "aucun"}.`,
+        deuil ? `Glas du deuil (SECRET) : la meute a appris le camp de ${nomActeur(deuil)}. N'en dis rien.` : "",
         sauves.length ? `Sauvés cette nuit : ${sauves.map(x => nomActeur(x.acteurId ?? x)).join(", ")}.` : "",
         revelations.length ? `Révélés : ${revelations.map(x => nomActeur(x.acteurId ?? x)).join(", ")}.` : "",
         messages.length ? (api.envoyerSecret ? `${messages.length} message(s) secret(s) remis aux joueurs concernés (carnet secret).`
@@ -1562,8 +1589,8 @@ OUTILS.push(
       candidats: { type: "array", items: chaine("Nom d'un villageois."), description: "Pour ouvrir : candidats ; vide = tous les vivants." },
       duree_secondes: entier("Pour ouvrir : durée du vote (0 = sans minuteur)."),
       double: booleen("Pour ouvrir : vote double, deux villageois sont désignés (cloche du Sonneur)."),
-      objet: { type: "string", enum: ["execution", "chapelle", "bailli"], description: "Pour ouvrir : vote d'exécution (par défaut), asile de la "
-        + "Chapelle, ou élection du Bailli." }
+      objet: { type: "string", enum: ["execution", "chapelle", "bailli", "exil"], description: "Pour ouvrir : vote d'exécution (par défaut ; "
+        + "avec le Banc des accusés, le jugement du prochain accusé), asile de la Chapelle, élection du Bailli, ou exil d'un gens de passage." }
     }),
     sensible: false,
     async executer({ action, candidats = [], duree_secondes = 0, double, objet: sujet = "execution" }) {
@@ -1580,8 +1607,22 @@ OUTILS.push(
           + "(voix double au vote d'exécution, il tranche les égalités), puis clos-la (loups_vote clore)." };
       }
       // Un jour sans Bailli vivant, l'élection passe avant le vote d'exécution.
-      if (action === "ouvrir" && !chapelle && (() => { try { return api.bailli?.()?.election?.ok; } catch { return false; } })()) {
+      if (action === "ouvrir" && sujet === "execution" && (() => { try { return api.bailli?.()?.election?.ok; } catch { return false; } })()) {
         return { erreur: true, contenu: "Pas de Bailli : élis-le d'abord (loups_vote ouvrir, objet « bailli »), puis ouvre le vote d'exécution." };
+      }
+      // L'exil (système 0.8.0) : les gens de passage encore là sont candidats ; l'élu part, sans mourir, son camp tu.
+      if (action === "ouvrir" && sujet === "exil") {
+        if (typeof api.gensDePassage !== "function") return { erreur: true, contenu: "Ce système des Veillées n'a pas de gens de passage (il faut lakour-loups 0.8.0 ou plus)." };
+        try {
+          await api.changerPhase("vote");
+          await api.ouvrirVote({ objet: "exil", duree: Math.max(0, duree_secondes) * 1000 });
+        } catch (e) { return { erreur: true, contenu: `Exil impossible : ${e.message}` }; }
+        return { contenu: "Vote d'exil ouvert (les gens de passage encore là). Rappelle l'enjeu en une phrase, puis clos-le (loups_vote clore)." };
+      }
+      // Le Banc des accusés (système 0.8.0) : le vote d'exécution juge le prochain accusé, lui seul ; sans accusé, pas de vote.
+      const banc = action === "ouvrir" && sujet === "execution" ? (() => { try { return api.banc?.(); } catch { return null; } })() : null;
+      if (banc?.actif && !banc.prochain) {
+        return { erreur: true, contenu: "Banc des accusés : personne n'est accusé (ou tous ont été jugés). Pas de vote d'exécution aujourd'hui : la nuit tombe (loups_nuit)." };
       }
       if (action === "ouvrir") {
         const ids = candidats.length ? candidats.map(idVillageois) : vivants().map(a => a.id);
@@ -1590,7 +1631,15 @@ OUTILS.push(
         await api.changerPhase("vote");
         // double à false ne doit pas effacer un vote double décidé la nuit (cloche) : on ne le transmet que s'il est voulu.
         await api.ouvrirVote({ candidats: ids, duree: Math.max(0, duree_secondes) * 1000, ...(double ? { double: true } : {}), ...(chapelle ? { objet: "chapelle" } : {}) });
+        if (banc?.actif) {
+          return { contenu: `Jugement de ${banc.prochainNom} au Banc des accusés : voter pour lui le condamne, ne rien voter l'acquitte. Rappelle l'enjeu, puis clos-le.` };
+        }
         return { contenu: `Vote ${chapelle ? "de la Chapelle " : ""}ouvert (${ids.length} candidats${duree_secondes ? `, ${duree_secondes} s` : ""}). Rappelle l'enjeu, puis clos-le.` };
+      }
+      // Un vote clos par le départ de son seul candidat (système 0.8.0) : rien à dépouiller, personne à éliminer.
+      const deja = api.etat().vote;
+      if (!deja?.ouvert && deja?.resultat?.depart) {
+        return { contenu: `Le vote s'est clos sans élu : ${nomActeur(deja.resultat.depart)} a quitté la veillée. Personne n'est désigné ; n'élimine personne.` };
       }
       const r = await api.cloreVote();
       // Le ruban de la Tisserande : le plus désigné a une minute de plus pour se défendre, le vote reste ouvert.
@@ -1614,6 +1663,18 @@ OUTILS.push(
         ? ` Égalité tranchée par le Bailli ${nomActeur(r.departage.par)} : ${(r.departage.choix ?? []).length ? (r.departage.choix).map(nomActeur).join(" et ") : "il n'a désigné personne"}.`
         : "";
       const poids = Object.keys(r.poids ?? {}).length ? ` (voix du Bailli ${Object.keys(r.poids).map(nomActeur).join(", ")} comptée double)` : "";
+      if (r.objet === "exil") {
+        return { contenu: `Exil — décompte : ${lignes.join(", ") || "aucune voix"}. `
+          + (elu ? `${nomActeur(elu)} quitte la veillée (ni mort ni révélé : ne dis rien de son camp).` : "Personne n'est exilé.")
+          + " Le vote d'exécution du jour reste dû." };
+      }
+      // Le Banc : le verdict (pour sur le total) ; acquitté, le prochain accusé est jugé, s'il y en a un.
+      if (r.banc) {
+        const condamne = elus.length > 0;
+        const voix = r.deuil ? " Une voix sans visage (le Glas du deuil) s'est jointe au vote." : "";
+        return { contenu: `Banc des accusés : ${nomActeur(r.banc.accuse)} ${condamne ? "est CONDAMNÉ" : "est acquitté"} (${r.banc.pour} pour sur ${r.banc.total}).${voix}${souffles} `
+          + (condamne ? `Désigné : ${nomActeur(r.banc.accuse)} (loups_eliminer).` : "Personne n'est désigné : s'il reste un accusé, juge-le (loups_vote ouvrir) ; sinon, la nuit tombe.") };
+      }
       if (r.objet === "chapelle") {
         return { contenu: `Décompte : ${lignes.join(", ") || "aucune voix"}. `
           + (elu ? `${nomActeur(elu)} dormira à l'abri de la Chapelle la nuit prochaine (annoncé au chat).` : "Personne n'est choisi : la Chapelle reste vide cette nuit.") };
@@ -1627,6 +1688,79 @@ OUTILS.push(
         + (elus.length ? `Désigné${elus.length > 1 ? "s" : ""} : ${elus.map(nomActeur).join(" et ")} (loups_eliminer pour chacun).` : `${personne} : personne n'est désigné.`)
         + (juge ? " Avant d'exécuter, demande au village si quelqu'un use d'un pouvoir après le dépouillement (Juge de paix) et laisse-lui un instant : "
           + "s'il annule (Table de jeu, ou loups_jour), le vote se rejoue — clos-le de nouveau, et n'exécute que le résultat du nouveau vote." : "") };
+    }
+  },
+  // Les gens de passage (système 0.8.0 et plus) : un arrivant en cours de partie (rôle public, camp secret), un départ.
+  {
+    nom: "loups_passage",
+    systemes: LOUPS,
+    description: "Gens de passage. « accueillir » : un joueur arrivé en cours de partie (son nom de joueur Foundry) entre à l'aube ou au "
+      + "débat, hors vote, avec un rôle de passage PUBLIC (Rémouleur, Montreur d'ours, Pèlerine) et un camp SECRET tiré par le système (ne "
+      + "le dis jamais) ; un nom qui n'est pas celui d'un joueur fait entrer un compagnon IA. « partir » : un villageois quitte la veillée (le "
+      + "joueur doit s'en aller) : ni mort ni révélé. « lister » : les gens de passage. L'exil passe par loups_vote (objet « exil »).",
+    schema: objet({
+      action: { type: "string", enum: ["accueillir", "partir", "lister"], description: "accueillir, partir ou lister." },
+      qui: chaine("accueillir : le nom du joueur Foundry, ou le nom du compagnon IA à faire entrer ; partir : le villageois. Vide pour lister."),
+      role: { type: "string", enum: ["", "remouleur", "montreur-d-ours", "pelerine"], description: "accueillir : le rôle de passage voulu (vide : tiré)." }
+    }),
+    sensible: true,
+    async executer({ action, qui, role }) {
+      const api = apiLoups();
+      if (typeof api.accueillir !== "function") return { erreur: true, contenu: "Ce système des Veillées n'a pas de gens de passage (il faut lakour-loups 0.8.0 ou plus)." };
+      if (action === "lister") {
+        const gens = api.gensDePassage();
+        return { contenu: gens.length ? gens.map(g => `- ${g.nom} : ${g.role} (arrivé au tour ${g.tour})${g.parti ? ", parti" : ""}`).join("\n") : "Aucun gens de passage." };
+      }
+      if (!qui.trim()) return { erreur: true, contenu: "Dis qui (le nom du joueur, du compagnon ou du villageois)." };
+      if (action === "partir") {
+        const id = idVillageois(qui);
+        if (!id) return { erreur: true, contenu: `Villageois introuvable : ${qui}.` };
+        const voteAvant = api.etat().vote?.ouvert;
+        let parti;
+        try { parti = await api.partir(id, { comment: "depart" }); } catch (e) { return { erreur: true, contenu: `Départ refusé : ${e.message}` }; }
+        if (parti === false) return { erreur: true, contenu: `${nomActeur(id)} a déjà quitté la veillée.` };
+        // Seul candidat du vote ouvert (l'accusé du Banc, le seul gens de passage d'un exil) : le système a clos ce vote, sans élu.
+        const apres = api.etat().vote;
+        const sansObjet = voteAvant && !apres?.ouvert && apres?.resultat?.depart;
+        return { contenu: `${nomActeur(id)} quitte la veillée (annoncé au chat) : ni mort ni révélé. Dis-le en une phrase, sans rien de son rôle.`
+          + (sansObjet ? " Le vote en cours n'avait plus d'objet : le système l'a clos SANS élu ; n'élimine personne." : "") };
+      }
+      const joueur = game.users.find(u => !u.isGM && u.name.toLowerCase() === qui.trim().toLowerCase());
+      let r;
+      try { r = await api.accueillir({ ...(joueur ? { userId: joueur.id } : { nom: qui.trim() }), ...(role ? { cle: role } : {}) }); }
+      catch (e) { return { erreur: true, contenu: `Arrivée refusée : ${e.message}` }; }
+      // Un compagnon IA qui arrive : une personnalité au hasard, comme à la distribution.
+      if (!joueur) await game.actors.get(r.acteurId)?.update({ [`flags.${ID}.compagnon`]: personnaliteAuHasard(`${r.acteurId}|${Math.random()}`) });
+      return { contenu: `${r.nom} arrive à Brumecombe${joueur ? "" : " (compagnon IA)"} : rôle public ${contenuNomRole(r)} (annoncé au chat). Son camp est SECRET : `
+        + "ne le dis jamais. Accueille-le en une phrase." };
+    }
+  },
+  // Le Banc des accusés (système 0.8.0 et plus) : public. Les joueurs accusent par leur bandeau ; toi, pour qui le dit à voix haute.
+  {
+    nom: "loups_banc",
+    systemes: LOUPS,
+    description: "Le Banc des accusés (public) : « etat » dit les accusations du jour et le prochain jugé ; « accuser » porte l'accusation d'un "
+      + "villageois qui la DIT à voix haute (une par jour et par accusateur ; chacun n'est accusé qu'une fois par jour), jamais de ton propre "
+      + "chef. Le jugement passe par loups_vote (ouvrir : le prochain accusé, lui seul) ; sans accusé, pas de vote d'exécution.",
+    schema: objet({
+      action: { type: "string", enum: ["etat", "accuser"], description: "etat ou accuser." },
+      par: chaine("accuser : le villageois qui accuse. Vide pour etat."),
+      contre: chaine("accuser : le villageois accusé. Vide pour etat.")
+    }),
+    sensible: false,
+    async executer({ action, par, contre }) {
+      const api = apiLoups();
+      if (typeof api.banc !== "function") return { erreur: true, contenu: "Ce système des Veillées n'a pas de Banc des accusés (il faut lakour-loups 0.8.0 ou plus)." };
+      if (action === "accuser") {
+        const a = idVillageois(par), c = idVillageois(contre);
+        if (!a || !c) return { erreur: true, contenu: `Villageois introuvable : ${!a ? par : contre}.` };
+        try { await api.accuser(a, c); } catch (e) { return { erreur: true, contenu: `Accusation refusée : ${e.message}` }; }
+        return { contenu: `${nomActeur(a)} accuse ${nomActeur(c)} (annoncé au chat, inscrit au Registre).` };
+      }
+      const b = api.banc();
+      if (!b.actif) return { contenu: "Pas de Banc des accusés dans cette partie (réglage du système)." };
+      return { contenu: `${(b.accusations ?? []).map(x => `${x.parNom} accuse ${x.contreNom}${x.juge ? " (jugé)" : ""}`).join(" ; ") || "Aucune accusation aujourd'hui"}. `
+        + (b.prochain ? `Prochain jugé : ${b.prochainNom}.` : "Personne à juger : pas de vote d'exécution aujourd'hui.") };
     }
   },
   // Les Saints du calendrier (système 0.7.0 et plus) : la Bonne étoile (secrète) et le Glas final (public).

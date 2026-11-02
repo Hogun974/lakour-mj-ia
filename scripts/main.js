@@ -128,7 +128,8 @@ Hooks.once("ready", () => {
   Hooks.on("createChatMessage", message => sansNarrateur.surMessage(message));
   // Pilote automatique : une mort, une victoire, une phase, un joueur qui arrive ou part, un jeton posé ou retiré… il revoit s'il
   // doit mener la partie (il ne reste que des compagnons IA) ou rendre la main (un humain vivant est là).
-  for (const crochet of ["lakourLoups.phase", "lakourLoups.elimination", "lakourLoups.victoire", "updateActor", "userConnected",
+  for (const crochet of ["lakourLoups.phase", "lakourLoups.elimination", "lakourLoups.victoire", "lakourLoups.passage", "lakourLoups.depart",
+    "lakourLoups.accusation", "lakourLoups.deuil", "updateActor", "userConnected",
     "createToken", "deleteToken", "canvasReady", "updateCombat", "deleteCombat"]) {
     Hooks.on(crochet, () => moteur.pilote.verifierBientot());
   }

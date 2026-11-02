@@ -13,7 +13,7 @@ import { ID } from "./constantes.js";
 import { adaptateur } from "./adaptateurs.js";
 import { versHTML } from "./utilitaires.js";
 import {
-  CerveauxCompagnons, BAVARDAGE, normaliserPersonnalite, texteBrut, choisirOrateurs, repliReplique, criePeste, declarationAuRegistre
+  CerveauxCompagnons, BAVARDAGE, normaliserPersonnalite, texteBrut, choisirOrateurs, repliReplique, criePeste, declarationAuRegistre, accusationDans
 } from "./compagnons.js";
 
 // Réglage du MJ IA, sans erreur s'il n'est pas enregistré (essais, système sans MJ IA).
@@ -153,17 +153,23 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
     return revele || entrees.some(e => !e.html && String(e.texte ?? "").includes(a.name) && /meute/i.test(e.texte ?? ""));
   }).map(a => a.id);
   const vivant = acteur.system.vivant !== false;
+  // Les partis (système 0.8.0 : départ ou exil) : hors jeu, ni morts ni révélés ; les gens de passage : un rôle PUBLIC.
+  const partis = new Set((pub.partis ?? []).map(p => p.acteurId));
+  const parti = partis.has(acteur.id);
+  const gens = new Map(((() => { try { return api.gensDePassage?.() ?? []; } catch { return []; } })()).map(g => [g.acteurId, g]));
+  const dePassage = gens.has(acteur.id);
   // Le Dernier souffle (système 0.7.0) : un mort garde une voix, au vote d'exécution, tant qu'il ne l'a pas donnée.
-  const souffle = !vivant && Boolean((() => { try { return api.peutSouffler?.(acteur.id)?.aSonSouffle; } catch { return false; } })());
+  const souffle = !vivant && !parti && Boolean((() => { try { return api.peutSouffler?.(acteur.id)?.aSonSouffle; } catch { return false; } })());
   const fiche = [
     `Tu es ${acteur.name}, villageois de Brumecombe${metier ? `, ${metier.name} de ton métier (public)` : ""}`
       + `${acteur.system.maison ? ` ; tu dors à « ${acteur.system.maison} »` : ""}.`,
-    role ? `Ton rôle SECRET : ${role.name} (camp ${libelle(`LAKOUR_LOUPS.Camps.${acteur.system.camp}`, acteur.system.camp)}). ${texteBrut(role.system?.description)}` : "",
+    role ? `${dePassage ? "Tu es de passage à Brumecombe. Ton rôle (PUBLIC, tout le village le connaît)" : "Ton rôle SECRET"} : ${role.name} (camp ${libelle(`LAKOUR_LOUPS.Camps.${acteur.system.camp}`, acteur.system.camp)}). ${texteBrut(role.system?.description)}` : "",
     role?.system?.victoire ? `Ta victoire : ${texteBrut(role.system.victoire)}` : "",
     metier?.system?.description ? `Ton métier : ${texteBrut(metier.system.description)}` : "",
     loup ? "Tes Masques de veillée, s'ils sont dans ton carnet, sont des rôles du Village absents de la partie : tu peux prétendre en tenir "
       + "un sans qu'on te contredise. Accorde ton masque avec la meute (pas deux loups sous le même) et ne dis jamais qu'un rôle n'est pas en jeu." : "",
-    vivant ? "" : souffle ? "Tu es MORT : tu te tais. Mais tu gardes ton Dernier souffle : une seule voix, au vote d'exécution, qui ne reviendra pas ; "
+    dePassage ? "Ton camp, lui, est SECRET (ton carnet te le dit) : ne le révèle que si ton camp y gagne." : "",
+    vivant ? "" : parti ? "Tu as quitté la veillée (départ ou exil) : tu ne joues plus, tu ne parles ni ne votes." : souffle ? "Tu es MORT : tu te tais. Mais tu gardes ton Dernier souffle : une seule voix, au vote d'exécution, qui ne reviendra pas ; "
       + "garde-la pour un vote décisif." : "Tu es MORT : tu te tais et tu ne votes plus.",
     acteur.system.silence ? "Tu es réduit au silence : tu ne parles pas au débat d'aujourd'hui." : ""
   ].filter(Boolean).join("\n");
@@ -174,14 +180,16 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
   // aucun : son cerveau pourrait le laisser filer dans une réplique, ou voter de son souffle en connaissant les loups.
   const scene = [
     `Phase : ${libelle(`LAKOUR_LOUPS.Phases.${pub.phase}`, pub.phase)}, tour ${pub.tour}.${pub.vainqueur ? " La partie est terminée." : ""}`,
-    `Au village : ${tous.map(a => `${a.name}${a.id === acteur.id ? " (toi)" : ""} — ${a.system.vivant ? "vivant" : "mort"}`
-      + `${metierDe(a) ? `, ${metierDe(a).name}` : ""}${a.system.revele && roleDe(a) ? `, rôle révélé : ${roleDe(a).name}` : ""}`).join(" ; ")}.`,
+    `Au village : ${tous.map(a => `${a.name}${a.id === acteur.id ? " (toi)" : ""} — ${partis.has(a.id) ? "parti" : a.system.vivant ? "vivant" : "mort"}`
+      + `${metierDe(a) ? `, ${metierDe(a).name}` : ""}${a.system.revele && roleDe(a) ? `, rôle révélé : ${roleDe(a).name}` : ""}`
+      + `${gens.has(a.id) && !a.system.revele ? `, de passage : ${gens.get(a.id).role || gens.get(a.id).cle}` : ""}`).join(" ; ")}.`,
     pub.morts?.length ? `Morts : ${pub.morts.map(m => `${nom(m.acteurId)} (${libelle(`LAKOUR_LOUPS.Causes.${m.cause}`, m.cause)}, tour ${m.tour})`).join(", ")}.` : "",
     v.ouvert ? `Vote ouvert${sujet} : candidats ${v.candidats.map(nom).join(", ")} ; ont déjà voté : ${(v.exprimes ?? []).map(nom).join(", ") || "personne"}.` : "",
     !v.ouvert && v.resultat?.decompte ? `Dernier vote : ${Object.entries(v.resultat.decompte).map(([id, n]) => `${nom(id)} ${n}`).join(", ") || "aucune voix"}.` : "",
     tous.some(a => a.system.vivant && a.system.silence) ? `Réduits au silence : ${tous.filter(a => a.system.vivant && a.system.silence).map(a => a.name).join(", ")}.` : "",
     ...bailliEtRegistre(api, acteur),
     presageDuJour(api),
+    ...bancEtDeuil(api, acteur),
     pub.historique?.length ? `Annonces publiques récentes :\n${pub.historique.slice(-12).map(h => `· ${texteBrut(h.texte)}`).join("\n")}` : ""
   ].filter(Boolean).join("\n");
   return {
@@ -190,6 +198,37 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
     autres: autres.map(a => ({ id: a.id, nom: a.name, vivant: a.system.vivant !== false })), allies, suspects,
     vivant, peutParler: vivant && !acteur.system.silence && pub.phase !== "nuit", tour: pub.tour
   };
+}
+
+// Le Banc des accusés et le Glas du deuil (système 0.8.0 ; publics) : les accusations du jour, comment accuser, le compte du glas.
+function bancEtDeuil(api, acteur) {
+  const essayer = fn => { try { return fn(); } catch { return null; } };
+  const lignes = [];
+  const banc = typeof api?.banc === "function" ? essayer(() => api.banc()) : null;
+  if (banc?.actif) {
+    const acc = banc.accusations ?? [];
+    lignes.push(`Banc des accusés : ${acc.length ? acc.map(a => `${a.parNom} accuse ${a.contreNom}${a.juge ? " (jugé)" : ""}`).join(" ; ") : "personne n'est accusé aujourd'hui"}`
+      + `${banc.prochain ? ` ; prochain jugé : ${banc.prochainNom}` : ""}. Sans accusé, pas de vote d'exécution. `
+      + (acteur.system.vivant !== false ? "Pour accuser quelqu'un (une fois par jour), écris dans ta réplique « J'accuse <son nom> »." : ""));
+  }
+  const deuil = typeof api?.deuil === "function" ? essayer(() => api.deuil()) : null;
+  if (deuil?.actif && deuil.compte > 0) lignes.push(`Le glas du deuil a sonné ${deuil.compte} fois : un innocent pendu à chaque fois.`);
+  return lignes;
+}
+
+// L'accusation d'un compagnon (« J'accuse <nom> » dans sa réplique), portée au Banc par le système (MJ actif). true si elle est
+// reçue ; refusée (déjà accusé, une par jour, Banc fermé) : seulement un avertissement en console.
+async function accuserAuBanc(acteurId, contre) {
+  const api = game.lakourLoups;
+  if (typeof api?.accuser !== "function" || !contre) return false;
+  try {
+    if (!api.banc?.()?.actif) return false;
+    await api.accuser(acteurId, contre);
+    return true;
+  } catch (e) {
+    console.warn(`${ID} | accusation refusée`, e);
+    return false;
+  }
 }
 
 // Le présage du jour (Almanach des brumes, système 0.7.0 ; public) : "" sans présage, ou avec un système plus ancien.
@@ -300,9 +339,13 @@ async function crierALaPeste(acteurId) {
 // Le sujet d'une demande du système : vote d'exécution, de la Chapelle ou du Bailli ; départage (le Bailli tranche une égalité) ;
 // succession (le Bailli défunt remet le sceau, posthume) ; posthume sans objet (le porteur de la peste) ; nuit (un choix de rôle).
 export function sujetDemandeLoups(demande = {}) {
+  if (demande.type === "vote" && demande.banc) return "banc";
   if (demande.type === "vote" && demande.souffle) return "souffle";
+  if (demande.type === "vote" && demande.objet === "exil") return "exil";
   if (demande.type === "vote") return demande.objet === "bailli" ? "bailli" : demande.objet === "chapelle" ? "chapelle" : "vote";
   if (demande.objet === "departage") return "departage";
+  if (demande.objet === "deuil-vision") return "deuil-vision";
+  if (demande.objet === "deuil-voix") return "deuil-voix";
   if (demande.objet === "succession") return "succession";
   return demande.posthume ? "posthume" : "nuit";
 }
@@ -313,6 +356,12 @@ const PRECISIONS_LOUPS = {
     + "d'exécution et il tranchera les égalités.",
   departage: "Tu es le Bailli : le vote d'exécution est à égalité, à toi de trancher. Désigne parmi les ex aequo qui sera exécuté (tu peux "
     + "te désigner), ou passe : personne ne l'est pour cette place.",
+  "deuil-vision": "SECRET, pour la meute seule : le Glas du deuil vous donne une vision. Désigne le joueur dont la meute apprendra le camp "
+    + "cette nuit (la majorité des loups l'emporte).",
+  "deuil-voix": "SECRET, pour la meute seule : le Glas du deuil place une voix sans visage dans ce vote d'exécution. Choisis le candidat "
+    + "qu'elle doit accabler (un loup peut brouiller les pistes), ou passe. Personne ne saura d'où elle vient.",
+  banc: "Jugement au Banc des accusés : un seul accusé. Voter pour lui le condamne ; ne rien choisir l'acquitte (le suivant sera jugé).",
+  exil: "Vote d'exil : celui que le village désigne quitte la veillée sans mourir (son camp reste tu). Vise un gens de passage qui te semble dangereux, ou abstiens-toi.",
   souffle: "Tu es mort, mais tu gardes ton Dernier souffle : une seule voix, pour ce vote d'exécution, et elle ne reviendra pas. Elle est "
     + "précieuse : ne la donne que si ce vote est décisif ; sinon abstiens-toi, tu pourras voter un autre jour.",
   succession: "Tu es mort, et tu étais le Bailli : remets le sceau à un vivant de ton choix (sa voix comptera double, il tranchera les "
@@ -327,6 +376,10 @@ export function notePriveeLoups(sujet, tour, noms = [], invite = "") {
     case "vote": return `Vote du tour ${tour} : ${qui ? `tu as voté contre ${noms[0]}` : "tu t'es abstenu"}.`;
     case "chapelle": return `Vote de la Chapelle, tour ${tour} : ${qui ? `tu as voté pour mettre ${noms[0]} à l'abri` : "tu t'es abstenu"}.`;
     case "bailli": return `Élection du Bailli, tour ${tour} : ${qui ? `tu as voté pour ${noms[0]}` : "tu t'es abstenu"}.`;
+    case "deuil-vision": return `Nuit ${tour}, Glas du deuil (secret) : ${qui ? `tu as voulu que la meute voie le camp de ${noms[0]}` : "tu as passé"}.`;
+    case "deuil-voix": return `Vote du tour ${tour}, voix du deuil (secret) : ${qui ? `tu as proposé de la porter contre ${noms[0]}` : "tu as passé"}.`;
+    case "banc": return `Banc des accusés, tour ${tour} : ${qui ? `tu as voté pour condamner ${noms[0]}` : "tu n'as pas voté pour condamner (acquittement)"}.`;
+    case "exil": return `Vote d'exil, tour ${tour} : ${qui ? `tu as voté pour exiler ${noms[0]}` : "tu t'es abstenu"}.`;
     case "souffle": return `Dernier souffle, tour ${tour} : ${qui ? `tu as donné ta dernière voix contre ${noms[0]} (elle ne reviendra pas)` : "tu as gardé ton souffle pour un autre jour"}.`;
     case "departage": return `Jour ${tour}, en Bailli, tu as tranché l'égalité : ${qui ? `tu as désigné ${qui}` : "tu n'as désigné personne"}.`;
     case "succession": return `Mort, tu as remis le sceau du Bailli ${qui ? `à ${qui}` : "à personne (la charge reste vacante)"}.`;
@@ -394,6 +447,7 @@ export class Compagnons {
       dits.push({ acteurId: c.id, nom: c.nom, texte: r.texte, source: r.source });
       if (c.vue.jeu === "loups" && criePeste(r.texte) && await crierALaPeste(c.id)) break;
       if (c.vue.jeu === "loups") await declarerAuRegistre(c.id, declarationAuRegistre(r.texte));
+      if (c.vue.jeu === "loups") await accuserAuBanc(c.id, accusationDans(r.texte, c.vue.autres.filter(a => a.vivant)));
     }
     return dits;
   }
@@ -432,7 +486,7 @@ export class Compagnons {
     const candidats = (demande.candidats ?? []).map(c => ({ id: c.id, nom: c.nom }));
     const sujet = sujetDemandeLoups(demande);
     const r = await this.cerveaux.decider(vue, { type: "cibles", invite: inviteLoups(demande, sujet), candidats, nombre: demande.nombre ?? 1,
-      vote: ["vote", "chapelle", "bailli", "departage", "souffle"].includes(sujet), objet: sujet, cle: `${demande.type}|${demande.id}` });
+      vote: ["vote", "chapelle", "bailli", "departage", "souffle", "banc", "exil"].includes(sujet), objet: sujet, cle: `${demande.type}|${demande.id}` });
     const noms = r.cibles.map(id => candidats.find(c => c.id === id)?.nom).filter(Boolean);
     await noterPrive(acteur.id, notePriveeLoups(sujet, vue.tour, noms, demande.invite));
     return r.cibles;
