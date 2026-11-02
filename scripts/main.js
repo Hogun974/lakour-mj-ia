@@ -16,6 +16,7 @@ import { ecouteActive } from "./ecoute.js";
 import { EcouteJoueurs, afficherEcoute } from "./transcription.js";
 import { compagnonsPresents } from "./compagnons-jeu.js";
 import { versHTML } from "./utilitaires.js";
+import { consignerComposition } from "./historique-loups.js";
 import { TourParTour, mouvementHorsTour } from "./tour-par-tour.js";
 import { brancherTourParTour, ouvrirPanneau } from "./apps/tour-par-tour.js";
 import * as horloges from "./horloges.js";
@@ -117,6 +118,11 @@ Hooks.once("ready", () => {
   // Une nouvelle partie des Veillées (Table de jeu, « Tout recommencer », loups_rejouer) : fil archivé, fil neuf, ouverture ;
   // les compagnons oublient la partie précédente (moteur.nouvellePartie ; une demande déjà faite par l'outil n'est pas doublée).
   Hooks.on("lakourLoups.nouvellePartie", () => moteur.nouvellePartie({ ouverture: true }));
+  // Une partie distribuée par le MJ IA finit (victoire) ou est abandonnée (nouvelle partie de la Table) : sa composition entre
+  // enfin à l'historique (historique-loups.js), chez le MJ actif qui la gardait.
+  for (const crochet of ["lakourLoups.victoire", "lakourLoups.nouvellePartie"]) {
+    Hooks.on(crochet, () => { if (game.user === game.users.activeGM) consignerComposition().catch(e => console.error(`${ID} | historique`, e)); });
+  }
   // Sans narrateur IA : le jour, les compagnons débattent ; une nouvelle partie remet leur compteur hors séance à zéro.
   Hooks.on("lakourLoups.phase", phase => { sansNarrateur.surPhase(phase).catch(e => console.error(`${ID} | compagnons`, e)); });
   Hooks.on("createChatMessage", message => sansNarrateur.surMessage(message));

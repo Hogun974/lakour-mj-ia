@@ -105,7 +105,8 @@ const REGLES = {
     + "ne la vainc qu'en la reconnaissant (« C'est la peste noire ! »), et un cri à tort coûte la vie. Le Bailli est une charge "
     + "PUBLIQUE : élu par le village avant le vote d'exécution, sa voix y compte double, il tranche les égalités et, à sa mort, remet "
     + "le sceau à un vivant de son choix ; le jeu s'en charge. Le Registre du greffier, public, garde les votes voix par voix, les morts "
-    + "et les déclarations des villageois ; une déclaration n'est qu'une parole, que personne ne vérifie.",
+    + "et les déclarations des villageois ; une déclaration n'est qu'une parole, que personne ne vérifie. Selon la veillée, un mort garde son "
+    + "Dernier souffle (une seule voix, au vote d'exécution) et l'Almanach des brumes annonce chaque matin un présage qui change la journée.",
   aventure: "C'est une partie de jeu de rôle : le meneur décrit le monde et joue les PNJ, chaque joueur joue son personnage. "
     + "Tu dis ce que fait et dit ton personnage, jamais ce que font les autres ni ce qui leur arrive."
 };
@@ -329,6 +330,11 @@ export function repliDecision(vue, demande, graine) {
     const surs = vivants.filter(c => !suspects.has(c.id));
     const c = choisir(amis.length ? amis : surs.length ? surs : vivants, h);
     return { cibles: c ? [c.id] : [] };
+  }
+  // Le Dernier souffle : une voix unique ; sans IA, on ne la donne que contre un suspect connu, une fois sur deux.
+  if (demande.objet === "souffle") {
+    const vises = pool.filter(c => suspects.has(c.id));
+    return { cibles: vises.length && h() < 0.5 ? [choisir(vises, h).id] : [] };
   }
   if (demande.vote) {
     if (h() < 0.1) return { cibles: [] };

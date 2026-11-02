@@ -153,6 +153,8 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
     return revele || entrees.some(e => !e.html && String(e.texte ?? "").includes(a.name) && /meute/i.test(e.texte ?? ""));
   }).map(a => a.id);
   const vivant = acteur.system.vivant !== false;
+  // Le Dernier souffle (système 0.7.0) : un mort garde une voix, au vote d'exécution, tant qu'il ne l'a pas donnée.
+  const souffle = !vivant && Boolean((() => { try { return api.peutSouffler?.(acteur.id)?.aSonSouffle; } catch { return false; } })());
   const fiche = [
     `Tu es ${acteur.name}, villageois de Brumecombe${metier ? `, ${metier.name} de ton métier (public)` : ""}`
       + `${acteur.system.maison ? ` ; tu dors à « ${acteur.system.maison} »` : ""}.`,
@@ -161,11 +163,15 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
     metier?.system?.description ? `Ton métier : ${texteBrut(metier.system.description)}` : "",
     loup ? "Tes Masques de veillée, s'ils sont dans ton carnet, sont des rôles du Village absents de la partie : tu peux prétendre en tenir "
       + "un sans qu'on te contredise. Accorde ton masque avec la meute (pas deux loups sous le même) et ne dis jamais qu'un rôle n'est pas en jeu." : "",
-    vivant ? "" : "Tu es MORT : tu te tais et tu ne votes plus.",
+    vivant ? "" : souffle ? "Tu es MORT : tu te tais. Mais tu gardes ton Dernier souffle : une seule voix, au vote d'exécution, qui ne reviendra pas ; "
+      + "garde-la pour un vote décisif." : "Tu es MORT : tu te tais et tu ne votes plus.",
     acteur.system.silence ? "Tu es réduit au silence : tu ne parles pas au débat d'aujourd'hui." : ""
   ].filter(Boolean).join("\n");
   const v = pub.vote ?? {};
   const sujet = v.objet === "chapelle" ? " (Chapelle)" : v.objet === "bailli" ? " (élection du Bailli)" : "";
+  // Les rôles des autres : seulement ceux révélés à tous. Le système laisse un mort humain tout voir (roleVisible,
+  // « mortsVoientTout ») sauf tant qu'il garde son Dernier souffle ; un compagnon, mort ou non, souffle ou non, n'en reçoit jamais
+  // aucun : son cerveau pourrait le laisser filer dans une réplique, ou voter de son souffle en connaissant les loups.
   const scene = [
     `Phase : ${libelle(`LAKOUR_LOUPS.Phases.${pub.phase}`, pub.phase)}, tour ${pub.tour}.${pub.vainqueur ? " La partie est terminée." : ""}`,
     `Au village : ${tous.map(a => `${a.name}${a.id === acteur.id ? " (toi)" : ""} — ${a.system.vivant ? "vivant" : "mort"}`
@@ -175,6 +181,7 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
     !v.ouvert && v.resultat?.decompte ? `Dernier vote : ${Object.entries(v.resultat.decompte).map(([id, n]) => `${nom(id)} ${n}`).join(", ") || "aucune voix"}.` : "",
     tous.some(a => a.system.vivant && a.system.silence) ? `Réduits au silence : ${tous.filter(a => a.system.vivant && a.system.silence).map(a => a.name).join(", ")}.` : "",
     ...bailliEtRegistre(api, acteur),
+    presageDuJour(api),
     pub.historique?.length ? `Annonces publiques récentes :\n${pub.historique.slice(-12).map(h => `· ${texteBrut(h.texte)}`).join("\n")}` : ""
   ].filter(Boolean).join("\n");
   return {
@@ -183,6 +190,14 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
     autres: autres.map(a => ({ id: a.id, nom: a.name, vivant: a.system.vivant !== false })), allies, suspects,
     vivant, peutParler: vivant && !acteur.system.silence && pub.phase !== "nuit", tour: pub.tour
   };
+}
+
+// Le présage du jour (Almanach des brumes, système 0.7.0 ; public) : "" sans présage, ou avec un système plus ancien.
+function presageDuJour(api) {
+  try {
+    const p = api?.presage?.();
+    return p?.cle ? `Présage du jour (Almanach des brumes) : ${p.nom || p.cle}${p.effet ? ` — ${p.effet.replace(/[.\s]+$/, "")}` : ""}.` : "";
+  } catch { return ""; }
 }
 
 // Le Bailli et le Registre du greffier (système lakour-loups 0.6.0 et plus ; un système plus ancien n'en a pas) : publics.
@@ -285,6 +300,7 @@ async function crierALaPeste(acteurId) {
 // Le sujet d'une demande du système : vote d'exécution, de la Chapelle ou du Bailli ; départage (le Bailli tranche une égalité) ;
 // succession (le Bailli défunt remet le sceau, posthume) ; posthume sans objet (le porteur de la peste) ; nuit (un choix de rôle).
 export function sujetDemandeLoups(demande = {}) {
+  if (demande.type === "vote" && demande.souffle) return "souffle";
   if (demande.type === "vote") return demande.objet === "bailli" ? "bailli" : demande.objet === "chapelle" ? "chapelle" : "vote";
   if (demande.objet === "departage") return "departage";
   if (demande.objet === "succession") return "succession";
@@ -297,6 +313,8 @@ const PRECISIONS_LOUPS = {
     + "d'exécution et il tranchera les égalités.",
   departage: "Tu es le Bailli : le vote d'exécution est à égalité, à toi de trancher. Désigne parmi les ex aequo qui sera exécuté (tu peux "
     + "te désigner), ou passe : personne ne l'est pour cette place.",
+  souffle: "Tu es mort, mais tu gardes ton Dernier souffle : une seule voix, pour ce vote d'exécution, et elle ne reviendra pas. Elle est "
+    + "précieuse : ne la donne que si ce vote est décisif ; sinon abstiens-toi, tu pourras voter un autre jour.",
   succession: "Tu es mort, et tu étais le Bailli : remets le sceau à un vivant de ton choix (sa voix comptera double, il tranchera les "
     + "égalités), ou passe : la charge restera vacante et le village élira un nouveau Bailli."
 };
@@ -309,6 +327,7 @@ export function notePriveeLoups(sujet, tour, noms = [], invite = "") {
     case "vote": return `Vote du tour ${tour} : ${qui ? `tu as voté contre ${noms[0]}` : "tu t'es abstenu"}.`;
     case "chapelle": return `Vote de la Chapelle, tour ${tour} : ${qui ? `tu as voté pour mettre ${noms[0]} à l'abri` : "tu t'es abstenu"}.`;
     case "bailli": return `Élection du Bailli, tour ${tour} : ${qui ? `tu as voté pour ${noms[0]}` : "tu t'es abstenu"}.`;
+    case "souffle": return `Dernier souffle, tour ${tour} : ${qui ? `tu as donné ta dernière voix contre ${noms[0]} (elle ne reviendra pas)` : "tu as gardé ton souffle pour un autre jour"}.`;
     case "departage": return `Jour ${tour}, en Bailli, tu as tranché l'égalité : ${qui ? `tu as désigné ${qui}` : "tu n'as désigné personne"}.`;
     case "succession": return `Mort, tu as remis le sceau du Bailli ${qui ? `à ${qui}` : "à personne (la charge reste vacante)"}.`;
     default: return `Nuit ${tour} (« ${invite} ») : tu as choisi ${qui || "de passer"}.`;
@@ -413,7 +432,7 @@ export class Compagnons {
     const candidats = (demande.candidats ?? []).map(c => ({ id: c.id, nom: c.nom }));
     const sujet = sujetDemandeLoups(demande);
     const r = await this.cerveaux.decider(vue, { type: "cibles", invite: inviteLoups(demande, sujet), candidats, nombre: demande.nombre ?? 1,
-      vote: ["vote", "chapelle", "bailli", "departage"].includes(sujet), objet: sujet, cle: `${demande.type}|${demande.id}` });
+      vote: ["vote", "chapelle", "bailli", "departage", "souffle"].includes(sujet), objet: sujet, cle: `${demande.type}|${demande.id}` });
     const noms = r.cibles.map(id => candidats.find(c => c.id === id)?.nom).filter(Boolean);
     await noterPrive(acteur.id, notePriveeLoups(sujet, vue.tour, noms, demande.invite));
     return r.cibles;

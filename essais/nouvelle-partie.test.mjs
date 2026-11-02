@@ -262,16 +262,20 @@ test("loups_rejouer (doublure de l'API) : mêmes joueurs, nouvelle composition, 
   const def = outil("loups_rejouer");
   assert.deepEqual(def.systemes, ["lakour-loups"]);
   assert.equal(def.sensible, true);
-  assert.deepEqual(Object.keys(def.schema.properties).sort(), ["composition", "niveau", "peste", "roles"]);
+  assert.deepEqual(Object.keys(def.schema.properties).sort(), ["composition", "glas", "niveau", "peste", "roles"]);
   const r = await def.executer({ niveau: "chaos", roles: [], composition: "" });
   assert.ok(!r.erreur, r.contenu);
   assert.deepEqual(api.appels, [{ memesJoueurs: true, niveau: "chaos", roles: [], composition: "" }]);
   assert.deepEqual(demandes, [{ ouverture: true }], "le moteur enchaîne : fil neuf et ouverture");
   assert.match(r.contenu, /1 joueurs et 2 compagnons IA, composition « générée, équilibrée »/);
   assert.match(r.contenu, /une seule phrase de transition/);
-  assert.equal(reglages.historiqueLoups.length, 1, "la composition rejoint l'historique (pour varier)");
+  // La composition de la partie en cours n'entre pas à l'historique (réglage monde, livré à tous) : le MJ la garde jusqu'à la fin
+  // (ce système doublure ne la garde pas lui-même).
+  assert.equal(reglages.historiqueLoups.length, 0, "la partie en cours ne se trahit pas");
+  assert.ok(reglages.historiqueLoupsEnAttente?.roles?.length, "le MJ la garde, pour plus tard");
   await def.executer({ niveau: "", roles: ["Loup de Brumecombe", "Liseuse de cendres", "villageois"], composition: "" });
   assert.deepEqual(api.appels[1].roles, ["Loup de Brumecombe", "Liseuse de cendres", "villageois"]);
+  assert.equal(reglages.historiqueLoups.length, 1, "la partie abandonnée rejoint l'historique (pour varier)");
   api.echec = "Rôles inconnus : licorne.";
   const e = await def.executer({ niveau: "", roles: ["licorne"], composition: "" });
   assert.equal(e.erreur, true);

@@ -285,7 +285,7 @@ const MUTATIONS = [
   ["outils.js", "        + (enPeste ? `${NOTE_PESTE}\\n` : \"\")\n        + `Bâtiments", "        + `Bâtiments", "loups_composer : la peste dite au narrateur"],
   ["outils.js", "        enPeste ??= Boolean(propositionPeste && memesRoles(rolesPour({ roles: cles }, total), propositionPeste));", "        enPeste ??= false;", "la peste proposée reste une peste"],
   ["outils.js", "        enPeste ??= tirerPesteIA(api);", "        enPeste ??= false;", "le hasard en mode auto"],
-  ["outils.js", "...(voulue !== undefined ? { peste: voulue } : {})", "", "loups_rejouer : la peste voulue"],
+  ["outils.js", "...(voulue !== undefined ? { peste: voulue } : {})", "...{}", "loups_rejouer : la peste voulue"],
   ["outils.js", "Composition, pour toi seul (ne l'annonce JAMAIS, ni le nombre de loups) : ", "À annoncer à tous (sans dire qui) : ", "composition annoncée"],
   ["moteur.js", "  const peste = api?.etat?.()?.peste?.active\n", "  const peste = false\n", "distribution secrète sans la peste"],
   ["moteur.js", "Présente le village et les bâtiments en jeu, sans annoncer la composition", "Présente le village, annonce la composition sans dire qui", "ouverture qui annonce la composition"],

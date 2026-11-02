@@ -26,6 +26,9 @@ export function enregistrerReglages() {
   game.settings.register(ID, "reparations", { scope: "world", config: false, type: Object, default: {} });
   // Compositions des dernières parties de loup-garou ({ roles, batiments, quand }) : le générateur évite de les répéter.
   game.settings.register(ID, "historiqueLoups", { scope: "world", config: false, type: Array, default: [] });
+  // La composition de la partie EN COURS (historique-loups.js) : dans le navigateur du MJ seul, jusqu'à la fin de la partie (le
+  // réglage monde ci-dessus est livré à tous et trahirait les rôles en jeu).
+  game.settings.register(ID, "historiqueLoupsEnAttente", { scope: "client", config: false, type: Object, default: {} });
   game.settings.register(ID, "effort", {
     scope: "world", config: false, type: String, default: "medium",
     choices: Object.fromEntries(EFFORTS.map(e => [e, e]))

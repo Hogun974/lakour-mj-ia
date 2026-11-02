@@ -73,12 +73,15 @@ export const nouvelleMemoire = () => ({ tour: -1, aube: false, debats: 0, voteFa
 // vote d'exécution ; sa clôture (« bailli-clore ») n'exécute personne. Le pilote ouvre et clôt lui-même l'élection (au débat, sans
 // changer de phase), sans tour du narrateur : elle ne dépend pas d'un outil oublié par le modèle et ne coûte aucun appel ; le
 // narrateur annonce le Bailli en ouvrant le vote d'exécution (CONSIGNES_LOUPS.annonceBailli).
-export function prochaineEtapeLoups(etat, m, { elusVivants = [], debatMax = DEBAT_TOURS, election = false } = {}) {
-  if (etat.vainqueur || etat.phase === "fin") return m.denouement ? null : "denouement";
+// victoire : le système dit que la partie est gagnée (api.etapeSuivante().cle === "victoire", système 0.7.0 : le Glas final, par
+// exemple) avant même de l'avoir déclarée. Le Glas final atteint (etat.glas, jour N) : après le vote du jour N, pas de nuit.
+export const glasAtteint = etat => Number(etat?.glas) > 0 && Number(etat.tour) >= Number(etat.glas);
+export function prochaineEtapeLoups(etat, m, { elusVivants = [], debatMax = DEBAT_TOURS, election = false, victoire = false } = {}) {
+  if (etat.vainqueur || etat.phase === "fin" || victoire) return m.denouement ? null : "denouement";
   if (etat.phase === "preparation") return null;
   if (etat.vote?.ouvert) return etat.vote.objet === "bailli" ? "bailli-clore" : "vote-clore";
   if (etat.phase === "nuit") return "nuit";
-  if (m.voteFait) return elusVivants.length ? "eliminer" : "nuit";
+  if (m.voteFait) return elusVivants.length ? "eliminer" : glasAtteint(etat) ? (m.denouement ? null : "denouement") : "nuit";
   if (etat.phase === "aube" && !m.aube) return "aube";
   if (m.debats < debatMax) return "debat";
   return election ? "bailli" : "vote-ouvrir";
@@ -126,10 +129,13 @@ export const CONSIGNE_PESTE_NUIT = "SECRET (peste noire, ne la nomme jamais) : l
   + "victime de cette nuit parmi les vivants : donne son nom à loups_nuit (peste_victime). Raconte la nuit comme toutes les autres.";
 
 // Le vainqueur, pour la consigne du dénouement (et la peste noire dévoilée).
-export function libelleVainqueurPilote(v, nom = id => id, peste = false) {
-  if (v === "peste") return "la peste noire (il n'y avait aucun loup : la peste a emporté Brumecombe)";
-  if (v === "village" && peste) return "le camp « village », qui a reconnu la peste noire (il n'y avait aucun loup)";
-  return v === "village" || v === "meute" ? `le camp « ${v} »` : nom(v);
+// glas : le jour du Glas final atteint (0 : pas de glas) ; le dénouement dit alors que le glas a mis fin à la veillée.
+export function libelleVainqueurPilote(v, nom = id => id, peste = false, glas = 0) {
+  const fin = glas > 0 ? ` — le Glas final a sonné au soir du jour ${glas} : dis que c'est lui qui a mis fin à la veillée` : "";
+  if (!v) return `personne pour l'instant${fin}`;
+  if (v === "peste") return `la peste noire (il n'y avait aucun loup : la peste a emporté Brumecombe)${fin}`;
+  if (v === "village" && peste) return `le camp « village », qui a reconnu la peste noire (il n'y avait aucun loup)${fin}`;
+  return `${v === "village" || v === "meute" ? `le camp « ${v} »` : nom(v)}${fin}`;
 }
 
 export const CONSIGNES_AVENTURE = {
@@ -326,7 +332,10 @@ export class PiloteAutomatique {
     // L'élection du Bailli due maintenant (système 0.6.0 et plus ; un système plus ancien n'a pas api.bailli).
     let election = false;
     try { election = Boolean(api.bailli?.()?.election?.ok) && m.electionRefusee !== etat.tour; } catch { /* pas de Bailli */ }
-    const etape = prochaineEtapeLoups(etat, m, { elusVivants, debatMax: this.debatMax(), election });
+    // La victoire que le système voit venir (système 0.7.0 ; un système plus ancien n'a pas etapeSuivante).
+    let victoire = false;
+    try { victoire = api.etapeSuivante?.()?.cle === "victoire"; } catch { /* pas d'étapes */ }
+    const etape = prochaineEtapeLoups(etat, m, { elusVivants, debatMax: this.debatMax(), election, victoire });
     if (!etape) return null;
     const vivants = api.villageois().filter(a => a.system?.vivant !== false).length;
     return { etape, cle: [etape, etat.phase, etat.tour, etat.vote?.numero ?? 0, Boolean(etat.vote?.ouvert), vivants, m.debats].join("|") };
@@ -414,9 +423,13 @@ export class PiloteAutomatique {
         return this.#tour(ENTETE, CONSIGNES_LOUPS.eliminer(elus.map(nom).join(" et ")));
       }
       case "denouement": {
+        // Pas encore déclarée (le Glas final au soir du jour N, sans vote) : le système la tranche maintenant.
+        if (!api.etat().vainqueur) {
+          try { await api.verifierVictoire?.({ finDuJour: true }); } catch (e) { console.warn(`${ID} | pilote : victoire`, e); }
+        }
         const e = api.etat();
         m.denouement = true;
-        return this.#tour(ENTETE, CONSIGNES_LOUPS.denouement(libelleVainqueurPilote(e.vainqueur, nom, Boolean(e.peste?.active))));
+        return this.#tour(ENTETE, CONSIGNES_LOUPS.denouement(libelleVainqueurPilote(e.vainqueur, nom, Boolean(e.peste?.active), glasAtteint(e) ? e.glas : 0)));
       }
       default: throw new Error(`étape inconnue : ${etape}`);
     }

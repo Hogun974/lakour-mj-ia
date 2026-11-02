@@ -1,6 +1,7 @@
 import { ID } from "./constantes.js";
 import { lire, ecrire } from "./reglages.js";
 import { ecrireJSON } from "./utilitaires.js";
+import { consignerComposition } from "./historique-loups.js";
 
 // Remise à zéro de la campagne, dans le navigateur du MJ, par l'API de Foundry (qui défait proprement
 // tous les liens) : chat, combats, scènes, journaux, objets, tables, dossiers, brouillard, horloges, enquêtes, contacts, acteurs — sauf les
@@ -66,6 +67,8 @@ export async function reinitialiserCampagne(moteur) {
   // Horloges, jauges et réputations, enquêtes et contacts : la campagne repart de zéro (le contenu réinstallé déclare à nouveau
   // les siens).
   for (const cle of ["horloges", "enquetes", "contacts"]) await ecrire(cle, []);
+  // Une partie des Veillées abandonnée : sa composition entre à l'historique (qui, lui, reste, pour varier la suivante).
+  await consignerComposition().catch(() => false);
   await ecrireJSON("fils", `${game.world.id}.json`, {}).catch(() => null);
 
   // 2. Le contenu du monde.

@@ -304,6 +304,37 @@ export function etatPartieLoups(api) {
   const silences = tous.filter(a => a.system.vivant && a.system.silence).map(a => a.name);
   if (silences.length) lignes.push(`Réduits au silence aujourd'hui : ${silences.join(", ")}.`);
   lignes.push(...etatBailliRegistreMasques(api, e));
+  lignes.push(...etatCalendrierSouffle(api, e, nom));
+  return lignes;
+}
+
+// Le lot 0.7.0 des Veillées (Dernier souffle, Almanach des brumes, Somnambule, Saints du calendrier). Défensif : un système plus
+// ancien n'a ni api.presage, ni e.glas, ni e.souffle, ni api.somnambules, et la partie se joue sans eux.
+export function etatCalendrierSouffle(api, e = {}, nom = id => id) {
+  const lignes = [];
+  const p = typeof api?.presage === "function" ? essayer(() => api.presage()) : null;
+  if (p?.cle && !e.vainqueur) {
+    lignes.push(`Présage de l'Almanach (public, déjà annoncé par le système) : ${p.nom || p.cle}${p.effet ? ` — ${p.effet.replace(/[.\s]+$/, "")}` : ""}. `
+      + "Raconte-le à l'aube en une image, sans le recopier.");
+  }
+  if (Number(e.glas) > 0 && !e.vainqueur) {
+    lignes.push(`Glas final (public) : la partie s'arrête au soir du jour ${e.glas} (aujourd'hui : jour ${e.tour}) ; le système tranche alors la victoire.`);
+  }
+  if (e.souffle?.actif && !e.vainqueur) {
+    const utilises = new Set(e.souffle.utilises ?? []);
+    const gardent = [...new Set((e.morts ?? []).map(m => m.acteurId))].filter(id => !utilises.has(id));
+    if (gardent.length) lignes.push(`Dernier souffle : ${gardent.map(nom).join(", ")} ${gardent.length > 1 ? "gardent" : "garde"} encore sa voix (une seule, au vote d'exécution, comptée par le système).`);
+  }
+  if (e.vainqueur) return lignes;
+  // Les secrets du MJ actif (ailleurs, api.somnambules lève une erreur et e.bonneEtoile est absent de l'état public).
+  const reveurs = (typeof api?.somnambules === "function" ? essayer(() => api.somnambules()) : null)?.filter(s => !s.devoile) ?? [];
+  if (reveurs.length) {
+    lignes.push(`Somnambules — SECRET ABSOLU : ${reveurs.map(s => `${s.nom} croit être ${s.croitNom || s.croit}`).join(" ; ")}. Ne le trahis jamais `
+      + "(ni allusion, ni regard appuyé) ; ses visions de nuit sont fausses : laisse-les l'être.");
+  }
+  if (e.bonneEtoile && Number(e.tour) <= 1) {
+    lignes.push(`Bonne étoile — SECRET : ${nom(e.bonneEtoile)} est protégé la première nuit. Personne n'en sait rien, pas même lui : ne le dis jamais.`);
+  }
   return lignes;
 }
 

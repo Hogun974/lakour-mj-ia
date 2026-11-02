@@ -12,6 +12,7 @@ import { volumeAmbiance } from "./voix-texte.js";
 import { ouvrirVote, cloreVote, demanderChoix, nomPourIA, DELAI_VOTE, DELAI_CHOIX, MAX_OPTIONS } from "./decisions.js";
 import { validerSchema } from "./schema.js";
 import { choisirParNom } from "./recherche-nom.js";
+import { retenirComposition, consignerComposition, historiqueDesParties } from "./historique-loups.js";
 import { tirerSansDoublon, donneesDuResultat, TIRAGES_MAX } from "./tirages.js";
 import { TEMPERAMENTS, FACONS_DE_PARLER, personnaliteAuHasard } from "./compagnons.js";
 import {
@@ -1235,7 +1236,7 @@ const joueursDeLaPartie = noms => (noms.length ? noms.map(n => trouverJoueur(n))
 // peste : une composition de peste noire (aucun rôle de la meute).
 async function genererComposition(contenu, nombre, { niveau, inclure = [], exclure = [], peste = false }) {
   const logique = apiLoups().logique;
-  const historique = game.settings.get(ID, "historiqueLoups") ?? [];
+  const historique = historiqueDesParties();
   return logique.composer(nombre, contenu.equilibre, { niveau, inclure, exclure, historique, ...(peste ? { peste: true } : {}) });
 }
 
@@ -1304,6 +1305,7 @@ OUTILS.push(
       + "bâtiments. mode « auto » (par défaut) : composition ÉQUILIBRÉE générée pour ce nombre de joueurs, différente des dernières parties. "
       + "mode « roles » : la liste exacte choisie (par les joueurs, ou issue de loups_composer). mode « composition » : une composition prête "
       + "du module. Une partie composée d'elle-même (auto) devient très rarement une PESTE NOIRE (aucun loup ; « peste » la décide). "
+      + "Le Somnambule et la Rosière ne sortent jamais d'un tirage : seulement si on les demande (roles, ou inclure en mode auto). "
       + "Ensuite : présente le village et les bâtiments en jeu, SANS annoncer la composition (ni rôles en jeu, ni nombre de loups), puis "
       + "la première nuit (loups_nuit).",
     schema: objet({
@@ -1317,10 +1319,11 @@ OUTILS.push(
       composition: chaine("Mode composition : clé d'une composition prête (vide = celle du niveau)."),
       compagnons: entier("Places tenues par des compagnons IA (villageois sans joueur, noms tirés de la table du village, personnalité au "
         + "hasard), en plus des joueurs : ils choisissent la nuit, parlent au débat et votent seuls. 0 = aucun."),
-      peste: PESTE_CHOIX
+      peste: PESTE_CHOIX,
+      glas: entier("Glas final (public, annoncé au chat) : la partie s'arrête au soir de ce jour (après son vote d'exécution) ; 0 = jamais."),
     }),
     sensible: true,
-    async executer({ joueurs, mode, niveau, roles = [], batiments: batimentsVoulus = [], inclure = [], exclure = [], composition = "", compagnons = 0, peste = "" }) {
+    async executer({ joueurs, mode, niveau, roles = [], batiments: batimentsVoulus = [], inclure = [], exclure = [], composition = "", compagnons = 0, peste = "", glas = 0 }) {
       const api = apiLoups();
       // Une composition nommée sans mode : c'est le mode « composition » ; sinon la génération équilibrée.
       mode ||= composition ? "composition" : "auto";
@@ -1373,15 +1376,15 @@ OUTILS.push(
       const nomsCompagnons = nbCompagnons ? await nomsPourCompagnons(nbCompagnons, { exclus }) : [];
       const resultat = await api.distribuer({
         roles: cles.map(c => contenu.roles.get(c)), metiers, joueurs: utilisateurs.map(u => u.id), compagnons: nomsCompagnons,
-        maisons, composition: compo.cle, batiments, ...(enPeste ? { peste: true } : {})
+        maisons, composition: compo.cle, batiments, ...(enPeste ? { peste: true } : {}), ...(glas > 0 ? { glas: Math.floor(glas) } : {})
       });
       // Une personnalité au hasard pour chaque compagnon (drapeau du MJ IA : rien de secret).
       for (const r of resultat.filter(x => x.compagnon)) {
         await game.actors.get(r.acteurId)?.update({ [`flags.${ID}.compagnon`]: personnaliteAuHasard(`${r.acteurId}|${Math.random()}`) });
       }
       const nomRole = id => game.actors.get(id)?.items.find(i => i.type === "role")?.name ?? "?";
-      const historique = [...(game.settings.get(ID, "historiqueLoups") ?? []), { roles: cles, batiments: compo.batiments ?? [], quand: Date.now() }].slice(-10);
-      await game.settings.set(ID, "historiqueLoups", historique);
+      // La composition n'entre à l'historique (réglage monde, livré à tous) qu'à la fin de la partie : le MJ la garde d'ici là.
+      await retenirComposition({ roles: cles, batiments: compo.batiments ?? [] });
       // Une nouvelle partie : après ce tour, le fil de la précédente est archivé et un fil neuf commence (moteur.nouvellePartie).
       game.modules?.get(ID)?.api?.moteur?.nouvellePartie({ ouverture: false });
       // Pour toi seul (narrateur) : qui est qui, et la composition. Rien de tout cela ne s'annonce aux joueurs.
@@ -1391,36 +1394,43 @@ OUTILS.push(
         + resultat.map(r => `- ${nomActeur(r.acteurId)} (${r.compagnon ? "compagnon IA" : game.users.get(r.userId)?.name}) : ${nomRole(r.acteurId)}`).join("\n")
         + (nbCompagnons ? "\nLes compagnons IA jouent seuls (choix de nuit, débat, vote) et ne savent que ce que sait leur villageois : "
           + "traite-les comme des joueurs, ne leur souffle rien." : "")
-        + `\nBâtiments en jeu : ${batiments.map(u => fromUuidSync(u)?.name).filter(Boolean).join(", ") || "aucun"}. Ne révèle aucun rôle.` };
+        + `\nBâtiments en jeu : ${batiments.map(u => fromUuidSync(u)?.name).filter(Boolean).join(", ") || "aucun"}. Ne révèle aucun rôle.`
+        + (glas > 0 ? `\nGlas final : la partie s'arrêtera au soir du jour ${Math.floor(glas)} (annoncé au chat).` : "") };
     }
   },
   {
     nom: "loups_rejouer",
     systemes: LOUPS,
     description: "Rejoue une partie avec les mêmes joueurs et le même nombre de compagnons ; nouvelle composition équilibrée (très rarement "
-      + "une peste noire), sauf si des rôles sont donnés (ou une composition prête). À proposer en fin de partie (« une autre partie avec les mêmes joueurs ? »), "
+      + "une peste noire), sauf si des rôles sont donnés (ou une composition prête ; le Somnambule et la Rosière seulement ainsi). À proposer en fin de partie (« une autre partie avec les mêmes joueurs ? »), "
       + "seulement si les joueurs le veulent. La partie précédente est archivée et la nouvelle s'ouvre dans un fil NEUF, où tu présenteras "
       + "le village : après l'outil, dis seulement une phrase de transition.",
     schema: objet({
       niveau: { type: "string", enum: ["", "debutants", "classique", "chaos"], description: "Niveau ; vide = celui de la partie précédente." },
       roles: { type: "array", items: chaine("Rôle (nom ou clé)."), description: "Rôles voulus (vide = composition équilibrée générée)." },
       composition: chaine("Clé d'une composition prête (vide = aucune)."),
-      peste: PESTE_CHOIX
+      peste: PESTE_CHOIX,
+      glas: entier("Glas final (public, annoncé au chat) : la partie s'arrête au soir de ce jour (après son vote d'exécution) ; 0 = jamais."),
     }),
     sensible: true,
-    async executer({ niveau = "", roles = [], composition = "", peste = "" }) {
+    async executer({ niveau = "", roles = [], composition = "", peste = "", glas = 0 }) {
       const api = apiLoups();
       if (typeof api?.nouvellePartie !== "function") return { erreur: true, contenu: "Le système lakour-loups de ce monde ne sait pas rejouer une partie : mets-le à jour." };
       let r;
       // Sans choix, le système tire lui-même la peste noire (très rarement) pour une composition générée.
       const voulue = pesteVoulue(peste);
-      try { r = await api.nouvellePartie({ memesJoueurs: true, niveau, roles, composition, ...(voulue !== undefined ? { peste: voulue } : {}) }); }
+      // La partie précédente, si le MJ IA l'avait distribuée, est finie ou abandonnée : sa composition entre à l'historique.
+      await consignerComposition();
+      try {
+        r = await api.nouvellePartie({ memesJoueurs: true, niveau, roles, composition, ...(voulue !== undefined ? { peste: voulue } : {}),
+          ...(glas > 0 ? { glas: Math.floor(glas) } : {}) });
+      }
       catch (e) { return { erreur: true, contenu: e.message }; }
       const c = r?.composition ?? {};
-      if (c.roles?.length) {
-        const historique = [...(game.settings.get(ID, "historiqueLoups") ?? []), { roles: c.roles, batiments: c.batiments ?? [], quand: Date.now() }].slice(-10);
-        await game.settings.set(ID, "historiqueLoups", historique);
-      }
+      // Le système (0.7.0) garde lui-même la composition de nouvellePartie dans les secrets du MJ jusqu'à la fin (réglage
+      // « lakour-loups.historique ») ; un système plus ancien ne le fait pas : le MJ IA la retient alors, sans la publier.
+      const systemeConsigne = Boolean(game.settings.settings?.has?.("lakour-loups.historique"));
+      if (c.roles?.length && !systemeConsigne) await retenirComposition({ roles: c.roles, batiments: c.batiments ?? [] });
       game.modules?.get(ID)?.api?.moteur?.nouvellePartie({ ouverture: true });
       return { contenu: `Nouvelle partie prête : ${r?.joueurs?.length ?? 0} joueurs et ${r?.compagnons?.length ?? 0} compagnons IA, composition « ${c.libelle ?? c.cle ?? "?"} » `
         + "(pour toi seul : ne l'annonce jamais). La partie précédente est archivée ; l'ouverture de la nouvelle (village, première nuit) "
@@ -1444,7 +1454,12 @@ OUTILS.push(
     async executer({ delai_secondes, peste_victime = "" }) {
       const api = apiLoups();
       const delai = Math.min(600, Math.max(20, delai_secondes || 90)) * 1000;
+      const finie = () => { const e = api.etat(); return e.vainqueur || e.phase === "fin" ? e : null; };
+      if (finie()) return { erreur: true, contenu: `La partie est finie (victoire : ${nomVainqueur(finie().vainqueur)}) : pas de nuit. Raconte le dénouement.` };
       await api.changerPhase("nuit");
+      // Le Glas final (système 0.7.0) : la nuit du jour N ne tombe pas, la partie s'arrête au soir et le système a tranché.
+      if (finie()) return { contenu: `Le Glas final a sonné : la partie s'arrête ce soir, sans nuit. VICTOIRE : ${nomVainqueur(finie().vainqueur)}. `
+        + "Raconte le dénouement : dis que le glas a mis fin à la veillée." };
       const journal = [];
       const proies = [];   // attaqués par la meute (et les loups qui tuent seuls) cette nuit
       for (const { roleCle, acteurIds } of api.ordreDeNuit()) {
@@ -1473,8 +1488,23 @@ OUTILS.push(
         if (effet === "mordre") candidats = candidats.filter(id => proies.includes(id));
         if (effet === "remede" && proies.length) invite = `Cette nuit, la meute a attaqué ${proies.map(nomActeur).join(", ")}. ${invite}`;
         let cibles;
+        const meute = role?.system?.camp === "meute" && acteurIds.length > 1 || roleCle === "meute";
+        // Deux porteurs d'un même rôle hors meute (un Somnambule qui rêve un rôle déjà en jeu, système 0.7.0) : chacun est réveillé,
+        // avec ses propres candidats, et son choix noté à son nom.
+        if (!meute && acteurIds.length > 1) {
+          const choix = [];
+          for (const id of acteurIds) {
+            const siens = effet === "voir-role-mort" || effet === "mordre" ? candidats
+              : api.candidatsDeNuit ? api.candidatsDeNuit({ acteurId: id, roleCle }) : candidats;
+            const c = siens.length ? await api.demanderAction({ acteurId: id, invite, candidats: siens, nombre, delai }) : [];
+            await api.noterAction({ acteurId: id, roleCle, cibles: c });
+            choix.push(`${nomActeur(id)} → ${c.length ? c.map(nomActeur).join(", ") : "passe"}`);
+          }
+          journal.push(`${role?.name ?? roleCle} (${acteurIds.length} porteurs) : ${choix.join(" ; ")}`);
+          continue;
+        }
         if (!candidats.length) cibles = [];
-        else if (role?.system?.camp === "meute" && acteurIds.length > 1 || roleCle === "meute") {
+        else if (meute) {
           cibles = await api.demanderActionMeute({ invite, candidats, delai });
         } else {
           cibles = await api.demanderAction({ acteurId: acteurIds[0], invite, candidats, nombre, delai });
@@ -1569,6 +1599,8 @@ OUTILS.push(
           + "(le vote reste ouvert, chacun peut changer d'avis). Laisse-le parler, puis clos de nouveau (loups_vote clore)." };
       }
       const { decompte = {}, elu, elus = elu ? [elu] : [], egalite = false } = r;
+      // Le Dernier souffle (système 0.7.0) : les morts qui ont voté ont donné leur dernière voix.
+      const souffles = (r.souffles ?? []).length ? ` Dernier souffle : ${r.souffles.map(nomActeur).join(", ")} ont donné leur dernière voix (elle ne reviendra pas).` : "";
       const lignes = Object.entries(decompte).sort((x, y) => y[1] - x[1]).map(([id, n]) => `${nomActeur(id)} : ${n}`);
       // L'élection du Bailli : l'élu (ou le sort, ou la vacance), déjà annoncé au chat par le système. Personne n'est exécuté.
       if (r.objet === "bailli") {
@@ -1591,10 +1623,39 @@ OUTILS.push(
         : api.etat().vote?.majoriteAbsolue ? "Pas de majorité absolue (le Gibet l'exige)" : "Égalité ou aucun vote";
       // Le Juge de paix en jeu (vivant ou non : la question se pose toujours, pour ne rien trahir) peut annuler ce vote.
       const juge = elus.length && api.villageois().some(a => a.items.find(i => i.type === "role")?.system?.effet === "annuler-vote");
-      return { contenu: `Décompte${poids} : ${lignes.join(", ") || "aucune voix"}.${departage} `
+      return { contenu: `Décompte${poids} : ${lignes.join(", ") || "aucune voix"}.${departage}${souffles} `
         + (elus.length ? `Désigné${elus.length > 1 ? "s" : ""} : ${elus.map(nomActeur).join(" et ")} (loups_eliminer pour chacun).` : `${personne} : personne n'est désigné.`)
         + (juge ? " Avant d'exécuter, demande au village si quelqu'un use d'un pouvoir après le dépouillement (Juge de paix) et laisse-lui un instant : "
           + "s'il annule (Table de jeu, ou loups_jour), le vote se rejoue — clos-le de nouveau, et n'exécute que le résultat du nouveau vote." : "") };
+    }
+  },
+  // Les Saints du calendrier (système 0.7.0 et plus) : la Bonne étoile (secrète) et le Glas final (public).
+  {
+    nom: "loups_calendrier",
+    systemes: LOUPS,
+    description: "Les Saints du calendrier. « etoile » : la Bonne étoile, ta protection SECRÈTE d'un villageois la première nuit seulement (un "
+      + "joueur débutant à ménager ; personne n'en est prévenu, pas même lui ; vide = personne), à poser avant que la première nuit soit "
+      + "résolue. « glas » : le Glas final, PUBLIC et annoncé au chat : la partie s'arrête au soir du jour donné (0 le lève).",
+    schema: objet({
+      action: { type: "string", enum: ["etoile", "glas"], description: "etoile ou glas." },
+      villageois: chaine("Pour etoile : le villageois protégé (vide = personne). Vide pour glas."),
+      jour: entier("Pour glas : le jour où la partie s'arrête (0 = plus de glas). 0 pour etoile.")
+    }),
+    sensible: false,
+    async executer({ action, villageois, jour }) {
+      const api = apiLoups();
+      if (action === "glas") {
+        if (typeof api.glasFinal !== "function") return { erreur: true, contenu: "Ce système des Veillées n'a pas de Glas final (il faut lakour-loups 0.7.0 ou plus)." };
+        try {
+          const n = await api.glasFinal(Math.max(0, jour || 0));
+          return { contenu: n ? `Glas final posé : la partie s'arrêtera au soir du jour ${n} (annoncé au chat).` : "Glas final levé (annoncé au chat)." };
+        } catch (e) { return { erreur: true, contenu: `Glas refusé : ${e.message}` }; }
+      }
+      if (typeof api.bonneEtoile !== "function") return { erreur: true, contenu: "Ce système des Veillées n'a pas de Bonne étoile (il faut lakour-loups 0.7.0 ou plus)." };
+      const id = villageois.trim() ? idVillageois(villageois) : "";
+      if (villageois.trim() && !id) return { erreur: true, contenu: `Villageois introuvable : ${villageois}.` };
+      try { await api.bonneEtoile(id); } catch (e) { return { erreur: true, contenu: `Bonne étoile refusée : ${e.message}` }; }
+      return { contenu: id ? `Bonne étoile (secret) : ${nomActeur(id)} est protégé la première nuit. N'en dis rien à personne.` : "Bonne étoile retirée." };
     }
   },
   // Le Bailli (système 0.6.0 et plus) : la charge publique, son état ; le narrateur ne le nomme que pour corriger, ou quand le
