@@ -292,3 +292,52 @@
 .lakour-mjia-bandeau-tour .lakour-mjia-bt-attaques { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 .lakour-mjia-bandeau-tour button { width: auto; height: auto; line-height: 1.2; padding: 0.15rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.3rem; }
 .lakour-mjia-bandeau-tour button img { width: 18px; height: 18px; border: none; }
+
+/* ------------------------------------------------------------------ Horloges, jauges et réputations */
+/* Couleurs lisibles sur les deux thèmes : un orangé chaud pour ce qui est plein, des gris translucides pour le vide. */
+.lakour-mj-ia.lakour-mjia-horloges {
+  --horloge-plein: #d9822b;
+  --horloge-vide: rgba(128, 128, 128, 0.22);
+  --horloge-trait: rgba(128, 128, 128, 0.7);
+  --horloge-alerte: #c0392b;
+  --horloge-favorable: #3f9b5a;
+}
+.lakour-mj-ia.lakour-mjia-horloges.theme-light, .theme-light .lakour-mj-ia.lakour-mjia-horloges { --horloge-plein: #b85f12; --horloge-trait: rgba(60, 50, 40, 0.65); }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloges-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; max-height: 560px; overflow-y: auto; }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge {
+  display: flex; align-items: center; gap: 0.6rem; padding: 0.35rem 0.45rem;
+  border-left: 3px solid var(--horloge-plein); border-radius: 4px; background: rgba(128, 128, 128, 0.08);
+}
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge.cachee { border-left-style: dashed; opacity: 0.75; }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge.pleine { border-left-color: var(--horloge-alerte); }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge-texte { flex: 1; min-width: 0; }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge-texte p { margin: 0.1rem 0; }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge-nom small { opacity: 0.7; margin-left: 0.3rem; }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge-valeur { font-size: var(--font-size-12, 0.8rem); }
+.lakour-mj-ia.lakour-mjia-horloges .pleine .lakour-mjia-horloge-valeur strong { color: var(--horloge-alerte); }
+
+/* Camembert : un secteur par segment. */
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge-camembert { flex: none; width: 72px; height: 72px; padding: 0; border: none; background: none; line-height: 0; }
+.lakour-mj-ia.lakour-mjia-horloges button.lakour-mjia-horloge-camembert { cursor: pointer; }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-camembert path { stroke: var(--horloge-trait); stroke-width: 1.5; stroke-linejoin: round; }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-camembert path.plein { fill: var(--horloge-plein); }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-camembert path.vide { fill: var(--horloge-vide); }
+.lakour-mj-ia.lakour-mjia-horloges .pleine .lakour-mjia-camembert path.plein { fill: var(--horloge-alerte); }
+
+/* Barre d'une jauge (repères = seuils) ; réputation : centrée sur zéro, verte au-dessus, rouge au-dessous. */
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge-barre {
+  position: relative; height: 10px; margin: 0.25rem 0; border-radius: 5px; overflow: hidden;
+  background: var(--horloge-vide); border: 1px solid var(--horloge-trait);
+}
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge-barre[data-action] { cursor: pointer; }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge-barre .remplissage { position: absolute; left: 0; top: 0; bottom: 0; background: var(--horloge-plein); }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge-barre.centree .remplissage { background: linear-gradient(90deg, var(--horloge-alerte), var(--horloge-plein) 50%, var(--horloge-favorable)); }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge-barre .repere { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--horloge-trait); }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge-barre .zero { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: currentColor; opacity: 0.6; z-index: 1; }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge-gestes { display: flex; flex-direction: column; gap: 0.15rem; }
+.lakour-mj-ia.lakour-mjia-horloges .lakour-mjia-horloge-gestes button { width: 26px; height: 22px; padding: 0; line-height: 1; font-size: 0.75rem; }
+
+/* Carte au chat : une horloge sonne, une jauge franchit un seuil, une réputation change de palier. */
+.lakour-mjia-horloge-carte { border-left: 3px solid #d9822b; padding-left: 0.4rem; }
+.lakour-mjia-horloge-carte p { margin: 0.15rem 0; }
+.lakour-mjia-horloge-carte small { opacity: 0.7; }

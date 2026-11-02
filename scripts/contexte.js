@@ -8,6 +8,8 @@ import { listeSalles, salleDeLaCase, resumerFigurants, reperesDuPlan, planDe, ca
 import { voteEnCours } from "./decisions.js";
 import { compagnonsDuMonde, estCompagnon, personnaliteDe } from "./compagnons-jeu.js";
 import { TEMPERAMENTS } from "./compagnons.js";
+import { resumePourIA as resumeHorloges } from "./horloges.js";
+import { horlogesDisponibles } from "./horloges-logique.js";
 
 // Consigne au MJ sur les compagnons IA (docs/compagnons.md) : des joueurs comme les autres, à qui il ne souffle rien.
 export const CONSIGNE_COMPAGNONS = [
@@ -25,6 +27,14 @@ export const CONSIGNE_COMPAGNONS = [
     + "les PNJ et les conséquences, pas le geste qu'ils viennent de décrire. Une didascalie ne change rien au jeu.",
   "  • compagnon_ajouter, compagnon_retirer et compagnons gèrent la troupe ; un vote de groupe et un choix secret les incluent."
 ].join("\n");
+
+// Consigne sur les horloges, jauges et réputations (outil horloge ; 40k, Warcraft) : leur état est dans l'état du jeu.
+export const CONSIGNE_HORLOGES = "- Horloges, jauges et réputations (horloge) : une menace ou un projet qui mûrit hors champ est une horloge "
+  + "(4 à 12 segments) ; avance-la quand le temps passe, qu'un échec la nourrit ou pendant un intermède (les horloges de faction "
+  + "avancent alors d'un ou deux segments), et quand elle sonne, l'événement arrive vraiment. Une jauge compte ce qui s'accumule : l'"
+  + "Exposition (40k) monte après un coup d'éclat, un combat bruyant ou un témoin laissé derrière, et ses seuils déclenchent des réactions. "
+  + "La réputation d'une faction monte avec un service, baisse avec un affront ; son palier règle l'accueil de ses gens. Montre aux "
+  + "joueurs ce que leurs personnages savent (montrer), garde le reste caché ; une ou deux avancées par scène au plus.";
 
 // Consignes des outils liés à des modules tiers (scripts/outils.js, champ « modules ») : une phrase par module actif, et
 // seulement dans les systèmes où l'outil existe. actif : id de module -> booléen.
@@ -128,6 +138,7 @@ export async function promptSysteme(personnalite, { mission } = {}) {
         + "ou un PNJ qui entre en scène. Avec mesure : chaque cadrage déplace la caméra de tous les joueurs."
       : "",
     ...consignesModulesTiers(),
+    horlogesDisponibles(game.system?.id) ? CONSIGNE_HORLOGES : "",
     "- Tu reçois aussi ce que les joueurs font sur le plateau : 🚶 entrée dans une pièce ou déplacement, 🚪 porte ouverte ou fermée, "
       + "⚔️ tour d'un PNJ en combat. Réagis comme un vrai MJ : décris le lieu découvert, déclenche un piège, fais parler un PNJ. "
       + "Si un déplacement n'appelle aucune réaction, réponds seulement « — » (rien ne s'affiche) : ne commente pas chaque pas.",
@@ -224,6 +235,9 @@ export function etatDuJeu() {
     lignes.push(`Combat en cours : round ${combat.round}, tour de ${combat.combatant?.name ?? "?"}. `
       + `Ordre : ${combat.turns.map(c => c.name).join(", ")}.`);
   }
+  // Horloges, jauges et réputations (horloges.js), en quelques lignes (les notes : outil horloge, « lister »).
+  const horloges = resumeHorloges();
+  if (horloges.length) lignes.push("Horloges, jauges et réputations :", ...horloges);
   // Tour par tour (tour-par-tour.js) : le même état et la même étape suivante que le panneau du MJ humain, pour rester cohérent
   // (détails : outil combat_etat) ; le tour de table en cours.
   try { lignes.push(...(game.modules.get(ID)?.api?.tour?.resumePourIA?.() ?? [])); } catch { /* pas de tour par tour */ }
@@ -272,9 +286,38 @@ export function etatPartieLoups(api) {
   if (e.morts?.length) lignes.push(`Morts : ${e.morts.map(m => `${nom(m.acteurId)} (${m.cause}, tour ${m.tour})`).join(", ")}.`);
   if (e.vote?.ouvert) {
     const recus = Object.keys(e.vote.votes ?? {}).length;
-    lignes.push(`Vote OUVERT : ${recus} voix reçue(s) sur ${tous.filter(a => a.system.vivant).length}${e.vote.double ? ", vote double" : ""}.`);
+    lignes.push(`${e.vote.objet === "bailli" ? "Élection du Bailli OUVERTE" : "Vote OUVERT"} : ${recus} voix reçue(s) sur `
+      + `${tous.filter(a => a.system.vivant).length}${e.vote.double ? ", vote double" : ""}.`);
   }
   const silences = tous.filter(a => a.system.vivant && a.system.silence).map(a => a.name);
   if (silences.length) lignes.push(`Réduits au silence aujourd'hui : ${silences.join(", ")}.`);
+  lignes.push(...etatBailliRegistreMasques(api, e));
   return lignes;
 }
+
+// Le Bailli, le Registre du greffier et les Masques de veillée (système lakour-loups 0.6.0 et plus). Défensif : un système plus
+// ancien n'a ni api.bailli, ni api.registreTexte, ni api.masques, et la partie se joue sans eux.
+const essayer = fn => { try { return fn(); } catch { return null; } };
+export function etatBailliRegistreMasques(api, e = essayer(() => api.etat()) ?? {}) {
+  const lignes = [];
+  const b = typeof api?.bailli === "function" ? essayer(() => api.bailli()) : null;
+  if (b?.actif && !e.vainqueur) {
+    if (b.acteurId) lignes.push(`Bailli (public) : ${b.nom || b.acteurId} — sa voix compte double au vote d'exécution, il tranche les égalités.`);
+    else if (b.succession) lignes.push(`Bailli : ${b.succession.nom || "le Bailli"} est mort ; il remet le sceau à un vivant (succession en cours, le système s'en charge).`);
+    else if (b.election?.ok) lignes.push("Pas de Bailli : élis-le avant le vote d'exécution (loups_vote ouvrir, objet « bailli »).");
+    else lignes.push("Pas de Bailli : la charge est vacante (une seule élection par jour, la prochaine au prochain jour).");
+  }
+  const registre = typeof api?.registreTexte === "function" ? essayer(() => api.registreTexte({ max: MAX_REGISTRE_NARRATEUR })) : null;
+  if (registre?.length) {
+    lignes.push("Registre du greffier (public ; pour toi, ne le récite pas — une déclaration n'est qu'une parole, ne la confirme ni ne l'infirme jamais) :",
+      ...registre.map(l => `· ${l}`));
+  }
+  // Les Masques (MJ actif seulement : ailleurs, api.masques lève une erreur).
+  const masques = typeof api?.masques === "function" && !e.vainqueur ? essayer(() => api.masques()) : null;
+  if (masques?.length) {
+    lignes.push(`Masques de veillée de la meute — SECRET ABSOLU : ${masques.map(m => m.nom || m.cle).join(", ")}. Des rôles du Village absents `
+      + "de la partie, que les loups peuvent prétendre tenir. Ne les nomme jamais, ne dis jamais qu'un rôle n'est pas en jeu.");
+  }
+  return lignes;
+}
+export const MAX_REGISTRE_NARRATEUR = 20;

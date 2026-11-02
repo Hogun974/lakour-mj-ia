@@ -1,0 +1,47 @@
+<section class="lakour-mjia-horloges-corps">
+  {{#if vide}}
+  <p class="hint">{{#if mj}}{{localize "LAKOUR_MJIA.Horloges.VideMJ"}}{{else}}{{localize "LAKOUR_MJIA.Horloges.Vide"}}{{/if}}</p>
+  {{/if}}
+  <ul class="lakour-mjia-horloges-liste">
+    {{#each elements}}
+    <li class="lakour-mjia-horloge {{type}} {{#unless visible}}cachee{{/unless}} {{#if plein}}pleine{{/if}}" data-id="{{id}}">
+      {{#if horloge}}
+      {{#if @root.mj}}
+      <button type="button" class="lakour-mjia-horloge-camembert" data-action="avancer" data-id="{{id}}" data-tooltip="{{localize 'LAKOUR_MJIA.Horloges.AideClic'}}">{{{svg}}}</button>
+      {{else}}
+      <span class="lakour-mjia-horloge-camembert">{{{svg}}}</span>
+      {{/if}}
+      {{/if}}
+      <div class="lakour-mjia-horloge-texte">
+        <p class="lakour-mjia-horloge-nom"><strong>{{nom}}</strong>{{#if faction}} <small>{{faction}}</small>{{/if}}</p>
+        {{#if horloge}}
+        <p class="lakour-mjia-horloge-valeur">{{valeur}} / {{max}}{{#if plein}} — <strong>{{localize "LAKOUR_MJIA.Horloges.Sonne"}}</strong>{{/if}}</p>
+        {{else}}
+        <div class="lakour-mjia-horloge-barre {{#if reputation}}centree{{/if}}" {{#if @root.mj}}data-action="avancer" data-id="{{id}}" data-tooltip="{{localize 'LAKOUR_MJIA.Horloges.AideClic'}}"{{/if}}
+          role="meter" aria-valuenow="{{valeur}}" aria-valuemax="{{max}}">
+          {{#if reputation}}<span class="zero" style="left: {{zero}}%"></span>{{/if}}
+          <span class="remplissage" style="width: {{pct}}%"></span>
+          {{#each reperes}}<span class="repere" style="left: {{pct}}%" data-tooltip="{{nom}} ({{min}})"></span>{{/each}}
+        </div>
+        <p class="lakour-mjia-horloge-valeur">
+          {{#if reputation}}<strong>{{palier}}</strong> ({{affiche}}){{else}}{{valeur}} / {{max}}{{#if palier}} — <strong>{{palier}}</strong>{{/if}}{{/if}}
+        </p>
+        {{/if}}
+        {{#if notes}}<p class="hint">{{notes}}</p>{{/if}}
+      </div>
+      {{#if @root.mj}}
+      <div class="lakour-mjia-horloge-gestes">
+        <button type="button" data-action="reculer" data-tooltip="{{localize 'LAKOUR_MJIA.Horloges.Reculer'}}"><i class="fa-solid fa-minus"></i></button>
+        <button type="button" data-action="avancer" data-tooltip="{{localize 'LAKOUR_MJIA.Horloges.Avancer'}}"><i class="fa-solid fa-plus"></i></button>
+        {{#if visible}}
+        <button type="button" data-action="cacher" data-tooltip="{{localize 'LAKOUR_MJIA.Horloges.Cacher'}}"><i class="fa-solid fa-eye"></i></button>
+        {{else}}
+        <button type="button" data-action="montrer" data-tooltip="{{localize 'LAKOUR_MJIA.Horloges.Montrer'}}"><i class="fa-solid fa-eye-slash"></i></button>
+        {{/if}}
+      </div>
+      {{/if}}
+    </li>
+    {{/each}}
+  </ul>
+  {{#if mj}}<p class="hint">{{localize "LAKOUR_MJIA.Horloges.AideMJ"}}</p>{{/if}}
+</section>

@@ -102,7 +102,10 @@ const REGLES = {
     + "les rôles agissent en secret ; le jour, le village débat puis vote pour exécuter un suspect. Gagne avec ton camp. "
     + "Un loup ment pour survivre ; un villageois cherche les loups. Les morts se taisent. Le narrateur n'annonce jamais les rôles "
     + "en jeu. Très rarement, une veillée n'a aucun loup : c'est la peste noire, qui emporte un villageois chaque nuit ; le village "
-    + "ne la vainc qu'en la reconnaissant (« C'est la peste noire ! »), et un cri à tort coûte la vie.",
+    + "ne la vainc qu'en la reconnaissant (« C'est la peste noire ! »), et un cri à tort coûte la vie. Le Bailli est une charge "
+    + "PUBLIQUE : élu par le village avant le vote d'exécution, sa voix y compte double, il tranche les égalités et, à sa mort, remet "
+    + "le sceau à un vivant de son choix ; le jeu s'en charge. Le Registre du greffier, public, garde les votes voix par voix, les morts "
+    + "et les déclarations des villageois ; une déclaration n'est qu'une parole, que personne ne vérifie.",
   aventure: "C'est une partie de jeu de rôle : le meneur décrit le monde et joue les PNJ, chaque joueur joue son personnage. "
     + "Tu dis ce que fait et dit ton personnage, jamais ce que font les autres ni ce qui leur arrive."
 };
@@ -177,7 +180,18 @@ export const CONSIGNE_PARLER_LOUPS = " Tu peux accuser, te défendre, poser une 
   + "fenêtres du jeu. Une seule exception, le cri de la peste noire : si tu es CONVAINCU qu'il n'y a aucun loup à Brumecombe mais une "
   + "peste (aucune vision n'a jamais montré de loup, les morts n'ont aucune trace de crocs…), tu peux écrire dans ta réplique "
   + "exactement « C'est la peste noire ! ». Si c'est vrai, le village gagne aussitôt ; si c'est faux, tu es pendu pour avoir semé la "
-  + "panique. C'est rarissime : sans preuves solides, ne le crie jamais.";
+  + "panique. C'est rarissime : sans preuves solides, ne le crie jamais. Pour faire inscrire une déclaration au Registre du greffier "
+  + "(public, une phrase, trois par jour au plus), commence ta réplique par « Au Registre : » suivi de ce que tu déclares (« Au "
+  + "Registre : je suis la Liseuse de cendres, j'ai lu Berthe cette nuit. »). Le greffier ne vérifie rien : on peut y mentir.";
+
+// La déclaration au Registre en tête d'une réplique de compagnon (« Au Registre : … », après une éventuelle didascalie) : le
+// texte à inscrire, ou null. compagnons-jeu.js la transmet au système des Veillées (api.declarer).
+export const DECLARATION_REGISTRE = /^\s*(?:\*[^*]*\*\s*(?:[—–-]\s*)?)?au registre\s*:\s*(.+)$/is;
+export function declarationAuRegistre(texte) {
+  const m = DECLARATION_REGISTRE.exec(String(texte ?? ""));
+  const dit = m ? m[1].replace(/\s+/g, " ").trim() : "";
+  return dit || null;
+}
 
 // Le cri de la peste noire dans une réplique de compagnon (compagnons-jeu.js le transmet au système des Veillées).
 export const CRI_PESTE = /c['’]est la peste noire/i;
@@ -308,6 +322,14 @@ export function repliDecision(vue, demande, graine) {
   const pasSoi = demande.candidats.filter(c => c.id !== vue.id);
   const permis = (allies.size ? pasSoi.filter(c => !allies.has(c.id)) : pasSoi);
   const pool = permis.length ? permis : demande.candidats;
+  // Confier le sceau (élection, succession) : un loup à un allié (ou à lui-même), un villageois à quelqu'un qu'il ne soupçonne pas.
+  if (demande.objet === "bailli" || demande.objet === "succession") {
+    const vivants = demande.candidats;
+    const amis = vivants.filter(c => allies.has(c.id) || (demande.objet === "bailli" && allies.size && c.id === vue.id));
+    const surs = vivants.filter(c => !suspects.has(c.id));
+    const c = choisir(amis.length ? amis : surs.length ? surs : vivants, h);
+    return { cibles: c ? [c.id] : [] };
+  }
   if (demande.vote) {
     if (h() < 0.1) return { cibles: [] };
     const vises = pool.filter(c => suspects.has(c.id));

@@ -69,14 +69,17 @@ export const nouvelleMemoire = () => ({ tour: -1, aube: false, debats: 0, voteFa
 
 // La prochaine étape d'après l'état du système et la mémoire du pilote ; null = rien à faire.
 // elusVivants : désignés du vote du jour encore vivants ; debatMax : tours de parole des compagnons au débat.
-export function prochaineEtapeLoups(etat, m, { elusVivants = [], debatMax = DEBAT_TOURS } = {}) {
+// election : l'élection du Bailli est due (api.bailli().election.ok, système 0.6.0 et plus) : après le débat, elle passe avant le
+// vote d'exécution ; sa clôture (« bailli-clore ») n'exécute personne.
+export function prochaineEtapeLoups(etat, m, { elusVivants = [], debatMax = DEBAT_TOURS, election = false } = {}) {
   if (etat.vainqueur || etat.phase === "fin") return m.denouement ? null : "denouement";
   if (etat.phase === "preparation") return null;
-  if (etat.vote?.ouvert) return "vote-clore";
+  if (etat.vote?.ouvert) return etat.vote.objet === "bailli" ? "bailli-clore" : "vote-clore";
   if (etat.phase === "nuit") return "nuit";
   if (m.voteFait) return elusVivants.length ? "eliminer" : "nuit";
   if (etat.phase === "aube" && !m.aube) return "aube";
-  return m.debats < debatMax ? "debat" : "vote-ouvrir";
+  if (m.debats < debatMax) return "debat";
+  return election ? "bailli" : "vote-ouvrir";
 }
 
 // Le vote d'exécution de ce tour a eu lieu (clos, non prolongé) ?
@@ -96,6 +99,10 @@ export const CONSIGNES_LOUPS = {
     + "Après son résultat, réponds seulement « — » : l'aube sera racontée à l'étape suivante, même si une victoire est annoncée.",
   aube: "Étape : l'aube. Raconte l'aube de cette nuit (les morts et leur sort, sans trahir qui a fait quoi ni aucun rôle secret), "
     + "puis ouvre le débat du jour en une phrase. N'ouvre pas encore le vote.",
+  bailli: "Étape : l'élection du Bailli. Annonce l'élection en une phrase, puis loups_vote ouvrir objet « bailli », duree_secondes 0 ; "
+    + "ne la clos pas : les villageois votent.",
+  "bailli-clore": "Étape : le dépouillement de l'élection. Clos-la (loups_vote, action « clore ») et annonce le Bailli en une phrase (ou la "
+    + "charge vacante), sans réciter les voix. Personne n'est exécuté par ce vote : le vote d'exécution vient ensuite.",
   "vote-ouvrir": "Étape : le vote. Clos le débat en une phrase, puis ouvre le vote d'exécution (loups_vote, action « ouvrir », candidats "
     + "vides, duree_secondes 0). Ne le clos pas : les villageois votent.",
   "vote-clore": "Étape : le dépouillement. Clos le vote (loups_vote, action « clore ») et annonce le désigné, sans réciter les voix (la carte et la Table les montrent). N'exécute personne à cette "
@@ -310,7 +317,10 @@ export class PiloteAutomatique {
     if (voteDuJour(etat)) m.voteFait = true;
     const vivant = id => api.villageois().find(a => a.id === id)?.system?.vivant !== false;
     const elusVivants = m.voteFait ? (etat.vote.resultat?.elus ?? []).filter(vivant) : [];
-    const etape = prochaineEtapeLoups(etat, m, { elusVivants, debatMax: this.debatMax() });
+    // L'élection du Bailli due maintenant (système 0.6.0 et plus ; un système plus ancien n'a pas api.bailli).
+    let election = false;
+    try { election = Boolean(api.bailli?.()?.election?.ok); } catch { /* pas de Bailli */ }
+    const etape = prochaineEtapeLoups(etat, m, { elusVivants, debatMax: this.debatMax(), election });
     if (!etape) return null;
     const vivants = api.villageois().filter(a => a.system?.vivant !== false).length;
     return { etape, cle: [etape, etat.phase, etat.tour, etat.vote?.numero ?? 0, Boolean(etat.vote?.ouvert), vivants, m.debats].join("|") };
@@ -374,6 +384,8 @@ export class PiloteAutomatique {
       }
       case "vote-ouvrir": return this.#tour(ENTETE, CONSIGNES_LOUPS["vote-ouvrir"]);
       case "vote-clore": return this.#tour(ENTETE, CONSIGNES_LOUPS["vote-clore"]);
+      case "bailli": return this.#tour(ENTETE, CONSIGNES_LOUPS.bailli);
+      case "bailli-clore": return this.#tour(ENTETE, CONSIGNES_LOUPS["bailli-clore"]);
       case "eliminer": {
         const etat = api.etat();
         const elus = (etat.vote.resultat?.elus ?? []).filter(id => api.villageois().find(a => a.id === id)?.system?.vivant !== false);

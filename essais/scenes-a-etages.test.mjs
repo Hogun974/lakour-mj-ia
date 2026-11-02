@@ -306,6 +306,9 @@ const VERIFICATIONS = {
     const { fonds } = M.rendu.fondsDesNiveaux(plan, { taille: 100, style: "2d" });
     assert.equal(depots.length, 3, "trois fonds déposés");
     assert.equal(new Set(depots.map(d => d.nom)).size, 3, "trois fichiers distincts");
+    // Distincts par leur suffixe d'étage, pas par l'horodatage : sous charge, Date.now() change entre deux dépôts et des noms sans
+    // suffixe resteraient distincts par hasard (la mutation « un fichier par étage » passait alors inaperçue).
+    assert.deepEqual(depots.map(d => /-n(\d+)-2d\.svg$/.exec(d.nom)?.[1]).sort(), ["0", "1", "2"], "un suffixe d'étage par fichier");
     for (const [i, l] of s.levels.entries()) {
       const depot = depots.find(d => `${d.dossier}/${d.nom}` === l.background.src);
       assert.ok(depot, `niveau « ${l.name} » : fond déposé`);

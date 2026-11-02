@@ -2,7 +2,7 @@
 // joueurs, visible) et recopié dans docs/guide-utilisation.md par outils/ecrire-guide.mjs.
 // Texte au format des journaux du module (paragraphes, **gras**, *italique*, listes « - », titres « # »).
 
-export const VERSION_GUIDE = 7;
+export const VERSION_GUIDE = 8;
 
 export const GUIDE_MJ = [
   { titre: "Démarrer", texte: `
@@ -36,7 +36,7 @@ export const GUIDE_MJ = [
 - **Scénario** : suivre l'aventure écrite, ou l'adapter en jeu selon sa liberté (fidèle, adaptative, libre) ; chaque page réécrite garde sa version précédente.` },
   { titre: "Les trois mondes", texte: `
 # Warhammer 40 000 — Imperium Maledictum
-Modules **lakour-mj-ia** et **lakour-40k**. Contenu original du sous-secteur de la Kour : origines, factions, rôles, talents (une partie automatisés), armement, bestiaire, deux aventures et une campagne, lieux prêts à l'emploi, 21 tables du MJ (Patron, missions, enquête, ruche, Warp, butin…). **Fiche La Kour** : en-tête avec Origine, Faction, Rôle et Patron, jauges, inventaire par catégories avec icônes et encombrement (on peut revenir à la fiche d'impmal dans la configuration de la fiche). L'assistant de création équipe le personnage (armure portée, arme en main, munitions). Cartes d'aventure épinglées sur le journal du MJ, avec sons et zones. Installer : Réglages › La Kour 40k › Installer, ou importer l'aventure du compendium **Aventures** (proposée aussi à la création d'un monde).
+Modules **lakour-mj-ia** et **lakour-40k**. Contenu original du sous-secteur de la Kour : origines, factions, rôles, talents (une partie automatisés), armement, bestiaire, deux aventures et une campagne, lieux prêts à l'emploi, des tables du MJ (Patron, missions, enquête, ruche, Warp, butin…). **Fiche La Kour** : en-tête avec Origine, Faction, Rôle et Patron, jauges, inventaire par catégories avec icônes et encombrement (on peut revenir à la fiche d'impmal dans la configuration de la fiche). L'assistant de création équipe le personnage (armure portée, arme en main, munitions). Cartes d'aventure épinglées sur le journal du MJ, avec sons et zones. Installer : Réglages › La Kour 40k › Installer, ou importer l'aventure du compendium **Aventures** (proposée aussi à la création d'un monde).
 
 # Warcraft — D&D 5e
 Modules **lakour-mj-ia**, **lakour-warcraft**, **dnd5e_fr-FR**, **babele**, **fr-core**. Peuples d'Azeroth, historiques, **8 sous-classes** (Domaine des Éléments, Main d'argent, Rêve d'émeraude, Gladiateur d'Orgrimmar, Chasseur de démons illidari, Pacte de la Gangrène, Kirin Tor, SI:7), **dons** et **affiliations**, **sorts** maison (dans les listes des classes), **arsenal** (armes de faction, armures, munitions, prothèses, objets magiques), **afflictions** (blessures, maladies, corruption gangrenée), bestiaire aux couleurs des factions, aventure de départ et campagne, unités métriques. Journaux liés et jets cliquables ; cartes épinglées, avec sons et zones. Installer : Réglages › La Kour Warcraft › Installer, ou importer l'aventure du compendium **Aventures** (proposée aussi à la création d'un monde).
@@ -77,6 +77,19 @@ Le panneau **Tour par tour** (bouton **bouclier** dans la barre de gauche, calqu
 
 # Le tour de table, hors combat
 Bouton **Commencer un tour de table** du panneau : la parole passe à chacun dans l'ordre (joueurs, puis compagnons IA). Celui qui a la parole décrit ce que fait son personnage ; son message dans le chat, ou son bouton **J'ai fini** / **Je passe**, donne la parole au suivant. Tu peux aussi presser **A parlé** ou **Passe**. Avec le MJ IA en séance, il attend que tout le monde ait parlé (ou passé) avant de raconter la suite, puis peut relancer un tour (outil tour_de_table).` },
+  { titre: "Horloges, jauges et réputations (40k et Warcraft)", texte: `
+# Ce qui avance hors champ
+La fenêtre **Horloges** (bouton **camembert** dans la barre de gauche, calque des jetons, ou bouton **Horloges** de la console) montre trois sortes d'éléments, que le MJ IA crée et fait vivre avec son outil **horloge** :
+- **Horloge** : 4 à 12 segments, à la façon de *Blades in the Dark*. Une menace ou un projet qui mûrit (« le culte achève son rituel », « les renforts arrivent ») : elle avance quand le temps passe ou qu'un échec la nourrit, et quand elle est pleine, **elle sonne** : l'événement arrive.
+- **Jauge** : un compteur de 0 au maximum, avec des **seuils** nommés. En 40k, l'**Exposition** (id *exposition*) : plus elle monte, plus l'équipe s'est fait remarquer (un coup d'éclat, un combat bruyant, un témoin laissé derrière).
+- **Réputation** : les points d'une faction, de -100 à +100, lus en **paliers** : **Haï** (-100 à -51), **Hostile** (-50 à -21), **Inamical** (-20 à -6), **Neutre** (-5 à +5), **Amical** (+6 à +20), **Honoré** (+21 à +50), **Révéré** (+51 à +80), **Exalté** (+81 et plus). Un service vaut +3 à +5, un grand service +10 à +15, un affront -5, une trahison -20 à -30.
+
+# À la table
+- **Clic** sur un camembert ou une barre : avancer d'un cran ; **clic droit** (ou **−**) : reculer. L'**œil** montre l'élément aux joueurs ou le leur cache : ils ne voient que ce que tu as montré.
+- Quand une horloge sonne, qu'une jauge franchit un seuil ou qu'une réputation change de palier, une **carte** paraît au chat (chuchotée aux MJ si l'élément est caché) et le **MJ IA** en est prévenu pour en tirer une conséquence.
+- Le MJ IA voit l'état de chaque élément à chaque tour ; ses **notes** (ce qui arrive quand l'horloge sonne) restent secrètes. Pendant un intermède, il avance les horloges des factions.
+- **Modules des mondes** : *game.modules.get("lakour-mj-ia").api.horloges* — *assurer(def)* crée un élément s'il n'existe pas (par son id) et le rend ; *avancer(id, n)* ; *lister()* ; *palier(id)*. Seul le MJ actif écrit.
+- **Réinitialiser la campagne** efface aussi les horloges.` },
   { titre: "Mener les Veillées soi-même, avec des joueurs IA", texte: `
 Sans séance du MJ IA, c'est toi qui mènes la **Table de jeu** des Veillées ; des **joueurs IA** peuvent quand même compléter la table.
 - **Ajouter des joueurs IA** : bouton **+ Joueur IA** de la Table. Chacun reçoit un nom du village et une personnalité ; la distribution des rôles de la Table les compte comme des joueurs.
@@ -124,6 +137,10 @@ export const GUIDE_JOUEURS = [
 - Quand ton tour arrive, un **tintement** discret sonne chez toi seul (réglage « M'appeler quand c'est à moi » du MJ IA) ; de même pour un vote de groupe ou un choix secret.
 - Si le MJ l'a réglé ainsi, seul le combattant dont c'est le tour peut bouger son jeton.
 - **Hors combat**, le MJ peut faire un **tour de table** : quand vient ton tour, le bandeau dit « À toi de décrire ce que fait ton personnage ». Écris-le dans le chat (ou presse **J'ai fini**), ou **Je passe**.` },
+  { titre: "Horloges (40k et Warcraft)", texte: `
+- Le bouton **camembert** de la barre de gauche ouvre la fenêtre **Horloges** : ce que le MJ a choisi de te montrer.
+- Une **horloge** se remplit segment par segment : quand elle est pleine, quelque chose arrive. Une **jauge** monte avec vos actions (l'Exposition, en 40k : plus elle est haute, plus vous êtes repérés). Une **réputation** dit ce qu'une faction pense de vous, de **Haï** à **Exalté**.
+- Quand une horloge sonne ou qu'une réputation change, le chat te le dit.` },
   { titre: "Les Veillées de Brumecombe", texte: `
 - Ton **rôle** t'est donné en secret au début ; garde-le pour toi.
 - La **nuit**, si ton rôle agit, une fenêtre s'ouvre chez toi seul : choisis, ou passe.

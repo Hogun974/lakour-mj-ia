@@ -130,6 +130,12 @@ export function enregistrerReglages() {
     scope: "world", config: false, type: Object, default: { actif: false, ordre: [], index: 0, faits: {}, tour: 0 },
     onChange: () => game.modules.get(ID)?.api?.tour?.rafraichir?.()
   });
+  // Horloges, jauges et réputations (horloges.js ; 40k, Warcraft) : [{ id, nom, type, valeur, max, visible, faction, notes,
+  // paliers }], écrit par le MJ actif seul ; chaque navigateur redessine sa fenêtre « Horloges » quand il change.
+  game.settings.register(ID, "horloges", {
+    scope: "world", config: false, type: Array, default: [],
+    onChange: () => game.modules.get(ID)?.api?.horloges?.rafraichir?.()
+  });
   // Personnages dont l'IA a bloqué les déplacements : { idActeur: raison }. Lu par chaque navigateur de joueur.
   game.settings.register(ID, "mouvementsBloques", { scope: "world", config: false, type: Object, default: {} });
 

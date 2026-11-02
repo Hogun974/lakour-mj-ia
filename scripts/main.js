@@ -18,6 +18,8 @@ import { compagnonsPresents } from "./compagnons-jeu.js";
 import { versHTML } from "./utilitaires.js";
 import { TourParTour, mouvementHorsTour } from "./tour-par-tour.js";
 import { brancherTourParTour, ouvrirPanneau } from "./apps/tour-par-tour.js";
+import * as horloges from "./horloges.js";
+import { ouvrirHorloges, rafraichirHorloges } from "./apps/horloges.js";
 
 Hooks.once("init", () => {
   enregistrerReglages();
@@ -45,8 +47,24 @@ Hooks.once("ready", () => {
     ecoute,
     // Le joueur coupe la voix des IA chez lui (réglage « entendreNarration ») : ce qui joue s'arrête net.
     couperVoix,
-    afficherEcoute
+    afficherEcoute,
+    // Horloges, jauges et réputations (horloges.js ; 40k, Warcraft). Contrat des modules des mondes : assurer(def) crée
+    // l'élément s'il n'existe pas (par id) et le rend ; avancer(id, n = 1) ; lister() ; palier(id). Seul le MJ actif écrit.
+    horloges: {
+      assurer: def => horloges.assurer(def),
+      avancer: (id, n = 1) => horloges.avancer(id, n),
+      lister: () => horloges.lister(),
+      palier: id => horloges.palier(id),
+      trouver: ref => horloges.trouver(ref),
+      regler: (id, changements) => horloges.regler(id, changements),
+      montrer: (id, visible = true) => horloges.montrer(id, visible),
+      retirer: id => horloges.retirer(id),
+      ouvrir: () => ouvrirHorloges(),
+      rafraichir: () => rafraichirHorloges()
+    }
   };
+  // Gestes de la fenêtre Horloges faits par un autre MJ : transmis au MJ actif.
+  horloges.brancherHorloges();
   // Voix des IA en direct : chaque navigateur joue les morceaux de son reçus du MJ actif (canal du module).
   brancherVoixDirecte();
   // L'écoute suit l'état de la table : séance, compagnons, flux A/V qui arrivent ou changent, phase des Veillées.
@@ -94,6 +112,9 @@ Hooks.once("ready", () => {
   }
   // Vue 3D demandée par l'IA (3D Canvas) : ouverture et cadrage, dans chaque navigateur.
   if (game.modules.get("levels-3d-preview")?.active) brancherVue3d();
+  // L'API est prête : les modules des mondes peuvent y déclarer leurs horloges (api.horloges.assurer), quel que soit l'ordre
+  // de chargement des modules.
+  Hooks.callAll(`${ID}.pret`, game.modules.get(ID).api);
 
   // Une séance restée « active » (navigateur fermé en pleine partie) ne doit pas
   // reprendre en silence : le MJ la relance depuis la console.
@@ -216,11 +237,23 @@ Hooks.on("preMoveToken", jeton => {
   if (mouvementInterdit(jeton)) return false;
 });
 
-// Accès à la console depuis les contrôles de scène (MJ uniquement).
+// Accès à la console depuis les contrôles de scène (MJ uniquement) ; la fenêtre Horloges pour tous (hors Veillées).
 Hooks.on("getSceneControlButtons", controles => {
-  if (!game.user.isGM) return;
   const jetons = controles.tokens ?? controles.token;
   if (!jetons?.tools) return;
+  // Horloges, jauges et réputations : les joueurs n'y voient que ce que le MJ a montré.
+  if (horloges.disponibles()) {
+    jetons.tools.lakourHorloges = {
+      name: "lakourHorloges",
+      title: "LAKOUR_MJIA.Horloges.Titre",
+      icon: "fa-solid fa-chart-pie",
+      order: Object.keys(jetons.tools).length,
+      button: true,
+      visible: true,
+      onChange: () => ouvrirHorloges()
+    };
+  }
+  if (!game.user.isGM) return;
   jetons.tools.lakourMjIa = {
     name: "lakourMjIa",
     title: "LAKOUR_MJIA.Console.Titre",

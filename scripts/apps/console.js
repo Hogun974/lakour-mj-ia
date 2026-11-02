@@ -4,6 +4,7 @@ import { ConfigIA } from "./config-ia.js";
 import { EditeurPersonnalites } from "./personnalites.js";
 import { reinitialiserCampagne } from "../reinitialiser.js";
 import { voixDuMonde, activerAudio, donnerMicro } from "../voix-monde.js";
+import { horlogesDisponibles } from "../horloges-logique.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -39,6 +40,7 @@ export class ConsoleMJ extends HandlebarsApplicationMixin(ApplicationV2) {
         ui.notifications.info(game.i18n.localize("LAKOUR_MJIA.VoixMonde.MicroDonne"));
         this.render();
       },
+      horloges: () => game.modules.get(ID).api.horloges.ouvrir(),
       config: () => new ConfigIA().render({ force: true }),
       personnalites: () => new EditeurPersonnalites().render({ force: true })
     }
@@ -74,6 +76,7 @@ export class ConsoleMJ extends HandlebarsApplicationMixin(ApplicationV2) {
       jetons: seance.jetons,
       prixConnus: fournisseur === "anthropic" || (fournisseur === "openai" && Boolean(prixOpenAI(lire("modeleOpenAI")))),
       creationPossible: game.system.id === "impmal",
+      horloges: horlogesDisponibles(game.system.id),
       joueurs: Object.fromEntries(game.users.filter(u => !u.isGM).map(u => [u.name, u.name]).concat([[game.user.name, `${game.user.name} (MJ)`]]))
     };
   }

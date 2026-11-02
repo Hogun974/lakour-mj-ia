@@ -26,7 +26,12 @@ const MUTATIONS = {
   "tour de table : un autre fait avancer": ["if (!o || o.id !== id) return t;", "if (!o) return t;"],
   "dépense au-delà de la réserve": ["return { ...depenses, [cle]: Math.min(Number(r.n ?? 1), Number(depenses?.[cle] ?? 0) + 1) };", "return { ...depenses, [cle]: Number(depenses?.[cle] ?? 0) + 1 };"],
   "moyenne d'un dé fausse": ["Number(m[2] || 1) * (Number(m[3]) + 1) / 2", "Number(m[2] || 1) * Number(m[3]) / 2"],
-  "DD de concentration sans plancher": ["Math.min(30, Math.max(10, Math.floor(Number(degats || 0) / 2)))", "Math.min(30, Math.floor(Number(degats || 0) / 2))"]
+  "DD de concentration sans plancher": ["Math.min(30, Math.max(10, Math.floor(Number(degats || 0) / 2)))", "Math.min(30, Math.floor(Number(degats || 0) / 2))"],
+  "légendaires du combattant actif proposés": ["c.id !== actifId && pnj(c) && c.legendaires?.reste > 0", "pnj(c) && c.legendaires?.reste > 0"],
+  "légendaires épuisés proposés": ["c.id !== actifId && pnj(c) && c.legendaires?.reste > 0", "c.id !== actifId && pnj(c) && c.legendaires"],
+  "légendaires d'un PNJ à terre": ["const pnj = c => !c.aTerre && !", "const pnj = c => !"],
+  "repaire jamais au bon moment": ["const maintenant = i >= 0 && ini(actif) < compte && (i === 0 || ini(combattants[i - 1]) >= compte);", "const maintenant = false;"],
+  "repaire à chaque tour sous 20": ["(i === 0 || ini(combattants[i - 1]) >= compte)", "true"]
 };
 
 const combattant = (id, nom, camp, extra = {}) => ({ id, nom, camp, initiative: 10, aTerre: false, mort: false, jetsMort: null, cases: { x: 0, y: 0 }, ...extra });
@@ -65,6 +70,27 @@ async function batterie(L) {
   verifier("dépense", () => assert.deepEqual(L.depenser(ECO, { action: 1 }, "action"), { action: 1 }));
   verifier("moyenne", () => assert.equal(L.moyenneFormule("2d6"), 7));
   verifier("concentration", () => assert.equal(L.ddConcentration(4), 10));
+  // Actions légendaires et de repaire (D&D 5e) : une ligne courte pour l'IA.
+  const dragon = { id: "d", nom: "Onyxia", camp: "ennemi", initiative: 15, aTerre: false, legendaires: { reste: 2, max: 3 }, repaire: 20 };
+  const ordre = [{ id: "j", nom: "Grommash", camp: "joueur", initiative: 22 }, { id: "g", nom: "Gobelin", camp: "ennemi", initiative: 18 }, dragon,
+    { id: "k", nom: "Kael", camp: "compagnon", initiative: 9, legendaires: { reste: 1, max: 1 } }];
+  verifier("légendaires à la fin du tour d'un autre", () => {
+    const l = L.rappelsLegendaires({ combattants: ordre, actifId: "j" }).join("\n");
+    assert.match(l, /Actions légendaires possibles à la fin du tour de Grommash : Onyxia \(2\/3\)\./);
+    assert.doesNotMatch(l, /Kael/, "un compagnon n'est pas un PNJ légendaire");
+  });
+  verifier("pas de légendaires pour soi, ni épuisés, ni à terre", () => {
+    assert.doesNotMatch(L.rappelsLegendaires({ combattants: ordre, actifId: "d" }).join("\n"), /Actions légendaires/);
+    const epuise = ordre.map(c => (c.id === "d" ? { ...c, legendaires: { reste: 0, max: 3 } } : c));
+    assert.doesNotMatch(L.rappelsLegendaires({ combattants: epuise, actifId: "j" }).join("\n"), /Actions légendaires/);
+    const tombe = ordre.map(c => (c.id === "d" ? { ...c, aTerre: true } : c));
+    assert.deepEqual(L.rappelsLegendaires({ combattants: tombe, actifId: "j" }), []);
+  });
+  verifier("repaire : le moment, au premier combattant sous 20 du round", () => {
+    assert.match(L.rappelsLegendaires({ combattants: ordre, actifId: "g" }).join("\n"), /Actions de repaire : c'est le moment \(initiative 20, avant Gobelin\) — Onyxia/);
+    assert.match(L.rappelsLegendaires({ combattants: ordre, actifId: "j" }).join("\n"), /Repaire : Onyxia a une action de repaire par round, à l'initiative 20/);
+    assert.doesNotMatch(L.rappelsLegendaires({ combattants: ordre, actifId: "d" }).join("\n"), /c'est le moment/, "une seule fois par round");
+  });
   return echecs;
 }
 

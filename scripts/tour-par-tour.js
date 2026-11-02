@@ -114,6 +114,7 @@ export class TourParTour {
       camp: jeton ? campDe(jeton) : acteur?.hasPlayerOwner ? "joueur" : "neutre", initiative: c.initiative ?? null,
       aTerre: Boolean(c.isDefeated ?? c.defeated) || Boolean(fiche.aTerre), mort: Boolean(fiche.mort), jetsMort: fiche.jetsMort ?? null,
       pv: fiche.pv ?? null, pvMax: fiche.pvMax ?? null, pvTexte: fiche.pvTexte ?? "", defense: fiche.defense ?? "",
+      legendaires: fiche.legendaires ?? null, repaire: fiche.repaire ?? null,
       cases: jeton ? casesDe(jeton) : null, cache: Boolean(c.hidden), img: c.img ?? acteur?.img ?? ""
     };
   }
@@ -648,6 +649,8 @@ export class TourParTour {
     if (combat?.started && this.sys) {
       const e = sur(() => this.etape(combat));
       if (e) lignes.push(`Tour : ${combat.combatant?.name ?? "?"} ; étape suivante : ${this.texteEtape(e)}.`);
+      // D&D 5e : actions légendaires restantes des autres, actions de repaire au compte d'initiative (tour-logique.js).
+      lignes.push(...(sur(() => L.rappelsLegendaires({ combattants: this.combattants(combat), actifId: combat.combatant?.id }), []) ?? []));
     }
     const t = this.lireTable();
     if (t?.actif) {

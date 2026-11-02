@@ -40,7 +40,10 @@ const impmal = {
   consignes: "Système Imperium Maledictum (Warhammer 40,000, Cubicle 7) : tests au d100 sous la valeur "
     + "de caractéristique + compétence, degrés de réussite (DR / SL). Respecte le ton de l'univers : "
     + "l'Imperium est oppressant, la foi et la peur gouvernent, le Warp corrompt. "
-    + "Pour une difficulté ou une règle précise, consulte le livre de base dans les compendiums.",
+    + "Pour une difficulté ou une règle précise, consulte le livre de base dans les compendiums. "
+    + "Supériorité (outil superiorite) : la réserve commune de l'équipe en combat, ajoutée en DR aux tests qui l'utilisent. Au début "
+    + "d'un combat, +1 par renseignement confirmé que le plan des personnages exploite (plafond 3 à 4), 0 s'ils tombent dans une "
+    + "embuscade ; remets-la à 0 à la fin du combat. demander_jet peut pré-cocher « Utiliser la Supériorité » (superiorite).",
   competences(acteur) {
     const config = game.impmal?.config ?? CONFIG.IMPMAL ?? {};
     const caracs = Object.keys(acteur?.system?.characteristics ?? {}).map(cle => ({
@@ -59,6 +62,9 @@ const impmal = {
     if (reglages.dr) fields.SL = reglages.dr;
     if (reglages.avantage) fields.advantage = reglages.avantage;
     if (reglages.desavantage) fields.disadvantage = reglages.desavantage;
+    // Supériorité : la case « Utiliser la Supériorité » n'existe qu'en combat, pour un personnage joueur (showSuperiority du
+    // système). Pré-cochée seulement là : ailleurs, invisible, elle ajouterait la Supériorité aux DR en silence.
+    if (reglages.superiorite && acteur.inCombat && acteur.hasPlayerOwner) fields.useSuperiority = true;
     const contexte = { fields, ...(reglages.titre ? { appendTitle: ` — ${reglages.titre}` } : {}) };
     if (acteur.system.characteristics?.[cle]) return acteur.setupCharacteristicTest(cle, contexte);
     return acteur.setupSkillTest({ key: cle }, contexte);
@@ -108,7 +114,12 @@ const dnd5e = {
   cheminNotesMJ: "system.details.biography.value",
   consignes: "Système D&D 5e : tests au d20 + modificateur contre un DD (facile 10, moyen 15, difficile 20, "
     + "très difficile 25). Avantage / désavantage selon la situation. "
-    + "Pour un monstre, un sort ou un objet, cherche d'abord dans les compendiums.",
+    + "Pour un monstre, un sort ou un objet, cherche d'abord dans les compendiums. "
+    + "Contrats (tableau des contrats d'une ville, Warcraft) : tires-en trois par jour de jeu (lancer_table, nombre 3, exclure ceux "
+    + "déjà pris ou accomplis) ; à la fin d'un contrat, paie les po (bourse) et avance la réputation indiquée (rep-<faction>) avec "
+    + "horloge (avancer, nom rep-<faction>, valeur = les points du contrat). "
+    + "En combat, l'état du jeu te rappelle les actions légendaires restantes des PNJ (à la fin du tour d'un autre) et les actions "
+    + "de repaire (une par round, à leur compte d'initiative) : joue-les.",
   competences() {
     const C = CONFIG.DND5E ?? {};
     const comps = Object.entries(C.skills ?? {}).map(([cle, v]) => ({ cle, libelle: game.i18n.localize(v.label ?? cle) }));
@@ -193,9 +204,17 @@ const loups = {
     + "nuit, raconté exactement comme une victime de la meute. Tu le sais (distribution secrète, état du jeu), tu ne le dis jamais, ni "
     + "par allusion, avant la fin. La première nuit, tu choisis sa victime (loups_nuit, peste_victime) ; ensuite, sa dernière victime la "
     + "désigne. Quand un joueur crie « C'est la peste noire ! », loups_peste : juste, le village gagne ; faux, le crieur est pendu. "
+    + "Le Bailli est une charge PUBLIQUE : un jour sans Bailli vivant, son élection (loups_vote ouvrir, objet « bailli ») passe avant le "
+    + "vote d'exécution ; le système gère seul sa voix double, le départage des égalités et sa succession à sa mort : annonce-les, sans "
+    + "rien trancher à sa place (loups_bailli nommer seulement pour corriger, ou quand on te le dit à voix haute). Le Registre du "
+    + "greffier est public (votes voix par voix, morts et leur cause publique, déclarations) : tu l'as dans l'état du jeu, ne le récite "
+    + "pas ; une déclaration n'est qu'une parole, ne la confirme ni ne l'infirme jamais ; inscris celle qu'un joueur te dicte "
+    + "(loups_registre declarer). Les Masques de veillée sont un secret de la meute : ne les mentionne jamais, et ne dis jamais qu'un "
+    + "rôle n'est pas en jeu. "
     + "Déroulement : loups_distribuer (mode roles avec la composition retenue, ou auto), "
     + "puis en boucle loups_nuit (la nuit entière, "
-    + "rôles réveillés en secret), récit de l'aube, débat, loups_vote (ouvrir puis clore), loups_eliminer de l'élu, jusqu'à la victoire. "
+    + "rôles réveillés en secret), récit de l'aube, débat, élection du Bailli s'il n'y en a pas, loups_vote (ouvrir puis clore), "
+    + "loups_eliminer de l'élu, jusqu'à la victoire. "
     + "Un rôle n'est révélé qu'à la mort (selon le réglage). Les morts se taisent. "
     + "Le plateau se met en scène TOUT SEUL : le système pose un jeton verrouillé par villageois, les ramène chacun devant sa maison "
     + "la nuit, les range en cercle sur la place pour le débat et le vote, porte les morts au cimetière, règle la lumière et révèle les "
@@ -312,7 +331,7 @@ const TOUR_IMPMAL = {
       defense: [comp("reflexes") !== undefined ? `Réflexes ${comp("reflexes")}` : "", comp("melee") !== undefined ? `Mêlée ${comp("melee")}` : ""]
         .filter(Boolean).join(" · ") || "?",
       aTerre, mort, jetsMort: null, conditions: etats.filter(e => e !== "dead").map(nomCondition), effets: effetsADuree(acteur),
-      concentration: "", regeneration: "", legendaires: null,
+      concentration: "", regeneration: "", legendaires: null, repaire: null,
       mouvementMax: MOUVEMENT_IMPMAL[allure] ?? null, allure: libAllure ? game.i18n.localize(libAllure) : allure
     };
   },
@@ -419,6 +438,8 @@ const TOUR_DND5E = {
     const mort = etats.includes("dead") || (personnage && Number(mortSauv.failure ?? 0) >= 3) || (!personnage && zero);
     const stable = personnage && Number(mortSauv.success ?? 0) >= 3;
     const legact = acteur?.system?.resources?.legact;
+    // Actions de repaire (dnd5e, resources.lair) : règles 2014, le compte d'initiative (20 par défaut) ; règles 2024, value seul.
+    const lair = acteur?.system?.resources?.lair;
     const concentration = [...(acteur?.concentration?.items ?? [])].map(i => i.name).join(", ")
       || ([...(acteur?.concentration?.effects ?? [])].length ? "un effet" : "");
     const regen = [...(acteur?.items ?? [])].find(i => /r[ée]g[ée]n[ée]ration|regeneration/i.test(i.name ?? ""));
@@ -432,6 +453,7 @@ const TOUR_DND5E = {
       conditions: etats.filter(e => !["dead", "concentrating"].includes(e)).map(nomCondition), effets: effetsADuree(acteur),
       concentration, regeneration: regen ? regen.name : "",
       legendaires: Number(legact?.max) > 0 ? { reste: Number(legact.value ?? 0), max: Number(legact.max) } : null,
+      repaire: lair?.value || Number(lair?.initiative) > 0 ? Number(lair.initiative) || 20 : null,
       mouvementMax: metresDe(mv.speeds?.walk ?? mv.walk ?? mv.speed, mv.units), allure: ""
     };
   },

@@ -396,6 +396,19 @@
       "MicroAide": "Accorde « Diffuser l'audio » au rôle Joueur (par défaut, seuls les joueurs de confiance l'ont).",
       "MicroDonne": "Les joueurs peuvent maintenant diffuser leur micro."
     },
+    "Horloges": {
+      "Titre": "Horloges",
+      "Vide": "Aucune horloge à montrer pour l'instant.",
+      "VideMJ": "Aucune horloge, jauge ni réputation. Le MJ IA en crée avec son outil « horloge », les modules des mondes avec api.horloges.assurer.",
+      "AideClic": "Clic : avancer d'un cran · clic droit : reculer",
+      "Sonne": "elle sonne !",
+      "Avancer": "Avancer d'un cran",
+      "Reculer": "Reculer d'un cran",
+      "Montrer": "Cachée aux joueurs : la leur montrer",
+      "Cacher": "Visible des joueurs : la cacher",
+      "AideMJ": "Les joueurs ne voient que les éléments montrés (œil ouvert). Une horloge qui sonne, un seuil franchi ou un palier changé paraît au chat et part au MJ IA.",
+      "AideConsole": "Horloges, jauges et réputations de la campagne"
+    },
     "Appel": { "Vote": "Vote du groupe", "Choix": "Un choix t'attend", "Combat": "À toi de jouer", "Parole": "À toi de parler" }
   }
 }

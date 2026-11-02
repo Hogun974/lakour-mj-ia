@@ -6,17 +6,21 @@ import { fournisseurImages } from "./fournisseurs/index.js";
 import { versTexte, versHTML, tronquer, trouverActeur, deposerFichier } from "./utilitaires.js";
 import { CARACS, calculerCaracteristiques, objetsDeDepart, munitionPour } from "./creation-impmal.js";
 import { ajouterAvecAvancements, donnerEquipement, monterNiveau } from "./creation-dnd5e.js";
-import { jetonJoueur } from "./contenus.js";
+import { jetonJoueur, moduleDeContenu } from "./contenus.js";
 import { lire, ecrire } from "./reglages.js";
 import { volumeAmbiance } from "./voix-texte.js";
 import { ouvrirVote, cloreVote, demanderChoix, nomPourIA, DELAI_VOTE, DELAI_CHOIX, MAX_OPTIONS } from "./decisions.js";
 import { validerSchema } from "./schema.js";
+import { choisirParNom } from "./recherche-nom.js";
+import { tirerSansDoublon, donneesDuResultat, TIRAGES_MAX } from "./tirages.js";
 import { TEMPERAMENTS, FACONS_DE_PARLER, personnaliteAuHasard } from "./compagnons.js";
 import {
   estCompagnon, personnaliteDe, compagnonsDuMonde, compagnonsPresents, trouverCompagnon, noterPrive, oublierPrive, nomsPourCompagnons
 } from "./compagnons-jeu.js";
 import { planVersScene, zoneVersRegion, idStable, cheminSon, etagesDuPlan, SOLS, SONS_AMBIANCE, TYPES_ZONE, MAX_ETAGES } from "./cartes.js";
 import { planVersSVG } from "./cartes-rendu.js";
+import * as Horloges from "./horloges.js";
+import { ligneResume, PALIERS_REPUTATION, SEGMENTS_MIN, SEGMENTS_MAX } from "./horloges-logique.js";
 import { listeSalles, trouverSalle, salleDeLaCase, centreSalle, casesLibres, casesOccupees, casesInterdites, casesDispersees, casesAutour, reperesDuPlan, trouverRepere, planDe, carteDeScene, TYPES_FIGURANTS, jetonFigurant, moduleDesFigurants } from "./placement.js";
 
 // Outils que l'IA peut appeler. Schémas « stricts » : tous les champs sont obligatoires
@@ -125,10 +129,11 @@ export const OUTILS = [
       dr_bonus: entier("Degrés de réussite ajoutés ou retirés (Imperium Maledictum). 0 si aucun."),
       avantages: entier("Nombre d'avantages (situation favorable). 0 si aucun."),
       desavantages: entier("Nombre de désavantages (situation défavorable). 0 si aucun."),
+      superiorite: booleen("Imperium Maledictum : pré-coche « Utiliser la Supériorité » (en combat, pour un personnage joueur ; ignoré sinon). false en D&D."),
       raison: chaine("Ce que tente le personnage, en une phrase (affichée et ajoutée au titre de la fenêtre).")
     }),
     sensible: false,
-    async executer({ personnage, competence, difficulte, modificateur, dr_bonus, avantages, desavantages, raison }) {
+    async executer({ personnage, competence, difficulte, modificateur, dr_bonus, avantages, desavantages, superiorite, raison }) {
       const acteur = await trouverActeur(personnage);
       if (!acteur) return { erreur: true, contenu: `Personnage introuvable : ${personnage}.` };
       const sys = adaptateur();
@@ -142,12 +147,13 @@ export const OUTILS = [
       const libelle = sys.competences(acteur).find(c => c.cle === competence)?.libelle ?? competence;
       const joueurs = game.users.filter(u => !u.isGM && acteur.testUserPermission(u, "OWNER"));
       const esc = foundry.utils.escapeHTML;
-      const reglages = { difficulte, modificateur, dr: dr_bonus, avantage: avantages, desavantage: desavantages, titre: raison };
+      const reglages = { difficulte, modificateur, dr: dr_bonus, avantage: avantages, desavantage: desavantages, superiorite: Boolean(superiorite), titre: raison };
       const details = [
         difficulte !== "aucune" ? `Difficulté : ${esc(difficulte)}` : "",
         modificateur ? `modificateur ${modificateur > 0 ? "+" : ""}${modificateur}` : "",
         dr_bonus ? `${dr_bonus > 0 ? "+" : ""}${dr_bonus} DR` : "",
-        avantages ? `${avantages} avantage(s)` : "", desavantages ? `${desavantages} désavantage(s)` : ""
+        avantages ? `${avantages} avantage(s)` : "", desavantages ? `${desavantages} désavantage(s)` : "",
+        superiorite && sys.id === "impmal" ? "Supériorité" : ""
       ].filter(Boolean).join(", ");
       const bouton = sys.id === "generique" ? `<p>Formule : <strong>${esc(competence)}</strong></p>`
         : `<button type="button" data-lakour-jet data-acteur="${acteur.uuid}" data-competence="${esc(competence)}" data-reglages="${esc(JSON.stringify(reglages))}">`
@@ -550,29 +556,59 @@ OUTILS.push(
   },
   {
     nom: "lancer_table",
-    description: "Tire sur une table aléatoire devant tout le monde (ex. la table des origines, ou la table de factions d'une origine) et renvoie le résultat avec son uuid.",
+    description: "Tire sur une table aléatoire devant tout le monde (ex. la table des origines, ou la table de factions d'une origine) et renvoie le résultat avec son uuid "
+      + "et les données qu'il porte (un contrat : po et réputation à donner, horloge rep-<faction>). nombre : plusieurs résultats différents d'un coup "
+      + "(les trois contrats du jour), en écartant ceux déjà tirés ou pris (exclure).",
     schema: objet({
       table: chaine("Nom de la table (ex. « Origines ») ou son uuid (ex. la factionTable d'une origine, lue avec lire_document)."),
-      raison: chaine("Pourquoi ce tirage.")
+      raison: chaine("Pourquoi ce tirage."),
+      nombre: entier(`Combien de résultats différents tirer (1 à ${TIRAGES_MAX} ; 0 = 1).`),
+      exclure: { type: "array", items: chaine("Nom (ou morceau de nom) d'un résultat déjà tiré, pris ou accompli."), description: "Résultats à ne pas retirer ; vide = aucun." }
     }),
     sensible: false,
-    async executer({ table, raison }) {
+    async executer({ table, raison, nombre = 1, exclure = [] }) {
       let t = table.includes(".") ? await fromUuid(table).catch(() => null) : null;
       if (!t) {
-        const n = table.toLowerCase();
-        t = game.tables.find(x => x.name.toLowerCase() === n) ?? game.tables.find(x => x.name.toLowerCase().includes(n));
-      }
-      if (!t) {
+        // Par le nom (recherche-nom.js) : exact, puis début, puis contenu ; tables du monde avant celles des compendiums. Plusieurs
+        // tables possibles : aucune n'est tirée au hasard, l'IA reçoit les noms et choisit.
+        const candidats = game.tables.map(x => ({ nom: x.name, doc: x }));
         for (const pack of game.packs.filter(p => p.documentName === "RollTable")) {
-          const entree = (await pack.getIndex()).find(e => e.name.toLowerCase().includes(table.toLowerCase()));
-          if (entree) { t = await pack.getDocument(entree._id); break; }
+          for (const e of await pack.getIndex()) candidats.push({ nom: e.name, pack, id: e._id });
         }
+        const { choix, ambigus } = choisirParNom(candidats, table);
+        if (ambigus.length) {
+          return { erreur: true, contenu: `« ${table} » désigne plusieurs tables : ${ambigus.slice(0, 20).map(n => `« ${n} »`).join(", ")}`
+            + `${ambigus.length > 20 ? ` (et ${ambigus.length - 20} autres)` : ""}. Rien n'a été tiré : rappelle lancer_table avec le nom exact.` };
+        }
+        t = choix ? choix.doc ?? await choix.pack.getDocument(choix.id) : null;
       }
       if (!t) return { erreur: true, contenu: `Table introuvable : ${table}. Tables du monde : ${game.tables.map(x => x.name).join(", ")}.` };
-      const tirage = await t.draw({ displayChat: true, rollMode: CONST.DICE_ROLL_MODES.PUBLIC });
-      const r = tirage.results[0];
-      if (!r) return { erreur: true, contenu: `Le tirage sur « ${t.name} » n'a rien donné.` };
-      return { contenu: `${raison} — « ${t.name} » : jet ${tirage.roll.total} → ${r.name || versTexte(r.description)}${r.documentUuid ? ` (uuid ${r.documentUuid})` : ""}.` };
+      const nomDe = r => r.name || versTexte(r.description);
+      // Les données du module de contenu du monde (lakour-warcraft : flags.lakour-warcraft.contrat), pour l'IA seule.
+      const contenu = (() => { try { return moduleDeContenu(); } catch { return null; } })();
+      const ligne = (r, total) => `jet ${total} → ${nomDe(r)}${r.documentUuid ? ` (uuid ${r.documentUuid})` : ""}`
+        + `${contenu && donneesDuResultat(r.flags?.[contenu]) ? ` [${donneesDuResultat(r.flags[contenu])}]` : ""}`;
+      // Un seul résultat, rien à écarter : le tirage de Foundry, affiché tel quel.
+      if ((nombre || 1) <= 1 && !exclure.length) {
+        const tirage = await t.draw({ displayChat: true, rollMode: CONST.DICE_ROLL_MODES.PUBLIC });
+        const r = tirage.results[0];
+        if (!r) return { erreur: true, contenu: `Le tirage sur « ${t.name} » n'a rien donné.` };
+        return { contenu: `${raison} — « ${t.name} » : ${ligne(r, tirage.roll.total)}.` };
+      }
+      // Plusieurs résultats, ou des résultats écartés : des tirages muets, sans doublon, puis une seule carte au chat.
+      const tires = await tirerSansDoublon(async () => {
+        const x = await t.draw({ displayChat: false });
+        return { total: x.roll?.total, resultats: x.results ?? [] };
+      }, nombre, { exclus: exclure, cleDe: r => r.id ?? r._id ?? nomDe(r), nomDe });
+      if (!tires.length) return { erreur: true, contenu: `Le tirage sur « ${t.name} » n'a rien donné${exclure.length ? " (tous les résultats possibles sont écartés)" : ""}.` };
+      const esc = foundry.utils.escapeHTML;
+      await ChatMessage.implementation.create({
+        content: `<div class="lakour-mjia-jet"><p><strong>${esc(t.name)}</strong> — ${esc(raison)}</p><ul>${tires.map(({ r }) => `<li>${esc(nomDe(r))}</li>`).join("")}</ul></div>`,
+        speaker: { alias: aliasMJ() }, flags: { [ID]: { ia: true } }
+      });
+      const voulus = Math.max(1, Math.min(TIRAGES_MAX, nombre || 1));
+      return { contenu: `${raison} — « ${t.name} », ${tires.length} résultat(s) différent(s)${tires.length < voulus ? ` (sur ${voulus} voulus : la table n'en a pas assez hors des exclus)` : ""} :\n`
+        + tires.map(({ r, total }) => `- ${ligne(r, total)}`).join("\n") };
     }
   },
   {
@@ -1485,18 +1521,35 @@ OUTILS.push(
     systemes: LOUPS,
     description: "Vote du village : ouvrir (chaque joueur vivant vote dans sa fenêtre, avec un minuteur ; les voix restent secrètes jusqu'à "
       + "la clôture) puis clore (décompte, élu ou égalité). Après la clôture, annonce le résultat puis loups_eliminer l'élu (ou applique la "
-      + "règle d'égalité). objet « chapelle » : le village choisit qui dormira à l'abri de la Chapelle (l'élu y est mis d'office).",
+      + "règle d'égalité). objet « chapelle » : le village choisit qui dormira à l'abri de la Chapelle (l'élu y est mis d'office). "
+      + "objet « bailli » : l'élection du Bailli (tous les vivants candidats), un jour sans Bailli vivant, AVANT le vote d'exécution ; ce "
+      + "n'est pas une exécution. Le système compte double la voix du Bailli au vote d'exécution et lui fait trancher les égalités.",
     schema: objet({
       action: { type: "string", enum: ["ouvrir", "clore"], description: "Ouvrir ou clore le vote." },
       candidats: { type: "array", items: chaine("Nom d'un villageois."), description: "Pour ouvrir : candidats ; vide = tous les vivants." },
       duree_secondes: entier("Pour ouvrir : durée du vote (0 = sans minuteur)."),
       double: booleen("Pour ouvrir : vote double, deux villageois sont désignés (cloche du Sonneur)."),
-      objet: { type: "string", enum: ["execution", "chapelle"], description: "Pour ouvrir : vote d'exécution (par défaut) ou asile de la Chapelle." }
+      objet: { type: "string", enum: ["execution", "chapelle", "bailli"], description: "Pour ouvrir : vote d'exécution (par défaut), asile de la "
+        + "Chapelle, ou élection du Bailli." }
     }),
     sensible: false,
     async executer({ action, candidats = [], duree_secondes = 0, double, objet: sujet = "execution" }) {
       const api = apiLoups();
       const chapelle = sujet === "chapelle";
+      // L'élection du Bailli (système 0.6.0 et plus) : tous les vivants candidats, sans changer de phase ; le système refuse avec
+      // sa raison quand elle n'est pas permise (Bailli vivant, succession en cours, déjà faite…).
+      if (action === "ouvrir" && sujet === "bailli") {
+        if (typeof api.bailli !== "function") return { erreur: true, contenu: "Ce système des Veillées n'a pas de Bailli (il faut lakour-loups 0.6.0 ou plus)." };
+        try {
+          await api.ouvrirVote({ objet: "bailli", duree: Math.max(0, duree_secondes) * 1000 });
+        } catch (e) { return { erreur: true, contenu: `Élection impossible : ${e.message}` }; }
+        return { contenu: `Élection du Bailli ouverte (tous les vivants${duree_secondes ? `, ${duree_secondes} s` : ""}). Rappelle l'enjeu en une phrase `
+          + "(voix double au vote d'exécution, il tranche les égalités), puis clos-la (loups_vote clore)." };
+      }
+      // Un jour sans Bailli vivant, l'élection passe avant le vote d'exécution.
+      if (action === "ouvrir" && !chapelle && (() => { try { return api.bailli?.()?.election?.ok; } catch { return false; } })()) {
+        return { erreur: true, contenu: "Pas de Bailli : élis-le d'abord (loups_vote ouvrir, objet « bailli »), puis ouvre le vote d'exécution." };
+      }
       if (action === "ouvrir") {
         const ids = candidats.length ? candidats.map(idVillageois) : vivants().map(a => a.id);
         if (ids.some(i => !i)) return { erreur: true, contenu: `Candidat introuvable parmi : ${candidats.join(", ")}.` };
@@ -1514,6 +1567,18 @@ OUTILS.push(
       }
       const { decompte = {}, elu, elus = elu ? [elu] : [], egalite = false } = r;
       const lignes = Object.entries(decompte).sort((x, y) => y[1] - x[1]).map(([id, n]) => `${nomActeur(id)} : ${n}`);
+      // L'élection du Bailli : l'élu (ou le sort, ou la vacance), déjà annoncé au chat par le système. Personne n'est exécuté.
+      if (r.objet === "bailli") {
+        return { contenu: `Élection du Bailli — décompte : ${lignes.join(", ") || "aucune voix"}. `
+          + (r.bailli ? `${nomActeur(r.bailli)} est le nouveau Bailli${r.sort ? " (désigné par le sort parmi les ex aequo)" : ""}. `
+            : "Personne n'est élu : la charge reste vacante jusqu'au prochain jour. ")
+          + "Annonce-le en une phrase. Ce vote n'exécute personne : ouvre ensuite le vote d'exécution (loups_vote ouvrir)." };
+      }
+      // Le Bailli a tranché une égalité (r.departage : { par, candidats, choix }), ou sa voix a compté double (r.poids).
+      const departage = r.departage
+        ? ` Égalité tranchée par le Bailli ${nomActeur(r.departage.par)} : ${(r.departage.choix ?? []).length ? (r.departage.choix).map(nomActeur).join(" et ") : "il n'a désigné personne"}.`
+        : "";
+      const poids = Object.keys(r.poids ?? {}).length ? ` (voix du Bailli ${Object.keys(r.poids).map(nomActeur).join(", ")} comptée double)` : "";
       if (r.objet === "chapelle") {
         return { contenu: `Décompte : ${lignes.join(", ") || "aucune voix"}. `
           + (elu ? `${nomActeur(elu)} dormira à l'abri de la Chapelle la nuit prochaine (annoncé au chat).` : "Personne n'est choisi : la Chapelle reste vide cette nuit.") };
@@ -1523,10 +1588,70 @@ OUTILS.push(
         : api.etat().vote?.majoriteAbsolue ? "Pas de majorité absolue (le Gibet l'exige)" : "Égalité ou aucun vote";
       // Le Juge de paix en jeu (vivant ou non : la question se pose toujours, pour ne rien trahir) peut annuler ce vote.
       const juge = elus.length && api.villageois().some(a => a.items.find(i => i.type === "role")?.system?.effet === "annuler-vote");
-      return { contenu: `Décompte : ${lignes.join(", ") || "aucune voix"}. `
+      return { contenu: `Décompte${poids} : ${lignes.join(", ") || "aucune voix"}.${departage} `
         + (elus.length ? `Désigné${elus.length > 1 ? "s" : ""} : ${elus.map(nomActeur).join(" et ")} (loups_eliminer pour chacun).` : `${personne} : personne n'est désigné.`)
         + (juge ? " Avant d'exécuter, demande au village si quelqu'un use d'un pouvoir après le dépouillement (Juge de paix) et laisse-lui un instant : "
           + "s'il annule (Table de jeu, ou loups_jour), le vote se rejoue — clos-le de nouveau, et n'exécute que le résultat du nouveau vote." : "") };
+    }
+  },
+  // Le Bailli (système 0.6.0 et plus) : la charge publique, son état ; le narrateur ne le nomme que pour corriger, ou quand le
+  // défunt le dit à voix haute (le système gère élection, voix double, départage et succession).
+  {
+    nom: "loups_bailli",
+    systemes: LOUPS,
+    description: "Le Bailli de Brumecombe (charge PUBLIQUE) : « etat » dit qui l'est, si une succession est en cours et si l'élection est "
+      + "due ; « nommer » remet le sceau à un vivant, seulement pour corriger une erreur ou quand un joueur (le Bailli mourant, le village "
+      + "d'un commun accord) le dit à voix haute. L'élection elle-même passe par loups_vote (objet « bailli ») ; voix double, départage et "
+      + "succession sont gérés par le système.",
+    schema: objet({
+      action: { type: "string", enum: ["etat", "nommer"], description: "etat, ou nommer un Bailli." },
+      villageois: chaine("Pour nommer : nom du villageois (vivant). Vide pour etat.")
+    }),
+    sensible: false,
+    async executer({ action, villageois }) {
+      const api = apiLoups();
+      if (typeof api.bailli !== "function") return { erreur: true, contenu: "Ce système des Veillées n'a pas de Bailli (il faut lakour-loups 0.6.0 ou plus)." };
+      if (action === "nommer") {
+        const id = idVillageois(villageois);
+        if (!id) return { erreur: true, contenu: `Villageois introuvable : ${villageois}.` };
+        try { await api.nommerBailli(id); } catch (e) { return { erreur: true, contenu: `Sceau non remis : ${e.message}` }; }
+        return { contenu: `${nomActeur(id)} est nommé Bailli (annoncé au chat). Dis-le en une phrase.` };
+      }
+      const b = api.bailli();
+      if (!b.actif) return { contenu: "Pas de Bailli dans cette partie (réglage du système)." };
+      return { contenu: b.acteurId ? `Bailli : ${b.nom} (depuis le tour ${b.depuis}).`
+        : b.succession ? `Le Bailli ${b.succession.nom} est mort : il remet le sceau (succession en cours, le système attend sa réponse).`
+        : b.election?.ok ? "Pas de Bailli : l'élection est due, avant le vote d'exécution (loups_vote ouvrir, objet « bailli »)."
+        : `Pas de Bailli : charge vacante${b.possible?.raisonTexte ? ` (${b.possible.raisonTexte})` : ""}.` };
+    }
+  },
+  // Le Registre du greffier (système 0.6.0 et plus) : public. Le narrateur l'a dans l'état du jeu ; il ne le récite pas.
+  {
+    nom: "loups_registre",
+    systemes: LOUPS,
+    description: "Le Registre du greffier (PUBLIC) : votes clos voix par voix, morts et leur cause publique, Bailli, déclarations. « lire » "
+      + "le rend en entier (au plus 60 lignes) ; « declarer » inscrit la déclaration d'un villageois vivant qui te la DICTE (un joueur qui dit "
+      + "« inscris au Registre que… ») : jamais de ton propre chef, et ses mots à lui. Une déclaration n'est qu'une parole : ne la confirme "
+      + "ni ne l'infirme jamais.",
+    schema: objet({
+      action: { type: "string", enum: ["lire", "declarer"], description: "lire le Registre, ou declarer pour un joueur." },
+      villageois: chaine("Pour declarer : le villageois qui déclare (vide pour lire)."),
+      texte: chaine("Pour declarer : sa déclaration, une phrase (160 caractères au plus), avec ses mots. Vide pour lire.")
+    }),
+    sensible: false,
+    async executer({ action, villageois, texte }) {
+      const api = apiLoups();
+      if (typeof api.registreTexte !== "function") return { erreur: true, contenu: "Ce système des Veillées n'a pas de Registre (il faut lakour-loups 0.6.0 ou plus)." };
+      if (action === "lire") {
+        const lignes = api.registreTexte({ max: 60 });
+        return { contenu: lignes.length ? `Registre du greffier (pour toi, ne le récite pas) :\n${lignes.map(l => `· ${l}`).join("\n")}` : "Le Registre est vide." };
+      }
+      const id = idVillageois(villageois);
+      if (!id) return { erreur: true, contenu: `Villageois introuvable : ${villageois}.` };
+      try {
+        const entree = await api.declarer(id, texte);
+        return { contenu: `Inscrit au Registre (annoncé au chat) : ${nomActeur(id)} — « ${entree?.texte ?? texte} ». Ne le confirme ni ne l'infirme.` };
+      } catch (e) { return { erreur: true, contenu: `Déclaration refusée : ${e.message}` }; }
     }
   },
   {
@@ -3162,10 +3287,110 @@ OUTILS.push(
   }
 );
 
+// ---------------------------------------------------------------- Horloges, jauges et réputations (horloges.js)
+// Partout sauf aux Veillées (« horsSystemes ») : une menace qui mûrit, ce qui s'accumule, ce que pense chaque faction.
+// Le chat et l'IA sont prévenus quand une horloge sonne, qu'une jauge franchit un seuil ou qu'une réputation change de palier.
+
+const PALIER_HORLOGE = objet({ nom: chaine("Nom du seuil ou du palier (« Remarqués », « Honoré »)."), min: entier("Valeur à partir de laquelle il est atteint.") });
+const detailHorloge = el => [ligneResume(el), el.notes ? `  Notes : ${el.notes}` : "",
+  el.paliers?.length ? `  ${el.type === "jauge" ? "Seuils" : "Paliers"} : ${el.paliers.map(p => `${p.nom} (${p.min})`).join(", ")}` : ""].filter(Boolean).join("\n");
+
+OUTILS.push({
+  nom: "horloge",
+  horsSystemes: ["lakour-loups"],
+  description: `Horloges, jauges et réputations, visibles dans la fenêtre « Horloges » (les joueurs n'y voient que ce que tu montres). `
+    + `Horloge : une menace ou un projet qui mûrit, en ${SEGMENTS_MIN} à ${SEGMENTS_MAX} segments (le culte achève son rituel, les renforts `
+    + "arrivent) ; quand elle est pleine, elle sonne et l'événement arrive. Jauge : un compteur de 0 à max avec des seuils nommés (l'"
+    + "Exposition en 40k, id exposition : plus elle monte, plus l'équipe s'est fait remarquer). Réputation : les points d'une faction, de -max à +max, lus en "
+    + `paliers (${PALIERS_REPUTATION.map(p => `${p.nom} ${p.min}`).join(", ")} par défaut ; service +3 à +5, grand service +10 à +15, `
+    + "affront -5, trahison -20 à -30). Quand une horloge sonne, qu'une jauge franchit un seuil ou qu'une réputation change de palier, "
+    + "une carte paraît au chat et la réponse te le dit : tires-en une conséquence. « lister » donne tout, notes comprises. "
+    + "Après un contrat ou un service : action « avancer », nom rep-<faction> (ou le nom de la faction), valeur = les points gagnés "
+    + "(négatifs pour un affront ou un contrat échoué).",
+  schema: objet({
+    action: { type: "string", enum: ["lister", "creer", "avancer", "regler", "montrer", "cacher", "retirer"],
+      description: "lister ; creer ; avancer (ou reculer) ; regler une valeur ou une définition ; montrer aux joueurs ; cacher ; retirer." },
+    nom: chaine("Nom ou identifiant de l'élément (vide pour lister)."),
+    type: { type: "string", enum: ["horloge", "jauge", "reputation"], description: "creer : le genre d'élément (ignoré sinon)." },
+    valeur: entier("avancer : de combien (négatif pour reculer ; 0 = 1). regler : la nouvelle valeur. creer : la valeur de départ."),
+    max: entier(`creer, regler : segments d'une horloge (${SEGMENTS_MIN} à ${SEGMENTS_MAX}), maximum d'une jauge, borne d'une réputation `
+      + "(de -max à +max, 100 par défaut) ; 0 = par défaut (creer) ou inchangé (regler)."),
+    faction: chaine("creer, regler : la faction concernée (réputation : celle dont on mesure l'estime ; horloge : celle qui agit). Vide = aucune ou inchangée."),
+    notes: chaine("creer, regler : ce qu'elle mesure et ce qui arrive quand elle sonne ou franchit un seuil. Secret : jamais montré aux joueurs. Vide = inchangé."),
+    paliers: { type: "array", items: PALIER_HORLOGE, description: "creer, regler : seuils d'une jauge ou paliers d'une réputation. Vide : "
+      + "aucun seuil (jauge), Haï à Exalté (réputation) ; pour regler, inchangés." },
+    visible: booleen("creer : true si les joueurs la voient dès sa création (sinon, montrer plus tard).")
+  }),
+  sensible: false,
+  async executer({ action, nom, type, valeur, max, faction, notes, paliers, visible }) {
+    if (action === "lister") {
+      const tous = Horloges.lister();
+      return { contenu: tous.length ? tous.map(detailHorloge).join("\n") : "Aucune horloge, jauge ni réputation." };
+    }
+    if (!nom.trim()) return { erreur: true, contenu: "Donne le nom ou l'identifiant de l'élément." };
+    const existants = () => Horloges.lister().map(e => `${e.nom} [${e.id}]`).join(", ") || "aucun";
+    if (action === "creer") {
+      const deja = Horloges.trouver(nom);
+      if (deja) return { erreur: true, contenu: `« ${deja.nom} » existe déjà : ${ligneResume(deja)}. Utilise avancer ou regler.` };
+      const el = await Horloges.assurer({ nom, type, valeur, max, faction, notes, paliers, visible });
+      return { contenu: `Créé : ${detailHorloge(el)}` };
+    }
+    const el = Horloges.trouver(nom);
+    if (!el) return { erreur: true, contenu: `« ${nom} » introuvable (existants : ${existants()}).` };
+    if (action === "retirer") {
+      await Horloges.retirer(el.id);
+      return { contenu: `« ${el.nom} » retiré.` };
+    }
+    let r;
+    if (action === "montrer" || action === "cacher") r = await Horloges.montrer(el.id, action === "montrer", { source: "outil" });
+    else if (action === "avancer") r = await Horloges.avancer(el.id, valeur || 1, { source: "outil" });
+    else {
+      const changements = { valeur };
+      if (max > 0) changements.max = max;
+      if (faction.trim()) changements.faction = faction;
+      if (notes.trim()) changements.notes = notes;
+      if (paliers.length) changements.paliers = paliers;
+      r = await Horloges.regler(el.id, changements, { source: "outil" });
+    }
+    if (!r) return { erreur: true, contenu: "Seul le MJ actif peut modifier les horloges." };
+    const vu = action === "montrer" ? " Les joueurs la voient maintenant." : action === "cacher" ? " Cachée aux joueurs." : "";
+    return { contenu: `${ligneResume(r.element)}.${vu}${r.texte ? `\n${r.texte}` : ""}` };
+  }
+});
+
+// ---------------------------------------------------------------- Supériorité (Imperium Maledictum)
+// La réserve commune de l'équipe en combat (réglage impmal.superiority), lue et écrite par l'API du système :
+// game.impmal.resources.get / set("superiority", n) (le système prévient alors fiches et suivi de combat).
+OUTILS.push({
+  nom: "superiorite",
+  systemes: ["impmal"],
+  description: "Supériorité (Imperium Maledictum) : la réserve commune de l'équipe en combat ; un test d'un personnage joueur qui coche "
+    + "« Utiliser la Supériorité » gagne autant de DR (demander_jet, superiorite). « lire » la donne, « fixer » la règle, « ajuster » "
+    + "l'augmente ou la baisse. Au début d'un combat : +1 par renseignement confirmé que le plan exploite (plafond 3 à 4), 0 si l'équipe "
+    + "tombe dans une embuscade. Remets-la à 0 à la fin du combat.",
+  schema: objet({
+    action: { type: "string", enum: ["lire", "fixer", "ajuster"], description: "lire la valeur, la fixer, ou l'ajuster." },
+    valeur: entier("fixer : la nouvelle valeur (0 ou plus). ajuster : de combien (négatif pour baisser). lire : 0.")
+  }),
+  sensible: false,
+  async executer({ action, valeur }) {
+    const ressources = game.impmal?.resources;
+    if (typeof ressources?.get !== "function" || typeof ressources.set !== "function") {
+      return { erreur: true, contenu: "Supériorité introuvable : l'API du système Imperium Maledictum (game.impmal.resources) n'est pas là." };
+    }
+    const avant = Number(ressources.get("superiority")) || 0;
+    if (action === "lire") return { contenu: `Supériorité : ${avant}.` };
+    const apres = Math.max(0, Math.round(action === "fixer" ? valeur : avant + valeur));
+    await ressources.set("superiority", apres);
+    return { contenu: `Supériorité : ${avant} → ${apres}.${apres > 4 ? " Au-delà de 3 ou 4, les combats deviennent trop faciles." : ""}` };
+  }
+});
+
 export const outil = nom => OUTILS.find(o => o.nom === nom);
-// Outils utiles au système du monde : sans « systemes », un outil sert partout ; avec « modules », seulement si tous ces
-// modules sont actifs (animations, météo, calendrier, butin).
+// Outils utiles au système du monde : sans « systemes », un outil sert partout (sauf dans ses « horsSystemes ») ; avec
+// « modules », seulement si tous ces modules sont actifs (animations, météo, calendrier, butin).
 export const outilsDuSysteme = (systeme = game.system.id) => OUTILS.filter(o => (!o.systemes || o.systemes.includes(systeme))
+  && !(o.horsSystemes ?? []).includes(systeme)
   && (o.modules ?? []).every(moduleActif));
 
 // Résumé lisible d'un appel, pour la demande de validation au MJ humain.

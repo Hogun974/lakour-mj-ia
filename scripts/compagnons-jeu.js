@@ -13,7 +13,7 @@ import { ID } from "./constantes.js";
 import { adaptateur } from "./adaptateurs.js";
 import { versHTML } from "./utilitaires.js";
 import {
-  CerveauxCompagnons, BAVARDAGE, normaliserPersonnalite, texteBrut, choisirOrateurs, repliReplique, criePeste
+  CerveauxCompagnons, BAVARDAGE, normaliserPersonnalite, texteBrut, choisirOrateurs, repliReplique, criePeste, declarationAuRegistre
 } from "./compagnons.js";
 
 // Réglage du MJ IA, sans erreur s'il n'est pas enregistré (essais, système sans MJ IA).
@@ -159,18 +159,22 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
     role ? `Ton rôle SECRET : ${role.name} (camp ${libelle(`LAKOUR_LOUPS.Camps.${acteur.system.camp}`, acteur.system.camp)}). ${texteBrut(role.system?.description)}` : "",
     role?.system?.victoire ? `Ta victoire : ${texteBrut(role.system.victoire)}` : "",
     metier?.system?.description ? `Ton métier : ${texteBrut(metier.system.description)}` : "",
+    loup ? "Tes Masques de veillée, s'ils sont dans ton carnet, sont des rôles du Village absents de la partie : tu peux prétendre en tenir "
+      + "un sans qu'on te contredise. Accorde ton masque avec la meute (pas deux loups sous le même) et ne dis jamais qu'un rôle n'est pas en jeu." : "",
     vivant ? "" : "Tu es MORT : tu te tais et tu ne votes plus.",
     acteur.system.silence ? "Tu es réduit au silence : tu ne parles pas au débat d'aujourd'hui." : ""
   ].filter(Boolean).join("\n");
   const v = pub.vote ?? {};
+  const sujet = v.objet === "chapelle" ? " (Chapelle)" : v.objet === "bailli" ? " (élection du Bailli)" : "";
   const scene = [
     `Phase : ${libelle(`LAKOUR_LOUPS.Phases.${pub.phase}`, pub.phase)}, tour ${pub.tour}.${pub.vainqueur ? " La partie est terminée." : ""}`,
     `Au village : ${tous.map(a => `${a.name}${a.id === acteur.id ? " (toi)" : ""} — ${a.system.vivant ? "vivant" : "mort"}`
       + `${metierDe(a) ? `, ${metierDe(a).name}` : ""}${a.system.revele && roleDe(a) ? `, rôle révélé : ${roleDe(a).name}` : ""}`).join(" ; ")}.`,
     pub.morts?.length ? `Morts : ${pub.morts.map(m => `${nom(m.acteurId)} (${libelle(`LAKOUR_LOUPS.Causes.${m.cause}`, m.cause)}, tour ${m.tour})`).join(", ")}.` : "",
-    v.ouvert ? `Vote ouvert${v.objet === "chapelle" ? " (Chapelle)" : ""} : candidats ${v.candidats.map(nom).join(", ")} ; ont déjà voté : ${(v.exprimes ?? []).map(nom).join(", ") || "personne"}.` : "",
+    v.ouvert ? `Vote ouvert${sujet} : candidats ${v.candidats.map(nom).join(", ")} ; ont déjà voté : ${(v.exprimes ?? []).map(nom).join(", ") || "personne"}.` : "",
     !v.ouvert && v.resultat?.decompte ? `Dernier vote : ${Object.entries(v.resultat.decompte).map(([id, n]) => `${nom(id)} ${n}`).join(", ") || "aucune voix"}.` : "",
     tous.some(a => a.system.vivant && a.system.silence) ? `Réduits au silence : ${tous.filter(a => a.system.vivant && a.system.silence).map(a => a.name).join(", ")}.` : "",
+    ...bailliEtRegistre(api, acteur),
     pub.historique?.length ? `Annonces publiques récentes :\n${pub.historique.slice(-12).map(h => `· ${texteBrut(h.texte)}`).join("\n")}` : ""
   ].filter(Boolean).join("\n");
   return {
@@ -179,6 +183,25 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
     autres: autres.map(a => ({ id: a.id, nom: a.name, vivant: a.system.vivant !== false })), allies, suspects,
     vivant, peutParler: vivant && !acteur.system.silence && pub.phase !== "nuit", tour: pub.tour
   };
+}
+
+// Le Bailli et le Registre du greffier (système lakour-loups 0.6.0 et plus ; un système plus ancien n'en a pas) : publics.
+export const MAX_REGISTRE_COMPAGNON = 15;
+function bailliEtRegistre(api, acteur) {
+  const essayer = fn => { try { return fn(); } catch { return null; } };
+  const lignes = [];
+  const b = typeof api?.bailli === "function" ? essayer(() => api.bailli()) : null;
+  if (b?.actif) {
+    if (b.acteurId === acteur.id) lignes.push("Tu es le Bailli (public) : ta voix compte double au vote d'exécution, et c'est toi qui tranches les égalités.");
+    else if (b.acteurId) lignes.push(`Bailli (public) : ${b.nom || "?"} (sa voix compte double au vote d'exécution ; il tranche les égalités).`);
+    else if (b.succession) lignes.push(`Le Bailli${b.succession.nom ? ` ${b.succession.nom}` : ""} est mort : il remet le sceau à un vivant de son choix.`);
+    else lignes.push("Pas de Bailli pour l'instant : le village l'élira avant le vote d'exécution.");
+  }
+  const registre = typeof api?.registreTexte === "function" ? essayer(() => api.registreTexte({ max: MAX_REGISTRE_COMPAGNON })) : null;
+  if (registre?.length) {
+    lignes.push(`Registre du greffier (public ; une déclaration n'est qu'une parole, le greffier ne vérifie rien) :\n${registre.map(l => `· ${l}`).join("\n")}`);
+  }
+  return lignes;
 }
 
 // ------------------------------------------------------------------ la vue d'un compagnon d'aventure (40k, Warcraft)
@@ -231,6 +254,20 @@ export async function nomsPourCompagnons(n, { exclus = [] } = {}) {
   return sortie;
 }
 
+// La déclaration d'un compagnon (« Au Registre : … » en tête de sa réplique), inscrite au Registre du greffier par le système
+// (MJ actif). true si elle est inscrite ; refusée (phase, silence, trois par jour) : seulement un avertissement en console.
+async function declarerAuRegistre(acteurId, texte) {
+  const api = game.lakourLoups;
+  if (typeof api?.declarer !== "function" || !texte) return false;
+  try {
+    await api.declarer(acteurId, texte);
+    return true;
+  } catch (e) {
+    console.warn(`${ID} | déclaration au Registre refusée`, e);
+    return false;
+  }
+}
+
 // Le cri de la peste noire d'un compagnon, transmis au système des Veillées (MJ actif). true si le système l'a entendu.
 async function crierALaPeste(acteurId) {
   const api = game.lakourLoups;
@@ -241,6 +278,40 @@ async function crierALaPeste(acteurId) {
   } catch (e) {
     console.warn(`${ID} | cri de la peste noire refusé`, e);
     return false;
+  }
+}
+
+// ------------------------------------------------------------------ demandes des Veillées (résolveur des compagnons)
+// Le sujet d'une demande du système : vote d'exécution, de la Chapelle ou du Bailli ; départage (le Bailli tranche une égalité) ;
+// succession (le Bailli défunt remet le sceau, posthume) ; posthume sans objet (le porteur de la peste) ; nuit (un choix de rôle).
+export function sujetDemandeLoups(demande = {}) {
+  if (demande.type === "vote") return demande.objet === "bailli" ? "bailli" : demande.objet === "chapelle" ? "chapelle" : "vote";
+  if (demande.objet === "departage") return "departage";
+  if (demande.objet === "succession") return "succession";
+  return demande.posthume ? "posthume" : "nuit";
+}
+
+// Ce que le cerveau lit en plus de l'invite du système, pour les demandes du Bailli.
+const PRECISIONS_LOUPS = {
+  bailli: "Élection du Bailli : vote POUR celui à qui tu confies le sceau (tu peux voter pour toi). Sa voix comptera double au vote "
+    + "d'exécution et il tranchera les égalités.",
+  departage: "Tu es le Bailli : le vote d'exécution est à égalité, à toi de trancher. Désigne parmi les ex aequo qui sera exécuté (tu peux "
+    + "te désigner), ou passe : personne ne l'est pour cette place.",
+  succession: "Tu es mort, et tu étais le Bailli : remets le sceau à un vivant de ton choix (sa voix comptera double, il tranchera les "
+    + "égalités), ou passe : la charge restera vacante et le village élira un nouveau Bailli."
+};
+const inviteLoups = (demande, sujet) => [PRECISIONS_LOUPS[sujet], demande.invite].filter(Boolean).join("\n");
+
+// La note privée du compagnon après sa décision, dite selon le sujet (pas « Nuit X… tu as choisi » pour un vote ou le sceau).
+export function notePriveeLoups(sujet, tour, noms = [], invite = "") {
+  const qui = noms.join(", ");
+  switch (sujet) {
+    case "vote": return `Vote du tour ${tour} : ${qui ? `tu as voté contre ${noms[0]}` : "tu t'es abstenu"}.`;
+    case "chapelle": return `Vote de la Chapelle, tour ${tour} : ${qui ? `tu as voté pour mettre ${noms[0]} à l'abri` : "tu t'es abstenu"}.`;
+    case "bailli": return `Élection du Bailli, tour ${tour} : ${qui ? `tu as voté pour ${noms[0]}` : "tu t'es abstenu"}.`;
+    case "departage": return `Jour ${tour}, en Bailli, tu as tranché l'égalité : ${qui ? `tu as désigné ${qui}` : "tu n'as désigné personne"}.`;
+    case "succession": return `Mort, tu as remis le sceau du Bailli ${qui ? `à ${qui}` : "à personne (la charge reste vacante)"}.`;
+    default: return `Nuit ${tour} (« ${invite} ») : tu as choisi ${qui || "de passer"}.`;
   }
 }
 
@@ -289,7 +360,8 @@ export class Compagnons {
   // Après une réponse du MJ : au plus max compagnons présents réagissent, une réplique chacun. Ceux que le texte cite
   // parlent d'abord. Rend [{ acteurId, nom, texte, source }].
   // Aux Veillées, un compagnon qui crie « C'est la peste noire ! » dans sa réplique crie pour de bon : le système tranche
-  // (api.crierPeste : juste, la partie s'arrête ; faux, il est pendu) et le tour de parole s'arrête là.
+  // (api.crierPeste : juste, la partie s'arrête ; faux, il est pendu) et le tour de parole s'arrête là. Une réplique qui commence
+  // par « Au Registre : … » fait inscrire sa déclaration au Registre du greffier (api.declarer).
   async reagir({ mentions = "", max = this.maxRepliques(), messages } = {}) {
     if (max <= 0) return [];
     const parlants = compagnonsPresents().map(a => ({ id: a.id, nom: a.name, acteur: a, vue: this.vue(a, { messages }) }))
@@ -302,6 +374,7 @@ export class Compagnons {
       await this.poster(c.acteur, r.texte);
       dits.push({ acteurId: c.id, nom: c.nom, texte: r.texte, source: r.source });
       if (c.vue.jeu === "loups" && criePeste(r.texte) && await crierALaPeste(c.id)) break;
+      if (c.vue.jeu === "loups") await declarerAuRegistre(c.id, declarationAuRegistre(r.texte));
     }
     return dits;
   }
@@ -326,7 +399,8 @@ export class Compagnons {
     return texte;
   }
 
-  // Résolveur des Veillées (api.resolveurs.compagnon) : choix de nuit, mot du Messager, vote.
+  // Résolveur des Veillées (api.resolveurs.compagnon) : choix de nuit, mot du Messager, votes (exécution, Chapelle, Bailli),
+  // départage et succession du Bailli.
   async resoudreLoups(demande) {
     const acteur = game.actors.get(demande.acteurId);
     if (!estCompagnon(acteur)) return demande.mode === "texte" ? "" : [];
@@ -336,14 +410,12 @@ export class Compagnons {
       if (r.texte) await noterPrive(acteur.id, `Nuit ${vue.tour} : tu as confié ce mot au Messager : « ${r.texte} ».`);
       return r.texte;
     }
-    const vote = demande.type === "vote";
     const candidats = (demande.candidats ?? []).map(c => ({ id: c.id, nom: c.nom }));
-    const r = await this.cerveaux.decider(vue, { type: "cibles", invite: demande.invite, candidats, nombre: demande.nombre ?? 1, vote,
-      cle: `${demande.type}|${demande.id}` });
+    const sujet = sujetDemandeLoups(demande);
+    const r = await this.cerveaux.decider(vue, { type: "cibles", invite: inviteLoups(demande, sujet), candidats, nombre: demande.nombre ?? 1,
+      vote: ["vote", "chapelle", "bailli", "departage"].includes(sujet), objet: sujet, cle: `${demande.type}|${demande.id}` });
     const noms = r.cibles.map(id => candidats.find(c => c.id === id)?.nom).filter(Boolean);
-    await noterPrive(acteur.id, vote
-      ? `Vote du tour ${vue.tour} : ${noms.length ? `tu as voté contre ${noms[0]}` : "tu t'es abstenu"}.`
-      : `Nuit ${vue.tour} (« ${demande.invite} ») : tu as choisi ${noms.join(", ") || "de passer"}.`);
+    await noterPrive(acteur.id, notePriveeLoups(sujet, vue.tour, noms, demande.invite));
     return r.cibles;
   }
 

@@ -196,6 +196,32 @@ export function caseVers(depart, cible, maxCases, { occupees = new Set(), diagon
 // ------------------------------------------------------------------ rappels de début de tour
 // combattant : { nom, effets: [{ id, nom, restant (rounds), fini }], conditions: [noms], regeneration (texte ou nombre),
 // concentration (nom de ce qu'il maintient ou ""), legendaires: { reste, max } | null }.
+//
+// rappelsLegendaires (D&D 5e) : une ou deux lignes courtes pour l'IA. combattants : [{ id, nom, camp, initiative, aTerre,
+// legendaires: { reste, max } | null, repaire: compte d'initiative | null }] dans l'ordre du tour ; actifId : celui qui joue.
+// - actions légendaires : un PNJ debout (ni joueur ni compagnon) qui en a encore peut en dépenser une à la fin du tour d'un
+//   AUTRE combattant (elles reviennent au début de son propre tour) ;
+// - actions de repaire : au compte d'initiative du repaire (20 par défaut, il perd les égalités), une par round : « c'est le
+//   moment » quand le combattant actif est le premier du round sous ce compte.
+export function rappelsLegendaires({ combattants = [], actifId = null } = {}) {
+  const lignes = [];
+  const actif = combattants.find(c => c.id === actifId);
+  const pnj = c => !c.aTerre && !["joueur", "compagnon"].includes(c.camp);
+  const legendaires = combattants.filter(c => c.id !== actifId && pnj(c) && c.legendaires?.reste > 0);
+  if (actif && legendaires.length) {
+    lignes.push(`Actions légendaires possibles à la fin du tour de ${actif.nom} : ${legendaires.map(c => `${c.nom} (${c.legendaires.reste}/${c.legendaires.max})`).join(", ")}.`);
+  }
+  for (const c of combattants.filter(x => pnj(x) && Number(x.repaire) > 0)) {
+    const compte = Number(c.repaire);
+    const i = combattants.findIndex(x => x.id === actifId);
+    const ini = x => Number(x?.initiative ?? NaN);
+    const maintenant = i >= 0 && ini(actif) < compte && (i === 0 || ini(combattants[i - 1]) >= compte);
+    lignes.push(maintenant
+      ? `Actions de repaire : c'est le moment (initiative ${compte}, avant ${actif.nom}) — ${c.nom} en fait une, une seule ce round.`
+      : `Repaire : ${c.nom} a une action de repaire par round, à l'initiative ${compte} (il perd les égalités).`);
+  }
+  return lignes;
+}
 // -> { obligations (à traiter, une étape chacune), infos (affichées seulement) }
 export function rappelsDebutTour(c = {}) {
   const obligations = [], infos = [];

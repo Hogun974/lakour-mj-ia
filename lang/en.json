@@ -396,6 +396,19 @@
       "MicroAide": "Grants \"Broadcast Audio\" to the Player role (by default only trusted players have it).",
       "MicroDonne": "Players can now broadcast their microphone."
     },
+    "Horloges": {
+      "Titre": "Clocks",
+      "Vide": "No clock to show yet.",
+      "VideMJ": "No clocks, gauges or reputations. The AI GM creates them with its \"horloge\" tool, world modules with api.horloges.assurer.",
+      "AideClic": "Click: advance one step · right-click: go back",
+      "Sonne": "it strikes!",
+      "Avancer": "Advance one step",
+      "Reculer": "Go back one step",
+      "Montrer": "Hidden from players: show it",
+      "Cacher": "Visible to players: hide it",
+      "AideMJ": "Players only see shown items (open eye). A clock that strikes, a threshold crossed or a tier changed is posted in chat and sent to the AI GM.",
+      "AideConsole": "Campaign clocks, gauges and reputations"
+    },
     "Appel": { "Vote": "Group vote", "Choix": "A choice is waiting", "Combat": "Your turn", "Parole": "Your turn to speak" }
   }
 }

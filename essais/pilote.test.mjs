@@ -505,7 +505,7 @@ const SCRIPTS = pathToFileURL(fileURLToPath(new URL("../scripts/", import.meta.u
 const MUTATIONS = {
   "mode Validation ignoré": ['    if (reglage("autonomie", "validation") !== "autonome") return { ok: false, raison: "validation" };\n', ""],
   "humain vivant ignoré": ['    if (groupe.humains.length) return { ok: false, raison: "humain" };\n', ""],
-  "débat sans borne": ['  return m.debats < debatMax ? "debat" : "vote-ouvrir";', '  return m.debats < debatMax + 3 ? "debat" : "vote-ouvrir";'],
+  "débat sans borne": ['  if (m.debats < debatMax) return "debat";', '  if (m.debats < debatMax + 3) return "debat";'],
   "budget ignoré": ['      if (this.moteur.budgetDepasse()) return void this.arreter("budget");\n', ""],
   "plafond ignoré": ['      if (this.etapes >= this.etapesMax()) return void this.arreter("max");\n', ""],
   "pas d'attente du moteur": ["while (this.enMarche && !this.moteur.auRepos() &&", "while (false &&"],
