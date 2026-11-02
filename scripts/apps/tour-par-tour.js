@@ -125,7 +125,7 @@ export class BandeauTour extends HandlebarsApplicationMixin(ApplicationV2) {
 
 let bandeau = null;
 let dernierAppel = "";
-export function rafraichirBandeau() {
+function rafraichirBandeau() {
   if (game.user.isGM) return;
   const ctx = tour()?.contexteBandeau?.();
   // Son tour (de combat, ou de parole) vient d'arriver : on l'appelle, une fois.
