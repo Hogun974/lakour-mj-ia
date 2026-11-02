@@ -219,6 +219,9 @@ const BATTERIE_API = {
     assert.equal(b.nom, "Exposition");
     assert.equal(b.valeur, 3);
     assert.equal(H.lister().length, 1);
+    await H.assurer({ nom: "Rituel", type: "horloge" });
+    await H.assurer({ nom: "rituel", type: "horloge", max: 8 });
+    assert.equal(H.lister().length, 2, "sans id : retrouvé par son nom, jamais doublé");
   },
   "seul le MJ actif écrit": async H => {
     reinitialiser({ moi: MJ2, actif: MJ });
@@ -290,6 +293,7 @@ const BATTERIE_API = {
 
 const MUTATIONS_API = {
   "assurer remplace l'existant": ["horloges.js", "if (existant) return copie(existant);", "", "if (deja) return copie(deja);", ""],
+  "assurer sans id : doublons": ["horloges.js", "  const nom = plier(def?.nom);", "  const nom = \"\";"],
   "tout le monde écrit": ["horloges.js", "if (!estMJActif()) return Promise.resolve(null);\n  return enFile(async () => {\n    const liste = lireHorloges();\n    const el = L.trouver(liste, ref);\n    if (!el) return null;\n    const { element",
     "return enFile(async () => {\n    const liste = lireHorloges();\n    const el = L.trouver(liste, ref);\n    if (!el) return null;\n    const { element"],
   "avancées en parallèle sans file": ["horloges.js", "const suite = file.then(() => fn());", "const suite = fn();"],
@@ -308,7 +312,7 @@ async function echecsApi(H) {
   return rates;
 }
 
-const FICHIERS_API = ["horloges.js", "horloges-logique.js", "canal.js", "constantes.js"];
+const FICHIERS_API = ["horloges.js", "horloges-logique.js", "recherche-nom.js", "canal.js", "constantes.js"];
 test("API : assurer, avancer, lister, palier ; seul le MJ actif écrit (la batterie passe sur le vrai code)", async () => {
   assert.deepEqual(await echecsApi(H), []);
 });

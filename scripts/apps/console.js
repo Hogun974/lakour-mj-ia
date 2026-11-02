@@ -40,7 +40,7 @@ export class ConsoleMJ extends HandlebarsApplicationMixin(ApplicationV2) {
         ui.notifications.info(game.i18n.localize("LAKOUR_MJIA.VoixMonde.MicroDonne"));
         this.render();
       },
-      horloges: () => game.modules.get(ID).api.horloges.ouvrir(),
+      horloges: () => game.modules.get(ID).api.carnet(),
       config: () => new ConfigIA().render({ force: true }),
       personnalites: () => new EditeurPersonnalites().render({ force: true })
     }

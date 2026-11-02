@@ -1,0 +1,28 @@
+<section class="lakour-mjia-contacts-corps" {{#unless onglets.contacts}}hidden{{/unless}}>
+  {{#unless contacts.length}}
+  <p class="hint">{{#if mj}}{{localize "LAKOUR_MJIA.Contacts.VideMJ"}}{{else}}{{localize "LAKOUR_MJIA.Contacts.Vide"}}{{/if}}</p>
+  {{/unless}}
+  <ul class="lakour-mjia-contacts-liste">
+    {{#each contacts}}
+    <li class="lakour-mjia-contact {{classe}} {{#unless visible}}cachee{{/unless}}" data-contact="{{id}}">
+      <div class="lakour-mjia-contact-texte">
+        <p class="lakour-mjia-contact-nom"><strong>{{nom}}</strong>{{#if faction}} <small>{{faction}}</small>{{/if}}{{#if lieu}} <small>· {{lieu}}</small>{{/if}}</p>
+        <p class="lakour-mjia-contact-attitude">{{attitudeTexte}}</p>
+        {{#if dette}}<p><i class="fa-solid fa-scale-unbalanced"></i> {{dette}}</p>{{/if}}
+        {{#if demande}}<p><i class="fa-solid fa-hand-holding"></i> {{demande}}</p>{{/if}}
+        {{#if notes}}<p class="hint">{{notes}}</p>{{/if}}
+        {{#each historique}}<p class="hint"><small>{{this}}</small></p>{{/each}}
+      </div>
+      {{#if @root.mj}}
+      <div class="lakour-mjia-horloge-gestes">
+        <button type="button" data-action="attitude" data-valeur="-1" data-tooltip="{{localize 'LAKOUR_MJIA.Contacts.Moins'}}"><i class="fa-solid fa-minus"></i></button>
+        <button type="button" data-action="attitude" data-valeur="1" data-tooltip="{{localize 'LAKOUR_MJIA.Contacts.Plus'}}"><i class="fa-solid fa-plus"></i></button>
+        <button type="button" data-action="contactVisible" data-valeur="{{#if visible}}0{{else}}1{{/if}}"
+          data-tooltip="{{#if visible}}{{localize 'LAKOUR_MJIA.Carnet.Cacher'}}{{else}}{{localize 'LAKOUR_MJIA.Carnet.Montrer'}}{{/if}}">
+          <i class="fa-solid {{#if visible}}fa-eye{{else}}fa-eye-slash{{/if}}"></i></button>
+      </div>
+      {{/if}}
+    </li>
+    {{/each}}
+  </ul>
+</section>

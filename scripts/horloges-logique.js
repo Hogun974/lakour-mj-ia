@@ -188,7 +188,7 @@ export function resumerPourIA(liste, max = MAX_RESUME) {
   return lignes;
 }
 
-// ------------------------------------------------------------------ affichage (fenêtre « Horloges »)
+// ------------------------------------------------------------------ affichage (Carnet de campagne, onglet Horloges)
 
 const arrondi = n => Math.round(n * 100) / 100;
 

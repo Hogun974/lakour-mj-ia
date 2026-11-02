@@ -6,6 +6,7 @@
 import { ID } from "./constantes.js";
 import { estMJActif, recevoir, versMJ, ecouterCanal } from "./canal.js";
 import * as L from "./horloges-logique.js";
+import { plier } from "./recherche-nom.js";
 
 const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
 const copie = el => (el ? structuredClone(el) : null);
@@ -81,15 +82,22 @@ function modifier(ref, fn, source) {
 
 // ------------------------------------------------------------------ API (contrat des modules des mondes)
 
-// Crée l'élément s'il n'existe pas (par id), sinon le laisse tel quel ; rend l'élément. Hors du MJ actif, rien n'est écrit.
+// Crée l'élément s'il n'existe pas (par id, ou sans id par son nom exact, casse et accents ignorés), sinon le laisse tel quel ;
+// rend l'élément. Hors du MJ actif, rien n'est écrit.
+const dejaLa = (liste, def) => {
+  const id = String(def?.id ?? "").trim();
+  if (id) return liste.find(e => e.id === id) ?? null;
+  const nom = plier(def?.nom);
+  return nom ? liste.find(e => plier(e.nom) === nom) ?? null : null;
+};
 export async function assurer(def) {
-  const existant = lireHorloges().find(e => e.id === String(def?.id ?? "").trim());
+  const existant = dejaLa(lireHorloges(), def);
   if (existant) return copie(existant);
   const el = L.normaliser(def, lireHorloges().map(e => e.id));
   if (!estMJActif()) return el;
   return enFile(async () => {
     const liste = lireHorloges();
-    const deja = liste.find(e => e.id === el.id);
+    const deja = dejaLa(liste, def) ?? liste.find(e => e.id === el.id);
     if (deja) return copie(deja);
     await ecrireHorloges([...liste, el]);
     return copie(el);
@@ -110,7 +118,7 @@ export async function montrer(id, visible = true, { source = "api" } = {}) {
     apparait = Boolean(visible) && !el.visible;
     return { element: { ...el, visible: Boolean(visible) }, evenements: [] };
   }, source);
-  if (r && apparait) await carte(r.element, [`${L.ligneJoueurs(r.element)} — désormais visible de tous (fenêtre Horloges, barre de gauche).`]);
+  if (r && apparait) await carte(r.element, [`${L.ligneJoueurs(r.element)} — désormais visible de tous (Carnet de campagne, onglet Horloges, barre de gauche).`]);
   return r;
 }
 

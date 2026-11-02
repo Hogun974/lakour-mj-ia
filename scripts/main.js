@@ -19,7 +19,8 @@ import { versHTML } from "./utilitaires.js";
 import { TourParTour, mouvementHorsTour } from "./tour-par-tour.js";
 import { brancherTourParTour, ouvrirPanneau } from "./apps/tour-par-tour.js";
 import * as horloges from "./horloges.js";
-import { ouvrirHorloges, rafraichirHorloges } from "./apps/horloges.js";
+import * as carnet from "./carnet.js";
+import { ouvrirCarnet, ouvrirHorloges, rafraichirCarnet } from "./apps/carnet.js";
 
 Hooks.once("init", () => {
   enregistrerReglages();
@@ -60,11 +61,26 @@ Hooks.once("ready", () => {
       montrer: (id, visible = true) => horloges.montrer(id, visible),
       retirer: id => horloges.retirer(id),
       ouvrir: () => ouvrirHorloges(),
-      rafraichir: () => rafraichirHorloges()
-    }
+      // La fenêtre « Carnet de campagne » (horloges, enquêtes, contacts), redessinée à chaque changement d'un des trois réglages.
+      rafraichir: (cle = null) => rafraichirCarnet(cle)
+    },
+    // Tableau d'enquête et registre des contacts (carnet.js ; 40k, Warcraft) : assurer(def) crée l'élément s'il n'existe pas (par id)
+    // et le rend ; lister() ; trouver(ref). Seul le MJ actif écrit.
+    enquetes: {
+      assurer: def => carnet.assurerEnquete(def),
+      lister: () => carnet.enquetes.lister(),
+      trouver: ref => carnet.trouverEnquete(ref)
+    },
+    contacts: {
+      assurer: def => carnet.assurerContact(def),
+      lister: () => carnet.contacts.lister(),
+      trouver: ref => carnet.trouverContact(ref)
+    },
+    carnet: (onglet = null) => ouvrirCarnet(onglet)
   };
-  // Gestes de la fenêtre Horloges faits par un autre MJ : transmis au MJ actif.
+  // Gestes de la fenêtre Carnet de campagne faits par un autre MJ : transmis au MJ actif.
   horloges.brancherHorloges();
+  carnet.brancherCarnet();
   // Voix des IA en direct : chaque navigateur joue les morceaux de son reçus du MJ actif (canal du module).
   brancherVoixDirecte();
   // L'écoute suit l'état de la table : séance, compagnons, flux A/V qui arrivent ou changent, phase des Veillées.
@@ -237,20 +253,20 @@ Hooks.on("preMoveToken", jeton => {
   if (mouvementInterdit(jeton)) return false;
 });
 
-// Accès à la console depuis les contrôles de scène (MJ uniquement) ; la fenêtre Horloges pour tous (hors Veillées).
+// Accès à la console depuis les contrôles de scène (MJ uniquement) ; le Carnet de campagne pour tous (hors Veillées).
 Hooks.on("getSceneControlButtons", controles => {
   const jetons = controles.tokens ?? controles.token;
   if (!jetons?.tools) return;
-  // Horloges, jauges et réputations : les joueurs n'y voient que ce que le MJ a montré.
+  // Carnet de campagne (horloges, enquêtes, contacts) : les joueurs n'y voient que ce que le MJ a montré.
   if (horloges.disponibles()) {
     jetons.tools.lakourHorloges = {
       name: "lakourHorloges",
-      title: "LAKOUR_MJIA.Horloges.Titre",
-      icon: "fa-solid fa-chart-pie",
+      title: "LAKOUR_MJIA.Carnet.Titre",
+      icon: "fa-solid fa-book-open",
       order: Object.keys(jetons.tools).length,
       button: true,
       visible: true,
-      onChange: () => ouvrirHorloges()
+      onChange: () => ouvrirCarnet()
     };
   }
   if (!game.user.isGM) return;

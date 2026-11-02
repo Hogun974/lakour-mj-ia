@@ -3,7 +3,7 @@ import { lire, ecrire } from "./reglages.js";
 import { ecrireJSON } from "./utilitaires.js";
 
 // Remise à zéro de la campagne, dans le navigateur du MJ, par l'API de Foundry (qui défait proprement
-// tous les liens) : chat, combats, scènes, journaux, objets, tables, dossiers, brouillard, horloges, acteurs — sauf les
+// tous les liens) : chat, combats, scènes, journaux, objets, tables, dossiers, brouillard, horloges, enquêtes, contacts, acteurs — sauf les
 // personnages cochés. Restent : utilisateurs, réglages (clés comprises), macros, musiques, compendiums.
 // Le personnage gardé reçoit le jeton de son rôle ; le contenu du jeu (40k, Warcraft, Veillées) est ensuite réinstallé
 // à neuf et une scène activée (sans elle, plus de barre d'outils pour le MJ).
@@ -63,8 +63,9 @@ export async function reinitialiserCampagne(moteur) {
   moteur.fil = null;
   await ecrire("seance", { active: false, debut: null, jetons: { entree: 0, cacheLecture: 0, cacheEcriture: 0, sortie: 0 }, cout: 0 });
   await ecrire("mouvementsBloques", {});
-  // Horloges, jauges et réputations : la campagne repart de zéro (le contenu réinstallé déclare à nouveau les siennes).
-  await ecrire("horloges", []);
+  // Horloges, jauges et réputations, enquêtes et contacts : la campagne repart de zéro (le contenu réinstallé déclare à nouveau
+  // les siens).
+  for (const cle of ["horloges", "enquetes", "contacts"]) await ecrire(cle, []);
   await ecrireJSON("fils", `${game.world.id}.json`, {}).catch(() => null);
 
   // 2. Le contenu du monde.

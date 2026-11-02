@@ -396,6 +396,31 @@
       "MicroAide": "Grants \"Broadcast Audio\" to the Player role (by default only trusted players have it).",
       "MicroDonne": "Players can now broadcast their microphone."
     },
+    "Carnet": {
+      "Titre": "Campaign notebook",
+      "AideConsole": "Campaign clocks, investigations and contacts",
+      "Montrer": "Hidden from players: show it",
+      "Cacher": "Visible to players: hide it",
+      "Onglets": { "Horloges": "Clocks", "Enquetes": "Investigations", "Contacts": "Contacts" }
+    },
+    "Enquetes": {
+      "Vide": "No investigation to show yet.",
+      "VideMJ": "No investigations. The AI GM creates them with its \"enquete\" tool, world modules with api.enquetes.assurer.",
+      "Conclusions": "Conclusions",
+      "Indices": "Clues",
+      "AucuneConclusion": "No conclusion revealed.",
+      "AucunIndice": "No clue found.",
+      "Ou": "Where:",
+      "Fragile": "fewer than 3 clues",
+      "AideFragile": "Three clue rule: this conclusion has fewer than three clues left to find.",
+      "AideMJ": "Tick a found clue or a revealed conclusion. Players only see, in a shown investigation (open eye), the clues found and the conclusions revealed."
+    },
+    "Contacts": {
+      "Vide": "No contact to show yet.",
+      "VideMJ": "No contacts. The AI GM records them with its \"contact\" tool, world modules with api.contacts.assurer.",
+      "Plus": "Attitude +1",
+      "Moins": "Attitude -1"
+    },
     "Horloges": {
       "Titre": "Clocks",
       "Vide": "No clock to show yet.",

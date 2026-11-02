@@ -509,8 +509,14 @@ export class MoteurMJ {
   }
 
   async executer(appel, outils) {
-    const def = outils.find(o => o.nom === appel.nom) ?? outil(appel.nom);
-    if (!def) return { id: appel.id, erreur: true, contenu: `Outil inconnu : ${appel.nom}.` };
+    // Seulement les outils offerts au modèle pour ce tour (système du monde, horsSystemes, liste réduite d'un scénario) : un
+    // autre nom, même d'un outil qui existe ailleurs, est refusé sans rien exécuter.
+    const def = outils.find(o => o.nom === appel.nom);
+    if (!def) {
+      return { id: appel.id, erreur: true, contenu: outil(appel.nom)
+        ? `Outil non disponible ici : ${appel.nom} (il ne fait pas partie des outils proposés pour ce tour). Rien n'a été exécuté.`
+        : `Outil inconnu : ${appel.nom}.` };
+    }
     // Arguments vérifiés avant tout (et avant de déranger le MJ humain) : l'IA reçoit le détail et corrige.
     const invalides = validerSchema(def.schema, appel.args);
     if (invalides.length) {

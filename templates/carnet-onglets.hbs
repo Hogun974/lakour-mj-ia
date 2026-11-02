@@ -1,0 +1,8 @@
+<nav class="lakour-mjia-carnet-onglets" aria-label="{{localize 'LAKOUR_MJIA.Carnet.Titre'}}">
+  <button type="button" data-action="onglet" data-onglet="horloges" class="{{#if onglets.horloges}}actif{{/if}}" aria-pressed="{{onglets.horloges}}">
+    <i class="fa-solid fa-chart-pie"></i> {{localize "LAKOUR_MJIA.Carnet.Onglets.Horloges"}}{{#if nombres.horloges}} <small>{{nombres.horloges}}</small>{{/if}}</button>
+  <button type="button" data-action="onglet" data-onglet="enquetes" class="{{#if onglets.enquetes}}actif{{/if}}" aria-pressed="{{onglets.enquetes}}">
+    <i class="fa-solid fa-magnifying-glass"></i> {{localize "LAKOUR_MJIA.Carnet.Onglets.Enquetes"}}{{#if nombres.enquetes}} <small>{{nombres.enquetes}}</small>{{/if}}</button>
+  <button type="button" data-action="onglet" data-onglet="contacts" class="{{#if onglets.contacts}}actif{{/if}}" aria-pressed="{{onglets.contacts}}">
+    <i class="fa-solid fa-address-book"></i> {{localize "LAKOUR_MJIA.Carnet.Onglets.Contacts"}}{{#if nombres.contacts}} <small>{{nombres.contacts}}</small>{{/if}}</button>
+</nav>

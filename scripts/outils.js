@@ -20,6 +20,9 @@ import {
 import { planVersScene, zoneVersRegion, idStable, cheminSon, etagesDuPlan, SOLS, SONS_AMBIANCE, TYPES_ZONE, MAX_ETAGES } from "./cartes.js";
 import { planVersSVG } from "./cartes-rendu.js";
 import * as Horloges from "./horloges.js";
+import * as Carnet from "./carnet.js";
+import * as Enq from "./enquetes-logique.js";
+import * as Cont from "./contacts-logique.js";
 import { ligneResume, PALIERS_REPUTATION, SEGMENTS_MIN, SEGMENTS_MAX } from "./horloges-logique.js";
 import { listeSalles, trouverSalle, salleDeLaCase, centreSalle, casesLibres, casesOccupees, casesInterdites, casesDispersees, casesAutour, reperesDuPlan, trouverRepere, planDe, carteDeScene, TYPES_FIGURANTS, jetonFigurant, moduleDesFigurants } from "./placement.js";
 
@@ -3298,7 +3301,7 @@ const detailHorloge = el => [ligneResume(el), el.notes ? `  Notes : ${el.notes}`
 OUTILS.push({
   nom: "horloge",
   horsSystemes: ["lakour-loups"],
-  description: `Horloges, jauges et réputations, visibles dans la fenêtre « Horloges » (les joueurs n'y voient que ce que tu montres). `
+  description: `Horloges, jauges et réputations, visibles dans le Carnet de campagne, onglet Horloges (les joueurs n'y voient que ce que tu montres). `
     + `Horloge : une menace ou un projet qui mûrit, en ${SEGMENTS_MIN} à ${SEGMENTS_MAX} segments (le culte achève son rituel, les renforts `
     + "arrivent) ; quand elle est pleine, elle sonne et l'événement arrive. Jauge : un compteur de 0 à max avec des seuils nommés (l'"
     + "Exposition en 40k, id exposition : plus elle monte, plus l'équipe s'est fait remarquer). Réputation : les points d'une faction, de -max à +max, lus en "
@@ -3355,6 +3358,141 @@ OUTILS.push({
     if (!r) return { erreur: true, contenu: "Seul le MJ actif peut modifier les horloges." };
     const vu = action === "montrer" ? " Les joueurs la voient maintenant." : action === "cacher" ? " Cachée aux joueurs." : "";
     return { contenu: `${ligneResume(r.element)}.${vu}${r.texte ? `\n${r.texte}` : ""}` };
+  }
+});
+
+// ---------------------------------------------------------------- Carnet de campagne : enquêtes et contacts (carnet.js)
+// Partout sauf aux Veillées. Chaque modification d'une enquête rappelle la règle des trois indices.
+
+const NL = "\n";
+const detailEnquete = e => [
+  `Enquête « ${e.titre} » [${e.id}]${e.visible ? "" : " (cachée aux joueurs)"} :`,
+  ...e.conclusions.map(c => `- Conclusion [${c.id}] ${c.revelee ? "RÉVÉLÉE" : "cachée"} : ${c.texte}`),
+  ...e.indices.map(i => `- Indice [${i.id}] ${i.trouve ? "TROUVÉ" : "à trouver"} : ${i.texte}${i.ou ? ` (où : ${i.ou})` : ""} → `
+    + `${i.mene.map(id => e.conclusions.find(c => c.id === id)?.texte ?? id).join(" ; ")}`)
+].join(NL);
+const avecRappel = (texte, e) => [texte, Enq.rappelTroisIndices(e)].filter(Boolean).join(NL);
+
+OUTILS.push({
+  nom: "enquete",
+  horsSystemes: ["lakour-loups"],
+  description: "Tableau d'enquête (« règle des trois indices »), visible dans le Carnet de campagne : une enquête a des CONCLUSIONS (ce que les "
+    + "joueurs doivent comprendre) et des INDICES (où les trouver, à quelles conclusions ils mènent). Donne au moins trois indices à chaque "
+    + "conclusion, par des chemins différents : les joueurs en rateront. « trouver » quand les joueurs trouvent un indice, « reveler » quand ils "
+    + "ont compris une conclusion. Chaque modification te rappelle les conclusions qui ont moins de trois indices encore trouvables. Les joueurs "
+    + "ne voient d'une enquête montrée que les indices trouvés et les conclusions révélées.",
+  schema: objet({
+    action: { type: "string", enum: ["lister", "creer", "ajouter_conclusion", "ajouter_indice", "trouver", "reveler", "montrer", "cacher", "retirer"],
+      description: "Ce qu'il faut faire." },
+    enquete: chaine("Titre ou identifiant de l'enquête ; vide = l'enquête en cours (creer : vide)."),
+    texte: chaine("creer : le titre ; ajouter_conclusion : la conclusion ; ajouter_indice : l'indice ; trouver, reveler : l'indice ou la conclusion "
+      + "visés (texte ou identifiant). Vide pour lister, montrer, cacher, retirer."),
+    ou: chaine("ajouter_indice : où ou comment le trouver (un lieu, un PNJ, un document, un test). Vide sinon."),
+    mene: { type: "array", items: chaine("Une conclusion (texte ou identifiant)."), description: "ajouter_indice : les conclusions auxquelles il mène. Vide sinon." },
+    visible: booleen("creer : true si les joueurs voient l'enquête dès sa création.")
+  }),
+  sensible: false,
+  async executer({ action, enquete, texte, ou, mene, visible }) {
+    if (action === "lister") {
+      const tous = Carnet.enquetes.lister();
+      return { contenu: tous.length ? tous.map(e => avecRappel(detailEnquete(e), e)).join(NL + NL) : "Aucune enquête." };
+    }
+    if (action === "creer") {
+      if (!texte.trim()) return { erreur: true, contenu: "Donne le titre de l'enquête (texte)." };
+      if (Carnet.trouverEnquete(texte)) return { erreur: true, contenu: `L'enquête « ${texte} » existe déjà.` };
+      const e = await Carnet.assurerEnquete({ titre: texte, visible });
+      return { contenu: `Enquête créée : « ${e.titre} » [${e.id}] ; c'est l'enquête en cours (enquete vide la désigne, ou son identifiant ${e.id}). `
+        + "Ajoute ses conclusions (ajouter_conclusion), puis au moins trois indices pour chacune (ajouter_indice)." };
+    }
+    const cible = Carnet.trouverEnquete(enquete);
+    if (!cible) return { erreur: true, contenu: `Enquête introuvable${enquete ? ` : ${enquete}` : " (aucune en cours)"}. Enquêtes : ${Carnet.enquetes.lister().map(e => e.titre).join(", ") || "aucune"}.` };
+    if (action === "retirer") {
+      await Carnet.retirerEnquete(cible.id);
+      return { contenu: `Enquête « ${cible.titre} » retirée.` };
+    }
+    const operations = {
+      ajouter_conclusion: e => Enq.ajouterConclusion(e, { texte }),
+      ajouter_indice: e => Enq.ajouterIndice(e, { texte, ou, mene }),
+      trouver: e => Enq.marquerIndice(e, texte, true),
+      reveler: e => Enq.marquerConclusion(e, texte, true),
+      montrer: e => ({ enquete: { ...e, visible: true }, entree: null }),
+      cacher: e => ({ enquete: { ...e, visible: false }, entree: null })
+    };
+    let r;
+    try { r = await Carnet.modifierEnquete(cible.id, operations[action]); } catch (e) { return { erreur: true, contenu: `Rien n'a changé : ${e.message}.` }; }
+    if (!r) return { erreur: true, contenu: "Seul le MJ actif peut modifier les enquêtes." };
+    const fait = {
+      ajouter_conclusion: `Conclusion ajoutée [${r.entree?.id}].`, ajouter_indice: `Indice ajouté [${r.entree?.id}].`,
+      trouver: `Indice trouvé : « ${r.entree?.texte} »${r.enquete.visible ? " (les joueurs le voient au Carnet)" : ""}.`,
+      reveler: `Conclusion révélée : « ${r.entree?.texte} ».`, montrer: "Les joueurs voient maintenant cette enquête (indices trouvés, conclusions révélées).",
+      cacher: "Enquête cachée aux joueurs."
+    }[action];
+    return { contenu: avecRappel(`${fait} (« ${r.enquete.titre} »)`, r.enquete) };
+  }
+});
+
+OUTILS.push({
+  nom: "contact",
+  horsSystemes: ["lakour-loups"],
+  description: "Registre des contacts et des dettes, visible dans le Carnet de campagne : un PNJ que les personnages connaissent, sa faction, son "
+    + "lieu, son attitude envers eux (-3 Hostile, -2 Méfiant, -1 Réservé, 0 Neutre, +1 Bienveillant, +2 Amical, +3 Allié), ce qu'on se doit "
+    + "(une dette, dans un sens ou dans l'autre) et ce qu'il demande en échange. Fais-le vivre : une faveur rendue monte l'attitude, une promesse "
+    + "trahie la baisse ; une dette se rappelle au mauvais moment. Les joueurs voient les contacts montrés (sans tes notes).",
+  schema: objet({
+    action: { type: "string", enum: ["lister", "ajouter", "modifier", "attitude", "dette", "solder", "montrer", "cacher", "retirer"],
+      description: "Ce qu'il faut faire." },
+    nom: chaine("Nom ou identifiant du contact (vide pour lister)."),
+    faction: chaine("ajouter, modifier : sa faction. Vide = aucune ou inchangée."),
+    lieu: chaine("ajouter, modifier : où on le trouve. Vide = aucun ou inchangé."),
+    attitude: entier("ajouter : attitude de départ (-3 à +3) ; attitude : de combien elle change (+1, -2…). 0 sinon."),
+    raison: chaine("attitude : pourquoi elle change (gardé à son historique). Vide sinon."),
+    dette: chaine("ajouter, dette : qui doit quoi à qui (« le groupe lui doit un passage discret »). Vide sinon."),
+    demande: chaine("ajouter, modifier : ce qu'il veut en échange de son aide. Vide = rien ou inchangé."),
+    notes: chaine("ajouter, modifier : ce que toi seul sais de lui (jamais montré aux joueurs). Vide = rien ou inchangé."),
+    acteur: chaine("ajouter, modifier : le nom (ou l'uuid) de son PNJ dans le monde, pour le reconnaître sur la scène. Vide = aucun ou inchangé."),
+    visible: booleen("ajouter : true si les joueurs le voient dès maintenant.")
+  }),
+  sensible: false,
+  async executer({ action, nom, faction, lieu, attitude, raison, dette, demande, notes, acteur, visible }) {
+    if (action === "lister") {
+      const tous = Carnet.contacts.lister();
+      return { contenu: tous.length ? tous.map(c => [Cont.ligneContact(c), c.notes ? `  Notes : ${c.notes}` : "",
+        c.historique?.length ? `  Historique : ${c.historique.slice(-3).join(" ; ")}` : ""].filter(Boolean).join(NL)).join(NL) : "Aucun contact." };
+    }
+    if (!nom.trim()) return { erreur: true, contenu: "Donne le nom du contact." };
+    // Son PNJ : un uuid tel quel, sinon le nom d'un acteur du monde.
+    const uuidActeur = async () => {
+      const a = acteur.trim();
+      if (!a) return "";
+      if (/^(Actor|Scene|Compendium)\./.test(a)) return a;
+      return (await trouverActeur(a))?.uuid ?? "";
+    };
+    if (action === "ajouter") {
+      if (Carnet.trouverContact(nom)) return { erreur: true, contenu: `« ${nom} » est déjà au registre : utilise modifier, attitude ou dette.` };
+      const c = await Carnet.assurerContact({ nom, faction, lieu, attitude, dette, demande, notes, acteur: await uuidActeur(), visible });
+      return { contenu: `Contact ajouté : ${Cont.ligneContact(c)}.` };
+    }
+    const cible = Carnet.trouverContact(nom);
+    if (!cible) return { erreur: true, contenu: `Contact introuvable : ${nom} (contacts : ${Carnet.contacts.lister().map(c => c.nom).join(", ") || "aucun"}).` };
+    if (action === "retirer") {
+      await Carnet.retirerContact(cible.id);
+      return { contenu: `« ${cible.nom} » retiré du registre.` };
+    }
+    const lien = action === "modifier" ? await uuidActeur() : "";
+    const operations = {
+      modifier: c => ({ ...c, ...Object.fromEntries(Object.entries({ faction, lieu, demande, notes, acteur: lien }).filter(([, v]) => String(v ?? "").trim())) }),
+      attitude: c => Cont.changerAttitude(c, attitude, raison),
+      dette: c => Cont.noterDette(c, dette),
+      solder: c => Cont.noterDette(c, ""),
+      montrer: c => ({ ...c, visible: true }),
+      cacher: c => ({ ...c, visible: false })
+    };
+    if (action === "dette" && !dette.trim()) return { erreur: true, contenu: "Dis qui doit quoi à qui (dette), ou utilise solder." };
+    if (action === "attitude" && !attitude) return { erreur: true, contenu: "attitude : donne de combien elle change (+1, -2…)." };
+    const r = await Carnet.modifierContact(cible.id, operations[action]);
+    if (!r) return { erreur: true, contenu: "Seul le MJ actif peut modifier les contacts." };
+    const borne = action === "attitude" && r.avant === r.apres ? " (déjà à la limite)" : "";
+    return { contenu: `${Cont.ligneContact(r.contact)}.${borne}` };
   }
 });
 

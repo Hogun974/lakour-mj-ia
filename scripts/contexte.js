@@ -10,6 +10,7 @@ import { compagnonsDuMonde, estCompagnon, personnaliteDe } from "./compagnons-je
 import { TEMPERAMENTS } from "./compagnons.js";
 import { resumePourIA as resumeHorloges } from "./horloges.js";
 import { horlogesDisponibles } from "./horloges-logique.js";
+import { resumeCarnetPourIA } from "./carnet.js";
 
 // Consigne au MJ sur les compagnons IA (docs/compagnons.md) : des joueurs comme les autres, à qui il ne souffle rien.
 export const CONSIGNE_COMPAGNONS = [
@@ -35,6 +36,12 @@ export const CONSIGNE_HORLOGES = "- Horloges, jauges et réputations (horloge) :
   + "Exposition (40k) monte après un coup d'éclat, un combat bruyant ou un témoin laissé derrière, et ses seuils déclenchent des réactions. "
   + "La réputation d'une faction monte avec un service, baisse avec un affront ; son palier règle l'accueil de ses gens. Montre aux "
   + "joueurs ce que leurs personnages savent (montrer), garde le reste caché ; une ou deux avancées par scène au plus.";
+
+// Consigne sur le Carnet de campagne (outils enquete et contact ; 40k, Warcraft) : son état est dans l'état du jeu.
+export const CONSIGNE_CARNET = "- Enquêtes (enquete) : pour un mystère, pose les conclusions que les joueurs doivent atteindre et au moins trois "
+  + "indices par conclusion, par des chemins différents (un lieu, un PNJ, un document) ; coche ceux qu'ils trouvent, révèle une conclusion "
+  + "quand ils l'ont comprise, et ajoute des indices quand l'outil te le rappelle. Contacts (contact) : note les PNJ que les personnages "
+  + "connaissent, leur attitude, ce qu'on se doit et ce qu'ils demandent ; fais-les revenir, et les dettes avec eux.";
 
 // Consignes des outils liés à des modules tiers (scripts/outils.js, champ « modules ») : une phrase par module actif, et
 // seulement dans les systèmes où l'outil existe. actif : id de module -> booléen.
@@ -139,6 +146,7 @@ export async function promptSysteme(personnalite, { mission } = {}) {
       : "",
     ...consignesModulesTiers(),
     horlogesDisponibles(game.system?.id) ? CONSIGNE_HORLOGES : "",
+    horlogesDisponibles(game.system?.id) ? CONSIGNE_CARNET : "",
     "- Tu reçois aussi ce que les joueurs font sur le plateau : 🚶 entrée dans une pièce ou déplacement, 🚪 porte ouverte ou fermée, "
       + "⚔️ tour d'un PNJ en combat. Réagis comme un vrai MJ : décris le lieu découvert, déclenche un piège, fais parler un PNJ. "
       + "Si un déplacement n'appelle aucune réaction, réponds seulement « — » (rien ne s'affiche) : ne commente pas chaque pas.",
@@ -238,6 +246,10 @@ export function etatDuJeu() {
   // Horloges, jauges et réputations (horloges.js), en quelques lignes (les notes : outil horloge, « lister »).
   const horloges = resumeHorloges();
   if (horloges.length) lignes.push("Horloges, jauges et réputations :", ...horloges);
+  // L'enquête en cours et les contacts utiles ici (carnet.js), six lignes au plus chacun.
+  if (horlogesDisponibles(game.system?.id)) {
+    try { lignes.push(...resumeCarnetPourIA(scene)); } catch { /* pas de carnet */ }
+  }
   // Tour par tour (tour-par-tour.js) : le même état et la même étape suivante que le panneau du MJ humain, pour rester cohérent
   // (détails : outil combat_etat) ; le tour de table en cours.
   try { lignes.push(...(game.modules.get(ID)?.api?.tour?.resumePourIA?.() ?? [])); } catch { /* pas de tour par tour */ }

@@ -22,6 +22,7 @@ function batterie(R) {
   });
   verifier("exact : casse et accents ignorés", () => {
     assert.equal(choix(["Rencontres en forêt", "Rencontres en forêt profonde"], "RENCONTRES EN FORET").choix?.nom, "Rencontres en forêt");
+    assert.equal(choix(["Le Chœur creux", "Le Chœur creux (suite)"], "le choeur creux").choix?.nom, "Le Chœur creux", "ligature œ");
   });
   verifier("exact : apostrophe typographique et espaces", () => {
     assert.equal(choix(["L’Épreuve du Warp", "L'épreuve du Warp — variantes"], "l'epreuve  du warp").choix?.nom, "L’Épreuve du Warp");
@@ -67,7 +68,8 @@ const MUTATIONS = {
   "espaces doubles comptés": [".replace(/\\s+/g, \" \").trim()", ".trim()"],
   "ambiguïté tranchée au hasard (le premier)": ["return { choix: null, ambigus: [...new Set(trouves.map(nomDe))] };", "return { choix: trouves[0], ambigus: [] };"],
   "même nom deux fois pris pour une ambiguïté": ["if (new Set(trouves.map(c => plier(nomDe(c)))).size === 1)", "if (trouves.length === 1)"],
-  "texte vide accepté": ["if (!cible) return { choix: null, ambigus: [] };", ""]
+  "texte vide accepté": ["if (!cible) return { choix: null, ambigus: [] };", ""],
+  "ligatures comptées": [".replace(/[œŒ]/g, \"oe\").replace(/[æÆ]/g, \"ae\")", ""]
 };
 
 test("mutations : la batterie attrape chaque règle cassée", async () => {

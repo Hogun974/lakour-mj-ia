@@ -1,4 +1,4 @@
-<section class="lakour-mjia-horloges-corps">
+<section class="lakour-mjia-horloges-corps" {{#unless onglets.horloges}}hidden{{/unless}}>
   {{#if vide}}
   <p class="hint">{{#if mj}}{{localize "LAKOUR_MJIA.Horloges.VideMJ"}}{{else}}{{localize "LAKOUR_MJIA.Horloges.Vide"}}{{/if}}</p>
   {{/if}}

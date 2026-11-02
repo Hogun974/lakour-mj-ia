@@ -48,6 +48,7 @@ for (const [systeme, module] of [["impmal", "lakour-40k"], ["dnd5e", "lakour-war
     assert.deepEqual(traces.installes, [module], "seul le contenu du jeu de ce monde est réinstallé");
     assert.equal(traces.reglages[`${module}.installe`], "", "l'installation repart de zéro");
     assert.deepEqual(traces.activees, ["Village"], "sans scène active, le MJ n'a plus de barre d'outils");
+    for (const cle of ["horloges", "enquetes", "contacts"]) assert.deepEqual(traces.reglages[`lakour-mj-ia.${cle}`], [], `${cle} effacés`);
     if (systeme === "lakour-loups") assert.deepEqual(traces.reglages["lakour-loups.partie"], { partie: null, phase: "preparation", tour: 0 });
     else assert.ok(!("lakour-loups.partie" in traces.reglages));
   });

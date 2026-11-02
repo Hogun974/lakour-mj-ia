@@ -93,7 +93,7 @@ Bouton **Commencer un tour de table** du panneau : la parole passe à chacun dan
 ### Horloges, jauges et réputations (40k et Warcraft)
 
 #### Ce qui avance hors champ
-La fenêtre **Horloges** (bouton **camembert** dans la barre de gauche, calque des jetons, ou bouton **Horloges** de la console) montre trois sortes d'éléments, que le MJ IA crée et fait vivre avec son outil **horloge** :
+Le **Carnet de campagne** (bouton **livre ouvert** dans la barre de gauche, calque des jetons, ou bouton **Carnet de campagne** de la console), onglet **Horloges**, montre trois sortes d'éléments, que le MJ IA crée et fait vivre avec son outil **horloge** :
 - **Horloge** : 4 à 12 segments, à la façon de *Blades in the Dark*. Une menace ou un projet qui mûrit (« le culte achève son rituel », « les renforts arrivent ») : elle avance quand le temps passe ou qu'un échec la nourrit, et quand elle est pleine, **elle sonne** : l'événement arrive.
 - **Jauge** : un compteur de 0 au maximum, avec des **seuils** nommés. En 40k, l'**Exposition** (id *exposition*) : plus elle monte, plus l'équipe s'est fait remarquer (un coup d'éclat, un combat bruyant, un témoin laissé derrière).
 - **Réputation** : les points d'une faction, de -100 à +100, lus en **paliers** : **Haï** (-100 à -51), **Hostile** (-50 à -21), **Inamical** (-20 à -6), **Neutre** (-5 à +5), **Amical** (+6 à +20), **Honoré** (+21 à +50), **Révéré** (+51 à +80), **Exalté** (+81 et plus). Un service vaut +3 à +5, un grand service +10 à +15, un affront -5, une trahison -20 à -30.
@@ -104,6 +104,22 @@ La fenêtre **Horloges** (bouton **camembert** dans la barre de gauche, calque d
 - Le MJ IA voit l'état de chaque élément à chaque tour ; ses **notes** (ce qui arrive quand l'horloge sonne) restent secrètes. Pendant un intermède, il avance les horloges des factions.
 - **Modules des mondes** : *game.modules.get("lakour-mj-ia").api.horloges* — *assurer(def)* crée un élément s'il n'existe pas (par son id) et le rend ; *avancer(id, n)* ; *lister()* ; *palier(id)*. Seul le MJ actif écrit.
 - **Réinitialiser la campagne** efface aussi les horloges.
+
+### Enquêtes et contacts (40k et Warcraft)
+
+#### Le tableau d'enquête
+Onglet **Enquêtes** du **Carnet de campagne**. Le MJ IA y tient chaque mystère avec son outil **enquete**, selon la **règle des trois indices** :
+- des **conclusions** : ce que les joueurs doivent comprendre (« le diacre ment sur les muets ») ;
+- des **indices** : où les trouver (un lieu, un PNJ, un document, un test) et à quelles conclusions ils mènent. Chaque conclusion devrait en avoir **au moins trois**, par des chemins différents : les joueurs en rateront. Le MJ IA est prévenu à chaque modification quand une conclusion en a moins de trois encore trouvables (marque **moins de 3 indices** chez toi).
+- **Coche** un indice trouvé ou une conclusion révélée ; l'**œil** montre l'enquête aux joueurs, qui n'en voient que les indices trouvés et les conclusions révélées.
+- Le MJ IA a l'enquête en cours dans son contexte (six lignes au plus) : il coche ce que les joueurs trouvent et ajoute des indices quand il le faut.
+
+#### Les contacts et les dettes
+Onglet **Contacts**. Le MJ IA y note avec son outil **contact** les PNJ que les personnages connaissent : faction, lieu, **attitude** de -3 (**Hostile**) à +3 (**Allié**), en passant par Méfiant, Réservé, Neutre, Bienveillant et Amical, la **dette** (qui doit quoi à qui) et ce qu'il **demande** en échange de son aide.
+- **+** et **−** changent l'attitude, l'**œil** montre le contact aux joueurs (sans tes notes ni l'historique).
+- Le MJ IA a dans son contexte les contacts présents sur la scène ou liés au lieu, puis les plus récents (six lignes au plus) : il les fait revenir, et les dettes avec eux.
+- **Modules des mondes** : *api.enquetes* et *api.contacts* — *assurer(def)* crée l'élément s'il n'existe pas (par son id) et le rend ; *lister()* ; *trouver(ref)*. Seul le MJ actif écrit.
+- **Réinitialiser la campagne** efface aussi enquêtes et contacts.
 
 ### Mener les Veillées soi-même, avec des joueurs IA
 
@@ -161,11 +177,12 @@ Quand une IA doit entendre (une séance du MJ IA est lancée, ou un compagnon IA
 - Si le MJ l'a réglé ainsi, seul le combattant dont c'est le tour peut bouger son jeton.
 - **Hors combat**, le MJ peut faire un **tour de table** : quand vient ton tour, le bandeau dit « À toi de décrire ce que fait ton personnage ». Écris-le dans le chat (ou presse **J'ai fini**), ou **Je passe**.
 
-### Horloges (40k et Warcraft)
+### Carnet de campagne (40k et Warcraft)
 
-- Le bouton **camembert** de la barre de gauche ouvre la fenêtre **Horloges** : ce que le MJ a choisi de te montrer.
+- Le bouton **livre ouvert** de la barre de gauche ouvre le **Carnet de campagne** : ce que le MJ a choisi de te montrer, en trois onglets (Horloges, Enquêtes, Contacts).
 - Une **horloge** se remplit segment par segment : quand elle est pleine, quelque chose arrive. Une **jauge** monte avec vos actions (l'Exposition, en 40k : plus elle est haute, plus vous êtes repérés). Une **réputation** dit ce qu'une faction pense de vous, de **Haï** à **Exalté**.
 - Quand une horloge sonne ou qu'une réputation change, le chat te le dit.
+- **Enquêtes** : les indices que vous avez trouvés et les conclusions que vous avez comprises. **Contacts** : les gens que vous connaissez, ce qu'ils pensent de vous, ce que vous leur devez (ou eux à vous).
 
 ### Les Veillées de Brumecombe
 

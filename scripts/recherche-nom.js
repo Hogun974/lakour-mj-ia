@@ -3,8 +3,9 @@
 // puis nom qui le contient ; casse, accents, apostrophes et espaces ignorés. Le premier niveau qui trouve quelque chose décide :
 // un seul nom → choisi ; plusieurs noms différents → ambigu, la liste des candidats revient à l'IA.
 
-// « L’Épreuve  du Warp » → « l'epreuve du warp ».
+// « L’Épreuve  du Warp » → « l'epreuve du warp » ; « Le Chœur » → « le choeur » (ligatures, que NFD ne décompose pas).
 export const plier = texte => String(texte ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u2019\u02bc`]/g, "'")
+  .replace(/[œŒ]/g, "oe").replace(/[æÆ]/g, "ae")
   .toLowerCase().replace(/\s+/g, " ").trim();
 
 // candidats : dans l'ordre de préférence (tables du monde avant celles des compendiums) ; nomDe lit le nom d'un candidat.

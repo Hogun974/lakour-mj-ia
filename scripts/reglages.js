@@ -131,11 +131,19 @@ export function enregistrerReglages() {
     onChange: () => game.modules.get(ID)?.api?.tour?.rafraichir?.()
   });
   // Horloges, jauges et réputations (horloges.js ; 40k, Warcraft) : [{ id, nom, type, valeur, max, visible, faction, notes,
-  // paliers }], écrit par le MJ actif seul ; chaque navigateur redessine sa fenêtre « Horloges » quand il change.
+  // paliers }], écrit par le MJ actif seul ; chaque navigateur redessine l'onglet Horloges du Carnet de campagne.
   game.settings.register(ID, "horloges", {
     scope: "world", config: false, type: Array, default: [],
-    onChange: () => game.modules.get(ID)?.api?.horloges?.rafraichir?.()
+    onChange: () => game.modules.get(ID)?.api?.horloges?.rafraichir?.("horloges")
   });
+  // Carnet de campagne (carnet.js ; 40k, Warcraft) : le tableau d'enquête (enquetes-logique.js) et le registre des contacts et des
+  // dettes (contacts-logique.js), écrits par le MJ actif seul ; la fenêtre « Carnet de campagne » se redessine chez chacun.
+  for (const cle of ["enquetes", "contacts"]) {
+    game.settings.register(ID, cle, {
+      scope: "world", config: false, type: Array, default: [],
+      onChange: () => game.modules.get(ID)?.api?.horloges?.rafraichir?.(cle)
+    });
+  }
   // Personnages dont l'IA a bloqué les déplacements : { idActeur: raison }. Lu par chaque navigateur de joueur.
   game.settings.register(ID, "mouvementsBloques", { scope: "world", config: false, type: Object, default: {} });
 

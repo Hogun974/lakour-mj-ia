@@ -341,3 +341,39 @@
 .lakour-mjia-horloge-carte { border-left: 3px solid #d9822b; padding-left: 0.4rem; }
 .lakour-mjia-horloge-carte p { margin: 0.15rem 0; }
 .lakour-mjia-horloge-carte small { opacity: 0.7; }
+
+/* ------------------------------------------------------------------ Carnet de campagne : onglets, enquêtes, contacts */
+.lakour-mj-ia.lakour-mjia-carnet [hidden] { display: none !important; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-carnet-onglets { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--horloge-trait); }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-carnet-onglets button {
+  flex: 1; border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; opacity: 0.7; height: auto; padding: 0.3rem;
+}
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-carnet-onglets button.actif { opacity: 1; border-bottom-color: var(--horloge-plein); font-weight: bold; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-carnet-onglets small { opacity: 0.7; }
+
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquetes-corps { max-height: 560px; overflow-y: auto; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquete { padding: 0.35rem 0.5rem; margin-bottom: 0.5rem; border-left: 3px solid var(--horloge-plein); border-radius: 4px; background: rgba(128, 128, 128, 0.08); }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquete.cachee { border-left-style: dashed; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquete header { display: flex; align-items: center; gap: 0.4rem; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquete header h3 { flex: 1; margin: 0; border: none; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquete header button { width: 26px; height: 22px; padding: 0; flex: none; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquete h4 { margin: 0.4rem 0 0.15rem; font-size: var(--font-size-12, 0.75rem); text-transform: uppercase; opacity: 0.7; border: none; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquete-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.15rem; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquete-liste label { display: flex; align-items: flex-start; gap: 0.35rem; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquete-liste input { flex: none; margin-top: 0.15rem; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquete-liste small { display: block; margin-left: 1.6rem; opacity: 0.75; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquete-liste li.faite span { opacity: 0.8; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquete-liste .lakour-mjia-fragile { color: var(--horloge-alerte); opacity: 1; }
+
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-contacts-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; max-height: 560px; overflow-y: auto; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-contact {
+  display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.35rem 0.45rem; border-radius: 4px; background: rgba(128, 128, 128, 0.08);
+  border-left: 3px solid var(--horloge-trait);
+}
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-contact.favorable { border-left-color: var(--horloge-favorable); }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-contact.hostile { border-left-color: var(--horloge-alerte); }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-contact.cachee { border-left-style: dashed; opacity: 0.8; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-contact-texte { flex: 1; min-width: 0; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-contact-texte p { margin: 0.1rem 0; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-contact-nom small { opacity: 0.7; }
+.lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-contact-attitude { font-size: var(--font-size-12, 0.8rem); font-weight: bold; }

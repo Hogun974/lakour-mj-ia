@@ -1,0 +1,47 @@
+<section class="lakour-mjia-enquetes-corps" {{#unless onglets.enquetes}}hidden{{/unless}}>
+  {{#unless enquetes.length}}
+  <p class="hint">{{#if mj}}{{localize "LAKOUR_MJIA.Enquetes.VideMJ"}}{{else}}{{localize "LAKOUR_MJIA.Enquetes.Vide"}}{{/if}}</p>
+  {{/unless}}
+  {{#each enquetes}}
+  <article class="lakour-mjia-enquete {{#unless visible}}cachee{{/unless}}" data-enquete="{{id}}">
+    <header>
+      <h3>{{titre}}</h3>
+      {{#if @root.mj}}
+      <button type="button" data-action="enqueteVisible" data-valeur="{{#if visible}}0{{else}}1{{/if}}"
+        data-tooltip="{{#if visible}}{{localize 'LAKOUR_MJIA.Carnet.Cacher'}}{{else}}{{localize 'LAKOUR_MJIA.Carnet.Montrer'}}{{/if}}">
+        <i class="fa-solid {{#if visible}}fa-eye{{else}}fa-eye-slash{{/if}}"></i></button>
+      {{/if}}
+    </header>
+    <h4>{{localize "LAKOUR_MJIA.Enquetes.Conclusions"}}</h4>
+    <ul class="lakour-mjia-enquete-liste">
+      {{#each conclusions}}
+      <li class="{{#if revelee}}faite{{/if}} {{#if fragile}}fragile{{/if}}">
+        <label>
+          <input type="checkbox" {{#if revelee}}checked{{/if}} {{#if @root.mj}}data-action="conclusion" data-entree="{{id}}" data-valeur="{{#if revelee}}0{{else}}1{{/if}}"{{else}}disabled{{/if}}>
+          <span>{{texte}}</span>
+        </label>
+        {{#if fragile}}<small class="lakour-mjia-fragile" data-tooltip="{{localize 'LAKOUR_MJIA.Enquetes.AideFragile'}}"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "LAKOUR_MJIA.Enquetes.Fragile"}}</small>{{/if}}
+      </li>
+      {{else}}
+      <li class="hint">{{localize "LAKOUR_MJIA.Enquetes.AucuneConclusion"}}</li>
+      {{/each}}
+    </ul>
+    <h4>{{localize "LAKOUR_MJIA.Enquetes.Indices"}}</h4>
+    <ul class="lakour-mjia-enquete-liste">
+      {{#each indices}}
+      <li class="{{#if trouve}}faite{{/if}}">
+        <label>
+          <input type="checkbox" {{#if trouve}}checked{{/if}} {{#if @root.mj}}data-action="indice" data-entree="{{id}}" data-valeur="{{#if trouve}}0{{else}}1{{/if}}"{{else}}disabled{{/if}}>
+          <span>{{texte}}</span>
+        </label>
+        {{#if ou}}<small>{{localize "LAKOUR_MJIA.Enquetes.Ou"}} {{ou}}</small>{{/if}}
+        {{#if mene}}<small>→ {{mene}}</small>{{/if}}
+      </li>
+      {{else}}
+      <li class="hint">{{localize "LAKOUR_MJIA.Enquetes.AucunIndice"}}</li>
+      {{/each}}
+    </ul>
+  </article>
+  {{/each}}
+  {{#if mj}}<p class="hint">{{localize "LAKOUR_MJIA.Enquetes.AideMJ"}}</p>{{/if}}
+</section>

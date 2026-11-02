@@ -396,6 +396,31 @@
       "MicroAide": "Accorde « Diffuser l'audio » au rôle Joueur (par défaut, seuls les joueurs de confiance l'ont).",
       "MicroDonne": "Les joueurs peuvent maintenant diffuser leur micro."
     },
+    "Carnet": {
+      "Titre": "Carnet de campagne",
+      "AideConsole": "Horloges, enquêtes et contacts de la campagne",
+      "Montrer": "Caché aux joueurs : le leur montrer",
+      "Cacher": "Visible des joueurs : le cacher",
+      "Onglets": { "Horloges": "Horloges", "Enquetes": "Enquêtes", "Contacts": "Contacts" }
+    },
+    "Enquetes": {
+      "Vide": "Aucune enquête à montrer pour l'instant.",
+      "VideMJ": "Aucune enquête. Le MJ IA en crée avec son outil « enquete », les modules des mondes avec api.enquetes.assurer.",
+      "Conclusions": "Conclusions",
+      "Indices": "Indices",
+      "AucuneConclusion": "Aucune conclusion révélée.",
+      "AucunIndice": "Aucun indice trouvé.",
+      "Ou": "Où :",
+      "Fragile": "moins de 3 indices",
+      "AideFragile": "Règle des trois indices : cette conclusion a moins de trois indices encore trouvables.",
+      "AideMJ": "Cochez un indice trouvé ou une conclusion révélée. Les joueurs ne voient d'une enquête montrée (œil ouvert) que les indices trouvés et les conclusions révélées."
+    },
+    "Contacts": {
+      "Vide": "Aucun contact à montrer pour l'instant.",
+      "VideMJ": "Aucun contact. Le MJ IA en note avec son outil « contact », les modules des mondes avec api.contacts.assurer.",
+      "Plus": "Attitude +1",
+      "Moins": "Attitude -1"
+    },
     "Horloges": {
       "Titre": "Horloges",
       "Vide": "Aucune horloge à montrer pour l'instant.",
