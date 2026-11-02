@@ -9,6 +9,9 @@
 //   - en 40k et en Warcraft : aucun personnage d'un joueur connecté n'est présent (sur la scène active), et des compagnons le sont.
 // En mode Validation, pas de pilote : le MJ humain reçoit un avis.
 //
+// Peste noire (secret) : la première nuit (pas encore de porteur), la consigne de la nuit dit au narrateur de choisir la victime
+// de la peste (loups_nuit, peste_victime) ; le dénouement dévoile la peste. Une partie ordinaire n'en entend jamais parler ; le
+// cri d'un compagnon (« C'est la peste noire ! ») est transmis au système par compagnons-jeu.js.
 // Étapes aux Veillées : nuit (loups_nuit), aube, débat (au plus DEBAT_TOURS tours de parole des compagnons, l'exception voulue à
 // la règle anti-boucle, seulement ici), vote (ouvrir, les compagnons votent, clore), exécution, victoire vérifiée, nuit suivante.
 // En 40k et en Warcraft : les combats se poursuivent tour après tour (chaque tour compte comme une étape, le pilote relance un
@@ -103,6 +106,18 @@ export const CONSIGNES_LOUPS = {
     + "en quelques phrases : qui l'emporte, les rôles enfin dévoilés, une image finale. N'appelle aucun outil et ne relance pas de partie "
     + "(pas de loups_rejouer : une autre partie se décide entre humains)."
 };
+
+// Peste noire (secret, donnée au seul narrateur, seulement dans une telle partie) : la nuit, tant que la peste n'a pas de porteur,
+// le narrateur choisit sa victime. Jamais dans une partie ordinaire (rien ne doit lui souffler l'idée d'une peste).
+export const CONSIGNE_PESTE_NUIT = "SECRET (peste noire, ne la nomme jamais) : la peste n'a pas encore de porteur, c'est toi qui choisis sa "
+  + "victime de cette nuit parmi les vivants : donne son nom à loups_nuit (peste_victime). Raconte la nuit comme toutes les autres.";
+
+// Le vainqueur, pour la consigne du dénouement (et la peste noire dévoilée).
+export function libelleVainqueurPilote(v, nom = id => id, peste = false) {
+  if (v === "peste") return "la peste noire (il n'y avait aucun loup : la peste a emporté Brumecombe)";
+  if (v === "village" && peste) return "le camp « village », qui a reconnu la peste noire (il n'y avait aucun loup)";
+  return v === "village" || v === "meute" ? `le camp « ${v} »` : nom(v);
+}
 
 export const CONSIGNES_AVENTURE = {
   scene: "Étape : la scène continue. Fais-la avancer d'un pas (un événement, un PNJ qui agit, un choix qui se présente au groupe), "
@@ -338,7 +353,11 @@ export class PiloteAutomatique {
     const m = this.memoire;
     const nom = id => api.villageois().find(a => a.id === id)?.name ?? id;
     switch (etape) {
-      case "nuit": return this.#tour(ENTETE, CONSIGNES_LOUPS.nuit);
+      case "nuit": {
+        const e = api.etat();
+        const premiere = e.peste?.active && !e.peste.porteur;
+        return this.#tour(ENTETE, premiere ? `${CONSIGNES_LOUPS.nuit}\n${CONSIGNE_PESTE_NUIT}` : CONSIGNES_LOUPS.nuit);
+      }
       case "aube":
         await this.#tour(ENTETE, CONSIGNES_LOUPS.aube);
         m.aube = true;
@@ -361,9 +380,9 @@ export class PiloteAutomatique {
         return this.#tour(ENTETE, CONSIGNES_LOUPS.eliminer(elus.map(nom).join(" et ")));
       }
       case "denouement": {
-        const v = api.etat().vainqueur;
+        const e = api.etat();
         m.denouement = true;
-        return this.#tour(ENTETE, CONSIGNES_LOUPS.denouement(v === "village" || v === "meute" ? `le camp « ${v} »` : nom(v)));
+        return this.#tour(ENTETE, CONSIGNES_LOUPS.denouement(libelleVainqueurPilote(e.vainqueur, nom, Boolean(e.peste?.active))));
       }
       default: throw new Error(`étape inconnue : ${etape}`);
     }

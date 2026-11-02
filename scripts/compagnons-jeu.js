@@ -13,7 +13,7 @@ import { ID } from "./constantes.js";
 import { adaptateur } from "./adaptateurs.js";
 import { versHTML } from "./utilitaires.js";
 import {
-  CerveauxCompagnons, BAVARDAGE, normaliserPersonnalite, texteBrut, choisirOrateurs, repliReplique
+  CerveauxCompagnons, BAVARDAGE, normaliserPersonnalite, texteBrut, choisirOrateurs, repliReplique, criePeste
 } from "./compagnons.js";
 
 // Réglage du MJ IA, sans erreur s'il n'est pas enregistré (essais, système sans MJ IA).
@@ -231,6 +231,19 @@ export async function nomsPourCompagnons(n, { exclus = [] } = {}) {
   return sortie;
 }
 
+// Le cri de la peste noire d'un compagnon, transmis au système des Veillées (MJ actif). true si le système l'a entendu.
+async function crierALaPeste(acteurId) {
+  const api = game.lakourLoups;
+  if (typeof api?.crierPeste !== "function") return false;
+  try {
+    await api.crierPeste(acteurId);
+    return true;
+  } catch (e) {
+    console.warn(`${ID} | cri de la peste noire refusé`, e);
+    return false;
+  }
+}
+
 // ------------------------------------------------------------------ les compagnons en jeu (navigateur du MJ actif)
 export class Compagnons {
   // moteur : le MoteurMJ (compteur et budget de la séance, file des messages). fournisseur() : le fournisseur du modèle des
@@ -275,6 +288,8 @@ export class Compagnons {
 
   // Après une réponse du MJ : au plus max compagnons présents réagissent, une réplique chacun. Ceux que le texte cite
   // parlent d'abord. Rend [{ acteurId, nom, texte, source }].
+  // Aux Veillées, un compagnon qui crie « C'est la peste noire ! » dans sa réplique crie pour de bon : le système tranche
+  // (api.crierPeste : juste, la partie s'arrête ; faux, il est pendu) et le tour de parole s'arrête là.
   async reagir({ mentions = "", max = this.maxRepliques(), messages } = {}) {
     if (max <= 0) return [];
     const parlants = compagnonsPresents().map(a => ({ id: a.id, nom: a.name, acteur: a, vue: this.vue(a, { messages }) }))
@@ -286,6 +301,7 @@ export class Compagnons {
       this.derniere.set(c.id, ++this.horloge);
       await this.poster(c.acteur, r.texte);
       dits.push({ acteurId: c.id, nom: c.nom, texte: r.texte, source: r.source });
+      if (c.vue.jeu === "loups" && criePeste(r.texte) && await crierALaPeste(c.id)) break;
     }
     return dits;
   }

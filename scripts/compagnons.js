@@ -100,7 +100,9 @@ const couper = (texte, max) => (texte.length <= max ? texte : `${texte.slice(0, 
 const REGLES = {
   loups: "C'est « Les Veillées de Brumecombe », un jeu de déduction sociale : des loups se cachent parmi les villageois. La nuit, "
     + "les rôles agissent en secret ; le jour, le village débat puis vote pour exécuter un suspect. Gagne avec ton camp. "
-    + "Un loup ment pour survivre ; un villageois cherche les loups. Les morts se taisent.",
+    + "Un loup ment pour survivre ; un villageois cherche les loups. Les morts se taisent. Le narrateur n'annonce jamais les rôles "
+    + "en jeu. Très rarement, une veillée n'a aucun loup : c'est la peste noire, qui emporte un villageois chaque nuit ; le village "
+    + "ne la vainc qu'en la reconnaissant (« C'est la peste noire ! »), et un cri à tort coûte la vie.",
   aventure: "C'est une partie de jeu de rôle : le meneur décrit le monde et joue les PNJ, chaque joueur joue son personnage. "
     + "Tu dis ce que fait et dit ton personnage, jamais ce que font les autres ni ce qui leur arrive."
 };
@@ -172,7 +174,14 @@ export const CONSIGNE_PARLER = "Écris UNE courte réplique (une à trois phrase
   + "Si tu n'as rien d'utile à dire, réponds seulement « — ».";
 export const CONSIGNE_PARLER_LOUPS = " Tu peux accuser, te défendre, poser une question ou mentir si ton camp l'exige ; ne révèle ton rôle "
   + "que si tu le juges utile. Voter, agir la nuit ou user d'un pouvoir ne se fait jamais dans une réplique : cela passe par les "
-  + "fenêtres du jeu.";
+  + "fenêtres du jeu. Une seule exception, le cri de la peste noire : si tu es CONVAINCU qu'il n'y a aucun loup à Brumecombe mais une "
+  + "peste (aucune vision n'a jamais montré de loup, les morts n'ont aucune trace de crocs…), tu peux écrire dans ta réplique "
+  + "exactement « C'est la peste noire ! ». Si c'est vrai, le village gagne aussitôt ; si c'est faux, tu es pendu pour avoir semé la "
+  + "panique. C'est rarissime : sans preuves solides, ne le crie jamais.";
+
+// Le cri de la peste noire dans une réplique de compagnon (compagnons-jeu.js le transmet au système des Veillées).
+export const CRI_PESTE = /c['’]est la peste noire/i;
+export const criePeste = texte => CRI_PESTE.test(String(texte ?? ""));
 export const CONSIGNE_PARLER_AVENTURE = " Une action qui compte (attaquer, fouiller, partir…) se dit dans ta parole, le meneur la résout ; "
   + "la didascalie n'est qu'un geste.";
 export const CONSIGNE_COMBAT = "C'est ton tour de combat. Déclare en une ou deux phrases, à la première personne, ce que fait ton personnage "

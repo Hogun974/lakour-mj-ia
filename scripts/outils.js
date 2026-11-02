@@ -1163,7 +1163,8 @@ export function cleDeRole(texte, noms) {
   return parNom?.[0] ?? null;
 }
 
-// Présentation d'une composition : rôles groupés par camp, avec leur nombre (sans dire qui a quoi).
+// Présentation d'une composition : rôles groupés par camp, avec leur nombre (sans dire qui a quoi). Pour le narrateur SEUL :
+// la composition n'est jamais annoncée aux joueurs.
 export function annoncerComposition(roles, equilibre, noms) {
   const parCamp = { meute: [], village: [], solitaire: [] };
   const comptes = new Map();
@@ -1192,39 +1193,69 @@ export function rolesPour(composition, nombre) {
 const joueursDeLaPartie = noms => (noms.length ? noms.map(n => trouverJoueur(n)) : game.users.filter(u => u.active && !u.isGM));
 
 // Génère une composition équilibrée et variée (générateur du système, poids du contenu, historique des parties).
-async function genererComposition(contenu, nombre, { niveau, inclure = [], exclure = [] }) {
+// peste : une composition de peste noire (aucun rôle de la meute).
+async function genererComposition(contenu, nombre, { niveau, inclure = [], exclure = [], peste = false }) {
   const logique = apiLoups().logique;
   const historique = game.settings.get(ID, "historiqueLoups") ?? [];
-  return logique.composer(nombre, contenu.equilibre, { niveau, inclure, exclure, historique });
+  return logique.composer(nombre, contenu.equilibre, { niveau, inclure, exclure, historique, ...(peste ? { peste: true } : {}) });
 }
+
+// ---------------------------------------------------------------- la peste noire (variante rare, docs/loups-contrat.md)
+// Une partie que l'IA compose elle-même (loups_composer, loups_distribuer auto, loups_rejouer) devient une peste noire avec la
+// chance du système (réglage caché « chancePeste ») ; « oui » / « non » la décident. La dernière composition de peste proposée
+// par loups_composer est retenue : distribuée telle quelle (loups_distribuer, mode roles), elle reste une peste noire.
+let propositionPeste = null;   // [cle] triées
+export function tirerPesteIA(api = apiLoups()) {
+  const L = api?.logique;
+  if (typeof L?.tirerPeste !== "function") return false;
+  const chance = typeof api.chancePeste === "function" ? api.chancePeste() : L.CHANCE_PESTE;
+  return L.tirerPeste({ chance });
+}
+const pesteVoulue = choix => (choix === "oui" ? true : choix === "non" ? false : undefined);
+const memesRoles = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+const sansMeute = (roles, equilibre) => roles.map(c => (equilibre.roles?.[c]?.camp === "meute" ? "villageois" : c));
+const PESTE_CHOIX = { type: "string", enum: ["", "oui", "non"],
+  description: "Peste noire (aucun loup) : « oui » si les joueurs ou le MJ la veulent, « non » pour l'exclure ; vide (par défaut) : le hasard en décide, très rarement." };
+// Le vainqueur d'une partie, pour le narrateur.
+const nomVainqueur = v => (v === "village" || v === "meute" ? v : v === "peste" ? "la peste noire" : nomActeur(v));
+const NOTE_PESTE = "PESTE NOIRE (secret absolu, ne la nomme jamais et n'y fais aucune allusion avant la fin) : aucun loup. Chaque nuit, "
+  + "la peste emporte un villageois, raconté exactement comme une victime de la meute ; la première nuit, c'est toi qui choisis sa "
+  + "victime (loups_nuit, peste_victime), ensuite sa dernière victime la désigne. Si quelqu'un crie « C'est la peste noire ! » : loups_peste.";
 
 OUTILS.push(
   {
     nom: "loups_composer",
     systemes: LOUPS,
-    description: "Propose une composition ÉQUILIBRÉE pour le nombre de joueurs : nombre de loups, rôles de village, solitaires, bâtiments. "
-      + "Elle change d'une partie à l'autre (les rôles récents sont évités) et suit le niveau ; on peut imposer ou exclure des rôles. "
-      + "Rien n'est distribué : annonce-la aux joueurs (qui peuvent demander des changements), puis loups_distribuer avec mode « roles ».",
+    description: "Prépare EN SECRET une composition ÉQUILIBRÉE pour le nombre de joueurs : nombre de loups, rôles de village, solitaires, "
+      + "bâtiments. Elle change d'une partie à l'autre (les rôles récents sont évités) et suit le niveau ; on peut imposer ou exclure des rôles. "
+      + "Très rarement, c'est une PESTE NOIRE (aucun loup). Rien n'est distribué, et la composition ne s'annonce JAMAIS aux joueurs (ni les "
+      + "rôles en jeu, ni le nombre de loups) : ensuite, loups_distribuer avec mode « roles » et ces clés.",
     schema: objet({
       nombre_joueurs: entier("Nombre de joueurs (0 = les joueurs connectés)."),
       niveau: { type: "string", enum: ["debutants", "classique", "chaos"], description: "Niveau de complexité." },
       inclure: { type: "array", items: chaine("Rôle voulu (nom ou clé)."), description: "Rôles à mettre absolument." },
-      exclure: { type: "array", items: chaine("Rôle refusé (nom ou clé)."), description: "Rôles à ne pas mettre." }
+      exclure: { type: "array", items: chaine("Rôle refusé (nom ou clé)."), description: "Rôles à ne pas mettre." },
+      peste: PESTE_CHOIX
     }),
     sensible: false,
-    async executer({ nombre_joueurs, niveau, inclure, exclure }) {
+    async executer({ nombre_joueurs, niveau, inclure, exclure, peste = "" }) {
       const contenu = await contenuVeillees();
       const nombre = nombre_joueurs > 0 ? nombre_joueurs : joueursDeLaPartie([]).length;
       const cles = liste => liste.map(t => [t, cleDeRole(t, contenu.noms)]);
       const inconnus = [...cles(inclure), ...cles(exclure)].filter(([, c]) => !c).map(([t]) => t);
       if (inconnus.length) return { erreur: true, contenu: `Rôles inconnus : ${inconnus.join(", ")}.` };
+      const enPeste = pesteVoulue(peste) ?? tirerPesteIA();
       let c;
-      try { c = await genererComposition(contenu, nombre, { niveau, inclure: cles(inclure).map(x => x[1]), exclure: cles(exclure).map(x => x[1]) }); }
+      try { c = await genererComposition(contenu, nombre, { niveau, inclure: cles(inclure).map(x => x[1]), exclure: cles(exclure).map(x => x[1]), peste: enPeste }); }
       catch (e) { return { erreur: true, contenu: e.message }; }
-      return { contenu: `Composition proposée pour ${nombre} joueurs (${niveau}, ${c.verdict}, équilibre ${c.somme >= 0 ? "+" : ""}${c.somme}) :\n`
+      propositionPeste = enPeste ? [...c.roles].sort() : null;
+      return { contenu: `Composition préparée pour ${nombre} joueurs (${niveau}, ${c.verdict}, équilibre ${c.somme >= 0 ? "+" : ""}${c.somme}) — `
+        + "pour toi seul, ne l'annonce pas aux joueurs :\n"
         + `${annoncerComposition(c.roles, contenu.equilibre, contenu.noms)}\n`
+        + (enPeste ? `${NOTE_PESTE}\n` : "")
         + `Bâtiments : ${c.batiments.map(b => contenu.noms.get(b) ?? b).join(", ")}.\n`
-        + `Clés pour loups_distribuer (mode roles) : roles = ${JSON.stringify(c.roles)}, batiments = ${JSON.stringify(c.batiments)}.` };
+        + `Clés pour loups_distribuer (mode roles) : roles = ${JSON.stringify(c.roles)}, batiments = ${JSON.stringify(c.batiments)}`
+        + `${enPeste ? ", peste = « oui »" : ""}.` };
     }
   },
   {
@@ -1233,7 +1264,9 @@ OUTILS.push(
     description: "Prépare une partie et distribue les rôles en secret (chaque joueur reçoit le sien en privé), avec métiers publics, maisons et "
       + "bâtiments. mode « auto » (par défaut) : composition ÉQUILIBRÉE générée pour ce nombre de joueurs, différente des dernières parties. "
       + "mode « roles » : la liste exacte choisie (par les joueurs, ou issue de loups_composer). mode « composition » : une composition prête "
-      + "du module. Ensuite : annonce les rôles en jeu (sans dire qui), présente le village, puis la première nuit (loups_nuit).",
+      + "du module. Une partie composée d'elle-même (auto) devient très rarement une PESTE NOIRE (aucun loup ; « peste » la décide). "
+      + "Ensuite : présente le village et les bâtiments en jeu, SANS annoncer la composition (ni rôles en jeu, ni nombre de loups), puis "
+      + "la première nuit (loups_nuit).",
     schema: objet({
       joueurs: { type: "array", items: chaine("Nom d'un joueur Foundry."), description: "Joueurs de la partie ; vide = tous les joueurs connectés (hors MJ)." },
       mode: { type: "string", enum: ["auto", "roles", "composition"], description: "Comment choisir les rôles." },
@@ -1244,10 +1277,11 @@ OUTILS.push(
       exclure: { type: "array", items: chaine("Rôle refusé."), description: "Mode auto : rôles à ne pas mettre." },
       composition: chaine("Mode composition : clé d'une composition prête (vide = celle du niveau)."),
       compagnons: entier("Places tenues par des compagnons IA (villageois sans joueur, noms tirés de la table du village, personnalité au "
-        + "hasard), en plus des joueurs : ils choisissent la nuit, parlent au débat et votent seuls. 0 = aucun.")
+        + "hasard), en plus des joueurs : ils choisissent la nuit, parlent au débat et votent seuls. 0 = aucun."),
+      peste: PESTE_CHOIX
     }),
     sensible: true,
-    async executer({ joueurs, mode, niveau, roles = [], batiments: batimentsVoulus = [], inclure = [], exclure = [], composition = "", compagnons = 0 }) {
+    async executer({ joueurs, mode, niveau, roles = [], batiments: batimentsVoulus = [], inclure = [], exclure = [], composition = "", compagnons = 0, peste = "" }) {
       const api = apiLoups();
       // Une composition nommée sans mode : c'est le mode « composition » ; sinon la génération équilibrée.
       mode ||= composition ? "composition" : "auto";
@@ -1261,23 +1295,31 @@ OUTILS.push(
       const contenu = await contenuVeillees();
       const enCles = liste => liste.map(t => cleDeRole(t, contenu.noms));
       let compo;
+      // La peste noire : voulue (« oui »), exclue (« non ») ; sinon, la composition de peste proposée par loups_composer, ou, en
+      // mode auto, le hasard (très rarement).
+      let enPeste = pesteVoulue(peste);
       if (mode === "roles") {
         const cles = enCles(roles);
         if (cles.some(c => !c)) return { erreur: true, contenu: `Rôles inconnus : ${roles.filter((_, i) => !cles[i]).join(", ")}.` };
         if (cles.length > total) return { erreur: true, contenu: `${cles.length} rôles pour ${total} joueurs : retire-en.` };
+        enPeste ??= Boolean(propositionPeste && memesRoles(rolesPour({ roles: cles }, total), propositionPeste));
         const tires = batimentsVoulus.length ? batimentsVoulus : (await genererComposition(contenu, total, { niveau, inclure: cles.filter(c => c !== "villageois" && c !== "loup-de-brumecombe") })).batiments;
-        compo = { cle: "choisie", libelle: "composition choisie", roles: cles, batiments: tires };
+        compo = { cle: "choisie", libelle: "composition choisie", roles: enPeste ? sansMeute(cles, contenu.equilibre) : cles, batiments: tires };
       } else if (mode === "composition") {
         compo = choisirComposition(contenu.compositions, total, { cle: composition, niveau });
         if (!compo) return { erreur: true, contenu: `Aucune composition pour ${total} joueurs (${Object.keys(contenu.compositions).join(", ")}).` };
+        if (enPeste) compo = { ...compo, roles: sansMeute(compo.roles, contenu.equilibre) };
       } else {
         const ci = enCles(inclure), ce = enCles(exclure);
         if ([...ci, ...ce].some(c => !c)) return { erreur: true, contenu: `Rôles inconnus parmi : ${[...inclure, ...exclure].join(", ")}.` };
+        enPeste ??= tirerPesteIA(api);
         try {
-          const g = await genererComposition(contenu, total, { niveau, inclure: ci, exclure: ce });
+          const g = await genererComposition(contenu, total, { niveau, inclure: ci, exclure: ce, peste: enPeste });
           compo = { cle: "generee", libelle: `générée, ${g.verdict} (${g.somme >= 0 ? "+" : ""}${g.somme})`, roles: g.roles, batiments: g.batiments };
         } catch (e) { return { erreur: true, contenu: e.message }; }
       }
+      enPeste = Boolean(enPeste);
+      propositionPeste = null;
       const cles = rolesPour(compo, total);
       const inconnus = cles.filter(c => !contenu.roles.has(c));
       if (inconnus.length) return { erreur: true, contenu: `Rôles absents du compendium : ${inconnus.join(", ")}.` };
@@ -1292,7 +1334,7 @@ OUTILS.push(
       const nomsCompagnons = nbCompagnons ? await nomsPourCompagnons(nbCompagnons, { exclus }) : [];
       const resultat = await api.distribuer({
         roles: cles.map(c => contenu.roles.get(c)), metiers, joueurs: utilisateurs.map(u => u.id), compagnons: nomsCompagnons,
-        maisons, composition: compo.cle, batiments
+        maisons, composition: compo.cle, batiments, ...(enPeste ? { peste: true } : {})
       });
       // Une personnalité au hasard pour chaque compagnon (drapeau du MJ IA : rien de secret).
       for (const r of resultat.filter(x => x.compagnon)) {
@@ -1303,9 +1345,10 @@ OUTILS.push(
       await game.settings.set(ID, "historiqueLoups", historique);
       // Une nouvelle partie : après ce tour, le fil de la précédente est archivé et un fil neuf commence (moteur.nouvellePartie).
       game.modules?.get(ID)?.api?.moteur?.nouvellePartie({ ouverture: false });
-      // Pour toi seul (narrateur) : qui est qui. L'annonce publique, elle, ne dit que les rôles en jeu.
+      // Pour toi seul (narrateur) : qui est qui, et la composition. Rien de tout cela ne s'annonce aux joueurs.
       return { contenu: `Partie prête, composition « ${compo.libelle ?? compo.cle} » (${total} joueurs${nbCompagnons ? `, dont ${nbCompagnons} compagnons IA` : ""}).\n`
-        + `À annoncer à tous (sans dire qui) : ${annoncerComposition(cles, contenu.equilibre, contenu.noms)}.\n`
+        + `Composition, pour toi seul (ne l'annonce JAMAIS, ni le nombre de loups) : ${annoncerComposition(cles, contenu.equilibre, contenu.noms)}.\n`
+        + (enPeste ? `${NOTE_PESTE}\n` : "")
         + resultat.map(r => `- ${nomActeur(r.acteurId)} (${r.compagnon ? "compagnon IA" : game.users.get(r.userId)?.name}) : ${nomRole(r.acteurId)}`).join("\n")
         + (nbCompagnons ? "\nLes compagnons IA jouent seuls (choix de nuit, débat, vote) et ne savent que ce que sait leur villageois : "
           + "traite-les comme des joueurs, ne leur souffle rien." : "")
@@ -1315,30 +1358,34 @@ OUTILS.push(
   {
     nom: "loups_rejouer",
     systemes: LOUPS,
-    description: "Rejoue une partie avec les mêmes joueurs et le même nombre de compagnons ; nouvelle composition équilibrée, sauf si des "
-      + "rôles sont donnés (ou une composition prête). À proposer en fin de partie (« une autre partie avec les mêmes joueurs ? »), "
+    description: "Rejoue une partie avec les mêmes joueurs et le même nombre de compagnons ; nouvelle composition équilibrée (très rarement "
+      + "une peste noire), sauf si des rôles sont donnés (ou une composition prête). À proposer en fin de partie (« une autre partie avec les mêmes joueurs ? »), "
       + "seulement si les joueurs le veulent. La partie précédente est archivée et la nouvelle s'ouvre dans un fil NEUF, où tu présenteras "
       + "le village : après l'outil, dis seulement une phrase de transition.",
     schema: objet({
       niveau: { type: "string", enum: ["", "debutants", "classique", "chaos"], description: "Niveau ; vide = celui de la partie précédente." },
       roles: { type: "array", items: chaine("Rôle (nom ou clé)."), description: "Rôles voulus (vide = composition équilibrée générée)." },
-      composition: chaine("Clé d'une composition prête (vide = aucune).")
+      composition: chaine("Clé d'une composition prête (vide = aucune)."),
+      peste: PESTE_CHOIX
     }),
     sensible: true,
-    async executer({ niveau = "", roles = [], composition = "" }) {
+    async executer({ niveau = "", roles = [], composition = "", peste = "" }) {
       const api = apiLoups();
       if (typeof api?.nouvellePartie !== "function") return { erreur: true, contenu: "Le système lakour-loups de ce monde ne sait pas rejouer une partie : mets-le à jour." };
       let r;
-      try { r = await api.nouvellePartie({ memesJoueurs: true, niveau, roles, composition }); } catch (e) { return { erreur: true, contenu: e.message }; }
+      // Sans choix, le système tire lui-même la peste noire (très rarement) pour une composition générée.
+      const voulue = pesteVoulue(peste);
+      try { r = await api.nouvellePartie({ memesJoueurs: true, niveau, roles, composition, ...(voulue !== undefined ? { peste: voulue } : {}) }); }
+      catch (e) { return { erreur: true, contenu: e.message }; }
       const c = r?.composition ?? {};
       if (c.roles?.length) {
         const historique = [...(game.settings.get(ID, "historiqueLoups") ?? []), { roles: c.roles, batiments: c.batiments ?? [], quand: Date.now() }].slice(-10);
         await game.settings.set(ID, "historiqueLoups", historique);
       }
       game.modules?.get(ID)?.api?.moteur?.nouvellePartie({ ouverture: true });
-      return { contenu: `Nouvelle partie prête : ${r?.joueurs?.length ?? 0} joueurs et ${r?.compagnons?.length ?? 0} compagnons IA, composition « ${c.libelle ?? c.cle ?? "?"} ». `
-        + "La partie précédente est archivée ; l'ouverture de la nouvelle (village, composition, première nuit) suit dans un fil neuf. "
-        + "Dis maintenant une seule phrase de transition, sans rien annoncer d'autre." };
+      return { contenu: `Nouvelle partie prête : ${r?.joueurs?.length ?? 0} joueurs et ${r?.compagnons?.length ?? 0} compagnons IA, composition « ${c.libelle ?? c.cle ?? "?"} » `
+        + "(pour toi seul : ne l'annonce jamais). La partie précédente est archivée ; l'ouverture de la nouvelle (village, première nuit) "
+        + "suit dans un fil neuf. Dis maintenant une seule phrase de transition, sans rien annoncer d'autre." };
     }
   },
   {
@@ -1346,18 +1393,31 @@ OUTILS.push(
     systemes: LOUPS,
     description: "Mène TOUTE la nuit : passe en phase nuit, réveille chaque rôle actif dans l'ordre (la meute ensemble) en lui demandant "
       + "son choix dans une fenêtre secrète, puis résout la nuit à l'aube (morts, protections, révélations, messages privés). "
+      + "Peste noire (secret) : à la place de la meute, la peste frappe ; tant qu'elle n'a pas de porteur, c'est ta victime "
+      + "(peste_victime) ; ensuite, son porteur la désigne en secret. "
       + "Raconte la tombée de la nuit AVANT d'appeler cet outil ; il peut durer plusieurs minutes. Ensuite, raconte l'aube.",
     schema: objet({
-      delai_secondes: entier("Temps laissé à chaque rôle pour choisir (60 à 180 en général).")
+      delai_secondes: entier("Temps laissé à chaque rôle pour choisir (60 à 180 en général)."),
+      peste_victime: chaine("Partie de peste noire seulement, sans porteur encore (la première nuit) : le villageois que la peste frappe, "
+        + "choisi par toi ; « hasard » ou vide : au hasard. Partie ordinaire : laisse vide.")
     }),
     sensible: false,
-    async executer({ delai_secondes }) {
+    async executer({ delai_secondes, peste_victime = "" }) {
       const api = apiLoups();
       const delai = Math.min(600, Math.max(20, delai_secondes || 90)) * 1000;
       await api.changerPhase("nuit");
       const journal = [];
       const proies = [];   // attaqués par la meute (et les loups qui tuent seuls) cette nuit
       for (const { roleCle, acteurIds } of api.ordreDeNuit()) {
+        // La peste noire : le système demande au porteur (ou prend ta victime, ou le hasard) et note l'action.
+        if (roleCle === "peste") {
+          const voulue = String(peste_victime ?? "").trim();
+          const cible = voulue && !/^(au )?hasard$/i.test(voulue) ? idVillageois(voulue) ?? "" : "";
+          const r = await api.reveiller("peste", { delai, cible });
+          proies.push(...r.cibles.filter(id => !proies.includes(id)));
+          journal.push(`la peste (${acteurIds.length ? `porteur ${nomActeur(acteurIds[0])}` : "ton choix"}) → ${r.cibles.map(nomActeur).join(", ") || "personne"}${r.hasard ? " (au hasard)" : ""}`);
+          continue;
+        }
         // Les effets du jour comptent : ni les joueurs hors d'atteinte (Passeur, Grange), ni l'asile de la Chapelle pour la
         // meute, ni l'autre rive quand le Pont est bloqué ; un joueur gardé à l'œil ne vise que sa maison.
         const base = api.candidatsDeNuit ? api.candidatsDeNuit({ acteurId: acteurIds[0], roleCle }) : vivants().map(a => a.id);
@@ -1415,7 +1475,7 @@ OUTILS.push(
         narration.length ? `Pour toi : ${narration.map(t => t.replace(/[.\s]+$/, "")).join(" ; ")}.` : "",
         narrateur.length ? `À ARBITRER par toi : ${narrateur.map(n => `${nomActeur(n.acteurId)} — ${n.effet || "?"} → ${(n.cibles ?? []).map(nomActeur).join(", ") || "—"}`).join(" ; ")}.` : "",
         enAttente.length ? `En attente : ${enAttente.map(x => `${nomActeur(x.acteurId)} doit désigner qui il emporte (demande-le-lui, puis loups_eliminer)`).join(" ; ")}.` : "",
-        vainqueur ? `VICTOIRE : ${vainqueur === "village" || vainqueur === "meute" ? vainqueur : nomActeur(vainqueur)}. Raconte le dénouement.`
+        vainqueur ? `VICTOIRE : ${nomVainqueur(vainqueur)}. Raconte le dénouement.`
           : "Raconte l'aube (les morts et leur sort, sans trahir qui a fait quoi), puis ouvre le débat du jour (les pouvoirs de jour : loups_jour)."
       ].filter(Boolean).join("\n") };
     }
@@ -1498,7 +1558,32 @@ OUTILS.push(
       const emportent = vainqueur ? [] : morts.filter(i => roleDe(i)?.system?.effet === "emporter" && !(i === id && cause === "emporte"));
       return { contenu: `${morts.map(nomActeur).join(" et ")} ${morts.length > 1 ? "meurent" : "meurt"} (${cause}). Rôle de ${nomActeur(id)} : ${role?.name ?? "?"}.`
         + (emportent.length ? ` ${emportent.map(nomActeur).join(" et ")} peut emporter quelqu'un dans la tombe : demande-lui qui, puis loups_eliminer (cause emporte).` : "")
-        + (vainqueur ? ` VICTOIRE : ${vainqueur === "village" || vainqueur === "meute" ? vainqueur : nomActeur(vainqueur)} — raconte le dénouement.` : " La partie continue.") };
+        + (vainqueur ? ` VICTOIRE : ${nomVainqueur(vainqueur)} — raconte le dénouement.` : " La partie continue.") };
+    }
+  },
+  {
+    nom: "loups_peste",
+    systemes: LOUPS,
+    description: "Le cri « C'est la peste noire ! » : quand un joueur le crie à voix haute (chat ou voix) pendant le jour (aube, débat, "
+      + "vote), fais-le crier par le système (les joueurs ont aussi un bouton ; un compagnon IA qui l'écrit dans sa réplique crie de "
+      + "lui-même). Le système tranche : si la partie est une peste noire, elle s'arrête et le village gagne ; sinon, le crieur est pendu "
+      + "pour avoir semé la panique (annoncé au chat). Ne laisse jamais deviner avant le verdict si c'est vrai ; raconte ensuite.",
+    schema: objet({
+      villageois: chaine("Nom du villageois qui crie (ou de son joueur).")
+    }),
+    sensible: true,
+    async executer({ villageois }) {
+      const api = apiLoups();
+      if (typeof api?.crierPeste !== "function") return { erreur: true, contenu: "Le système lakour-loups de ce monde ne connaît pas la peste noire : mets-le à jour." };
+      const id = idVillageois(villageois);
+      if (!id) return { erreur: true, contenu: `Villageois introuvable : ${villageois}.` };
+      let r;
+      try { r = await api.crierPeste(id); } catch (e) { return { erreur: true, contenu: `Cri refusé — ${e.message}` }; }
+      return { contenu: r.juste
+        ? `C'était bien la peste noire : ${nomActeur(id)} l'a reconnue, la partie s'arrête. VICTOIRE : ${nomVainqueur(r.vainqueur || "village")} — `
+          + "raconte le dénouement (la peste enfin dévoilée)."
+        : `Ce n'était pas la peste : ${nomActeur(id)} est pendu pour avoir semé la panique (annoncé au chat).`
+          + (r.vainqueur ? ` VICTOIRE : ${nomVainqueur(r.vainqueur)} — raconte le dénouement.` : " Raconte sa fin en une phrase ; la partie continue.") };
     }
   },
   {

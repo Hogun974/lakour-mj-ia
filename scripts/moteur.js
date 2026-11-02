@@ -52,14 +52,17 @@ export function consigneCreation(nomJoueur, { enParenthese = false, systeme = "i
 }
 
 // ---------- Veillées de Brumecombe : chaque partie repart de zéro pour le narrateur (fil neuf, sans mémoire des précédentes).
+// La composition n'est JAMAIS annoncée aux joueurs (ni rôles en jeu, ni nombre de loups) : une partie peut être une peste noire.
 export const OUVERTURE_NOUVELLE_PARTIE = "Nouvelle partie : la précédente est finie et archivée, ne la raconte pas et n'y fais aucune allusion. "
-  + "Présente le village, annonce la composition sans dire qui (les rôles en jeu, groupés par camp), et lance la première nuit (loups_nuit).";
-export const OUVERTURE_NOUVELLE_VEILLEE = "Nouvelle veillée, sans aucune partie précédente à rappeler. Accueille les joueurs, propose une composition "
-  + "équilibrée (loups_composer) pour les joueurs présents (et des compagnons IA s'ils en veulent), puis loups_distribuer.";
+  + "Présente le village et les bâtiments en jeu, sans annoncer la composition (ni les rôles en jeu, ni le nombre de loups : "
+  + "le village devra le découvrir), et lance la première nuit (loups_nuit).";
+export const OUVERTURE_NOUVELLE_VEILLEE = "Nouvelle veillée, sans aucune partie précédente à rappeler. Accueille les joueurs, compose la partie "
+  + "en secret pour les joueurs présents (loups_composer si tu veux la préparer ; et des compagnons IA s'ils en veulent), puis "
+  + "loups_distribuer. N'annonce jamais la composition.";
 export const OUVERTURE_PARTIE_EN_COURS = "La séance reprend en pleine partie. En une phrase, dis où en est le village (phase et tour : voir l'état du jeu), "
   + "sans rappeler aucune autre partie, puis continue.";
-export const PARTIE_DEJA_ANNONCEE = "Nouvelle partie distribuée et déjà annoncée dans le fil précédent (archivé) : poursuis-la, sans jamais évoquer "
-  + "une partie précédente.";
+export const PARTIE_DEJA_ANNONCEE = "Nouvelle partie distribuée et déjà ouverte dans le fil précédent (archivé) : poursuis-la, sans jamais évoquer "
+  + "une partie précédente, ni annoncer la composition.";
 
 // Pour le narrateur seul : qui tient quel rôle dans la partie qui commence (le fil neuf ne contient pas la distribution).
 export function distributionSecrete(api = game.lakourLoups) {
@@ -68,7 +71,13 @@ export function distributionSecrete(api = game.lakourLoups) {
     const qui = a.system?.joueur ? game.users.get(a.system.joueur)?.name ?? "joueur" : "compagnon IA";
     return `- ${a.name} (${qui}) : ${role?.name ?? "?"}, camp ${a.system?.camp ?? role?.system?.camp ?? "?"}`;
   });
-  return lignes.length ? `[Distribution — secret, pour toi seul]\n${lignes.join("\n")}` : "";
+  // La peste noire : le narrateur le sait (il choisit la première victime), il ne le dit jamais avant la fin.
+  const peste = api?.etat?.()?.peste?.active
+    ? "\nPESTE NOIRE (secret absolu, ne la nomme jamais) : aucun loup. Chaque nuit, la peste emporte un villageois, raconté comme une "
+      + "victime de la meute ; la première nuit, c'est toi qui choisis sa victime (loups_nuit, peste_victime), ensuite sa dernière "
+      + "victime la désigne. Le village gagne s'il crie « C'est la peste noire ! » (loups_peste) ; un cri à tort pend le crieur."
+    : "";
+  return lignes.length ? `[Distribution — secret, pour toi seul]\n${lignes.join("\n")}${peste}` : "";
 }
 
 // La partie des Veillées en cours (phase ni « preparation » ni « fin ») ?

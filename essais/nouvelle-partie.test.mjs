@@ -144,11 +144,14 @@ test("nouvelle partie : le fil précédent est archivé sous un autre nom (pas s
   assert.match(JSON.stringify(fichiers.get(archives()[0])), /CANARI-ANCIENNE-PARTIE/, "l'archive garde toute la partie précédente");
   assert.notEqual(m.fil, ancien);
   const ouverture = premier(m.fil);
-  for (const attendu of ["[Nouvelle partie]", "Présente le village", "annonce la composition sans dire qui", "loups_nuit",
+  for (const attendu of ["[Nouvelle partie]", "Présente le village", "sans annoncer la composition", "loups_nuit",
     "[Distribution — secret, pour toi seul]", "Aubin (Jordan) : Loup de Brumecombe", "Berthe (compagnon IA) : Liseuse de cendres"]) {
     assert.ok(ouverture.includes(attendu), `ouverture sans « ${attendu} »`);
   }
-  for (const interdit of ["CANARI", "Précédemment", "reprend", "rappelle où en était"]) assert.ok(!ouverture.includes(interdit), `ouverture avec « ${interdit} »`);
+  // La composition ne s'annonce plus (une partie peut être une peste noire) ; une partie ordinaire ne parle jamais de peste.
+  for (const interdit of ["CANARI", "Précédemment", "reprend", "rappelle où en était", "annonce la composition sans dire qui", "PESTE"]) {
+    assert.ok(!ouverture.includes(interdit), `ouverture avec « ${interdit} »`);
+  }
   assert.ok(!JSON.stringify(fichiers.get(PRINCIPAL)).includes("CANARI"), "le fil principal est le neuf");
   assert.equal(fichiers.get(PRINCIPAL).messages.length, 2, "le fil neuf : l'ouverture et sa narration");
   assert.notEqual(m.systeme, "ANCIEN-PROMPT", "le prompt système est recalculé (nouveaux rôles)");
@@ -259,7 +262,7 @@ test("loups_rejouer (doublure de l'API) : mêmes joueurs, nouvelle composition, 
   const def = outil("loups_rejouer");
   assert.deepEqual(def.systemes, ["lakour-loups"]);
   assert.equal(def.sensible, true);
-  assert.deepEqual(Object.keys(def.schema.properties).sort(), ["composition", "niveau", "roles"]);
+  assert.deepEqual(Object.keys(def.schema.properties).sort(), ["composition", "niveau", "peste", "roles"]);
   const r = await def.executer({ niveau: "chaos", roles: [], composition: "" });
   assert.ok(!r.erreur, r.contenu);
   assert.deepEqual(api.appels, [{ memesJoueurs: true, niveau: "chaos", roles: [], composition: "" }]);

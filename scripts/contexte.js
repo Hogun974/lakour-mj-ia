@@ -103,6 +103,8 @@ export async function promptSysteme(personnalite, { mission } = {}) {
     "- Pour les PNJ et les événements aléatoires, utilise lancer_des.",
     "- Avant d'inventer une règle, un profil de PNJ, un objet ou un lieu officiel, cherche dans les compendiums (chercher_compendium puis lire_document) : les livres sont là.",
     "- Note les faits importants dans la mémoire de campagne (noter_memoire) : PNJ rencontrés, indices, décisions, fils ouverts.",
+    "- Ta voix ne lit que le début de ta narration (réglage « Longueur de la voix » ; le chat garde tout) : mets l'essentiel "
+      + "dans les deux premières phrases, et termine par la question ou l'appel aux joueurs, qui est toujours dit.",
     "- Aides de jeu : quand les personnages reçoivent une lettre, un contrat, une affiche ou une partition, montre-la (montrer_aide), "
       + "page par page au moment où le journal du MJ le dit. Les tables du module (rumeurs, rencontres, visages, complications…) "
       + "se tirent avec lancer_table quand l'inspiration manque.",
@@ -257,7 +259,15 @@ export function etatPartieLoups(api) {
   const e = api.etat();
   const nom = id => game.actors.get(id)?.name ?? id;
   const tous = api.villageois();
-  const lignes = [`Partie : phase « ${e.phase} », tour ${e.tour}${e.vainqueur ? ` — TERMINÉE, victoire : ${e.vainqueur === "village" || e.vainqueur === "meute" ? e.vainqueur : nom(e.vainqueur)}` : ""}.`];
+  const vainqueur = v => (v === "village" || v === "meute" ? v : v === "peste" ? "la peste noire" : nom(v));
+  const lignes = [`Partie : phase « ${e.phase} », tour ${e.tour}${e.vainqueur ? ` — TERMINÉE, victoire : ${vainqueur(e.vainqueur)}` : ""}.`];
+  // La peste noire (état complet du MJ : le narrateur a le droit de savoir, jamais de le dire avant la fin).
+  if (e.peste?.active && !e.vainqueur) {
+    lignes.push(`PESTE NOIRE — secret absolu, ne la nomme jamais et n'y fais aucune allusion : aucun loup dans cette partie, la peste `
+      + `frappe chaque nuit (racontée comme une victime de la meute). ${e.peste.porteur ? `Porteur : ${nom(e.peste.porteur)} (il désigne la `
+      + "prochaine victime en secret)." : "Pas encore de porteur : c'est TOI qui choisis la victime de la nuit (loups_nuit, peste_victime)."} `
+      + "Si un joueur crie « C'est la peste noire ! », loups_peste (le système tranche).");
+  }
   lignes.push(`Vivants (${tous.filter(a => a.system.vivant).length}) : ${tous.filter(a => a.system.vivant).map(a => a.name).join(", ") || "aucun"}.`);
   if (e.morts?.length) lignes.push(`Morts : ${e.morts.map(m => `${nom(m.acteurId)} (${m.cause}, tour ${m.tour})`).join(", ")}.`);
   if (e.vote?.ouvert) {
