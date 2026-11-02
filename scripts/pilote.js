@@ -98,12 +98,12 @@ export const CONSIGNES_LOUPS = {
     + "puis ouvre le débat du jour en une phrase. N'ouvre pas encore le vote.",
   "vote-ouvrir": "Étape : le vote. Clos le débat en une phrase, puis ouvre le vote d'exécution (loups_vote, action « ouvrir », candidats "
     + "vides, duree_secondes 0). Ne le clos pas : les villageois votent.",
-  "vote-clore": "Étape : le dépouillement. Clos le vote (loups_vote, action « clore ») et annonce le décompte. N'exécute personne à cette "
+  "vote-clore": "Étape : le dépouillement. Clos le vote (loups_vote, action « clore ») et annonce le désigné, sans réciter les voix (la carte et la Table les montrent). N'exécute personne à cette "
     + "étape : l'exécution suit. Si personne n'est désigné, dis-le ; si le vote se prolonge (ruban), laisse le désigné se défendre en une phrase.",
   eliminer: noms => `Étape : l'exécution. Le village a désigné ${noms}. Appelle loups_eliminer pour chacun (cause « vote »), puis raconte `
     + "sa fin et ce qu'on découvre. Si l'outil annonce une victoire, ne raconte pas encore le dénouement : c'est l'étape suivante.",
   denouement: vainqueur => `Étape : le dénouement. La partie est finie, victoire : ${vainqueur}. Raconte le dénouement pour les spectateurs `
-    + "en quelques phrases : qui l'emporte, les rôles enfin dévoilés, une image finale. N'appelle aucun outil et ne relance pas de partie "
+    + "en quelques phrases : qui l'emporte, les rôles qui ont pesé (sans passer tout le village en revue), une image finale. N'appelle aucun outil et ne relance pas de partie "
     + "(pas de loups_rejouer : une autre partie se décide entre humains)."
 };
 
