@@ -131,6 +131,7 @@
         "Nom": "Live OpenAI voice",
         "Aide": "Each piece of voice is sent to players as soon as it is produced: the voice starts without waiting (about two seconds faster). Unchecked: the whole voice is recorded first, then played."
       },
+      "LongueurVoix": {"Nom": "Voice length", "Aide": "In writing, the chat always keeps the whole text. Spoken: “Short” reads the first sentences (about 15 seconds) then the final question to the players, so the voice keeps up with the game; “Medium” about 30 seconds; “Full” reads everything.", "Courte": "Short (the essentials)", "Moyenne": "Medium", "Complete": "Full (whole text)"},
       "EcouteJoueurs": {
         "Nom": "Listen to players speech (transcription)",
         "Aide": "When an AI must hear (AI GM session started, or a living AI companion at the table), what players say in Foundry built-in voice chat is transcribed for the AI GM and the companions (OpenAI key, billed per minute). Each player sees an icon while listening is on. Unchecked: no microphone is listened to."

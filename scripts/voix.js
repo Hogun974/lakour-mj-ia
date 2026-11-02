@@ -2,7 +2,7 @@ import { ID, MODELE_VOIX } from "./constantes.js";
 import { lire } from "./reglages.js";
 import { fournisseurImages, expliquerErreur } from "./fournisseurs/index.js";
 import { versTexte, deposerFichier } from "./utilitaires.js";
-import { decouperPourVoix, choisirVoix, morceauxPrets, planAttenuation, wavDepuisPcm } from "./voix-texte.js";
+import { decouperPourVoix, choisirVoix, morceauxPrets, planAttenuation, wavDepuisPcm, AbregeVocal, LONGUEURS_VOIX } from "./voix-texte.js";
 import { voixDe } from "./personnalites.js";
 import {
   Calendrier, RecepteurFlux, FileDesVoix, destinatairesVoix, dureePcm, voixPourCompagnon, tonPourCompagnon, paroleSeule,
@@ -31,7 +31,12 @@ export const estNarrationAudible = message => {
 export function lireNavigateur(message) {
   if (!("speechSynthesis" in window) || !lire("entendreNarration")) return;
   const voix = choisirVoix(speechSynthesis.getVoices(), lire("voixNavigateur"));
-  for (const morceau of decouperPourVoix(versTexte(message.content))) {
+  // Même abrégé vocal que la voix OpenAI : l'essentiel, puis la question finale ; le chat garde tout.
+  const texte = versTexte(message.content);
+  const abrege = new AbregeVocal(LONGUEURS_VOIX[lire("longueurVoix")] ?? LONGUEURS_VOIX.courte);
+  const morceaux = decouperPourVoix(texte).filter(m => abrege.garder(m));
+  const question = abrege.fin(texte);
+  for (const morceau of [...morceaux, ...(question ? [question] : [])]) {
     const enonce = new SpeechSynthesisUtterance(morceau);
     if (voix) enonce.voice = voix;
     enonce.lang = voix?.lang ?? "fr-FR";
@@ -223,6 +228,8 @@ export class VoixEnDirect {
       : null;
     this.pris = 0;
     this.nombre = 0;
+    // À l'oral, l'abrégé (réglage « Longueur de la voix ») ; le chat garde tout le texte.
+    this.abrege = new AbregeVocal(LONGUEURS_VOIX[reglage("longueurVoix", "courte")] ?? LONGUEURS_VOIX.courte);
   }
 
   // À chaque morceau de texte reçu, puis une dernière fois avec final = true.
@@ -231,9 +238,12 @@ export class VoixEnDirect {
     const { morceaux, pris } = morceauxPrets(texte, this.pris, { final, premier: this.nombre === 0 });
     this.pris = pris;
     for (const morceau of morceaux) {
+      if (!this.abrege.garder(morceau)) continue;
       this.nombre++;
       this.tour.dire(morceau);
     }
+    const question = final ? this.abrege.fin(texte) : "";
+    if (question) { this.nombre++; this.tour.dire(question); }
   }
 
   async terminer(message) {
@@ -275,7 +285,11 @@ export async function direReplique(acteur, texte, message = null) {
   if (!destinataires.length) return;
   const { voix, ton } = await voixDuCompagnon(acteur);
   const tour = new TourDeParole({ priorite: "compagnon", voix, ton, destinataires, fournisseur, enDirect: reglage("voixDirecte", true) !== false });
-  tour.dire(parole);
+  // Une réplique est dite en entier si elle est courte ; sinon son début, puis sa question finale (abrégé vocal).
+  const abrege = new AbregeVocal(LONGUEURS_VOIX[reglage("longueurVoix", "courte")] ?? LONGUEURS_VOIX.courte);
+  const dits = decouperPourVoix(parole, 220).filter(m => abrege.garder(m));
+  const question = abrege.fin(parole);
+  tour.dire([...dits, ...(question ? [question] : [])].join(" "));
   await tour.terminer(message);
 }
 

@@ -131,6 +131,7 @@
         "Nom": "Voix OpenAI en direct",
         "Aide": "Chaque morceau de voix part aux joueurs dès qu'il est produit : la voix démarre sans attendre (environ deux secondes de moins). Décoché : la voix est d'abord enregistrée en entier, puis jouée."
       },
+      "LongueurVoix": {"Nom": "Longueur de la voix", "Aide": "À l'écrit, le chat garde toujours tout le texte. À l'oral : « Courte » lit les premières phrases (environ 15 secondes) puis la question finale aux joueurs, pour que la voix suive le rythme du jeu ; « Moyenne » environ 30 secondes ; « Complète » lit tout.", "Courte": "Courte (l'essentiel)", "Moyenne": "Moyenne", "Complete": "Complète (tout le texte)"},
       "EcouteJoueurs": {
         "Nom": "Écouter la parole des joueurs (transcription)",
         "Aide": "Quand une IA doit entendre (séance du MJ IA lancée, ou compagnon IA vivant à la table), ce que les joueurs disent dans la voix intégrée de Foundry est transcrit pour le MJ IA et les compagnons (clé OpenAI, payant à la minute). Chaque joueur voit une icône tant que l'écoute tourne. Décoché : aucun micro n'est écouté."

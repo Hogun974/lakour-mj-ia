@@ -132,3 +132,39 @@ export function morceauxPrets(texte, pris, { final = false, premier = false, paq
   if (!candidat || (!premier && candidat.length < paquet)) return { morceaux: [], pris };
   return { morceaux: decouperPourVoix(candidat, 3000), pris: pris + fin };
 }
+
+// ---------- L'abrégé vocal : à l'écrit tout reste, à l'oral seulement l'essentiel, pour que la voix suive le jeu.
+// La narration est lue au fil de l'écriture, dans la limite de `max` caractères (le premier morceau toujours) ; si la suite
+// a été coupée, la dernière phrase est dite à la fin quand c'est une question ou un appel aux joueurs (« Que faites-vous ? »).
+export const LONGUEURS_VOIX = { courte: 280, moyenne: 600, complete: Infinity };
+const derniereReplique = texte => {
+  const phrases = String(texte ?? "").match(/[^.!?…]+[.!?…]+["»”)]*|[^.!?…]+$/g) ?? [];
+  const derniere = texteParlable(phrases.at(-1) ?? "");
+  return /[?!]["»”)]*$/.test(derniere) ? derniere : "";
+};
+export class AbregeVocal {
+  constructor(max = LONGUEURS_VOIX.courte) {
+    this.max = Number.isFinite(max) && max > 0 ? max : Infinity;
+    this.dit = 0;
+    this.coupe = false;
+    this.paroles = [];
+  }
+
+  // -> true si ce morceau est dit.
+  garder(morceau) {
+    const n = String(morceau ?? "").length;
+    if (!n) return false;
+    if (this.coupe || (this.dit > 0 && this.dit + n > this.max)) { this.coupe = true; return false; }
+    this.dit += n;
+    this.paroles.push(morceau);
+    return true;
+  }
+
+  // Le texte complet reçu : la question finale à dire en plus, ou "" (rien de coupé, pas de question, ou déjà dite).
+  fin(texteComplet) {
+    if (!this.coupe) return "";
+    const q = derniereReplique(texteComplet);
+    if (!q || this.paroles.some(p => texteParlable(p).includes(q))) return "";
+    return q;
+  }
+}

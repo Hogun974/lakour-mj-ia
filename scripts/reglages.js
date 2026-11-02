@@ -151,6 +151,12 @@ export function enregistrerReglages() {
     name: "LAKOUR_MJIA.Reglages.VoixDirecte.Nom", hint: "LAKOUR_MJIA.Reglages.VoixDirecte.Aide",
     scope: "world", config: true, type: Boolean, default: true
   });
+  // L'abrégé vocal (voix-texte.js, AbregeVocal) : la voix lit l'essentiel, le chat garde tout.
+  game.settings.register(ID, "longueurVoix", {
+    name: "LAKOUR_MJIA.Reglages.LongueurVoix.Nom", hint: "LAKOUR_MJIA.Reglages.LongueurVoix.Aide",
+    scope: "world", config: true, type: String, default: "courte",
+    choices: { courte: "LAKOUR_MJIA.Reglages.LongueurVoix.Courte", moyenne: "LAKOUR_MJIA.Reglages.LongueurVoix.Moyenne", complete: "LAKOUR_MJIA.Reglages.LongueurVoix.Complete" }
+  });
   game.settings.register(ID, "entendreNarration", {
     name: "LAKOUR_MJIA.Reglages.Entendre.Nom",
     hint: "LAKOUR_MJIA.Reglages.Entendre.Aide",
