@@ -1,6 +1,6 @@
 import { ID } from "../constantes.js";
 import { etatCoffre, secoursConseille, secoursExportee, brancherRappel, exporterSecours, importerSecours, chercherCoffre, renouveler,
-  abandonnerCoffre } from "../coffre.js";
+  abandonnerCoffre, cleCourante } from "../coffre.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -33,7 +33,7 @@ export class FenetreCoffre extends HandlebarsApplicationMixin(ApplicationV2) {
       porteurs: e.porteurs ?? 0, seuil: e.seuil ?? 2, comptes: e.comptes ?? 0, renouvellement: e.renouvellement,
       secours: secoursConseille(), attente: e.etat === "attente",
       // La clé en vigueur est dans ce navigateur : sa clé de secours a-t-elle été téléchargée d'ici, et quand (date locale) ?
-      cleIci: ["vide", "ouvert", "ouverture"].includes(e.etat), secoursDate: exportee ? dateLocale(exportee) : ""
+      cleIci: Boolean(cleCourante()), secoursDate: exportee ? dateLocale(exportee) : ""
     };
   }
 }

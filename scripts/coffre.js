@@ -215,7 +215,10 @@ async function noterSecours(cles, date = new Date().toISOString()) {
   const empreintes = await Promise.all(cles.filter(valide).map(c => C.empreinte(c)));
   if (!empreintes.length) return;
   const l = local();
-  await ecrireLocal({ ...l, secours: { ...objet(l.secours), ...Object.fromEntries(empreintes.map(e => [e, date])) } });
+  const anciennes = objet(l.secours);
+  // La date la plus récente l'emporte : réimporter un vieux fichier de secours ne fait pas reculer « téléchargée le ».
+  const plusRecente = e => (anciennes[e] && anciennes[e] > date ? anciennes[e] : date);
+  await ecrireLocal({ ...l, secours: { ...anciennes, ...Object.fromEntries(empreintes.map(e => [e, plusRecente(e)])) } });
 }
 // Une clé vient d'être créée ou d'entrer en vigueur (fenetre : la fenêtre, tout de suite), ou le monde se charge avec elle (une
 // notification permanente) : si sa clé de secours n'a jamais été téléchargée d'ici, le MJ actif est rappelé à l'ordre, une fois
