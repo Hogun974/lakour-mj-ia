@@ -2,7 +2,7 @@
 // joueurs, visible) et recopié dans docs/guide-utilisation.md par outils/ecrire-guide.mjs.
 // Texte au format des journaux du module (paragraphes, **gras**, *italique*, listes « - », titres « # »).
 
-export const VERSION_GUIDE = 12;
+export const VERSION_GUIDE = 13;
 
 export const GUIDE_MJ = [
   { titre: "Démarrer", texte: `
@@ -56,7 +56,7 @@ Pour combler une table : des personnages côté joueurs, joués par une IA comme
 
 # Pilote automatique : quand il ne reste que des IA
 En mode **Autonome**, si plus aucun joueur humain n'est en jeu (aux Veillées : plus aucun vivant tenu par un joueur, les morts peuvent regarder ; en 40k et en Warcraft : plus aucun personnage d'un joueur connecté sur la scène), la partie **continue seule**, étape par étape, sous les yeux des spectateurs.
-- **Aux Veillées** : nuit, aube, un débat court entre compagnons (deux tours de parole), vote, exécution, puis la nuit suivante, jusqu'à la victoire et son dénouement. Le pilote ne relance jamais une autre partie.
+- **Aux Veillées** : nuit, aube, un débat court entre compagnons (deux tours de parole), vote, exécution, puis la nuit suivante, jusqu'à la victoire et son dénouement. Le pilote ne relance jamais une autre partie. Tant que les secrets de la partie ne sont pas à jour chez le MJ actif (coffre en cours de réouverture), le MJ IA attend : ni pilote, ni appel au modèle, ni compagnons.
 - **En 40k et en Warcraft** : les combats se poursuivent tour après tour (un combat arrêté est relancé) ; hors combat, quelques échanges entre le MJ IA et les compagnons, puis une pause avec un avis.
 - **Rythme** : une pause entre deux étapes (réglage *Pilote automatique : pause entre deux étapes*, 4 s par défaut), comptée après la fin de la voix du narrateur.
 - **Garde-fous** : il s'arrête net à la victoire, à la fin de la séance, dès qu'un joueur humain revient, si tu repasses en *Validation*, au budget de la séance, après un nombre maximal d'étapes (réglage, 60 par défaut) ou quand la partie n'avance plus. Tu reçois un avis à chaque arrêt. Jamais deux étapes à la fois, jamais pendant que le MJ IA réfléchit.
@@ -134,7 +134,7 @@ Quand une IA doit entendre (une séance du MJ IA est lancée, ou un compagnon IA
 - **Qui a parlé** : le son arrive joueur par joueur, l'IA sait qui parle. Un micro coupé, ou une touche de parole relâchée, n'est pas écouté.
 - **Ce qu'en fait l'IA** : le MJ IA reçoit la phrase comme un message (« 🗣️ Jordan (à voix haute) : … »), sans qu'elle paraisse dans le chat des joueurs ; les compagnons l'apprennent seulement s'ils pouvaient l'entendre (aux Veillées : un compagnon vivant n'entend pas les morts, la nuit seuls les loups s'entendent), et peuvent y répondre.
 - **Chaque joueur est prévenu** : une pastille « L'IA écoute » en haut de l'écran tant que l'écoute tourne.
-- **Réglages** : *Écouter la parole des joueurs* (le couper arrête tout), *Modèle de transcription* (vide : le moins cher, environ 0,3 centime par minute de parole), *Montrer les transcriptions au MJ* (chuchotées aux MJ). Le coût va au compteur de la séance, ou à *Compagnons hors séance*, borné par le budget.
+- **Réglages** : *Écouter la parole des joueurs* (le couper arrête tout), *Modèle de transcription* (vide : le moins cher, environ 0,3 centime par minute de parole), *Montrer les transcriptions au MJ* (chuchotées aux MJ ; aux Veillées, affichées dans le chat des seuls MJ sans y être enregistrées). Le coût va au compteur de la séance, ou à *Compagnons hors séance*, borné par le budget.
 - **Limites** : sans serveur relais (TURN), la voix de Foundry passe de navigateur à navigateur ; un joueur derrière un réseau strict peut ne pas être entendu du MJ, ni donc transcrit. Un joueur sans casque peut renvoyer la voix des IA dans son micro : ce qui ressemble à ce qu'une IA vient de dire est ignoré.` },
   { titre: "Sauvegardes et dépannage", texte: `
 - Les mondes sont sauvegardés chaque nuit à 4 h 30 sur le serveur (14 jours). Avant chaque mise à jour des modules, une sauvegarde complète est faite aussi.

@@ -1,9 +1,9 @@
 import { ID, prixDuModele, coutDe } from "./constantes.js";
 import { lire, ecrire } from "./reglages.js";
 import { fournisseurTexte, fournisseurCompagnons, modeleCompagnons, expliquerErreur } from "./fournisseurs/index.js";
-import { OUTILS, outil, resumerAppel, outilsDuSysteme } from "./outils.js";
+import { OUTILS, outil, resumerAppel, outilsDuSysteme, partieLoupsEnCoursIci } from "./outils.js";
 import { promptSysteme, etatDuJeu, decrireMessage, messagePourIA } from "./contexte.js";
-import { versHTML } from "./utilitaires.js";
+import { versHTML, roleLoups, campLoups, secretsVeilleesEnAttente } from "./utilitaires.js";
 import { lireFil, ecrireFil } from "./fils.js";
 import { validerSchema } from "./schema.js";
 import { VoixEnDirect, direReplique } from "./voix.js";
@@ -67,10 +67,11 @@ export const PARTIE_DEJA_ANNONCEE = "Nouvelle partie distribuée et déjà ouver
 
 // Pour le narrateur seul : qui tient quel rôle dans la partie qui commence (le fil neuf ne contient pas la distribution).
 export function distributionSecrete(api = game.lakourLoups) {
+  // Rôles et camps : les secrets du MJ actif, par l'API du système (jamais les documents).
   const lignes = (api?.villageois?.() ?? []).map(a => {
-    const role = a.items?.find?.(i => i.type === "role");
+    const role = roleLoups(a, api);
     const qui = a.system?.joueur ? game.users.get(a.system.joueur)?.name ?? "joueur" : "compagnon IA";
-    return `- ${a.name} (${qui}) : ${role?.name ?? "?"}, camp ${a.system?.camp ?? role?.system?.camp ?? "?"}`;
+    return `- ${a.name} (${qui}) : ${role?.name ?? "?"}, camp ${campLoups(a, api) || role?.system?.camp || "?"}`;
   });
   // La peste noire : le narrateur le sait (il choisit la première victime), il ne le dit jamais avant la fin.
   const peste = api?.etat?.()?.peste?.active
@@ -173,13 +174,14 @@ export class MoteurMJ {
       await effacerPrive();
     }
     this.systeme = await promptSysteme(this.personnalite);
+    await this.viderCouts();   // les coûts hors séance qui attendaient
     await ecrire("seance", { active: true, debut: Date.now(), jetons: { entree: 0, cacheLecture: 0, cacheEcriture: 0, sortie: 0 }, cout: 0 });
     this.pilote.suspendu = false;
     ui.notifications.info(game.i18n.localize("LAKOUR_MJIA.Seance.Demarree"));
     // Foundry met le jeu en pause à chaque lancement du monde : le MJ IA la lève pour que les joueurs jouent.
     if (game.paused) game.togglePause(false, { broadcast: true });
     if (silencieux) return;
-    const distribuee = loups && loups.etat().phase === "preparation" && loups.villageois().some(a => a.items?.find?.(i => i.type === "role"));
+    const distribuee = loups && loups.etat().phase === "preparation" && loups.villageois().some(a => roleLoups(a, loups));
     const ouverture = loups
       ? (enPartie ? OUVERTURE_PARTIE_EN_COURS : distribuee ? `${distributionSecrete(loups)}\n\n${OUVERTURE_NOUVELLE_PARTIE}` : OUVERTURE_NOUVELLE_VEILLEE)
       : filNonVide(this.fil)
@@ -195,10 +197,16 @@ export class MoteurMJ {
     if (!lire("seance").active) return;
     clearTimeout(this.minuterie);
     this.pilote.arreter("seance");
-    await this.tour("[Fin de séance] Donne l'expérience méritée (donner_xp), écris pour les joueurs le résumé de la séance dans la chronique "
-      + "(ecrire_chronique, sans les secrets du MJ), coupe l'ambiance sonore (ambiance_sonore « aucune »). "
-      + "Mets à jour la mémoire de campagne avec noter_memoire : résumé de la séance, "
-      + "PNJ rencontrés, lieux, fils ouverts. Puis dis au revoir aux joueurs en une phrase.");
+    // Aux Veillées : ni mémoire de campagne (un journal du monde se lit dans la console de chaque joueur), ni chronique pendant une
+    // partie en cours (elle la raconterait à tous).
+    const veillees = game.system?.id === "lakour-loups";
+    const chronique = veillees && partieLoupsEnCoursIci() ? ""
+      : "écris pour les joueurs le résumé de la séance dans la chronique (ecrire_chronique, sans les secrets du MJ), ";
+    await this.tour(`[Fin de séance] Donne l'expérience méritée (donner_xp), ${chronique}coupe l'ambiance sonore (ambiance_sonore « aucune »). `
+      + (veillees ? "" : "Mets à jour la mémoire de campagne avec noter_memoire : résumé de la séance, "
+      + "PNJ rencontrés, lieux, fils ouverts. ")
+      + "Puis dis au revoir aux joueurs en une phrase.");
+    await this.viderCouts();
     await ecrire("seance", { ...lire("seance"), active: false });
     ui.notifications.info(game.i18n.localize("LAKOUR_MJIA.Seance.Arretee"));
   }
@@ -410,6 +418,13 @@ export class MoteurMJ {
 
   // Un appel au modèle ; false si on doit s'arrêter (budget dépassé, refus).
   async #envoyer(fil, systeme, outils, surTexte = null) {
+    // Aux Veillées, secrets de la partie en attente (coffre) : aucun appel au modèle (il relancerait des outils refusés), un avis.
+    if (secretsVeilleesEnAttente()) {
+      if (!this.avisSecrets) await this.prevenirMJ(game.i18n.localize("LAKOUR_MJIA.Erreurs.SecretsVeillees"));
+      this.avisSecrets = true;
+      return null;
+    }
+    this.avisSecrets = false;
     if (this.budgetDepasse()) {
       await this.prevenirMJ(game.i18n.format("LAKOUR_MJIA.Erreurs.Budget", { budget: lire("budgetSeance") }));
       return null;
@@ -531,6 +546,10 @@ export class MoteurMJ {
       });
       if (!accord) return { id: appel.id, erreur: true, contenu: "Le MJ humain a refusé cette action. Continue sans elle." };
     }
+    if (def.systemes?.includes("lakour-loups") && secretsVeilleesEnAttente()) {
+      return { id: appel.id, erreur: true, contenu: "En attente des secrets de la partie (coffre des Veillées) : rien n'a été exécuté. "
+        + "Ne relance aucun outil : attends que le MJ ait rouvert le coffre." };
+    }
     try {
       const r = await def.executer(appel.args);
       return { id: appel.id, contenu: r.contenu, erreur: Boolean(r.erreur) };
@@ -552,28 +571,65 @@ export class MoteurMJ {
   }
 
   // Un coût déjà connu en dollars (transcription de la parole des joueurs, comptée à la minute) ; usage : jetons, s'il y en a.
+  // Aux Veillées, pendant une partie, le coût reste en mémoire (couts) : les réglages monde « seance » et « compagnonsHorsSeance »
+  // sont livrés à tous les navigateurs, et une écriture à chaque décision d'un compagnon dirait, la nuit, combien de loups IA
+  // (et de rôles IA) se réveillent. Ils sont écrits d'un coup hors partie (fin, préparatifs), à l'arrêt de la séance et avant de
+  // quitter la page (viderCouts) ; le budget compte ce qui attend.
   async compterCout(cout, usage = null) {
-    const seance = foundry.utils.deepClone(lire("seance"));
-    if (!seance.active) {
-      const hors = { ...HORS_SEANCE_VIDE, ...(lire("compagnonsHorsSeance") ?? {}) };
-      await ecrire("compagnonsHorsSeance", { ...hors, cout: hors.cout + cout, appels: hors.appels + 1 });
-      return;
+    const p = this.couts;
+    if (!lire("seance").active) {
+      p.hors.cout += cout;
+      p.hors.appels += 1;
+    } else {
+      p.seance.cout += cout;
+      if (usage) for (const k of Object.keys(usage)) if (typeof usage[k] === "number") p.seance.jetons[k] = (p.seance.jetons[k] ?? 0) + usage[k];
+      p.seance.n += 1;
     }
-    if (usage) for (const k of Object.keys(seance.jetons)) seance.jetons[k] += usage[k] ?? 0;
-    seance.cout += cout;
-    await ecrire("seance", seance);
+    if (!this.coutsDifferes()) await this.viderCouts();
+  }
+
+  // Les coûts en attente : { seance: { cout, jetons, n }, hors: { cout, appels } }.
+  get couts() {
+    return (this._couts ??= { seance: { cout: 0, jetons: {}, n: 0 }, hors: { cout: 0, appels: 0 } });
+  }
+
+  // Aux Veillées, pendant une partie (distribuée, pas finie) : les écritures de coût attendent.
+  coutsDifferes() {
+    if (game.system?.id !== "lakour-loups") return false;
+    try {
+      const e = game.lakourLoups?.etat?.();
+      return Boolean(e?.partie) && e.phase !== "fin";
+    } catch { return false; }
+  }
+
+  // Écrit d'un coup les coûts en attente (une écriture par compteur touché).
+  async viderCouts() {
+    const p = this.couts;
+    this._couts = null;
+    if (p.hors.appels || p.hors.cout) {
+      const hors = { ...HORS_SEANCE_VIDE, ...(lire("compagnonsHorsSeance") ?? {}) };
+      await ecrire("compagnonsHorsSeance", { ...hors, cout: hors.cout + p.hors.cout, appels: hors.appels + p.hors.appels });
+    }
+    if (p.seance.n || p.seance.cout) {
+      const seance = foundry.utils.deepClone(lire("seance"));
+      for (const k of Object.keys(seance.jetons ?? {})) seance.jetons[k] += p.seance.jetons[k] ?? 0;
+      seance.cout = (seance.cout ?? 0) + p.seance.cout;
+      await ecrire("seance", seance);
+    }
   }
 
   budgetDepasse() {
     const budget = lire("budgetSeance");
     if (!(budget > 0)) return false;
     const seance = lire("seance");
-    const cout = seance.active ? seance.cout : (lire("compagnonsHorsSeance")?.cout ?? 0);
+    const p = this.couts;
+    const cout = seance.active ? (seance.cout ?? 0) + p.seance.cout : (lire("compagnonsHorsSeance")?.cout ?? 0) + p.hors.cout;
     return cout >= budget;
   }
 
   // Une nouvelle partie hors séance : le compteur « compagnons hors séance » repart de zéro.
   async remettreHorsSeance() {
+    this.couts.hors = { cout: 0, appels: 0 };
     await ecrire("compagnonsHorsSeance", { ...HORS_SEANCE_VIDE, depuis: Date.now() });
   }
 

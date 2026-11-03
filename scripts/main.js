@@ -13,7 +13,7 @@ import { brancherDecisions, brancherCompagnonsDecisions } from "./decisions.js";
 import { installerGuide } from "./guide.js";
 import { CompagnonsSansNarrateur } from "./compagnons-veillees.js";
 import { ecouteActive } from "./ecoute.js";
-import { EcouteJoueurs, afficherEcoute } from "./transcription.js";
+import { EcouteJoueurs, afficherEcoute, brancherTranscription } from "./transcription.js";
 import { compagnonsPresents } from "./compagnons-jeu.js";
 import { versHTML } from "./utilitaires.js";
 import { consignerComposition } from "./historique-loups.js";
@@ -96,7 +96,18 @@ Hooks.once("ready", () => {
       ouvrir: () => ouvrirFenetreCoffre(),
       abandonner: options => coffre.abandonnerCoffre(options),
       lireArchive: nom => lireArchive(nom),
-      changement: () => coffre.coffreChange()
+      changement: () => coffre.coffreChange(),
+      // Pour un autre module (le système des Veillées scelle ses secrets de partie avec la même clé) : sceller(contenu) -> objet
+      // scellé ou null (pas MJ actif, clé absente) ; ouvrirScelle(scelle) -> contenu ou null (parts demandées si la clé manque) ;
+      // scellerAvec(contenu, cle) dans un rappel de renouvellement ; siRenouvele(fn(cle)) : rescelle avant que la nouvelle clé
+      // n'entre en vigueur ; siDisponible(fn) : la clé est là (démarrage, réouverture).
+      sceller: contenu => coffre.scellerPourAutre(contenu),
+      // scellerEnPartant(contenu) : le MJ qui perd la main (un autre devient actif) scelle une dernière fois, avec la clé en vigueur.
+      scellerEnPartant: contenu => coffre.scellerEnPartant(contenu),
+      ouvrirScelle: scelle => coffre.ouvrirPourAutre(scelle),
+      scellerAvec: (contenu, cle) => coffre.scellerAvec(contenu, cle),
+      siRenouvele: fn => coffre.siRenouvele(fn),
+      siDisponible: fn => coffre.siCleDisponible(fn)
     }
   };
   // Gestes de la fenêtre Carnet de campagne faits par un autre MJ : transmis au MJ actif.
@@ -105,6 +116,8 @@ Hooks.once("ready", () => {
   // Coffre du moteur (tous les mondes) : le MJ l'ouvre (ou demande les parts des joueurs), chiffre ce qui traîne en clair (Carnet,
   // fils de l'IA) ; un joueur demande sa part au MJ actif.
   coffre.brancherCoffre();
+  // Transcriptions montrées aux MJ (réglage) : par le canal du module, aux seuls MJ, jamais par un chuchotement du chat.
+  if (game.user.isGM) brancherTranscription();
   // Voix des IA en direct : chaque navigateur joue les morceaux de son reçus du MJ actif (canal du module).
   brancherVoixDirecte();
   // L'écoute suit l'état de la table : séance, compagnons, flux A/V qui arrivent ou changent, phase des Veillées.
@@ -148,11 +161,16 @@ Hooks.once("ready", () => {
   }
   // Sans narrateur IA : le jour, les compagnons débattent ; une nouvelle partie remet leur compteur hors séance à zéro.
   Hooks.on("lakourLoups.phase", phase => { sansNarrateur.surPhase(phase).catch(e => console.error(`${ID} | compagnons`, e)); });
+  // Les coûts des IA, gardés en mémoire pendant une partie des Veillées (moteur.compterCout), s'écrivent d'un coup quand elle est
+  // finie ou abandonnée, et avant de quitter la page.
+  const viderCouts = () => { if (game.user === game.users.activeGM && !moteur.coutsDifferes()) moteur.viderCouts().catch(e => console.error(`${ID} | coûts`, e)); };
+  for (const crochet of ["lakourLoups.victoire", "lakourLoups.phase", "lakourLoups.nouvellePartie"]) Hooks.on(crochet, () => setTimeout(viderCouts, 0));
+  window.addEventListener?.("beforeunload", () => { if (game.user === game.users.activeGM) moteur.viderCouts().catch(() => null); });
   Hooks.on("createChatMessage", message => sansNarrateur.surMessage(message));
   // Pilote automatique : une mort, une victoire, une phase, un joueur qui arrive ou part, un jeton posé ou retiré… il revoit s'il
   // doit mener la partie (il ne reste que des compagnons IA) ou rendre la main (un humain vivant est là).
   for (const crochet of ["lakourLoups.phase", "lakourLoups.elimination", "lakourLoups.victoire", "lakourLoups.passage", "lakourLoups.depart",
-    "lakourLoups.accusation", "lakourLoups.deuil", "updateActor", "userConnected",
+    "lakourLoups.accusation", "lakourLoups.deuil", "lakourLoups.secrets", "updateActor", "userConnected",
     "createToken", "deleteToken", "canvasReady", "updateCombat", "deleteCombat"]) {
     Hooks.on(crochet, () => moteur.pilote.verifierBientot());
   }

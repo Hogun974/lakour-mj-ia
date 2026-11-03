@@ -164,15 +164,24 @@ test("coût hors séance : au compteur « compagnons hors séance », borné par
   chat.length = 0;
   reglages.compagnonsHorsSeance = { cout: 0, appels: 0, depuis: 0 };
   reglages.seance.cout = 0;
-  const { s, appels } = monter();
+  const { s, appels, moteur } = monter();
   etat.phase = "jour";
   await s.parler("essai");
+  // Pendant la partie, le coût reste en mémoire : le réglage monde (livré à tous) ne bat pas au rythme des décisions des IA.
+  assert.deepEqual(reglages.compagnonsHorsSeance, { cout: 0, appels: 0, depuis: 0 }, "rien d'écrit pendant la partie");
+  assert.equal(moteur.couts.hors.appels, 2);
+  // La partie finie : écrit d'un coup.
+  etat.phase = "fin";
+  assert.equal(moteur.coutsDifferes(), false);
+  await moteur.viderCouts();
+  etat.phase = "jour";
   const hors = reglages.compagnonsHorsSeance;
   assert.equal(hors.appels, 2);
   assert.ok(hors.cout > 0);
   assert.equal(reglages.seance.cout, 0, "rien au compteur de la séance");
-  // Haiku 5.5 : 0,10 $/M d'entrée, 0,50 $/M de sortie (≈ 0,015 $ par appel ici) ; budget 1 $.
-  reglages.compagnonsHorsSeance = { cout: 1, appels: 80, depuis: 0 };
+  // Haiku 5.5 : 0,10 $/M d'entrée, 0,50 $/M de sortie (≈ 0,015 $ par appel ici) ; budget 1 $ (ce qui attend en mémoire compte).
+  reglages.compagnonsHorsSeance = { cout: 0.5, appels: 80, depuis: 0 };
+  moteur.couts.hors.cout = 0.5;
   const avant = appels.length;
   const dits = await s.parler("essai");
   assert.equal(appels.length, avant, "budget atteint : aucun appel");

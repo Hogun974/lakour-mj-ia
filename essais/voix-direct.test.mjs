@@ -344,14 +344,39 @@ test("transcription en séance (40k, Warcraft : sans matrice) : coût compté, p
     assert.deepEqual(moteurDouble.signaux, [["🗣️ Jordan (à voix haute) : Je crois que Valentin ment.", "humain"]]);
     assert.equal(chat.length, 0, "rien dans le chat des joueurs");
     assert.match(J.parolesPour("k1").map(p => p.ligne).join(), /Jordan \(à voix haute\) : Je crois que Valentin ment/);
-    // Option : chuchotée aux MJ.
+    // Option, hors des Veillées (40k, Warcraft) : chuchotée aux MJ, comme avant (rien de secret dans la parole à la table).
     reglages.transcriptionAuMJ = true;
+    assert.notEqual(game.system.id, "lakour-loups");
     await e.traiterSegment("jo", segment);
     assert.deepEqual(chat.at(-1).whisper, ["mj"]);
     assert.equal(chat.at(-1).flags["lakour-mj-ia"].ia, true, "le MJ IA ne la relit pas comme un message");
+    // Aux Veillées : jamais un chuchotement (Foundry livre tout message de chat à tous les navigateurs ; la parole d'un loup la
+    // nuit s'y lirait) : affichée localement chez le MJ actif, envoyée aux autres MJ connectés, à eux seuls, par le canal du module.
+    const systeme = game.system.id;
+    game.system.id = "lakour-loups";
+    const vus = [];
+    const notes = [];
+    globalThis.ui.chat = { postOne: m => vus.push(m) };
+    globalThis.ui.notifications.info = t => notes.push(t);
+    const autreMJ = { id: "mj2", name: "Second MJ", isGM: true, active: true };
+    game.users.set("mj2", autreMJ);
+    emis.length = 0;
+    const avant = chat.length;
+    try {
+      await e.traiterSegment("jo", segment);
+    } finally { game.system.id = systeme; }
+    assert.equal(chat.length, avant, "aucun message de chat (pas même chuchoté)");
+    assert.ok(vus.length + notes.length === 1, "affichée une fois, localement");
+    assert.match(String(vus[0]?.content ?? notes[0] ?? ""), /Je crois que Valentin ment/);
+    const envoi = emis.filter(([m]) => m.type === "transcription");
+    assert.deepEqual(envoi.map(([, r]) => r), [["mj2"]], "aux autres MJ seulement");
+    assert.ok(!emis.some(([m, r]) => m.type === "transcription" && r.includes("jo")), "jamais à un joueur");
+    game.users.delete("mj2");
   } finally {
     reglages.transcriptionAuMJ = false;
     moteurDouble.actif = false;
+    delete globalThis.ui.chat;
+    globalThis.ui.notifications.info = () => {};
   }
 });
 

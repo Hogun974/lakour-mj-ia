@@ -571,6 +571,35 @@ export async function importerSecours(source) {
   });
 }
 
+// ------------------------------------------------------------------ pour un autre module (le système des Veillées, lakour-loups)
+// Les secrets d'une partie des Veillées sont scellés avec la même clé (api.coffre.sceller / ouvrirScelle / siRenouvele /
+// siDisponible ; contrat : lakour-veillees/docs/loups-contrat.md §6). Le module garde son objet scellé où il veut (réglage monde) ;
+// le moteur lui donne la clé en vigueur, ses parts, son renouvellement et sa reprise.
+// Scelle un contenu avec la clé en vigueur, dans la file : null si ce navigateur n'est pas le MJ actif ou n'a pas la clé.
+export const scellerPourAutre = contenu => enFile(() => scellerCourant(contenu));
+// La passation : un MJ qui vient de perdre la main (un autre MJ est devenu actif) scelle une dernière fois ce qu'il sait, avec la
+// clé en vigueur s'il l'a (jamais une clé neuve : seul le MJ actif en crée). null sinon.
+export const scellerEnPartant = contenu => enFile(async () => {
+  if (!game.user?.isGM) return null;
+  const cle = cleCourante();
+  return cle ? C.sceller(contenu, cle) : null;
+});
+
+// Ouvre un objet scellé (clé en vigueur, en cours ou ancienne), dans la file ; null si ce navigateur n'a pas sa clé : si le
+// trousseau la connaît, ses parts sont demandées (MJ actif) et le hook « lakour-mj-ia.coffreRouvert » dira quand elle revient.
+export function ouvrirPourAutre(scelle) {
+  return enFile(async () => {
+    if (!game.user?.isGM || !C.estScelle(scelle)) return null;
+    const contenu = await ouvrirScelle(scelle);
+    if (contenu !== null) return contenu;
+    if (estMJActif() && idConnu(scelle.id) && !demandes.has(scelle.id)) {
+      signalerId(scelle.id);
+      enFile(() => null).catch(() => null);   // le passage suivant dans la file demande les parts de cette clé
+    }
+    return null;
+  });
+}
+
 // ------------------------------------------------------------------ au chargement
 // Chez un MJ : ouvrir le coffre (MJ actif sans une clé : demander les parts ; monde neuf : créer la clé), ranger ce qui traîne en
 // clair, reprendre un renouvellement, donner ses parts à chaque joueur déjà là. Rend l'état du coffre.

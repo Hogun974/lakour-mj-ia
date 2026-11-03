@@ -152,6 +152,10 @@ de la Table appelle `creer`. Le résolveur des compagnons est branché séance o
 Hors séance, quand la phase passe à « jour », les compagnons vivants parlent (au plus le bavardage) ; ils répondent aux messages
 publics des humains (regroupés), jamais aux leurs. Coût : compteur « compagnons hors séance » (réglage `compagnonsHorsSeance`,
 affiché dans la console), borné par `budgetSeance`, remis à zéro à chaque distribution ; sans clé ou budget atteint, repli.
+Depuis 0.35.0, pendant une partie des Veillées, ce coût (et celui de la séance) reste en mémoire (`moteur.couts`) et s'écrit d'un coup
+quand la partie est finie ou abandonnée, à l'arrêt de la séance ou avant de quitter la page (`moteur.viderCouts`) : un réglage monde
+écrit à chaque décision d'un compagnon dirait, la nuit, combien de loups IA se réveillent. Le budget compte ce qui attend. Le rôle et
+le camp d'un compagnon se lisent par l'API du système (`roleDe`, `campDe` : ses secrets), plus dans son document (système 0.9.0).
 `scripts/ecoute.js` : `ecouteActive({ seanceIA, compagnonsVivants, moduleActif })`, la règle de `docs/voix-et-ecoute.md` §2
 (écouter la parole seulement si une séance est lancée ou si un compagnon vivant est à la table).
 

@@ -3,6 +3,7 @@
 // Les règles elles-mêmes ne sont PAS recopiées ici : l'IA les lit dans les compendiums des livres achetés.
 
 import { versMetres, moyenneFormule } from "./tour-logique.js";
+import { roleLoups, campLoups } from "./utilitaires.js";
 
 const texte = v => (v === undefined || v === null || v === "" ? "?" : v);
 
@@ -239,15 +240,21 @@ const loups = {
     + "(chaque partie repart de zéro : n'évoque jamais une partie précédente).",
   competences() { return []; },
   async lancer() { throw new Error("Pas de dés dans ce jeu : les rôles agissent la nuit (loups_nuit), le village vote le jour (loups_vote)."); },
+  // Le rôle, le camp et l'amoureux viennent des secrets du MJ actif (système 0.9.0 : game.lakourLoups.roleDe / campDe / fiche),
+  // jamais du document, que tout joueur reçoit et qu'il ne peut plus modifier.
   resumer(acteur) {
     const s = acteur.system ?? {};
-    const role = acteur.items?.find(i => i.type === "role");
+    const api = game.lakourLoups;
+    const role = roleLoups(acteur, api);
+    const camp = campLoups(acteur, api);
+    let amoureux = "";
+    try { amoureux = typeof api?.fiche === "function" ? api.fiche(acteur.id)?.amoureux ?? "" : s.amoureux ?? ""; } catch { amoureux = ""; }
     const metier = acteur.items?.find(i => i.type === "metier");
     const joueur = game.users?.get?.(s.joueur)?.name;
     return `${acteur.name}${joueur ? ` [joué par ${joueur}]` : s.compagnon ? " [compagnon IA]" : ""} — ${s.vivant === false ? "MORT" : "vivant"}`
       + `${metier ? ` — métier public : ${metier.name}` : ""}`
-      + `${role ? ` — rôle ${s.revele ? "révélé" : "SECRET (ne le dis à personne)"} : ${role.name} (camp ${s.camp ?? role.system?.camp})` : ""}`
-      + `${s.maison ? ` — dort à : ${s.maison}` : ""}${s.amoureux ? " — amoureux lié" : ""}`;
+      + `${role ? ` — rôle ${s.revele ? "révélé" : "SECRET (ne le dis à personne)"} : ${role.name} (camp ${camp || role.system?.camp})` : ""}`
+      + `${s.maison ? ` — dort à : ${s.maison}` : ""}${amoureux ? " — amoureux lié" : ""}`;
   }
 };
 

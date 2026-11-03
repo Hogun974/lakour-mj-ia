@@ -11,7 +11,7 @@
 // Jamais le prompt du MJ, sa mémoire de campagne, les rôles des autres, l'état secret de la nuit ni les jetons cachés.
 import { ID } from "./constantes.js";
 import { adaptateur } from "./adaptateurs.js";
-import { versHTML } from "./utilitaires.js";
+import { versHTML, roleLoups, campLoups, secretsVeilleesEnAttente } from "./utilitaires.js";
 import {
   CerveauxCompagnons, BAVARDAGE, normaliserPersonnalite, texteBrut, choisirOrateurs, repliReplique, criePeste, declarationAuRegistre, accusationDans
 } from "./compagnons.js";
@@ -130,10 +130,12 @@ export function chatPublic({ messages = game.messages?.contents ?? [], max = 20,
 
 // ------------------------------------------------------------------ la vue d'un compagnon des Veillées
 const libelle = (cle, defaut) => (game.i18n?.has?.(cle) ? game.i18n.localize(cle) : defaut);
-const roleDe = a => a?.items?.find(i => i.type === "role") ?? null;
 const metierDe = a => a?.items?.find(i => i.type === "metier") ?? null;
 
 export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
+  // Son rôle et son camp : les secrets du MJ actif, par l'API du système (0.9.0 : ni l'un ni l'autre n'est dans les documents).
+  // Les rôles des autres : seulement l'objet de rôle d'un document, qui n'existe qu'une fois le rôle révélé à tous.
+  const roleDe = a => (a?.id === acteur.id ? roleLoups(a, api) : a?.items?.find?.(i => i.type === "role") ?? null);
   // L'état PUBLIC seulement : celui que reçoit chaque navigateur (ni les choix de la nuit, ni le bilan, ni les primes, ni les
   // voix d'un vote en cours, ni la chronique secrète, ni les carnets des autres).
   const pub = api.logique.etatPublic(api.etat());
@@ -144,7 +146,8 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
   const entrees = api.carnet(acteur.id) ?? [];
   const carnet = entrees.map(e => [e.titre, texteBrut(e.html ?? e.texte)].filter(Boolean).join(" — ")).filter(Boolean);
   const autres = tous.filter(a => a.id !== acteur.id);
-  const loup = acteur.system.camp === "meute";
+  const camp = campLoups(acteur, api);
+  const loup = camp === "meute";
   // Sa meute, telle que sa carte de rôle la nomme ; ses soupçons, d'après son carnet et les rôles révélés.
   const cartes = entrees.filter(e => e.html).map(e => texteBrut(e.html)).join("\n");
   const allies = loup ? autres.filter(a => cartes.includes(a.name)).map(a => a.id) : [];
@@ -163,7 +166,7 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
   const fiche = [
     `Tu es ${acteur.name}, villageois de Brumecombe${metier ? `, ${metier.name} de ton métier (public)` : ""}`
       + `${acteur.system.maison ? ` ; tu dors à « ${acteur.system.maison} »` : ""}.`,
-    role ? `${dePassage ? "Tu es de passage à Brumecombe. Ton rôle (PUBLIC, tout le village le connaît)" : "Ton rôle SECRET"} : ${role.name} (camp ${libelle(`LAKOUR_LOUPS.Camps.${acteur.system.camp}`, acteur.system.camp)}). ${texteBrut(role.system?.description)}` : "",
+    role ? `${dePassage ? "Tu es de passage à Brumecombe. Ton rôle (PUBLIC, tout le village le connaît)" : "Ton rôle SECRET"} : ${role.name} (camp ${libelle(`LAKOUR_LOUPS.Camps.${camp}`, camp)}). ${texteBrut(role.system?.description)}` : "",
     role?.system?.victoire ? `Ta victoire : ${texteBrut(role.system.victoire)}` : "",
     metier?.system?.description ? `Ton métier : ${texteBrut(metier.system.description)}` : "",
     loup ? "Tes Masques de veillée, s'ils sont dans ton carnet, sont des rôles du Village absents de la partie : tu peux prétendre en tenir "
@@ -399,7 +402,8 @@ export class Compagnons {
       fournisseur: () => { try { return fournisseur(); } catch { return null; } },
       modele: () => { try { return modele(); } catch { return ""; } },
       compter: (usage, m) => this.moteur?.compter?.(usage, m),
-      budgetDepasse: () => Boolean(this.moteur?.budgetDepasse?.()),
+      // Budget atteint, ou (aux Veillées) secrets de la partie en attente : aucun appel des compagnons.
+      budgetDepasse: () => Boolean(this.moteur?.budgetDepasse?.()) || secretsVeilleesEnAttente(),
       graine: graine ?? `compagnons|${game.world?.id ?? ""}`
     });
     this.derniere = new Map();   // acteurId -> rang de sa dernière réplique (ceux qui ont parlé le moins récemment d'abord)

@@ -148,7 +148,7 @@
       },
       "TranscriptionAuMJ": {
         "Nom": "Montrer les transcriptions au MJ",
-        "Aide": "Chaque phrase transcrite est aussi chuchotée aux MJ dans le chat (jamais montrée aux joueurs)."
+        "Aide": "Chaque phrase transcrite est aussi montrée aux MJ : chuchotée dans le chat (jamais montrée aux joueurs) ; aux Veillées, affichée dans le chat des seuls MJ sans y être enregistrée (un chuchotement y serait livré à tous les navigateurs)."
       },
       "seulActifBouge": {
         "Nom": "Seul le combattant actif peut bouger",
@@ -212,6 +212,7 @@
       "Humain": "Un joueur humain est là : le pilote automatique lui rend la main.",
       "Arrete": "Pilote automatique arrêté.",
       "Coupe": "Pilote automatique coupé dans les réglages.",
+      "Secrets": "Les secrets de la partie ne sont pas (encore) à jour dans ce navigateur : le pilote automatique attend que le coffre soit rouvert, puis reprend.",
       "Erreur": "Le pilote automatique s'arrête après une erreur : {detail}"
     },
     "Seance": {
@@ -225,6 +226,7 @@
       "PasDeCle": "Aucune clé API pour ce fournisseur : ouvre la configuration du MJ IA.",
       "Budget": "Budget de la séance atteint ({budget} $) : le MJ IA s'arrête. Augmente le budget dans les réglages pour continuer.",
       "Refus": "Le modèle a refusé de répondre à ce tour. {detail}",
+      "SecretsVeillees": "Les secrets de la partie ne sont pas (encore) à jour dans ce navigateur (coffre des Veillées : parts des joueurs, autre MJ, clé de secours) : le MJ IA attend, sans appeler le modèle.",
       "PasTonPersonnage": "Ce n'est pas ton personnage : seul son joueur peut lancer ce test.",
       "PasTonJet": "Ce jet est demandé à un autre joueur.",
       "CreationImpmal": "La création guidée n'est disponible que pour Imperium Maledictum et D&D 5e.",

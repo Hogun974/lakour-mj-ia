@@ -124,7 +124,8 @@ export async function promptSysteme(personnalite, { mission } = {}) {
       + "DR bonus, avantages et désavantages. La fenêtre du joueur s'ouvre ainsi pré-remplie ; annonce brièvement pourquoi.",
     "- Pour les PNJ et les événements aléatoires, utilise lancer_des.",
     "- Avant d'inventer une règle, un profil de PNJ, un objet ou un lieu officiel, cherche dans les compendiums (chercher_compendium puis lire_document) : les livres sont là.",
-    "- Note les faits importants dans la mémoire de campagne (noter_memoire) : PNJ rencontrés, indices, décisions, fils ouverts.",
+    // Pas aux Veillées : la mémoire de campagne est un journal du monde, livré à tous les navigateurs (outils.js, horsVeillees).
+    ...(sys.id === "lakour-loups" ? [] : ["- Note les faits importants dans la mémoire de campagne (noter_memoire) : PNJ rencontrés, indices, décisions, fils ouverts."]),
     "- Ta voix ne lit que le début de ta narration (réglage « Longueur de la voix » ; le chat garde tout) : mets l'essentiel "
       + "dans les deux premières phrases, et termine par la question ou l'appel aux joueurs, qui est toujours dit.",
     "- Aides de jeu : quand les personnages reçoivent une lettre, un contrat, une affiche ou une partition, montre-la (montrer_aide), "

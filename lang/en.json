@@ -148,7 +148,7 @@
       },
       "TranscriptionAuMJ": {
         "Nom": "Show transcriptions to the GM",
-        "Aide": "Each transcribed sentence is also whispered to the GMs in the chat (never shown to players)."
+        "Aide": "Each transcribed sentence is also shown to the GMs: whispered in the chat (never shown to players); in the Veillées, shown in the GMs' chat only without being saved (a whisper there would reach every browser)."
       },
       "seulActifBouge": {
         "Nom": "Only the active combatant can move",
@@ -212,6 +212,7 @@
       "Humain": "A human player is here: the autopilot hands control back.",
       "Arrete": "Autopilot stopped.",
       "Coupe": "Autopilot turned off in the settings.",
+      "Secrets": "The game's secrets are not (yet) up to date in this browser: the autopilot waits for the vault to be reopened, then resumes.",
       "Erreur": "The autopilot stops after an error: {detail}"
     },
     "Seance": {
@@ -225,6 +226,7 @@
       "PasDeCle": "No API key for this provider: open the AI GM configuration.",
       "Budget": "Session budget reached (${budget}): the AI GM stops. Raise the budget in the settings to continue.",
       "Refus": "The model declined to answer this turn. {detail}",
+      "SecretsVeillees": "The game's secrets are not (yet) up to date in this browser (Veillées vault: players' shares, another GM, recovery key): the AI GM waits, without calling the model.",
       "PasTonPersonnage": "Not your character: only its player can roll this test.",
       "PasTonJet": "This roll is requested from another player.",
       "CreationImpmal": "Guided creation is only available for Imperium Maledictum and D&D 5e.",

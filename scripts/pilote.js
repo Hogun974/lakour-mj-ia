@@ -36,7 +36,7 @@ const ATTENTE_REPOS_MAX = 10 * 60000;  // un tour du MJ ne dure jamais autant : 
 const SUSPENDRE = ["manuel", "max", "budget", "bloque", "pause", "erreur"];
 // Arrêts annoncés au MJ humain (clé de traduction LAKOUR_MJIA.Pilote.<clé>).
 const AVIS = { manuel: "Arrete", max: "Max", budget: "Budget", bloque: "Bloque", pause: "Pause", erreur: "Erreur", victoire: "Victoire",
-  humain: "Humain", validation: "Validation", reglage: "Coupe" };
+  humain: "Humain", validation: "Validation", reglage: "Coupe", secrets: "Secrets" };
 
 const reglage = (cle, defaut) => {
   try { return game.settings.get(ID, cle) ?? defaut; } catch { return defaut; }
@@ -201,6 +201,8 @@ export class PiloteAutomatique {
     if (api) {
       const etat = api.etat();
       if (etat.phase === "preparation") return { ok: false, raison: "preparation" };
+      // Secrets de la partie en attente (coffre) : pause ; il repart seul quand ils sont revenus (hook lakourLoups.secrets).
+      if (api.ecritureBloquee?.()) return { ok: false, raison: "secrets" };
       if (etat.vainqueur || etat.phase === "fin") return { ok: false, raison: "fin" };
       groupe = vivantsVeillees(api);
     } else {
@@ -242,7 +244,7 @@ export class PiloteAutomatique {
       return;
     }
     // La situation « que des compagnons » est finie : la prochaine fois, le pilote repartira de lui-même.
-    if (["humain", "seance", "preparation", "personne"].includes(c.raison)) {
+    if (["humain", "seance", "preparation", "personne", "secrets"].includes(c.raison)) {
       this.suspendu = false;
       this.avisValidation = false;
     }

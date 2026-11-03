@@ -122,8 +122,11 @@ voix Foundry de chaque navigateur, choisir les destinataires de la voix des IA (
 - Événement `{ userId, nom, texte, quand }` (nom : « Mathurin (Jordan) », personnage puis joueur), hook `lakourMjIa.transcription` :
   - MJ IA en séance : `moteur.signaler("🗣️ Nom (à voix haute) : …")`, source « humain » si un compagnon l'a entendue (il pourra
     répondre, règles de rythme habituelles), sinon « annonce » (pas de réveil des compagnons). Parole restreinte : « entendu seulement
-    de …, n'y réponds pas devant les autres ». Jamais publiée dans le chat ; réglage `transcriptionAuMJ` : chuchotée aux MJ (drapeau
-    `ia`, donc ni relue par le MJ IA ni par les compagnons).
+    de …, n'y réponds pas devant les autres ». Jamais publiée dans le chat ; réglage `transcriptionAuMJ` : chuchotée aux MJ (drapeau `ia`) ;
+    aux Veillées (0.35.0), affichée dans le
+    chat du MJ actif et envoyée aux autres MJ par le canal du module (`{ type: "transcription" }`, `recipients` : les MJ), chacun
+    l'affichant localement (`ChatLog#postOne` d'un message jamais créé, drapeaux `ia` et `local`) ; jamais un chuchotement, que
+    Foundry livrerait à tous les navigateurs (la parole d'un loup la nuit s'y lirait).
   - Compagnons : `entendreParole` (mémoire du MJ actif, 40 phrases, vidée à chaque nouvelle partie) ; la vue d'un compagnon mêle au
     chat public, dans l'ordre du temps, ce qu'il a entendu. Hors séance aux Veillées : `sansNarrateur.entendre` (débat du jour).
 - Icône : réglage monde `ecouteEnCours` écrit par le MJ actif ; chaque navigateur affiche la pastille « L'IA écoute » (seulement si

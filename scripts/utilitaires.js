@@ -84,3 +84,26 @@ export async function trouverActeur(reference) {
     ?? game.actors.find(a => a.name.toLowerCase().includes(norme))
     ?? null;
 }
+
+// ------------------------------------------------------------------ Veillées (système lakour-loups 0.9.0)
+// Le rôle et le camp d'un villageois ne sont plus dans ses documents (Foundry les livre à tous) : ils vivent dans les secrets du
+// MJ actif, que le système donne par son API (game.lakourLoups.roleDe / campDe, MJ actif). Un système d'avant 0.9.0 : repli sur
+// le document. roleLoups -> objet de rôle (name, img, system) ou null ; campLoups -> "village" | "meute" | "solitaire" | "".
+export function roleLoups(acteur, api = globalThis.game?.lakourLoups) {
+  if (!acteur) return null;
+  if (typeof api?.roleDe === "function") return api.roleDe(acteur) ?? null;
+  return acteur.items?.find?.(i => i.type === "role") ?? null;
+}
+export function campLoups(acteur, api = globalThis.game?.lakourLoups) {
+  if (!acteur) return "";
+  if (typeof api?.campDe === "function") return api.campDe(acteur) ?? "";
+  return acteur.system?.camp ?? roleLoups(acteur, api)?.system?.camp ?? "";
+}
+
+// Aux Veillées, le MJ actif n'a pas (encore) les secrets à jour de la partie (coffre du système : autre navigateur, autre MJ, parts
+// attendues) : le système refuse toute écriture. Le MJ IA se met en pause (narrateur, pilote, compagnons) : ses appels échoueraient,
+// et coûteraient.
+export function secretsVeilleesEnAttente() {
+  if (globalThis.game?.system?.id !== "lakour-loups") return false;
+  try { return Boolean(globalThis.game?.lakourLoups?.ecritureBloquee?.()); } catch { return false; }
+}

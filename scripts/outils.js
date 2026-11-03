@@ -3,7 +3,7 @@ import { MODULE_3D } from "./vue3d.js";
 import { adaptateur, DIFFICULTES } from "./adaptateurs.js";
 import { SECTIONS, noterMemoire } from "./memoire.js";
 import { fournisseurImages } from "./fournisseurs/index.js";
-import { versTexte, versHTML, tronquer, trouverActeur, deposerFichier } from "./utilitaires.js";
+import { versTexte, versHTML, tronquer, trouverActeur, deposerFichier, roleLoups } from "./utilitaires.js";
 import { CARACS, calculerCaracteristiques, objetsDeDepart, munitionPour } from "./creation-impmal.js";
 import { ajouterAvecAvancements, donnerEquipement, monterNiveau } from "./creation-dnd5e.js";
 import { jetonJoueur, moduleDeContenu } from "./contenus.js";
@@ -116,6 +116,14 @@ function zoneDePose(scene, { salle = "", x = null, y = null, pres_de = "", sauf 
   const pj = scene.tokens.find(t => t.actor?.hasPlayerOwner);
   const centre = pj ? caseDuJeton(pj, g) : { x: Math.floor(g.largeur / 2), y: Math.floor(g.hauteur / 2) };
   return { g, centre, zone: salleDeLaCase(salles, centre.x, centre.y) };
+}
+
+// Garde des outils qui écrivent un journal du monde (mémoire, journal créé) : refusés aux Veillées, même appelés malgré leur
+// absence de la liste (un journal du MJ est livré à tous les navigateurs). -> null, ou le refus à rendre.
+function horsVeillees() {
+  if (globalThis.game?.system?.id !== "lakour-loups") return null;
+  return { erreur: true, contenu: "Pas aux Veillées : un journal du monde (même réservé au MJ) est livré à tous les navigateurs. Garde ce que tu "
+    + "dois retenir pour toi (ton fil est chiffré) ; pour un joueur, envoie un message secret (message_prive)." };
 }
 
 export const OUTILS = [
@@ -239,8 +247,12 @@ export const OUTILS = [
       return { contenu: tronquer(texte, 20000) };
     }
   },
+  // Aux Veillées (« horsSystemes ») : ni mémoire de campagne ni journal créé par l'IA. Un journal réservé au MJ reste un document
+  // du monde, que Foundry livre à TOUS les navigateurs : une note de partie (qui est loup, qui a été vu la nuit) s'y lirait dans
+  // la console. Chaque partie repart de zéro ; ce que le narrateur doit retenir vit dans son fil (chiffré, coffre du moteur).
   {
     nom: "noter_memoire",
+    horsSystemes: ["lakour-loups"],
     description: "Ajoute une note à la mémoire de campagne (relue au début de chaque séance).",
     schema: objet({
       section: { type: "string", enum: SECTIONS, description: "Section de la mémoire." },
@@ -248,11 +260,13 @@ export const OUTILS = [
     }),
     sensible: false,
     async executer({ section, texte }) {
+      if (horsVeillees()) return horsVeillees();
       return { contenu: await noterMemoire(section, texte) };
     }
   },
   {
     nom: "creer_journal",
+    horsSystemes: ["lakour-loups"],
     description: "Crée un journal (scénario, aide de jeu, lettre, description de lieu). Les pages visibles des joueurs leur sont montrées.",
     schema: objet({
       titre: chaine("Titre du journal."),
@@ -261,6 +275,7 @@ export const OUTILS = [
     }),
     sensible: true,
     async executer({ titre, pages, visible_joueurs }) {
+      if (horsVeillees()) return horsVeillees();
       const journal = await JournalEntry.implementation.create({
         name: titre,
         ownership: { default: visible_joueurs ? CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER : CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
@@ -1114,6 +1129,8 @@ OUTILS.push(
   },
   {
     nom: "ecrire_chronique",
+    // Aux Veillées, pas pendant une partie en cours (outilsDuSysteme ; refus en garde ci-dessous) : la partie se raconte au chat.
+    horsPartieLoups: true,
     description: "Ajoute une entrée à la chronique de campagne, journal que TOUS les joueurs peuvent lire : résumé de séance (« Précédemment… »), "
       + "fait marquant, PNJ rencontré. Écris-le pour les joueurs : sans les secrets du MJ.",
     schema: objet({
@@ -1122,6 +1139,10 @@ OUTILS.push(
     }),
     sensible: false,
     async executer({ titre, texte }) {
+      if (partieLoupsEnCoursIci()) {
+        return { erreur: true, contenu: "Pas pendant une partie des Veillées : la chronique est un journal lisible de tous. Raconte au chat ; "
+          + "les Chroniques de Brumecombe gardent la veillée à sa fin." };
+      }
       const nom = "Chronique de campagne";
       const journal = game.journal.find(j => j.getFlag(ID, "chronique")) ?? await JournalEntry.implementation.create({
         name: nom, ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER }, flags: { [ID]: { chronique: true } }
@@ -1258,7 +1279,7 @@ const PESTE_CHOIX = { type: "string", enum: ["", "oui", "non"],
   description: "Peste noire (aucun loup) : « oui » si les joueurs ou le MJ la veulent, « non » pour l'exclure ; vide (par défaut) : le hasard en décide, très rarement." };
 // Le vainqueur d'une partie, pour le narrateur.
 // Le nom du rôle de passage d'un arrivant (le résumé du système donne la clé).
-const contenuNomRole = r => game.actors.get(r.acteurId)?.items?.find(i => i.type === "role")?.name ?? r.cle;
+const contenuNomRole = r => roleLoups(game.actors.get(r.acteurId))?.name ?? r.cle;
 const nomVainqueur = v => (v === "village" || v === "meute" ? v : v === "peste" ? "la peste noire"
   : v === "brume" ? "la brume (Saint-Martin : un innocent pendu, personne ne gagne)" : nomActeur(v));
 const NOTE_PESTE = "PESTE NOIRE (secret absolu, ne la nomme jamais et n'y fais aucune allusion avant la fin) : aucun loup. Chaque nuit, "
@@ -1394,7 +1415,7 @@ OUTILS.push(
       for (const r of resultat.filter(x => x.compagnon)) {
         await game.actors.get(r.acteurId)?.update({ [`flags.${ID}.compagnon`]: personnaliteAuHasard(`${r.acteurId}|${Math.random()}`) });
       }
-      const nomRole = id => game.actors.get(id)?.items.find(i => i.type === "role")?.name ?? "?";
+      const nomRole = id => roleLoups(game.actors.get(id))?.name ?? "?";
       // La composition n'entre à l'historique (réglage monde, livré à tous) qu'à la fin de la partie : le MJ la garde d'ici là.
       await retenirComposition({ roles: cles, batiments: compo.batiments ?? [] });
       // Une nouvelle partie : après ce tour, le fil de la précédente est archivé et un fil neuf commence (moteur.nouvellePartie).
@@ -1502,7 +1523,7 @@ OUTILS.push(
         // meute, ni l'autre rive quand le Pont est bloqué ; un joueur gardé à l'œil ne vise que sa maison.
         const base = api.candidatsDeNuit ? api.candidatsDeNuit({ acteurId: acteurIds[0], roleCle }) : vivants().map(a => a.id);
         let candidats = base;
-        const roles = acteurIds.map(id => game.actors.get(id)?.items.find(i => i.type === "role"));
+        const roles = acteurIds.map(id => roleLoups(game.actors.get(id)));
         // La meute chasse avec l'invite d'un loup qui chasse avec elle (ordre 40), pas celle du premier venu
         // (Louve mère, Loup affamé, villageois mordu…) ; à défaut, l'invite du système.
         const role = roleCle === "meute" ? roles.find(r => r?.system?.camp === "meute" && Number(r.system.nuit?.ordre) === 40) : roles[0];
@@ -1683,7 +1704,7 @@ OUTILS.push(
       const personne = !lignes.length ? "Aucun vote" : egalite ? "Égalité"
         : api.etat().vote?.majoriteAbsolue ? "Pas de majorité absolue (le Gibet l'exige)" : "Égalité ou aucun vote";
       // Le Juge de paix en jeu (vivant ou non : la question se pose toujours, pour ne rien trahir) peut annuler ce vote.
-      const juge = elus.length && api.villageois().some(a => a.items.find(i => i.type === "role")?.system?.effet === "annuler-vote");
+      const juge = elus.length && api.villageois().some(a => roleLoups(a, api)?.system?.effet === "annuler-vote");
       return { contenu: `Décompte${poids} : ${lignes.join(", ") || "aucune voix"}.${departage}${souffles} `
         + (elus.length ? `Désigné${elus.length > 1 ? "s" : ""} : ${elus.map(nomActeur).join(" et ")} (loups_eliminer pour chacun).` : `${personne} : personne n'est désigné.`)
         + (juge ? " Avant d'exécuter, demande au village si quelqu'un use d'un pouvoir après le dépouillement (Juge de paix) et laisse-lui un instant : "
@@ -1875,7 +1896,7 @@ OUTILS.push(
       await api.eliminer(id, { cause, reveler });
       const morts = [...avant].filter(i => !game.actors.get(i)?.system.vivant);
       const vainqueur = await api.verifierVictoire();
-      const roleDe = i => game.actors.get(i)?.items.find(o => o.type === "role");
+      const roleDe = i => roleLoups(game.actors.get(i));
       const role = roleDe(id);
       // Un mort qui emporte quelqu'un (Braconnière) doit encore choisir : comme pour l'aube (loups_nuit, « En attente »).
       const emportent = vainqueur ? [] : morts.filter(i => roleDe(i)?.system?.effet === "emporter" && !(i === id && cause === "emporte"));
@@ -3722,9 +3743,21 @@ OUTILS.push({
 export const outil = nom => OUTILS.find(o => o.nom === nom);
 // Outils utiles au système du monde : sans « systemes », un outil sert partout (sauf dans ses « horsSystemes ») ; avec
 // « modules », seulement si tous ces modules sont actifs (animations, météo, calendrier, butin).
+// « horsPartieLoups » : pas pendant une partie des Veillées en cours (distribuée, pas finie) — la chronique de campagne est un journal
+// lisible de tous, où le narrateur raconterait la partie en train de se jouer.
 export const outilsDuSysteme = (systeme = game.system.id) => OUTILS.filter(o => (!o.systemes || o.systemes.includes(systeme))
   && !(o.horsSystemes ?? []).includes(systeme)
+  && !(o.horsPartieLoups && systeme === "lakour-loups" && partieLoupsEnCoursIci())
   && (o.modules ?? []).every(moduleActif));
+
+// Une partie des Veillées en cours dans ce monde (distribuée, pas finie).
+export function partieLoupsEnCoursIci() {
+  if (globalThis.game?.system?.id !== "lakour-loups") return false;
+  try {
+    const e = globalThis.game?.lakourLoups?.etat?.();
+    return Boolean(e?.partie) && e.phase !== "fin";
+  } catch { return false; }
+}
 
 // Résumé lisible d'un appel, pour la demande de validation au MJ humain.
 export function resumerAppel(appel) {

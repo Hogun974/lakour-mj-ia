@@ -14,7 +14,8 @@
 // Chaque navigateur affiche une icône quand l'écoute tourne (réglage monde « ecouteEnCours », écrit par le MJ actif).
 import { ID } from "./constantes.js";
 import { fournisseurImages, expliquerErreur } from "./fournisseurs/index.js";
-import { estMJActif } from "./canal.js";
+import { estMJActif, envoyer, recevoir, ecouterCanal } from "./canal.js";
+import { campLoups } from "./utilitaires.js";
 import {
   ecouteActive, DecoupeurSilences, niveauDb, sousEchantillonner, wavMono16, coutTranscription, transcriptionUtile, estEcho,
   routerParole, ligneParole, MODELE_TRANSCRIPTION_DEFAUT
@@ -184,10 +185,11 @@ export class EcouteJoueurs {
     }
     const villageois = loups?.villageois?.() ?? [];
     const compagnons = (loups ? compagnonsDuMonde() : compagnonsPresents())
-      .map(a => ({ id: a.id, nom: a.name, vivant: a.system?.vivant !== false, meute: a.system?.camp === "meute" }));
+      .map(a => ({ id: a.id, nom: a.name, vivant: a.system?.vivant !== false, meute: campLoups(a, loups) === "meute" }));
+    // Les camps : les secrets du MJ actif (système 0.9.0), jamais les documents.
     const utilisateurs = game.users.map(u => {
       const v = villageois.find(a => a.system?.joueur === u.id);
-      return { id: u.id, nom: v?.name ?? u.name, active: u.active, isGM: u.isGM, vivant: v ? v.system?.vivant !== false : true, meute: v?.system?.camp === "meute" };
+      return { id: u.id, nom: v?.name ?? u.name, active: u.active, isGM: u.isGM, vivant: v ? v.system?.vivant !== false : true, meute: Boolean(v) && campLoups(v, loups) === "meute" };
     });
     let phase = "";
     try { phase = loups?.etat?.().phase ?? ""; } catch { /* état illisible */ }
@@ -245,7 +247,14 @@ export class EcouteJoueurs {
     } else if (route.declencher) {
       this.sansNarrateur?.entendre(`${evenement.nom} (à voix haute) : ${evenement.texte}`);
     }
-    if (reglage("transcriptionAuMJ", false)) {
+    // Montrée aux MJ (réglage). Aux Veillées, jamais par un chuchotement (Foundry livre tout message de chat à tous les
+    // navigateurs : la parole d'un loup la nuit, au salon de la tanière, s'y lirait) : affichée ici (le MJ actif, qui écoute) et
+    // envoyée aux autres MJ par le canal du module, à eux seuls ({ recipients }) ; chacun l'affiche localement, sans document.
+    // Ailleurs (40k, Warcraft), rien de secret dans ce que les joueurs disent à voix haute à la table : le chuchotement aux MJ
+    // d'avant, gardé dans le chat (relisible).
+    if (!reglage("transcriptionAuMJ", false)) return;
+    if (game.system?.id === "lakour-loups") montrerTranscription(evenement);
+    else {
       await ChatMessage.implementation.create({
         content: `<p>🗣️ <strong>${foundry.utils.escapeHTML(evenement.nom)}</strong> : ${foundry.utils.escapeHTML(evenement.texte)}</p>`,
         whisper: game.users.filter(u => u.isGM).map(u => u.id),
@@ -254,6 +263,38 @@ export class EcouteJoueurs {
       });
     }
   }
+}
+
+// ------------------------------------------------------------------ la transcription montrée aux MJ (réglage « transcriptionAuMJ »)
+export const TYPE_TRANSCRIPTION = "transcription";
+// Chez le MJ actif : affichée ici, et envoyée aux autres MJ connectés (eux seuls).
+export function montrerTranscription(evenement) {
+  if (!estMJActif()) return false;
+  const message = { type: TYPE_TRANSCRIPTION, nom: String(evenement.nom ?? ""), texte: String(evenement.texte ?? ""), quand: evenement.quand ?? Date.now() };
+  afficherTranscription(message);
+  const autres = game.users.filter(u => u.isGM && u.active && u.id !== game.user.id).map(u => u.id);
+  if (autres.length) envoyer(message, autres);
+  return true;
+}
+// Chez un MJ : la ligne dans SON chat, jamais enregistrée (ChatLog#postOne d'un message non créé) ; à défaut, une notification.
+export function afficherTranscription({ nom = "", texte = "" } = {}) {
+  if (!game.user?.isGM) return false;
+  const contenu = `<p>🗣️ <strong>${foundry.utils.escapeHTML(nom)}</strong> : ${foundry.utils.escapeHTML(texte)}</p>`;
+  try {
+    const Classe = globalThis.ChatMessage?.implementation;
+    if (Classe && typeof globalThis.ui?.chat?.postOne === "function") {
+      globalThis.ui.chat.postOne(new Classe({ content: contenu, speaker: { alias: game.i18n.localize("LAKOUR_MJIA.Ecoute.Titre") },
+        author: game.user.id, flags: { [ID]: { ia: true, transcription: true, local: true } } }), { notify: false });
+      return true;
+    }
+  } catch (e) { console.warn(`${ID} | transcription affichée`, e); }
+  globalThis.ui?.notifications?.info?.(`${nom} : ${texte}`);
+  return false;
+}
+// Chez un autre MJ : la transcription envoyée par le MJ actif (le canal n'accepte ce message que d'un MJ ; ici, de l'actif seul).
+export function brancherTranscription() {
+  recevoir(TYPE_TRANSCRIPTION, (message, emetteur) => (emetteur === game.users.activeGM?.id ? afficherTranscription(message) : false));
+  ecouterCanal();
 }
 
 // Icône « ta voix est transcrite », dans chaque navigateur, tant que le MJ actif écoute.
