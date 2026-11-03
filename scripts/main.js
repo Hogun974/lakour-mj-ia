@@ -24,7 +24,7 @@ import * as carnet from "./carnet.js";
 import * as coffre from "./coffre.js";
 import * as fetes from "./fetes.js";
 import { lireArchive } from "./fils.js";
-import { ouvrirCoffre as ouvrirFenetreCoffre } from "./apps/coffre.js";
+import { ouvrirCoffre as ouvrirFenetreCoffre, brancherRappelSecours } from "./apps/coffre.js";
 import { ouvrirCarnet, ouvrirHorloges, rafraichirCarnet } from "./apps/carnet.js";
 
 Hooks.once("init", () => {
@@ -128,7 +128,8 @@ Hooks.once("ready", () => {
   horloges.brancherHorloges();
   carnet.brancherCarnet();
   // Coffre du moteur (tous les mondes) : le MJ l'ouvre (ou demande les parts des joueurs), chiffre ce qui traîne en clair (Carnet,
-  // fils de l'IA) ; un joueur demande sa part au MJ actif.
+  // fils de l'IA) ; un joueur demande sa part au MJ actif. Une clé créée ou renouvelée sans clé de secours : la fenêtre de rappel.
+  brancherRappelSecours();
   coffre.brancherCoffre();
   // Transcriptions montrées aux MJ (réglage) : par le canal du module, aux seuls MJ, jamais par un chuchotement du chat.
   if (game.user.isGM) brancherTranscription();

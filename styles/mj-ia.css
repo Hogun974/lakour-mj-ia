@@ -354,6 +354,10 @@
 .lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-carnet-coffre { margin: 0 0 0.5rem; padding: 0.35rem 0.5rem; border-radius: 4px; border-left: 3px solid var(--horloge-plein); background: rgba(128, 128, 128, 0.12); font-size: 0.9em; }
 .lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-carnet-coffre.attente { border-left-color: #c0392b; }
 
+/* Fenêtre du coffre : le bandeau de la clé de secours (téléchargée le… / jamais). */
+.lakour-mj-ia .lakour-mjia-coffre .lakour-mjia-coffre-secours { margin: 0 0 0.5rem; padding: 0.35rem 0.5rem; border-radius: 4px; border-left: 3px solid #27ae60; background: rgba(128, 128, 128, 0.12); font-size: 0.9em; }
+.lakour-mj-ia .lakour-mjia-coffre .lakour-mjia-coffre-secours.jamais { border-left-color: #c0392b; }
+
 .lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquetes-corps { max-height: 560px; overflow-y: auto; }
 .lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquete { padding: 0.35rem 0.5rem; margin-bottom: 0.5rem; border-left: 3px solid var(--horloge-plein); border-radius: 4px; background: rgba(128, 128, 128, 0.08); }
 .lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-enquete.cachee { border-left-style: dashed; }

@@ -17,11 +17,18 @@
 // - Clé de secours : un petit fichier que le MJ télécharge (api.coffre.exporterSecours(), fenêtre du coffre) et réimporte sur un
 //   autre navigateur (api.coffre.importerSecours(fichier)) ; elle ne passe jamais par un réglage monde, le chat, Data/ ni le
 //   socket.
+// - Rappel : qu'on ne perde plus jamais une clé par oubli. Dès qu'une clé est créée (première clé, clé neuve après abandon) ou
+//   entre en vigueur (renouvellement validé) sans clé de secours téléchargée pour elle, le MJ actif voit une fenêtre « Télécharge
+//   ta clé de secours maintenant » (apps/coffre.js, branchée par brancherRappel) ; « Plus tard » : une notification permanente à
+//   chaque chargement du monde, tant que ce n'est pas fait. Jamais plus d'un rappel par clé et par chargement. Les dates de
+//   téléchargement sont mémorisées par empreinte de clé dans « cleCarnet » (client, jamais en monde) ; une clé réimportée compte
+//   comme téléchargée (elle est sur disque).
 // Réglages :
 // - « trousseau » (monde) : { id, seuil, empreinte, porteurs, enCours, anciennes } (rien de secret : des empreintes SHA-256) ;
 // - « horloges », « enquetes », « contacts » (monde) : la part publique des éléments visibles, seulement ;
 // - « coffreCarnet » (monde, chiffré) : { chiffre, id, iv, donnees } : les listes complètes et les retraits récents ;
-// - « cleCarnet » (client, chez un MJ) : { [monde]: { [userId]: { courante, enAttente, anciennes } } }, lu par un MJ pour lui seul ;
+// - « cleCarnet » (client, chez un MJ) : { [monde]: { [userId]: { courante, enAttente, anciennes, secours } } }, lu par un MJ pour
+//   lui seul (secours : { [empreinte]: date ISO du dernier téléchargement de la clé de secours qui la contient }) ;
 //   « partCarnet » (client, chez un joueur) : { [monde]: { [userId]: { [idDeCle]: part } } } (les dernières, par id).
 // Chez le MJ actif, tout ce qui touche à la clé ou au coffre passe dans UNE file (enFile) : rien ne s'y croise.
 // ATTENTION : un compte joueur sans mot de passe est une part que n'importe qui peut prendre (et des comptes ouverts à tous
@@ -44,6 +51,8 @@ let idsVus = new Set();       // ids qui scellent un fichier que ce navigateur n
 let file = Promise.resolve();
 let etaisActif = false;
 let avertis = new Set();
+let rappeles = new Set();     // empreintes des clés dont la clé de secours a été rappelée depuis ce chargement (une fois chacune)
+let fenetreRappel = null;     // fn() : la fenêtre « Télécharge ta clé de secours maintenant » (apps/coffre.js) ; sinon, une notification
 const quandDisponible = [];   // fn() : la clé est là (démarrage, réouverture) — fils.js y chiffre les anciens fils
 const quandRenouvele = [];    // fn(cle) : nouvelle clé validée — fils.js y rescelle les fils et archives avec elle
 
@@ -56,6 +65,7 @@ export function oublierCoffre() {
   file = Promise.resolve();
   etaisActif = false;
   avertis = new Set();
+  rappeles = new Set();
 }
 export const siCleDisponible = fn => { quandDisponible.push(fn); };
 export const siRenouvele = fn => { quandRenouvele.push(fn); };
@@ -79,12 +89,12 @@ const joueursConnectes = () => game.users.filter(u => u.active && !u.isGM).map(u
 const autresMJConnectes = () => game.users.filter(u => u.active && u.isGM && u.id !== game.user.id).map(u => u.id);
 export const disponible = () => horlogesDisponibles(game.system?.id);
 const rafraichir = (cle = null) => game.modules?.get(ID)?.api?.horloges?.rafraichir?.(cle);
-function avertir(niveau, cle, donnees = {}, une = "") {
+function avertir(niveau, cle, donnees = {}, une = "", options = {}) {
   if (une && avertis.has(une)) return;
   if (une) avertis.add(une);
   try {
     const texte = globalThis.game?.i18n?.format?.(`LAKOUR_MJIA.Coffre.${cle}`, donnees);
-    if (texte) globalThis.ui?.notifications?.[niveau]?.(texte);
+    if (texte) globalThis.ui?.notifications?.[niveau]?.(texte, options);
   } catch { /* pas d'interface (essais) */ }
 }
 function emettre(message, destinataires) {
@@ -115,9 +125,12 @@ const cleAbsente = () => Boolean(lireTrousseau().id) && !cleCourante();
 async function ecrireLocal(neuf) {
   const tout = objet(lireReglage("cleCarnet"));
   const parMonde = objet(tout[monde()]);
-  const l = { courante: null, enAttente: null, anciennes: [], ...neuf };
+  const l = { courante: null, enAttente: null, anciennes: [], secours: objet(parMonde[game.user.id]?.secours), ...neuf };
   l.anciennes = l.anciennes.filter(valide).filter((c, i, a) => a.findIndex(d => d.id === c.id) === i
     && c.id !== l.courante?.id && c.id !== l.enAttente?.cle?.id).slice(0, MAX_ANCIENNES);
+  // Les dates de téléchargement de la clé de secours, par empreinte : les plus récentes seulement.
+  l.secours = Object.fromEntries(Object.entries(objet(l.secours)).filter(([, d]) => typeof d === "string" && d)
+    .sort(([, a], [, b]) => (a < b ? 1 : a > b ? -1 : 0)).slice(0, 2 * MAX_ANCIENNES));
   await game.settings.set(ID, "cleCarnet", { ...tout, [monde()]: { ...parMonde, [game.user.id]: l } });
 }
 // Range une clé retrouvée (parts, autre MJ, secours) à sa place : en vigueur, en cours ou ancienne.
@@ -188,6 +201,38 @@ export const secoursConseille = () => {
   return Boolean(t.id) && ((t.porteurs ?? []).length < (t.seuil ?? 2) || comptesJoueurs().length <= 2);
 };
 
+// ------------------------------------------------------------------ le rappel de la clé de secours (chez le MJ actif)
+// La clé de secours de la clé en vigueur a-t-elle été téléchargée (ou réimportée) depuis ce navigateur ? -> la date ISO, ou "".
+export const secoursExportee = () => {
+  const t = lireTrousseau();
+  return (t.empreinte && objet(local().secours)[t.empreinte]) || "";
+};
+// La fenêtre « Télécharge ta clé de secours maintenant » (apps/coffre.js) : fn() rend une promesse ; elle appelle elle-même
+// exporterSecours() si le MJ le veut. Sans fenêtre branchée (essais), le rappel est une notification.
+export const brancherRappel = fn => { fenetreRappel = typeof fn === "function" ? fn : null; };
+// Note ces clés comme sauvegardées sur disque (téléchargées, ou réimportées d'un fichier daté de `date`).
+async function noterSecours(cles, date = new Date().toISOString()) {
+  const empreintes = await Promise.all(cles.filter(valide).map(c => C.empreinte(c)));
+  if (!empreintes.length) return;
+  const l = local();
+  await ecrireLocal({ ...l, secours: { ...objet(l.secours), ...Object.fromEntries(empreintes.map(e => [e, date])) } });
+}
+// Une clé vient d'être créée ou d'entrer en vigueur (fenetre : la fenêtre, tout de suite), ou le monde se charge avec elle (une
+// notification permanente) : si sa clé de secours n'a jamais été téléchargée d'ici, le MJ actif est rappelé à l'ordre, une fois
+// par clé et par chargement. -> true si un rappel est fait.
+function rappelerSecours(fenetre = false) {
+  const t = lireTrousseau();
+  if (!estMJActif() || !t.empreinte || !cleCourante() || rappeles.has(t.empreinte) || secoursExportee()) return false;
+  rappeles.add(t.empreinte);
+  if (fenetre && fenetreRappel) {
+    // Hors de la file (on y est) : la fenêtre, et son export, viennent après.
+    Promise.resolve().then(fenetreRappel).catch(e => console.error(`${ID} | coffre (rappel de la clé de secours)`, e));
+  } else {
+    avertir("warn", "SecoursRappel", {}, "", { permanent: true });
+  }
+  return true;
+}
+
 // Dans la file : ouvre le coffre du Carnet si ce navigateur (d'un MJ) a sa clé ; le MJ actif à qui manque une clé demande
 // ses parts aux joueurs connectés et la clé aux autres MJ (une fois par id). -> { coffreFerme, cleAbsente }.
 async function ouvrirDansFile() {
@@ -232,6 +277,7 @@ async function premiereCle() {
   await ecrireLocal({ ...local(), courante: cle });
   await game.settings.set(ID, "trousseau", { ...(await meta(cle)), porteurs: [], enCours: null, anciennes: [] });
   for (const u of joueursConnectes()) envoyerParts(u);
+  rappelerSecours(true);
   return cle;
 }
 // La clé en vigueur ; monde neuf : la première ; null si ce navigateur attend les parts.
@@ -317,6 +363,8 @@ async function cleRetrouvee() {
   if (probables < (t.seuil ?? 2) || comptesJoueurs().length <= 2) {
     avertir("warn", "SecoursConseille", { porteurs: probables, seuil: t.seuil ?? 2 }, `secours:${t.id}`);
   }
+  // Et, dans tous les mondes : la clé est là mais sa clé de secours n'a jamais été téléchargée d'ici.
+  rappelerSecours(false);
 }
 
 // Remise à zéro de la campagne (reinitialiser.js) : les trois registres et leur coffre, dans la file. La clé reste.
@@ -387,6 +435,7 @@ async function validerRenouvellement() {
   });
   await ecrireLocal({ courante: cle, enAttente: null, anciennes: [l.courante, ...(l.anciennes ?? [])] });
   avertir("info", "Renouvelee", { seuil: cle.seuil });
+  rappelerSecours(true);
   rafraichir();
   return { etat: "fait", porteurs: (t.enCours.porteurs ?? []).length, seuil: cle.seuil };
 }
@@ -547,6 +596,7 @@ export function exporterSecours() {
     const texte = JSON.stringify({ type: TYPE_SECOURS, version: 1, monde: monde(), cree: new Date().toISOString(), cles }, null, 1);
     const nom = `cle-de-secours-${monde()}-${new Date().toISOString().slice(0, 10)}.json`;
     globalThis.foundry?.utils?.saveDataToFile?.(texte, "application/json", nom);
+    await noterSecours(cles);
     const l = local();
     if (l.enAttente?.cle) await ecrireLocal({ ...l, enAttente: { ...l.enAttente, secours: true } });
     if (estMJActif()) await reprendreRenouvellement();
@@ -555,7 +605,8 @@ export function exporterSecours() {
 }
 
 // Réimporte une clé de secours (File, Blob, texte ou objet) dans ce navigateur. -> le nombre de clés reconnues (empreinte du
-// trousseau vérifiée). Une clé inconnue du trousseau est ignorée.
+// trousseau vérifiée). Une clé inconnue du trousseau est ignorée. Les clés reconnues sont sur disque : notées comme
+// téléchargées, à la date du fichier (plus de rappel pour elles).
 export async function importerSecours(source) {
   const texte = typeof source === "string" ? source : typeof source?.text === "function" ? await source.text() : JSON.stringify(source ?? {});
   let donnees;
@@ -564,8 +615,15 @@ export async function importerSecours(source) {
   if (donnees.monde !== monde()) throw new Error(`clé de secours d'un autre monde (${donnees.monde})`);
   return enFile(async () => {
     if (!game.user?.isGM) return 0;
+    const connues = [];
+    for (const cle of donnees.cles) {
+      const m = metaPour(cle?.id);
+      if (m && valide(cle) && (await C.empreinte(cle)) === m.empreinte) connues.push(cle);
+    }
+    const creee = new Date(donnees.cree ?? NaN);
+    await noterSecours(connues, Number.isNaN(creee.getTime()) ? new Date().toISOString() : creee.toISOString());
     let n = 0;
-    for (const cle of donnees.cles) if (metaPour(cle?.id) && await cleRevenue(cle)) n++;
+    for (const cle of connues) if (await cleRevenue(cle)) n++;
     rafraichir();
     return n;
   });

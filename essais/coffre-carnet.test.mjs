@@ -63,7 +63,9 @@ function installer({ systeme = "impmal", monde = "monde-a", comptes = ["u1", "u2
   };
   globalThis.ChatMessage = { implementation: { create: async d => { etat.messages.push(d); return d; } } };
   globalThis.Hooks = { callAll: () => {}, on: () => {} };
-  globalThis.ui = { notifications: { info: t => etat.avis.push(t), warn: t => etat.avis.push(t), error: t => etat.avis.push(t) } };
+  // Une notification permanente (rappel de la clé de secours) est notée comme telle.
+  const noter = (t, o) => etat.avis.push(o?.permanent ? `${t} [permanente]` : t);
+  globalThis.ui = { notifications: { info: noter, warn: noter, error: noter } };
 }
 // Data/ : servi à tous, sans authentification (fetch) ; seul un MJ y dépose (FilePicker). La clé de secours : téléchargée.
 globalThis.foundry = {
@@ -511,6 +513,85 @@ const VERIFICATIONS = {
     assert.ok(reglage("trousseau").enCours, "un porteur ne suffit pas");
     await M.coffre.exporterSecours();
     assert.equal(reglage("trousseau").enCours, null, "clé de secours exportée : la nouvelle clé entre en vigueur");
+    assert.match(M.coffre.secoursExportee(), /^\d{4}-\d{2}-\d{2}T/, "la clé en cours exportée avant sa validation compte comme téléchargée");
+  },
+
+  async "rappel de la clé de secours : fenêtre à la création et au renouvellement ; « plus tard » : une notification permanente par chargement ; exportée ou réimportée : plus rien"(M) {
+    const rappels = [];
+    M.coffre.brancherRappel(async () => { rappels.push(reglage("trousseau").empreinte); });
+    try {
+      await table(M);
+      const t1 = reglage("trousseau");
+      assert.deepEqual(rappels, [t1.empreinte], "clé créée, jamais exportée : la fenêtre, tout de suite");
+      assert.equal(M.coffre.secoursExportee(), "");
+      assert.ok(!etat.avis.some(a => a.includes("SecoursRappel")), "la fenêtre, pas la notification");
+      // « Plus tard », puis rechargement : une notification permanente, une seule même si le coffre redémarre deux fois.
+      M.coffre.oublierCoffre();
+      etat.avis.length = 0;
+      await M.coffre.demarrerCoffre();
+      await M.coffre.chercherCoffre();
+      await pomper(M);
+      assert.deepEqual(etat.avis.filter(a => a.includes("SecoursRappel")).map(a => a.slice(-12)), ["[permanente]"], "un rappel permanent par chargement");
+      assert.equal(rappels.length, 1, "au chargement : pas la fenêtre");
+      // Le MJ télécharge : noté dans ce navigateur seulement ; plus de rappel au chargement suivant.
+      const { texte } = await M.coffre.exporterSecours();
+      const date = M.coffre.secoursExportee();
+      assert.match(date, /^\d{4}-\d{2}-\d{2}T/);
+      assert.equal(navigateur("mj").cleCarnet["monde-a"].mj.secours[t1.empreinte], date, "mémorisé par empreinte, réglage client");
+      assert.ok(!JSON.stringify(etat.mondes).includes(date), "jamais en monde");
+      M.coffre.oublierCoffre();
+      etat.avis.length = 0;
+      await M.coffre.demarrerCoffre();
+      assert.ok(!etat.avis.some(a => a.includes("SecoursRappel")), "exportée : plus de rappel");
+      assert.equal(rappels.length, 1);
+      // Renouvellement validé : la nouvelle clé n'a pas de clé de secours : la fenêtre, et rien de plus dans ce chargement.
+      await M.coffre.renouveler({ force: true });
+      await pomper(M);
+      const t2 = reglage("trousseau");
+      assert.equal(t2.enCours, null);
+      assert.deepEqual(rappels, [t1.empreinte, t2.empreinte], "clé renouvelée : la fenêtre");
+      assert.equal(M.coffre.secoursExportee(), "", "l'ancienne date ne vaut pas pour la nouvelle clé");
+      await M.coffre.chercherCoffre();
+      await pomper(M);
+      assert.ok(!etat.avis.some(a => a.includes("SecoursRappel")), "jamais deux rappels pour une clé dans un chargement");
+      assert.equal(rappels.length, 2);
+      // Réimportée sur un autre navigateur (sans les joueurs) : sur disque, donc notée téléchargée à la date du fichier ; pas de rappel.
+      const { texte: fichier } = await M.coffre.exporterSecours();
+      assert.equal(M.coffre.secoursExportee(), JSON.parse(fichier).cree);
+      autreNavigateur(M);
+      for (const u of ["u1", "u2", "u3"]) U[u].active = false;
+      etat.avis.length = 0;
+      rappels.length = 0;
+      assert.equal(await M.coffre.demarrerCoffre(), "attente");
+      assert.equal(M.coffre.secoursExportee(), "", "un autre navigateur ne sait rien de ce téléchargement");
+      assert.equal(await M.coffre.importerSecours(fichier), 2);
+      assert.ok(M.coffre.cleCourante()?.k, "la clé est revenue");
+      assert.equal(M.coffre.secoursExportee(), JSON.parse(fichier).cree, "réimportée : téléchargée à la date du fichier");
+      assert.ok(!etat.avis.some(a => a.includes("SecoursRappel")) && !rappels.length, "réimportée : aucun rappel");
+      // Une clé revenue par les parts, elle, n'est sur aucun disque : rappel.
+      autreNavigateur(M);
+      for (const u of ["u1", "u2", "u3"]) U[u].active = true;
+      etat.avis.length = 0;
+      await M.coffre.demarrerCoffre();
+      await pomper(M);
+      assert.ok(M.coffre.cleCourante()?.k, "la clé est revenue par les parts");
+      assert.equal(etat.avis.filter(a => a.includes("SecoursRappel")).length, 1, "revenue par les parts : rappel");
+      assert.equal(texte.length > 0, true);
+    } finally { M.coffre.brancherRappel(null); }
+  },
+
+  async "rappel de la clé de secours sans fenêtre branchée, et après « repartir d'une clé neuve » : une notification permanente"(M) {
+    await table(M);
+    assert.deepEqual(etat.avis.filter(a => a.includes("SecoursRappel")).map(a => a.slice(-12)), ["[permanente]"]);
+    etat.avis.length = 0;
+    await M.coffre.abandonnerCoffre({ confirmer: true });
+    assert.equal(etat.avis.filter(a => a.includes("SecoursRappel")).length, 1, "clé neuve après abandon : rappel");
+    await comme("mj2", async () => {
+      etat.avis.length = 0;
+      M.coffre.oublierCoffre();
+      await M.coffre.demarrerCoffre();
+      assert.ok(!etat.avis.some(a => a.includes("SecoursRappel")), "un MJ qui n'est pas actif n'est pas rappelé");
+    });
   },
 
   async "passage de clé : le MJ qui l'a la donne au MJ actif qui l'attend (à lui seul, émetteur MJ vérifié)"(M) {
@@ -664,6 +745,16 @@ const MUTATIONS = [
   ["coffre.js", "    if (l.enAttente?.cle) await ecrireLocal({ ...l, enAttente: { ...l.enAttente, secours: true } });", "", "secours exporté valide le renouvellement"],
   ["coffre.js", "  if (donnees.monde !== monde()) throw new Error", "  if (false) throw new Error", "secours d'un autre monde"],
   ["coffre.js", "  if (probables < (t.seuil ?? 2) || comptesJoueurs().length <= 2) {", "  if (false) {", "secours conseillé"],
+  ["coffre.js", "  for (const u of joueursConnectes()) envoyerParts(u);\n  rappelerSecours(true);\n  return cle;", "  for (const u of joueursConnectes()) envoyerParts(u);\n  return cle;", "rappel à la création"],
+  ["coffre.js", "  avertir(\"info\", \"Renouvelee\", { seuil: cle.seuil });\n  rappelerSecours(true);", "  avertir(\"info\", \"Renouvelee\", { seuil: cle.seuil });", "rappel au renouvellement"],
+  ["coffre.js", "  rappelerSecours(false);\n}", "}", "rappel au chargement (plus tard)"],
+  ["coffre.js", " || rappeles.has(t.empreinte) || secoursExportee()) return false;", " || rappeles.has(t.empreinte)) return false;", "pas de rappel si déjà exportée"],
+  ["coffre.js", " || rappeles.has(t.empreinte) || secoursExportee()) return false;", " || secoursExportee()) return false;", "jamais deux rappels par chargement"],
+  ["coffre.js", "  if (fenetre && fenetreRappel) {", "  if (false) {", "la fenêtre à la création"],
+  ["coffre.js", "    await noterSecours(cles);\n", "", "export noté"],
+  ["coffre.js", "    await noterSecours(connues, Number.isNaN(creee.getTime()) ? new Date().toISOString() : creee.toISOString());\n", "", "import noté comme exporté"],
+  ["coffre.js", "await game.settings.set(ID, \"cleCarnet\", { ...tout, [monde()]: { ...parMonde, [game.user.id]: l } });",
+    "await game.settings.set(ID, \"cleCarnet\", { ...tout, [monde()]: { ...parMonde, [game.user.id]: { ...l, secours: {} } } });", "dates d'export gardées"],
   ["coffre.js", "    await ouvrirDansFile();\n    return fn();", "    return fn();", "coffre ouvert avant de lire"],
   ["coffre.js", "await game.settings.set(ID, \"cleCarnet\", { ...tout, [monde()]:", "await game.settings.set(ID, \"cleCarnet\", { [monde()]:", "une clé par monde"],
   ["coffre.js", "  return enFile(async () => {\n    for (const r of S.REGISTRES) await game.settings.set(ID, r, []);", "  return (async () => {\n    await null;\n    for (const r of S.REGISTRES) await game.settings.set(ID, r, []);", "remise à zéro dans la file"],

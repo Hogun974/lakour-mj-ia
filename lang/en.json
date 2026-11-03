@@ -454,6 +454,8 @@
         "Comptes": "player accounts",
         "Renouvellement": "New key pending: acknowledged shares",
         "SecoursConseille": "Too few holders to recover the key from shares: export the backup key and keep it outside the world.",
+        "SecoursExportee": "Backup key downloaded on {date} for the key in force.",
+        "SecoursJamais": "Backup key never downloaded for the key in force: if this browser loses it and the shares are not enough, the vault is lost.",
         "Aide": "The backup key is a small file you download and keep; on another browser, import it to reopen everything without the players. It never goes through the world, the chat, Data or the network. Whoever has it reads everything: keep it like a password.",
         "Exporter": "Download the backup key",
         "Importer": "Import a backup key",
@@ -465,6 +467,12 @@
       },
       "RenouvellementAttente": "Vault key renewal pending: shares distributed {porteurs} / threshold {seuil}. The old key stays in force until {seuil} players have received the new one (or you export the backup key).",
       "SecoursConseille": "Too few share holders to recover the vault key ({porteurs} / threshold {seuil}): export the backup key (Settings › MJ IA › Vault) and keep it outside the world.",
+      "SecoursRappel": "Backup key never downloaded for the vault key in force: download it (Settings › MJ IA › Vault) and keep it outside the world. Without it, if this browser loses the key and the players' shares are not enough, the hidden Notebook and the AI threads are lost.",
+      "Rappel": {
+        "Titre": "Download your backup key now",
+        "Texte": "A new vault key has just come into force in this browser, and its backup key has not been downloaded. Do it right away and keep the file outside the world: if this browser loses the key and the players' shares are not enough, the hidden Notebook and the AI threads are lost. An older backup file does not contain this key.",
+        "PlusTard": "Later"
+      },
       "Abandonne": "New key created in this browser. Now export the backup key (\"Download the backup key\" button).",
       "SecoursImporte": "Backup key: {n} key(s) recognised and stored in this browser.",
       "Etats": {

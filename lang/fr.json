@@ -454,6 +454,8 @@
         "Comptes": "comptes joueurs",
         "Renouvellement": "Nouvelle clé en attente : parts accusées",
         "SecoursConseille": "Trop peu de porteurs pour retrouver la clé par les parts : exporte la clé de secours et garde-la hors du monde.",
+        "SecoursExportee": "Clé de secours téléchargée le {date} pour la clé en vigueur.",
+        "SecoursJamais": "Clé de secours jamais téléchargée pour la clé en vigueur : si ce navigateur la perd et que les parts ne suffisent pas, le coffre est perdu.",
         "Aide": "La clé de secours est un petit fichier que tu télécharges et gardes ; sur un autre navigateur, réimporte-le pour tout rouvrir sans les joueurs. Elle ne passe jamais par le monde, le chat, Data ni le réseau. Qui l'a lit tout : garde-la comme un mot de passe.",
         "Exporter": "Télécharger la clé de secours",
         "Importer": "Réimporter une clé de secours",
@@ -465,6 +467,12 @@
       },
       "RenouvellementAttente": "Renouvellement de la clé du coffre en attente : parts distribuées {porteurs} / seuil {seuil}. L'ancienne clé reste en vigueur jusqu'à ce que {seuil} joueurs aient reçu la nouvelle (ou que tu exportes la clé de secours).",
       "SecoursConseille": "Trop peu de porteurs de parts pour retrouver la clé du coffre ({porteurs} / seuil {seuil}) : exporte la clé de secours (Réglages › MJ IA › Coffre) et garde-la hors du monde.",
+      "SecoursRappel": "Clé de secours jamais téléchargée pour la clé du coffre en vigueur : télécharge-la (Réglages › MJ IA › Coffre) et garde-la hors du monde. Sans elle, si ce navigateur perd la clé et que les parts des joueurs ne suffisent pas, le Carnet caché et les fils de l'IA sont perdus.",
+      "Rappel": {
+        "Titre": "Télécharge ta clé de secours maintenant",
+        "Texte": "Une nouvelle clé du coffre vient d'entrer en vigueur dans ce navigateur, et sa clé de secours n'a pas été téléchargée. Fais-le tout de suite et garde le fichier hors du monde : si ce navigateur perd la clé et que les parts des joueurs ne suffisent pas, le Carnet caché et les fils de l'IA sont perdus. Un fichier de secours plus ancien ne contient pas cette clé.",
+        "PlusTard": "Plus tard"
+      },
       "Abandonne": "Nouvelle clé créée dans ce navigateur. Exporte maintenant la clé de secours (bouton « Télécharger la clé de secours »).",
       "SecoursImporte": "Clé de secours : {n} clé(s) reconnue(s) et rangée(s) dans ce navigateur.",
       "Etats": {

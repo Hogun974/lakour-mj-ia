@@ -2,7 +2,7 @@
 // joueurs, visible) et recopié dans docs/guide-utilisation.md par outils/ecrire-guide.mjs.
 // Texte au format des journaux du module (paragraphes, **gras**, *italique*, listes « - », titres « # »).
 
-export const VERSION_GUIDE = 14;
+export const VERSION_GUIDE = 15;
 
 export const GUIDE_MJ = [
   { titre: "Démarrer", texte: `
@@ -109,7 +109,7 @@ Onglet **Contacts**. Le MJ IA y note avec son outil **contact** les PNJ que les 
 # Ce qui reste secret : le coffre
 Foundry envoie les réglages du monde à tous les navigateurs, et sert les fichiers de Data/ à qui en connaît l'adresse. Le Carnet n'y garde donc en clair que ce que voient les joueurs : les éléments montrés, sans tes notes, sans les indices non trouvés ni les conclusions cachées, sans l'historique ni le PNJ des contacts. Le reste du Carnet est **chiffré** dans un coffre, comme le **fil de l'IA** (Data/lakour-mj-ia/fils/, qui contient l'état du jeu donné à l'IA à chaque tour), dans les trois mondes, et les répliques de voix privées ne sont plus déposées dans Data. Ne sont PAS chiffrés : la mémoire de campagne et les journaux du MJ (scénarios, secrets), qui sont des documents réservés au MJ, protégés par les droits de Foundry. La clé reste dans ton navigateur ; chaque joueur qui l'accuse en garde une **part**, et il en faut une majorité pour la retrouver.
 - **Montrer** un élément le sort du coffre (sans ses notes) ; le **cacher** l'y range. Un élément caché a un identifiant tiré au hasard, qui ne dit pas son nom ; il ne fait pas de carte au chat (tu es prévenu par une notification).
-- **Clé de secours** (Réglages › MJ IA › **Coffre**) : un petit fichier à télécharger et à garder hors du monde, comme un mot de passe ; réimporté sur un autre navigateur, il rouvre tout sans les joueurs. Le MJ IA t'invite à l'exporter quand trop peu de joueurs gardent une part (table de un ou deux joueurs).
+- **Clé de secours** (Réglages › MJ IA › **Coffre**) : un petit fichier à télécharger et à garder hors du monde, comme un mot de passe ; réimporté sur un autre navigateur, il rouvre tout sans les joueurs. Dès qu'une clé est créée ou renouvelée sans clé de secours téléchargée, une fenêtre t'invite à la télécharger tout de suite ; « Plus tard » : un rappel à chaque chargement du monde, jusqu'à ce que ce soit fait (dans tous les mondes, et d'autant plus quand trop peu de joueurs gardent une part). La fenêtre du Coffre dit quand la clé de secours a été téléchargée pour la clé en vigueur ; une clé réimportée compte comme téléchargée.
 - **Nouveau navigateur** (autre poste, cache vidé) : un bandeau le dit ; les parts sont demandées aux joueurs connectés et la clé aux autres MJ connectés. En attendant, les éléments visibles restent utilisables, mais rien n'est créé, caché, retiré ni changé de secret, l'IA repart d'un fil vide et rien de chiffré n'est écrasé. *api.coffre.chercher()* redemande les parts.
 - **Renouvellement** quand un compte est supprimé, créé ou change de rôle (et à la demande, fenêtre du Coffre ou *api.coffre.renouveler()*) : la nouvelle clé n'entre en vigueur qu'une fois ses parts reçues par assez de joueurs (ou sa clé de secours exportée) ; jusque-là l'ancienne reste en vigueur, et rien n'est jamais scellé sous une clé que personne ne pourrait retrouver.
 - **Mots de passe** : un compte joueur sans mot de passe est une part que n'importe qui peut prendre ; sans mots de passe, le coffre ne protège rien.
