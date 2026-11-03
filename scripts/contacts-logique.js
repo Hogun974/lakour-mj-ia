@@ -2,7 +2,8 @@
 // (reglages.js) est un tableau de contacts :
 //   { id, nom, faction, lieu, attitude (-3 hostile … +3 allié), dette (qui doit quoi à qui ; "" = rien), demande (ce qu'il veut en
 //     échange), visible (les joueurs le voient), notes, acteur (uuid d'un PNJ ; "" = aucun), maj, historique: [texte] }
-// Les joueurs ne voient d'un contact visible ni ses notes, ni son historique.
+// Les joueurs ne voient d'un contact visible ni ses notes, ni son historique : le réglage ne les a pas en clair (secrets-logique.js) ;
+// elles, et les contacts cachés, sont chiffrés au coffre du Carnet (coffre.js).
 import { idDepuisNom } from "./horloges-logique.js";
 import { plier } from "./recherche-nom.js";
 
@@ -22,7 +23,8 @@ export const libelleAttitude = n => `${ATTITUDES[borner(n)]} (${signe(borner(n))
 export function trouverContact(liste, ref) {
   const r = texte(ref);
   if (!r) return null;
-  return liste.find(c => c.id === r) ?? liste.find(c => plier(c.nom) === plier(r)) ?? liste.find(c => c.id === idDepuisNom(r)) ?? null;
+  return liste.find(c => c.id === r) ?? liste.find(c => plier(c.nom) === plier(r)) ?? liste.find(c => c.id === idDepuisNom(r))
+    ?? liste.find(c => idDepuisNom(c.nom) === idDepuisNom(r)) ?? null;   // id tiré au hasard (contact caché) : par le nom
 }
 
 // Un contact complet et borné. Lève une erreur sans nom ni id.

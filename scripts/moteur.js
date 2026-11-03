@@ -3,7 +3,8 @@ import { lire, ecrire } from "./reglages.js";
 import { fournisseurTexte, fournisseurCompagnons, modeleCompagnons, expliquerErreur } from "./fournisseurs/index.js";
 import { OUTILS, outil, resumerAppel, outilsDuSysteme } from "./outils.js";
 import { promptSysteme, etatDuJeu, decrireMessage, messagePourIA } from "./contexte.js";
-import { versHTML, lireJSON, ecrireJSON } from "./utilitaires.js";
+import { versHTML } from "./utilitaires.js";
+import { lireFil, ecrireFil } from "./fils.js";
 import { validerSchema } from "./schema.js";
 import { VoixEnDirect, direReplique } from "./voix.js";
 import { estSilence } from "./voix-texte.js";
@@ -159,8 +160,9 @@ export class MoteurMJ {
     this.fournisseur = fournisseurTexte();
     if (!this.fournisseur) return ui.notifications.warn(game.i18n.localize("LAKOUR_MJIA.Erreurs.PasDeCle"));
     // Un fil par monde et par fournisseur : changer de fournisseur repart d'un fil neuf,
-    // la mémoire de campagne assure la continuité.
-    const sauve = await lireJSON("fils", this.nomFichier());
+    // la mémoire de campagne assure la continuité. Le fil est chiffré (fils.js) ; sans la clé (nouveau navigateur du MJ, parts
+    // attendues), l'IA repart d'un fil vide et le fichier chiffré n'est pas écrasé.
+    const { fil: sauve } = await lireFil(this.nomFichier());
     this.fil = sauve?.fournisseur === this.fournisseur.nom ? sauve : this.fournisseur.nouveauFil();
     // Aux Veillées, hors d'une partie en cours, la séance commence une partie neuve : l'ancien fil est archivé, les compagnons oublient.
     const loups = game.system.id === "lakour-loups" ? game.lakourLoups : null;
@@ -230,7 +232,7 @@ export class MoteurMJ {
     await this.#archiverFil(this.fil);
     this.fil = this.fournisseur.nouveauFil();
     try { this.systeme = await promptSysteme(this.personnalite); } catch (e) { console.error(`${ID} | prompt système`, e); }
-    await ecrireJSON("fils", this.nomFichier(), this.fil).catch(e => console.error(`${ID} | sauvegarde du fil`, e));
+    await ecrireFil(this.nomFichier(), this.fil).catch(e => console.error(`${ID} | sauvegarde du fil`, e));
     const distribution = distributionSecrete();
     if (!demande.ouverture) {
       this.preambule = [distribution, PARTIE_DEJA_ANNONCEE].filter(Boolean).join("\n");
@@ -247,8 +249,7 @@ export class MoteurMJ {
     if (!filNonVide(fil)) return null;
     const nom = `${game.world.id}-partie-${new Date().toISOString().replace(/[:.]/g, "-")}-${Math.random().toString(36).slice(2, 6)}.json`;
     try {
-      await ecrireJSON("fils", nom, fil);
-      return nom;
+      return (await ecrireFil(nom, fil)) ? nom : null;   // chiffrée comme le fil (fils.js)
     } catch (e) {
       console.error(`${ID} | archive du fil`, e);
       return null;
@@ -399,7 +400,7 @@ export class MoteurMJ {
     } finally {
       this.enCours = false;
       // Un fil remplacé pendant ce tour (nouvelle partie) n'écrase pas le fil neuf : il est archivé par la nouvelle partie.
-      if (sauver && fil === this.fil) await ecrireJSON("fils", this.nomFichier(), fil).catch(e => console.error(`${ID} | sauvegarde du fil`, e));
+      if (sauver && fil === this.fil) await ecrireFil(this.nomFichier(), fil).catch(e => console.error(`${ID} | sauvegarde du fil`, e));
       // Des joueurs ont écrit pendant que l'IA répondait : on leur répond à leur tour.
       if (this.attente.length) setTimeout(() => this.vider(), 0);
       // Une mort, une victoire, un joueur parti : le pilote automatique regarde s'il doit démarrer ou s'arrêter.

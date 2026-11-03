@@ -1,4 +1,4 @@
-import { ID, MODELE_VOIX } from "./constantes.js";
+import { ID, MODELE_VOIX, DOSSIER_DONNEES } from "./constantes.js";
 import { lire } from "./reglages.js";
 import { fournisseurImages, expliquerErreur } from "./fournisseurs/index.js";
 import { versTexte, deposerFichier } from "./utilitaires.js";
@@ -17,6 +17,10 @@ import { envoyer, recevoir, estMJActif, ecouterCanal } from "./canal.js";
 //    réception aux navigateurs qui doivent l'entendre (canal du MJ IA) ; chacun le joue aussitôt (WebAudio, petite mémoire
 //    tampon). Le WAV complet est ensuite déposé dans Data, seulement pour la réécoute (bouton 🔊). Si le flux échoue, repli sur
 //    l'ancien chemin : fichier entier déposé puis joué par Foundry (docs/voix-et-ecoute.md §1).
+// Une réplique PRIVÉE (ses destinataires ne sont qu'une partie des connectés : les loups la nuit aux Veillées, un mort qui ne
+// parle qu'aux morts…) n'est JAMAIS déposée dans Data (Foundry sert Data/ à qui en connaît l'adresse) : en direct, ses morceaux
+// vont aux seuls destinataires ; en repli, le fichier entier aussi, par le canal, découpé (voix-privee), lu chez eux depuis un
+// Blob puis libéré ; pas de réécoute. Les anciens fichiers privés sont écrasés par un silence (nettoyerVoixPrivees).
 // Une seule voix à la fois, dans l'ordre où les textes paraissent dans le chat (file des voix). Chaque joueur peut couper la voix chez lui
 // (réglage client « entendreNarration ») et régler son volume (« volumeVoix »).
 
@@ -88,8 +92,9 @@ function signalerUneFois(erreur) {
 // voix) et le texte affiché (attendre), puis envoyés au fil de l'eau. Le MJ estime la fin de la lecture chez les joueurs avec
 // le même calendrier qu'eux, et ne rend la parole qu'ensuite (l'ambiance est baissée pendant ce temps).
 class TourDeParole {
-  constructor({ priorite, voix, ton, destinataires, attendre = null, fournisseur, enDirect = true }) {
-    Object.assign(this, { priorite, voix, ton, destinataires, attendre, fournisseur, enDirect });
+  // prive : la réplique ne va qu'à une partie des connectés (jamais déposée dans Data, pas de réécoute).
+  constructor({ priorite, voix, ton, destinataires, attendre = null, fournisseur, enDirect = true, prive = false }) {
+    Object.assign(this, { priorite, voix, ton, destinataires, attendre, fournisseur, enDirect, prive });
     this.flux = foundry.utils.randomID();
     this.cle = foundry.utils.randomID();
     this.n = 0;
@@ -152,7 +157,7 @@ class TourDeParole {
         noterDit(texte);
         if (r.blob) return await this.#jouerFichier(r.blob, i, prise);
         if (r.erreur) signalerUneFois(r.erreur);
-        this.depots.push(this.#deposer(new Blob([wavDepuisPcm(r.morceaux, FREQUENCE_VOIX)], { type: "audio/wav" }), i));
+        if (!this.prive) this.depots.push(this.#deposer(new Blob([wavDepuisPcm(r.morceaux, FREQUENCE_VOIX)], { type: "audio/wav" }), i));
         return;
       } catch (erreur) {
         // Le flux a échoué avant le moindre son : repli sur le fichier entier (chemin d'avant).
@@ -180,6 +185,13 @@ class TourDeParole {
 
   // Repli : le fichier entier, déposé puis joué par Foundry chez les destinataires, après ce qui joue encore en direct.
   async #jouerFichier(blob, i, prise) {
+    if (this.prive) {
+      // Jamais dans Data : le fichier entier, par le canal, aux seuls destinataires (trop gros : texte seul, il est au chat).
+      await prise;
+      await pause(this.horloge.restant(Date.now() / 1000) * 1000);
+      await envoyerVoixPrivee(blob, this.destinataires);
+      return;
+    }
     const chemin = await this.#deposer(blob, i);
     await prise;
     await pause(this.horloge.restant(Date.now() / 1000) * 1000);
@@ -284,13 +296,134 @@ export async function direReplique(acteur, texte, message = null) {
   });
   if (!destinataires.length) return;
   const { voix, ton } = await voixDuCompagnon(acteur);
-  const tour = new TourDeParole({ priorite: "compagnon", voix, ton, destinataires, fournisseur, enDirect: reglage("voixDirecte", true) !== false });
+  // Privée d'après le public VISÉ (ceux qui peuvent l'entendre) comparé à TOUS les comptes, connectés ou non : un villageois
+  // hors ligne la nuit n'en fait pas une réplique publique.
+  const comptes = game.users.map(u => u.id);
+  let vise = comptes;
+  if (typeof loups?.audibiliteActeur === "function") {
+    try {
+      const a = loups.audibiliteActeur(acteur.id);
+      if (a && Array.isArray(a.auditeurs)) vise = [...new Set([...a.auditeurs, ...game.users.filter(u => u.isGM).map(u => u.id)])];
+    } catch { vise = []; }
+  }
+  const prive = estPrivee(vise, comptes);
+  const tour = new TourDeParole({ priorite: "compagnon", voix, ton, destinataires, fournisseur, enDirect: reglage("voixDirecte", true) !== false, prive });
   // Une réplique est dite en entier si elle est courte ; sinon son début, puis sa question finale (abrégé vocal).
   const abrege = new AbregeVocal(LONGUEURS_VOIX[reglage("longueurVoix", "courte")] ?? LONGUEURS_VOIX.courte);
   const dits = decouperPourVoix(parole, 220).filter(m => abrege.garder(m));
   const question = abrege.fin(parole);
   tour.dire([...dits, ...(question ? [question] : [])].join(" "));
   await tour.terminer(message);
+}
+
+// ---------- Répliques privées : par le canal, jamais dans Data
+
+// Privée : au moins un compte (connecté ou non) n'est pas dans le public visé.
+export const estPrivee = (publicVise = [], comptes = []) => comptes.some(id => !publicVise.includes(id));
+export const TAILLE_MORCEAU_PRIVE = 256 * 1024;      // caractères base64 par message du canal
+export const TAILLE_MAX_PRIVEE = 4 * 1024 * 1024;    // octets ; au-delà, texte seul (la réplique est écrite au chat)
+const MORCEAUX_MAX_PRIVES = Math.ceil((TAILLE_MAX_PRIVEE * 4) / 3 / TAILLE_MORCEAU_PRIVE) + 1;
+function versBase64(octets) {
+  let s = "";
+  for (let i = 0; i < octets.length; i += 0x8000) s += String.fromCharCode(...octets.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+// Le fichier entier d'une réplique privée, découpé, aux seuls destinataires (le MJ, s'il en est, le joue chez lui).
+// -> le nombre de messages envoyés (0 : rien, trop gros ou personne).
+export async function envoyerVoixPrivee(blob, destinataires = [], id = foundry.utils.randomID()) {
+  if (!destinataires.length || !blob?.size || blob.size > TAILLE_MAX_PRIVEE) return 0;
+  const b64 = versBase64(new Uint8Array(await blob.arrayBuffer()));
+  const total = Math.ceil(b64.length / TAILLE_MORCEAU_PRIVE);
+  for (let n = 0; n < total; n++) {
+    envoyer({ type: "voix-privee", id, n, total, mime: blob.type || "audio/mpeg",
+      donnees: b64.slice(n * TAILLE_MORCEAU_PRIVE, (n + 1) * TAILLE_MORCEAU_PRIVE) }, destinataires);
+  }
+  return total;
+}
+
+// Dans le navigateur d'un destinataire : les morceaux d'une voix privée rassemblés ; recevoir rend { mime, octets } quand le
+// dernier arrive, null sinon. Un envoi resté incomplet est oublié après `delai` ms.
+export class RecepteurPrive {
+  constructor(delai = 120000) {
+    this.delai = delai;
+    this.envois = new Map();
+  }
+
+  recevoir({ id, n, total, mime, donnees } = {}, maintenant = Date.now()) {
+    for (const [cle, e] of this.envois) if (maintenant - e.quand > this.delai) this.envois.delete(cle);
+    if (typeof id !== "string" || typeof donnees !== "string" || !Number.isInteger(total) || !Number.isInteger(n)
+      || total < 1 || total > MORCEAUX_MAX_PRIVES || n < 0 || n >= total) return null;
+    const e = this.envois.get(id) ?? { total, morceaux: new Array(total), recus: 0, quand: maintenant, mime: String(mime || "audio/mpeg") };
+    if (e.total !== total) return null;
+    if (e.morceaux[n] === undefined) e.recus++;
+    e.morceaux[n] = donnees;
+    this.envois.set(id, e);
+    if (e.recus < e.total) return null;
+    this.envois.delete(id);
+    try {
+      const binaire = atob(e.morceaux.join(""));
+      const octets = new Uint8Array(binaire.length);
+      for (let i = 0; i < binaire.length; i++) octets[i] = binaire.charCodeAt(i);
+      return { mime: e.mime, octets };
+    } catch { return null; }
+  }
+}
+const recepteurPrive = new RecepteurPrive();
+
+// Lue depuis un Blob (URL.createObjectURL), libérée à la fin (ou en cas d'erreur).
+export function jouerVoixPrivee({ mime, octets }) {
+  if (!reglage("entendreNarration", true) || typeof Audio === "undefined") return false;
+  const url = URL.createObjectURL(new Blob([octets], { type: mime }));
+  const audio = new Audio(url);
+  audio.volume = 0.9 * Math.max(0, Math.min(1, Number(reglage("volumeVoix", 1)) || 0));
+  let libre = false;
+  const liberer = () => { if (!libre) { libre = true; URL.revokeObjectURL(url); } };
+  audio.addEventListener?.("ended", liberer, { once: true });
+  audio.addEventListener?.("error", liberer, { once: true });
+  Promise.resolve(audio.play?.()).catch(liberer);
+  return true;
+}
+
+// Au démarrage du MJ actif, une fois (main.js, réparations) : les fichiers de voix déposés dans Data par les versions
+// précédentes qui ne sont pas la réécoute d'une NARRATION publique (seul cas reconnu à coup sûr : réplique de compagnon, qu'elle
+// soit chuchotée ou visée à un public restreint par le système, ou message disparu) sont écrasés par un silence (Foundry n'offre
+// pas de suppression de fichier côté client) ; leurs messages perdent leur bouton 🔊.
+// -> { liste, ecrases, messages } (liste : false si le dossier n'a pas pu être lu).
+export async function nettoyerVoixPrivees(messages = game.messages?.contents ?? []) {
+  const sousDossier = `voix/${game.world.id}`;
+  const norme = c => {
+    const t = String(c ?? "").split("?")[0];
+    try { return decodeURIComponent(t).replace(/^\/+/, ""); } catch { return t.replace(/^\/+/, ""); }
+  };
+  let fichiers;
+  try {
+    fichiers = (await foundry.applications.apps.FilePicker.implementation.browse("data", `${DOSSIER_DONNEES}/${sousDossier}`))?.files ?? [];
+  } catch { return { liste: false, ecrases: 0, messages: 0 }; }
+  const publics = new Set();
+  const autres = [];
+  for (const m of messages) {
+    const audio = m.flags?.[ID]?.audio;
+    if (!Array.isArray(audio) || !audio.length) continue;
+    if (!m.whisper?.length && m.flags?.[ID]?.narration) for (const c of audio) publics.add(norme(c));
+    else autres.push(m);
+  }
+  const silence = wavDepuisPcm([], FREQUENCE_VOIX);
+  let ecrases = 0;
+  for (const f of fichiers) {
+    const chemin = norme(f);
+    if (publics.has(chemin)) continue;
+    const nom = chemin.split("/").pop();
+    try {
+      await deposerFichier(sousDossier, nom, new File([silence], nom, { type: "audio/wav" }));
+      ecrases++;
+    } catch (e) { console.warn(`${ID} | voix privée ${nom} non écrasée`, e); }
+  }
+  let n = 0;
+  for (const m of autres) {
+    try { await m.unsetFlag(ID, "audio"); n++; } catch { /* message déjà parti */ }
+  }
+  return { liste: true, ecrases, messages: n };
 }
 
 // ---------- Mode OpenAI, dans chaque navigateur : la lecture des morceaux reçus
@@ -375,6 +508,11 @@ export function brancherVoixDirecte() {
   recevoir("voix-debut", m => lecteur.debut(m));
   recevoir("voix-morceau", m => lecteur.morceau(m));
   recevoir("voix-fin", m => lecteur.fin(m));
+  // Une réplique privée en repli : ses morceaux rassemblés, puis lue depuis un Blob (canal : seulement d'un MJ).
+  recevoir("voix-privee", m => {
+    const audio = recepteurPrive.recevoir(m);
+    return audio ? jouerVoixPrivee(audio) : false;
+  });
 }
 
 // ---------- Ambiance sonore baissée pendant qu'une IA parle. C'est le MJ qui modifie le volume des pistes de la playlist

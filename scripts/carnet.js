@@ -1,5 +1,6 @@
 // Carnet de campagne (40k, Warcraft ; pas aux Veillées) : le tableau d'enquête et le registre des contacts, rangés dans les
-// réglages monde « enquetes » et « contacts » (registre-monde.js : écrits par le seul MJ actif). L'API des modules des mondes
+// réglages monde « enquetes » et « contacts » (registre-monde.js : écrits par le seul MJ actif ; en clair, la seule part
+// publique des éléments visibles, le reste chiffré au coffre du Carnet, coffre.js). L'API des modules des mondes
 // (game.modules.get("lakour-mj-ia").api.enquetes / .contacts), les gestes de la fenêtre (apps/carnet.js) et le résumé donné à
 // l'IA. La logique pure : enquetes-logique.js, contacts-logique.js. Les horloges ont leur propre module (horloges.js).
 import { estMJActif, recevoir, versMJ, ecouterCanal, envoyer } from "./canal.js";
@@ -7,9 +8,18 @@ import { plier } from "./recherche-nom.js";
 import { registreMonde } from "./registre-monde.js";
 import * as E from "./enquetes-logique.js";
 import * as C from "./contacts-logique.js";
+import { idNeuf, publiqueChange } from "./secrets-logique.js";
 
 export const enquetes = registreMonde("enquetes");
 export const contacts = registreMonde("contacts");
+// L'identifiant d'un élément neuf sans identifiant donné : caché, tiré au hasard ; visible, tiré du nom sans trahir un caché.
+const idPour = (def, liste, champ, prefixe) => {
+  const nom = String(def?.[champ] ?? "").trim();
+  return String(def?.id ?? "").trim() || (nom ? idNeuf(nom, liste, { visible: Boolean(def?.visible), prefixe }) : "");
+};
+// maj (l'enquête en cours, les contacts récents) ne bouge que si la part publique change : un changement purement secret d'un
+// élément visible ne réécrit rien en clair.
+const dater = (registre, avant, apres, liste) => ({ ...apres, maj: publiqueChange(registre, avant, apres) ? E.horodatage(liste) : avant.maj });
 // Une définition déjà au registre : par son id, ou, sans id, par son titre ou son nom (assurer reste idempotent sans id).
 const dejaLa = (liste, def, champ) => {
   const id = String(def?.id ?? "").trim();
@@ -26,9 +36,12 @@ export async function assurerEnquete(def) {
   if (existante) return structuredClone(existante);
   const neuve = E.normaliserEnquete({ ...def, maj: E.horodatage(enquetes.lire()) }, enquetes.lire().map(e => e.id));
   if (!estMJActif()) return neuve;
+  // Dans la file, la liste est complète (coffre ouvert) : l'identifiant d'une enquête neuve est choisi parmi toutes.
   return enquetes.modifier(liste => {
-    const deja = dejaLa(liste, def, "titre") ?? liste.find(e => e.id === neuve.id);
-    return deja ? { liste, resultat: deja } : { liste: [...liste, { ...neuve, maj: E.horodatage(liste) }], resultat: neuve };
+    const deja = dejaLa(liste, def, "titre");
+    if (deja) return { liste, resultat: deja };
+    const e = E.normaliserEnquete({ ...def, id: idPour(def, liste, "titre", "enquete"), maj: E.horodatage(liste) }, liste.map(x => x.id));
+    return { liste: [...liste, e], resultat: e };
   });
 }
 
@@ -44,7 +57,7 @@ export function modifierEnquete(ref, fn) {
     const e = ref ? E.trouverEntree(liste, ref, "titre") : E.enqueteParDefaut(liste);
     if (!e) return null;
     const r = fn(e);
-    const enquete = { ...r.enquete, maj: E.horodatage(liste) };
+    const enquete = dater("enquetes", e, r.enquete, liste);
     return { liste: liste.map(x => (x.id === e.id ? enquete : x)), resultat: { enquete, entree: r.entree } };
   });
 }
@@ -62,8 +75,10 @@ export async function assurerContact(def) {
   const neuf = C.normaliserContact({ ...def, maj: E.horodatage(contacts.lire()) }, contacts.lire().map(c => c.id));
   if (!estMJActif()) return neuf;
   return contacts.modifier(liste => {
-    const deja = dejaLa(liste, def, "nom") ?? liste.find(c => c.id === neuf.id);
-    return deja ? { liste, resultat: deja } : { liste: [...liste, { ...neuf, maj: E.horodatage(liste) }], resultat: neuf };
+    const deja = dejaLa(liste, def, "nom");
+    if (deja) return { liste, resultat: deja };
+    const c = C.normaliserContact({ ...def, id: idPour(def, liste, "nom", "contact"), maj: E.horodatage(liste) }, liste.map(x => x.id));
+    return { liste: [...liste, c], resultat: c };
   });
 }
 
@@ -75,7 +90,7 @@ export function modifierContact(ref, fn) {
     const c = C.trouverContact(liste, ref);
     if (!c) return null;
     const r = fn(c);
-    const contact = { ...(r.contact ?? r), maj: E.horodatage(liste) };
+    const contact = dater("contacts", c, r.contact ?? r, liste);
     return { liste: liste.map(x => (x.id === c.id ? contact : x)), resultat: { ...(r.contact ? r : {}), contact } };
   });
 }

@@ -11,13 +11,15 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 
 // ------------------------------------------------------------------ doublure de Foundry (réglages, chat, MJ actif)
 const ID = "lakour-mj-ia";
-const MJ = { id: "mj", name: "Jordan", isGM: true }, MJ2 = { id: "mj2", name: "Lise", isGM: true }, JOUEUR = { id: "j1", name: "Tom", isGM: false };
+const MJ = { id: "mj", name: "Jordan", isGM: true, active: true }, MJ2 = { id: "mj2", name: "Lise", isGM: true, active: true },
+  JOUEUR = { id: "j1", name: "Tom", isGM: false, active: false };
 const etat = {};
 function reinitialiser({ systeme = "impmal", moi = MJ, actif = MJ } = {}) {
   Object.assign(etat, {
     reglages: { horloges: [], personnalites: [{ id: "p", nomAffiche: "Le Conteur" }], personnaliteActive: "p" },
-    messages: [], crochets: [], signaux: [], emissions: [], ecritures: 0
+    messages: [], crochets: [], signaux: [], emissions: [], avis: [], ecritures: 0
   });
+  globalThis.ui = { notifications: { info: t => etat.avis.push(t), warn: () => {}, error: () => {} } };
   const users = Object.assign([MJ, MJ2, JOUEUR], { get activeGM() { return actif; }, get: id => [MJ, MJ2, JOUEUR].find(u => u.id === id) });
   globalThis.game = {
     system: { id: systeme }, user: moi, users,
@@ -99,6 +101,7 @@ function batterieLogique(L) {
     assert.equal(L.trouver(liste, "reputation eclat")?.id, "x1");
     assert.equal(L.trouver(liste, "rituel")?.id, "rituel");
     assert.equal(L.trouver(liste, "rien"), null);
+    assert.equal(L.trouver([{ id: "horloge-0123456789abcdef", nom: "Rituel du Chœur" }], "rituel du choeur")?.nom, "Rituel du Chœur", "id au hasard : par le nom, œ écrit oe");
   });
   verifier("une réputation par sa faction : rep-<faction>, ou le champ faction", () => {
     const reps = [L.normaliser({ id: "rep-horde", nom: "Horde (Le Carrefour)", type: "reputation", faction: "horde" }),
@@ -175,7 +178,9 @@ const MUTATIONS_LOGIQUE = {
   "réputation bornée à zéro": ["({ min: el.type === \"reputation\" ? -el.max : 0, max: el.max })", "({ min: 0, max: el.max })"],
   "identifiant en double": ["for (let i = 2; ids.has(id); i++)", "for (let i = 2; false; i++)"],
   "recherche sensible aux accents": ["const pli = s => String(s ?? \"\").normalize(\"NFD\").replace(/[\\u0300-\\u036f]/g, \"\").toLowerCase().trim();",
-    "const pli = s => String(s ?? \"\").toLowerCase().trim();"],
+    "const pli = s => String(s ?? \"\").toLowerCase().trim();",
+    "    ?? liste.find(e => idDepuisNom(e.nom) === idDepuisNom(r))", "    ?? null"],
+  "un nom écrit autrement (ligature) : introuvable": ["    ?? liste.find(e => idDepuisNom(e.nom) === idDepuisNom(r))", "    ?? null"],
   "résumé non borné": ["tries.slice(0, max)", "tries"],
   "les joueurs voient tout": ["filter(el => mj || el.visible)", "filter(el => true)"],
   "notes montrées aux joueurs": ["notes: mj ? el.notes : \"\"", "notes: el.notes"],
@@ -202,8 +207,8 @@ async function chargerCopie(fichiers, principal, mutation) {
 }
 
 test("mutations (logique) : la batterie attrape chaque règle cassée", async () => {
-  for (const [nom, [avant, apres]] of Object.entries(MUTATIONS_LOGIQUE)) {
-    const m = await chargerCopie(["horloges-logique.js"], "horloges-logique.js", ["horloges-logique.js", avant, apres]);
+  for (const [nom, paires] of Object.entries(MUTATIONS_LOGIQUE)) {
+    const m = await chargerCopie(["horloges-logique.js"], "horloges-logique.js", ["horloges-logique.js", ...paires]);
     try { assert.ok(batterieLogique(m.M).length > 0, `mutation non détectée : ${nom}`); } finally { rmSync(m.dossier, { recursive: true, force: true }); }
   }
 });
@@ -271,11 +276,14 @@ const BATTERIE_API = {
     assert.match(etat.signaux[0], /Héraut/);
     assert.ok(etat.crochets.some(([n]) => n === `${ID}.horloge`));
   },
-  "élément caché : carte chuchotée aux MJ": async H => {
+  // Un message chuchoté pourrait parvenir à tous les navigateurs : pas de carte au chat pour un élément caché.
+  "élément caché : pas de carte ; le MJ actif prévenu ici, les autres MJ par le canal, à eux seuls": async H => {
     reinitialiser();
     await H.assurer({ id: "rituel", nom: "Rituel", type: "horloge", max: 4, valeur: 3 });
     await H.avancer("rituel");
-    assert.deepEqual(etat.messages[0].whisper, ["mj", "mj2"]);
+    assert.equal(etat.messages.length, 0);
+    assert.match(etat.avis.join(" "), /Rituel.*sonne/);
+    assert.deepEqual(etat.emissions.filter(e => e.message.type === "horloges.avis").map(e => e.options?.recipients), [["mj2"]]);
   },
   "l'outil reçoit les événements dans sa réponse, sans signal en double": async H => {
     reinitialiser();
@@ -296,9 +304,12 @@ const MUTATIONS_API = {
   "assurer sans id : doublons": ["horloges.js", "  const nom = plier(def?.nom);", "  const nom = \"\";"],
   "tout le monde écrit": ["horloges.js", "if (!estMJActif()) return Promise.resolve(null);\n  return enFile(async () => {\n    const liste = lireHorloges();\n    const el = L.trouver(liste, ref);\n    if (!el) return null;\n    const { element",
     "return enFile(async () => {\n    const liste = lireHorloges();\n    const el = L.trouver(liste, ref);\n    if (!el) return null;\n    const { element"],
-  "avancées en parallèle sans file": ["horloges.js", "const suite = file.then(() => fn());", "const suite = fn();"],
-  "lister rend l'original": ["horloges.js", "export const lister = () => structuredClone(lireHorloges());", "export const lister = () => lireHorloges();"],
-  "carte toujours publique": ["horloges.js", "...(el.visible ? {} : { whisper: mjs }),", ""],
+  "avancées en parallèle sans file": ["coffre.js", "  const suite = file.then(async () => {\n    await ouvrirDansFile();\n    return fn();\n  });",
+    "  const suite = (async () => {\n    await ouvrirDansFile();\n    return fn();\n  })();"],
+  "lister rend l'original": ["secrets-logique.js", "  const liste = structuredClone(Array.isArray(clair) ? clair : []);", "  const liste = Array.isArray(clair) ? clair : [];",
+    "  for (const el of structuredClone(coffre)) {", "  for (const el of coffre) {"],
+  "carte au chat pour un élément caché": ["horloges.js", "  if (!el.visible) {\n    const texte", "  if (false) {\n    const texte"],
+  "les autres MJ jamais prévenus": ["horloges.js", "    if (autres.length) envoyer({ type: \"horloges.avis\", texte }, autres);\n", ""],
   "l'IA prévenue en double par l'outil": ["horloges.js", "if (source !== \"outil\") game.modules", "if (true) game.modules"],
   "l'IA jamais prévenue": ["horloges.js", "if (source !== \"outil\") game.modules", "if (false) game.modules"],
   "geste d'un autre MJ perdu": ["horloges.js", "return versMJ({ type: \"horloges.geste\", ...message });", "return null;"]
@@ -312,7 +323,8 @@ async function echecsApi(H) {
   return rates;
 }
 
-const FICHIERS_API = ["horloges.js", "horloges-logique.js", "recherche-nom.js", "canal.js", "constantes.js"];
+const FICHIERS_API = ["horloges.js", "horloges-logique.js", "recherche-nom.js", "canal.js", "constantes.js", "registre-monde.js", "coffre.js", "fils.js", "utilitaires.js",
+  "coffre-logique.js", "secrets-logique.js"];
 test("API : assurer, avancer, lister, palier ; seul le MJ actif écrit (la batterie passe sur le vrai code)", async () => {
   assert.deepEqual(await echecsApi(H), []);
 });
@@ -340,10 +352,11 @@ test("outil horloge : créer, avancer jusqu'à la sonnerie, montrer, régler, re
   reinitialiser();
   let r = await outilHorloge({ action: "creer", nom: "Rituel du Chœur", type: "horloge", max: 4, faction: "Culte", notes: "Le Héraut se manifeste." });
   assert.ok(!r.erreur, r.contenu);
-  assert.match(r.contenu, /Créé : Horloge « Rituel du Chœur » \[rituel-du-choeur\] \(faction Culte\) : 0\/4 segments, cachée aux joueurs/);
+  assert.match(r.contenu, /Créé : Horloge « Rituel du Chœur » \[horloge-[0-9a-f]{16}\] \(faction Culte\) : 0\/4 segments, cachée aux joueurs/);
+  assert.doesNotMatch(r.contenu, /rituel-du-choeur/, "cachée : son identifiant ne dit pas son nom");
   r = await outilHorloge({ action: "creer", nom: "rituel du choeur" });
   assert.ok(r.erreur, "pas de doublon");
-  r = await outilHorloge({ action: "avancer", nom: "rituel-du-choeur", valeur: 3 });
+  r = await outilHorloge({ action: "avancer", nom: "rituel du choeur", valeur: 3 });
   assert.match(r.contenu, /3\/4 segments/);
   assert.equal(etat.messages.length, 0, "rien au chat avant la sonnerie");
   r = await outilHorloge({ action: "avancer", nom: "Rituel du Chœur", valeur: 0 });
@@ -351,8 +364,8 @@ test("outil horloge : créer, avancer jusqu'à la sonnerie, montrer, régler, re
   assert.match(r.contenu, /elle sonne !/);
   assert.match(r.contenu, /Notes : Le Héraut se manifeste\./);
   assert.match(r.contenu, /conséquence/);
-  assert.equal(etat.messages.length, 1);
-  assert.deepEqual(etat.messages[0].whisper, ["mj", "mj2"], "cachée : la carte ne va qu'aux MJ");
+  assert.equal(etat.messages.length, 0, "cachée : pas de carte au chat");
+  assert.match(etat.avis.join(" "), /elle sonne/, "le MJ est prévenu chez lui");
   assert.equal(etat.signaux.length, 0, "l'IA a déjà la réponse de l'outil");
   r = await outilHorloge({ action: "montrer", nom: "Rituel du Chœur" });
   assert.match(r.contenu, /Les joueurs la voient maintenant/);
@@ -380,5 +393,5 @@ test("outil horloge : réputation (paliers par défaut) et jauge à seuils ; lis
   r = await outilHorloge({ action: "lister" });
   assert.match(r.contenu, /Paliers : Haï \(-100\), Hostile \(-50\)/);
   assert.match(r.contenu, /Seuils : Remarqués \(4\), Traqués \(8\)/);
-  assert.match(H.resumePourIA().join("\n"), /Jauge « Exposition » \[exposition\] : 5\/10 — seuil « Remarqués » atteint ; prochain « Traqués » à 8/);
+  assert.match(H.resumePourIA().join("\n"), /Jauge « Exposition » \[horloge-[0-9a-f]{16}\] : 5\/10 — seuil « Remarqués » atteint ; prochain « Traqués » à 8/);
 });

@@ -3,7 +3,7 @@ import { enregistrerReglages, lire, migrerReglages } from "./reglages.js";
 import { adaptateur } from "./adaptateurs.js";
 import { MoteurMJ } from "./moteur.js";
 import { ConsoleMJ } from "./apps/console.js";
-import { estNarrationAudible, lireNavigateur, taireNavigateur, jouerTousLesMorceaux, brancherVoixDirecte, couperVoix } from "./voix.js";
+import { estNarrationAudible, lireNavigateur, taireNavigateur, jouerTousLesMorceaux, brancherVoixDirecte, couperVoix, nettoyerVoixPrivees } from "./voix.js";
 import { brancherReactions } from "./reactions.js";
 import { redessinerCartes, donnerMunitions } from "./outils.js";
 import { definirFigurants } from "./placement.js";
@@ -21,6 +21,9 @@ import { TourParTour, mouvementHorsTour } from "./tour-par-tour.js";
 import { brancherTourParTour, ouvrirPanneau } from "./apps/tour-par-tour.js";
 import * as horloges from "./horloges.js";
 import * as carnet from "./carnet.js";
+import * as coffre from "./coffre.js";
+import { lireArchive } from "./fils.js";
+import { ouvrirCoffre as ouvrirFenetreCoffre } from "./apps/coffre.js";
 import { ouvrirCarnet, ouvrirHorloges, rafraichirCarnet } from "./apps/carnet.js";
 
 Hooks.once("init", () => {
@@ -77,11 +80,31 @@ Hooks.once("ready", () => {
       lister: () => carnet.contacts.lister(),
       trouver: ref => carnet.trouverContact(ref)
     },
-    carnet: (onglet = null) => ouvrirCarnet(onglet)
+    carnet: (onglet = null) => ouvrirCarnet(onglet),
+    // Coffre du moteur (coffre.js), dans tous les mondes : le Carnet caché et le fil de l'IA (fils.js), chiffrés ; la clé chez le
+    // MJ, une part chez chaque compte joueur (seuil : la majorité). etat() : { etat: "vide" | "ouvert" | "ouverture" | "attente" |
+    // "ferme" | "joueur", … } ; chercher() : rouvrir, ou redemander les parts ; renouveler() : nouvelle clé, en vigueur une fois
+    // ses parts accusées (tout est alors rescellé) ; abandonner({ confirmer: true }) : parts perdues, le MJ renonce aux éléments cachés et aux fils chiffrés ;
+    // lireArchive(nom) : le contenu d'un fil ou d'une archive de Data/lakour-mj-ia/fils/.
+    coffre: {
+      etat: () => coffre.etatCoffre(),
+      chercher: () => coffre.chercherCoffre(),
+      renouveler: () => coffre.renouveler(),
+      // Clé de secours : téléchargée par le MJ (fichier), réimportée sur un autre navigateur (File, Blob ou texte).
+      exporterSecours: () => coffre.exporterSecours(),
+      importerSecours: fichier => coffre.importerSecours(fichier),
+      ouvrir: () => ouvrirFenetreCoffre(),
+      abandonner: options => coffre.abandonnerCoffre(options),
+      lireArchive: nom => lireArchive(nom),
+      changement: () => coffre.coffreChange()
+    }
   };
   // Gestes de la fenêtre Carnet de campagne faits par un autre MJ : transmis au MJ actif.
   horloges.brancherHorloges();
   carnet.brancherCarnet();
+  // Coffre du moteur (tous les mondes) : le MJ l'ouvre (ou demande les parts des joueurs), chiffre ce qui traîne en clair (Carnet,
+  // fils de l'IA) ; un joueur demande sa part au MJ actif.
+  coffre.brancherCoffre();
   // Voix des IA en direct : chaque navigateur joue les morceaux de son reçus du MJ actif (canal du module).
   brancherVoixDirecte();
   // L'écoute suit l'état de la table : séance, compagnons, flux A/V qui arrivent ou changent, phase des Veillées.
@@ -312,6 +335,15 @@ async function reparerMonde() {
     }
     if (rapport.length) ui.notifications.info(`MJ IA — munitions ajoutées : ${rapport.join(" ; ")}`);
     faites.munitions = true;
+  }
+  // Voix privées déposées dans Data par les versions d'avant 0.34.0 (Data/ est servi à tous) : écrasées par un silence, une fois
+  // (voix.js, nettoyerVoixPrivees ; Foundry n'offre pas de suppression de fichier côté client).
+  if (!faites.voixPrivees2) {
+    const r = await nettoyerVoixPrivees().catch(e => { console.error(`${ID} | voix privées`, e); return { liste: false }; });
+    if (r.liste) {
+      faites.voixPrivees2 = true;
+      if (r.ecrases) ui.notifications.info(game.i18n.format("LAKOUR_MJIA.Voix.PriveesEcrasees", { n: r.ecrases }));
+    }
   }
   await game.settings.set(ID, "reparations", faites);
 }

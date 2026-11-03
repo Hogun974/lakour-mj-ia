@@ -2,6 +2,7 @@ import { ID } from "./constantes.js";
 import { lire, ecrire } from "./reglages.js";
 import { ecrireJSON } from "./utilitaires.js";
 import { consignerComposition } from "./historique-loups.js";
+import { viderCarnet } from "./coffre.js";
 
 // Remise à zéro de la campagne, dans le navigateur du MJ, par l'API de Foundry (qui défait proprement
 // tous les liens) : chat, combats, scènes, journaux, objets, tables, dossiers, brouillard, horloges, enquêtes, contacts, acteurs — sauf les
@@ -66,9 +67,11 @@ export async function reinitialiserCampagne(moteur) {
   await ecrire("mouvementsBloques", {});
   // Horloges, jauges et réputations, enquêtes et contacts : la campagne repart de zéro (le contenu réinstallé déclare à nouveau
   // les siens).
-  for (const cle of ["horloges", "enquetes", "contacts"]) await ecrire(cle, []);
+  // Avec leur coffre (éléments cachés, notes), dans la file du coffre : une écriture en cours ne le fait pas renaître. La clé reste.
+  await viderCarnet();
   // Une partie des Veillées abandonnée : sa composition entre à l'historique (qui, lui, reste, pour varier la suivante).
   await consignerComposition().catch(() => false);
+  // Un fil vide, en clair : il ne contient rien (fils.js chiffre les fils qui ont quelque chose à cacher).
   await ecrireJSON("fils", `${game.world.id}.json`, {}).catch(() => null);
 
   // 2. Le contenu du monde.

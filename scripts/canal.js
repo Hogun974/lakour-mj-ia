@@ -45,6 +45,8 @@ export function traiter(message, emetteur) {
   const r = recepteurs.get(message.type);
   if (!r) return false;
   if (emetteur && message.userId && message.userId !== emetteur) return false;   // se fait passer pour un autre
+  // Le coffre (coffre.js : parts de la clé) ne se fie qu'à l'émetteur donné par le serveur, jamais à une déclaration.
+  if (!emetteur && message.type.startsWith("coffre.")) return false;
   const qui = emetteur || message.userId || null;
   if (r.pourMJ) {
     if (!estMJActif()) return false;

@@ -77,6 +77,18 @@ const outil = nom => OUTILS.find(o => o.nom === nom);
 const ARCHIVE = /^lakour-mj-ia\/fils\/monde-partie-[\w-]+\.json$/;
 const PRINCIPAL = "lakour-mj-ia/fils/monde.json";
 const archives = () => [...fichiers.keys()].filter(k => ARCHIVE.test(k));
+// Les fils sont chiffrés (fils.js) : lus ici avec la clé que le MJ garde dans son navigateur (réglage « client » cleCarnet).
+const Cf = await import("../scripts/coffre-logique.js");
+async function lu(chemin) {
+  const o = fichiers.get(chemin);
+  if (!Cf.estScelle(o)) return o;
+  const t = reglages.cleCarnet?.monde?.mj ?? {};
+  for (const cle of [t.courante, ...(t.anciennes ?? [])].filter(Boolean)) {
+    const v = await Cf.ouvrir(o, cle);
+    if (v) return v;
+  }
+  return null;
+}
 
 // ------------------------------------------------------------------ une partie des Veillées (doublure de l'API)
 function veillees({ phase = "vote", vainqueur = "" } = {}) {
@@ -141,7 +153,7 @@ test("nouvelle partie : le fil précédent est archivé sous un autre nom (pas s
   const ancien = m.fil;
   await m.nouvellePartie({ ouverture: true });
   assert.equal(archives().length, 1, "une archive");
-  assert.match(JSON.stringify(fichiers.get(archives()[0])), /CANARI-ANCIENNE-PARTIE/, "l'archive garde toute la partie précédente");
+  assert.match(JSON.stringify(await lu(archives()[0])), /CANARI-ANCIENNE-PARTIE/, "l'archive garde toute la partie précédente");
   assert.notEqual(m.fil, ancien);
   const ouverture = premier(m.fil);
   for (const attendu of ["[Nouvelle partie]", "Présente le village", "sans annoncer la composition", "loups_nuit",
@@ -152,8 +164,9 @@ test("nouvelle partie : le fil précédent est archivé sous un autre nom (pas s
   for (const interdit of ["CANARI", "Précédemment", "reprend", "rappelle où en était", "annonce la composition sans dire qui", "PESTE"]) {
     assert.ok(!ouverture.includes(interdit), `ouverture avec « ${interdit} »`);
   }
-  assert.ok(!JSON.stringify(fichiers.get(PRINCIPAL)).includes("CANARI"), "le fil principal est le neuf");
-  assert.equal(fichiers.get(PRINCIPAL).messages.length, 2, "le fil neuf : l'ouverture et sa narration");
+  assert.ok(!JSON.stringify(await lu(PRINCIPAL)).includes("CANARI"), "le fil principal est le neuf");
+  for (const chemin of [PRINCIPAL, archives()[0]]) assert.ok(Cf.estScelle(fichiers.get(chemin)) && !JSON.stringify(fichiers.get(chemin)).includes("CANARI"), `chiffré dans Data : ${chemin}`);
+  assert.equal((await lu(PRINCIPAL)).messages.length, 2, "le fil neuf : l'ouverture et sa narration");
   assert.notEqual(m.systeme, "ANCIEN-PROMPT", "le prompt système est recalculé (nouveaux rôles)");
   assert.ok(!m.systeme.includes("CANARI-MEMOIRE"), "aux Veillées, la mémoire de campagne n'entre pas dans le prompt");
   assert.equal(m.auRepos(), true);
@@ -170,7 +183,7 @@ test("pendant un tour (le MJ distribue avec loups_distribuer) : la partie préc�
   await m.chaine;
   assert.equal(m.fournisseur.recu.length, 2, "pas de tour d'ouverture en plus : le MJ vient d'annoncer la partie");
   assert.equal(archives().length, 1);
-  const archive = JSON.stringify(fichiers.get(archives()[0]));
+  const archive = JSON.stringify(await lu(archives()[0]));
   assert.ok(archive.includes("Partie prête, rôles distribués.") && archive.includes("Voici la composition"), "le tour de distribution est dans l'archive");
   assert.notEqual(m.fil, ancien);
   assert.equal(m.fil.messages.length, 0, "fil neuf, vide");

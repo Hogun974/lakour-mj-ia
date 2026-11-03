@@ -3,7 +3,8 @@
 //   { id, titre, visible, maj, conclusions: [{ id, texte, revelee }], indices: [{ id, texte, ou, mene: [idConclusion], trouve }] }
 // Une conclusion est ce que les joueurs doivent comprendre ; un indice mène à une ou plusieurs conclusions. La règle des trois
 // indices : chaque conclusion encore cachée devrait avoir au moins SEUIL_INDICES indices encore trouvables (les joueurs en rateront).
-// Les joueurs ne voient d'une enquête visible que les indices trouvés et les conclusions révélées.
+// Les joueurs ne voient d'une enquête visible que les indices trouvés et les conclusions révélées : le réglage n'a d'ailleurs que
+// cela en clair (secrets-logique.js) ; le reste, et les enquêtes cachées, sont chiffrés au coffre du Carnet (coffre.js).
 import { idDepuisNom } from "./horloges-logique.js";
 import { plier } from "./recherche-nom.js";
 
@@ -19,7 +20,8 @@ const court = (t, n = 70) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
 export function trouverEntree(liste, ref, champ = "texte") {
   const r = texte(ref);
   if (!r || !Array.isArray(liste)) return null;
-  return liste.find(e => e.id === r) ?? liste.find(e => plier(e[champ]) === plier(r)) ?? liste.find(e => e.id === idDepuisNom(r)) ?? null;
+  return liste.find(e => e.id === r) ?? liste.find(e => plier(e[champ]) === plier(r)) ?? liste.find(e => e.id === idDepuisNom(r))
+    ?? liste.find(e => idDepuisNom(e[champ]) === idDepuisNom(r)) ?? null;   // id tiré au hasard (élément caché) : par le nom
 }
 
 const idLibre = (base, pris) => idDepuisNom(base, pris);

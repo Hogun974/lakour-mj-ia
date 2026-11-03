@@ -11,6 +11,7 @@ import { TEMPERAMENTS } from "./compagnons.js";
 import { resumePourIA as resumeHorloges } from "./horloges.js";
 import { horlogesDisponibles } from "./horloges-logique.js";
 import { resumeCarnetPourIA } from "./carnet.js";
+import { etatCoffre } from "./coffre.js";
 
 // Consigne au MJ sur les compagnons IA (docs/compagnons.md) : des joueurs comme les autres, à qui il ne souffle rien.
 export const CONSIGNE_COMPAGNONS = [
@@ -42,6 +43,10 @@ export const CONSIGNE_CARNET = "- Enquêtes (enquete) : pour un mystère, pose l
   + "indices par conclusion, par des chemins différents (un lieu, un PNJ, un document) ; coche ceux qu'ils trouvent, révèle une conclusion "
   + "quand ils l'ont comprise, et ajoute des indices quand l'outil te le rappelle. Contacts (contact) : note les PNJ que les personnages "
   + "connaissent, leur attitude, ce qu'on se doit et ce qu'ils demandent ; fais-les revenir, et les dettes avec eux.";
+// Dans l'état du jeu, quand le coffre du Carnet est fermé dans le navigateur du MJ (coffre.js, en attente des parts des joueurs).
+export const AVIS_COFFRE_FERME = "Carnet de campagne : coffre fermé dans ce navigateur (en attente des parts des joueurs). Tu ne vois que les "
+  + "éléments visibles des joueurs ; tu peux les faire avancer, mais ne crée, ne cache, ne retire rien et ne touche ni aux notes, ni aux "
+  + "indices, ni aux conclusions, ni aux attitudes des contacts jusqu'à sa réouverture (l'outil le refuserait).";
 
 // Consignes des outils liés à des modules tiers (scripts/outils.js, champ « modules ») : une phrase par module actif, et
 // seulement dans les systèmes où l'outil existe. actif : id de module -> booléen.
@@ -249,6 +254,8 @@ export function etatDuJeu() {
   // L'enquête en cours et les contacts utiles ici (carnet.js), six lignes au plus chacun.
   if (horlogesDisponibles(game.system?.id)) {
     try { lignes.push(...resumeCarnetPourIA(scene)); } catch { /* pas de carnet */ }
+    // Coffre du Carnet fermé dans ce navigateur (coffre.js) : l'IA ne voit que le visible et ne doit rien créer ni cacher.
+    if (etatCoffre().etat === "attente") lignes.push(AVIS_COFFRE_FERME);
   }
   // Tour par tour (tour-par-tour.js) : le même état et la même étape suivante que le panneau du MJ humain, pour rester cohérent
   // (détails : outil combat_etat) ; le tour de table en cours.

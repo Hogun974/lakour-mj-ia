@@ -131,7 +131,13 @@
         "Nom": "Live OpenAI voice",
         "Aide": "Each piece of voice is sent to players as soon as it is produced: the voice starts without waiting (about two seconds faster). Unchecked: the whole voice is recorded first, then played."
       },
-      "LongueurVoix": {"Nom": "Voice length", "Aide": "In writing, the chat always keeps the whole text. Spoken: “Short” reads the first sentences (about 15 seconds) then the final question to the players, so the voice keeps up with the game; “Medium” about 30 seconds; “Full” reads everything.", "Courte": "Short (the essentials)", "Moyenne": "Medium", "Complete": "Full (whole text)"},
+      "LongueurVoix": {
+        "Nom": "Voice length",
+        "Aide": "In writing, the chat always keeps the whole text. Spoken: “Short” reads the first sentences (about 15 seconds) then the final question to the players, so the voice keeps up with the game; “Medium” about 30 seconds; “Full” reads everything.",
+        "Courte": "Short (the essentials)",
+        "Moyenne": "Medium",
+        "Complete": "Full (whole text)"
+      },
       "EcouteJoueurs": {
         "Nom": "Listen to players speech (transcription)",
         "Aide": "When an AI must hear (AI GM session started, or a living AI companion at the table), what players say in Foundry built-in voice chat is transcribed for the AI GM and the companions (OpenAI key, billed per minute). Each player sees an icon while listening is on. Unchecked: no microphone is listened to."
@@ -152,7 +158,10 @@
         "Nom": "Open the Turn by turn panel when combat begins",
         "Aide": "For the GM: the combat helper panel opens on its own when a combat begins."
       },
-      "appelJoueur": { "Nom": "Call me when it is my turn", "Aide": "A soft chime, for me only, when a vote, a secret choice, my combat turn or my turn to speak is waiting for me; if I am looking at another tab, its title blinks until I come back. In combat, if a Foundry combat theme is chosen, its own sound plays instead." }
+      "appelJoueur": {
+        "Nom": "Call me when it is my turn",
+        "Aide": "A soft chime, for me only, when a vote, a secret choice, my combat turn or my turn to speak is waiting for me; if I am looking at another tab, its title blinks until I come back. In combat, if a Foundry combat theme is chosen, its own sound plays instead."
+      }
     },
     "Console": {
       "Titre": "AI GM",
@@ -222,7 +231,8 @@
       "PasDeCleVoix": "OpenAI voice selected, but no OpenAI key is saved: open the AI GM configuration."
     },
     "Voix": {
-      "Reecouter": "Listen again"
+      "Reecouter": "Listen again",
+      "PriveesEcrasees": "{n} voice file(s) from before 0.34.0 that were not the replay of a public narration were overwritten with silence in Data (Foundry cannot delete them from here)."
     },
     "Mouvement": {
       "Bloque": "The GM prevents this movement.",
@@ -401,7 +411,45 @@
       "AideConsole": "Campaign clocks, investigations and contacts",
       "Montrer": "Hidden from players: show it",
       "Cacher": "Visible to players: hide it",
-      "Onglets": { "Horloges": "Clocks", "Enquetes": "Investigations", "Contacts": "Contacts" }
+      "Onglets": {
+        "Horloges": "Clocks",
+        "Enquetes": "Investigations",
+        "Contacts": "Contacts"
+      }
+    },
+    "Coffre": {
+      "Attente": "Vault locked in this browser: a key is missing (hidden notebook, AI thread). Shares requested from connected players ({joueurs}); {seuil} are needed. The key is also requested from other connected GMs; the backup key (Settings › MJ IA › Vault) restores it at once. Visible entries remain usable, nothing encrypted is overwritten.",
+      "Rouvert": "Vault reopened: hidden notebook entries and the AI thread are back.",
+      "Renouvelee": "Vault key renewed: everything is resealed, each connected player received a new share ({seuil} shares needed to recover it).",
+      "FilVerrouille": "The AI thread ({nom}) is encrypted and this browser lacks the key: the AI starts from an empty thread, and this file is not overwritten. It will be kept aside once the players' shares reopen the vault.",
+      "FilSansCle": "Vault key missing in this browser: the AI thread is not saved until the players' shares reopen it.",
+      "Fenetre": {
+        "Attente": "Vault locked in this browser: hidden entries and secret parts (notes, clues not found, hidden conclusions, histories) cannot be read here. Shares from {seuil} connected players are needed (shares received: {parts}; players connected: {joueurs}). Meanwhile, only visible entries can change, secret parts excepted; nothing is overwritten.",
+        "Ferme": "Hidden entries and secret parts are encrypted: only the active GM's browser opens them. Here you only see what the players see.",
+        "Titre": "MJ IA vault",
+        "Ouvrir": "Open the vault",
+        "AideMenu": "Key that encrypts the hidden notebook and the AI thread: share holders, renewal, backup key.",
+        "Porteurs": "Players holding a share of the key",
+        "Comptes": "player accounts",
+        "Renouvellement": "New key pending: acknowledged shares",
+        "SecoursConseille": "Too few holders to recover the key from shares: export the backup key and keep it outside the world.",
+        "Aide": "The backup key is a small file you download and keep; on another browser, import it to reopen everything without the players. It never goes through the world, the chat, Data or the network. Whoever has it reads everything: keep it like a password.",
+        "Exporter": "Download the backup key",
+        "Importer": "Import a backup key",
+        "Chercher": "Request the shares again",
+        "Renouveler": "Renew the key"
+      },
+      "RenouvellementAttente": "Vault key renewal pending: shares distributed {porteurs} / threshold {seuil}. The old key stays in force until {seuil} players have received the new one (or you export the backup key).",
+      "SecoursConseille": "Too few share holders to recover the vault key ({porteurs} / threshold {seuil}): export the backup key (Settings › MJ IA › Vault) and keep it outside the world.",
+      "SecoursImporte": "Backup key: {n} key(s) recognised and stored in this browser.",
+      "Etats": {
+        "joueur": "Player: you only keep one share of the key.",
+        "vide": "Empty vault: nothing hidden in the notebook yet; the key is in this browser.",
+        "ouvert": "Vault open in this browser.",
+        "ouverture": "Opening the vault…",
+        "attente": "Vault locked: a key is missing in this browser (shares requested).",
+        "ferme": "Only the active GM opens the vault."
+      }
     },
     "Enquetes": {
       "Vide": "No investigation to show yet.",
@@ -434,6 +482,11 @@
       "AideMJ": "Players only see shown items (open eye). A clock that strikes, a threshold crossed or a tier changed is posted in chat and sent to the AI GM.",
       "AideConsole": "Campaign clocks, gauges and reputations"
     },
-    "Appel": { "Vote": "Group vote", "Choix": "A choice is waiting", "Combat": "Your turn", "Parole": "Your turn to speak" }
+    "Appel": {
+      "Vote": "Group vote",
+      "Choix": "A choice is waiting",
+      "Combat": "Your turn",
+      "Parole": "Your turn to speak"
+    }
   }
 }

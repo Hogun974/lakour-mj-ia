@@ -4,6 +4,7 @@ import { BAVARDAGE } from "./compagnons.js";
 import { voixRealtime } from "./voix-texte.js";
 import { ConfigIA } from "./apps/config-ia.js";
 import { EditeurPersonnalites } from "./apps/personnalites.js";
+import { FenetreCoffre } from "./apps/coffre.js";
 
 export function enregistrerReglages() {
   // --- Secrets : portée "client" = stockés dans CE navigateur uniquement (localStorage).
@@ -135,6 +136,8 @@ export function enregistrerReglages() {
   });
   // Horloges, jauges et réputations (horloges.js ; 40k, Warcraft) : [{ id, nom, type, valeur, max, visible, faction, notes,
   // paliers }], écrit par le MJ actif seul ; chaque navigateur redessine l'onglet Horloges du Carnet de campagne.
+  // Ces trois réglages monde (horloges, enquetes, contacts) sont livrés à tous les navigateurs : ils ne gardent que la part
+  // publique des éléments visibles (secrets-logique.js) ; le reste est chiffré dans « coffreCarnet » (coffre.js).
   game.settings.register(ID, "horloges", {
     scope: "world", config: false, type: Array, default: [],
     onChange: () => game.modules.get(ID)?.api?.horloges?.rafraichir?.("horloges")
@@ -147,6 +150,19 @@ export function enregistrerReglages() {
       onChange: () => game.modules.get(ID)?.api?.horloges?.rafraichir?.(cle)
     });
   }
+  // Le coffre du moteur (coffre.js) : « trousseau » { id, seuil, empreinte } de la clé en cours (public : l'empreinte est un
+  // SHA-256) ; « coffreCarnet » { chiffre, id, iv, donnees } chiffré (AES-GCM), ou {} quand rien n'est secret, qu'un MJ qui a la
+  // clé rouvre à chaque changement. La clé, chez le MJ, et la part de chaque joueur restent dans leur navigateur (réglages
+  // « client », par monde et par utilisateur) ; elles ne passent jamais par un réglage monde.
+  game.settings.register(ID, "trousseau", { scope: "world", config: false, type: Object, default: {} });
+  // Les fils déjà scellés et la clé qui les scelle ({ nom: id }, fils.js) : rien n'y est relu pour rien au démarrage.
+  game.settings.register(ID, "filsScelles", { scope: "world", config: false, type: Object, default: {} });
+  game.settings.register(ID, "coffreCarnet", {
+    scope: "world", config: false, type: Object, default: {},
+    onChange: () => game.modules.get(ID)?.api?.coffre?.changement?.()
+  });
+  game.settings.register(ID, "cleCarnet", { scope: "client", config: false, type: Object, default: {} });
+  game.settings.register(ID, "partCarnet", { scope: "client", config: false, type: Object, default: {} });
   // Personnages dont l'IA a bloqué les déplacements : { idActeur: raison }. Lu par chaque navigateur de joueur.
   game.settings.register(ID, "mouvementsBloques", { scope: "world", config: false, type: Object, default: {} });
 
@@ -227,6 +243,15 @@ export function enregistrerReglages() {
     hint: "LAKOUR_MJIA.ConfigIA.Aide",
     icon: "fa-solid fa-key",
     type: ConfigIA,
+    restricted: true
+  });
+  // Le coffre (clé de secours, porteurs de parts, renouvellement), dans les trois mondes.
+  game.settings.registerMenu(ID, "coffreMenu", {
+    name: "LAKOUR_MJIA.Coffre.Fenetre.Titre",
+    label: "LAKOUR_MJIA.Coffre.Fenetre.Ouvrir",
+    hint: "LAKOUR_MJIA.Coffre.Fenetre.AideMenu",
+    icon: "fa-solid fa-vault",
+    type: FenetreCoffre,
     restricted: true
   });
   game.settings.registerMenu(ID, "personnalitesMenu", {

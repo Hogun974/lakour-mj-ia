@@ -1,0 +1,13 @@
+<section class="lakour-mjia-coffre">
+  <p><strong>{{texteEtat}}</strong></p>
+  <p>{{localize "LAKOUR_MJIA.Coffre.Fenetre.Porteurs"}} : <strong>{{porteurs}} / {{seuil}}</strong> <small>({{comptes}} {{localize "LAKOUR_MJIA.Coffre.Fenetre.Comptes"}})</small></p>
+  {{#if renouvellement}}<p>{{localize "LAKOUR_MJIA.Coffre.Fenetre.Renouvellement"}} : <strong>{{renouvellement.porteurs}} / {{renouvellement.seuil}}</strong></p>{{/if}}
+  {{#if secours}}<p class="lakour-mjia-carnet-coffre attente"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "LAKOUR_MJIA.Coffre.Fenetre.SecoursConseille"}}</p>{{/if}}
+  <p class="hint">{{localize "LAKOUR_MJIA.Coffre.Fenetre.Aide"}}</p>
+  <footer class="form-footer">
+    <button type="button" data-action="exporter"><i class="fa-solid fa-download"></i> {{localize "LAKOUR_MJIA.Coffre.Fenetre.Exporter"}}</button>
+    <button type="button" data-action="importer"><i class="fa-solid fa-upload"></i> {{localize "LAKOUR_MJIA.Coffre.Fenetre.Importer"}}</button>
+    {{#if attente}}<button type="button" data-action="chercher"><i class="fa-solid fa-rotate"></i> {{localize "LAKOUR_MJIA.Coffre.Fenetre.Chercher"}}</button>{{/if}}
+    <button type="button" data-action="renouveler"><i class="fa-solid fa-key"></i> {{localize "LAKOUR_MJIA.Coffre.Fenetre.Renouveler"}}</button>
+  </footer>
+</section>

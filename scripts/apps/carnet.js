@@ -4,6 +4,7 @@ import { vuePourFenetre } from "../horloges-logique.js";
 import { enquetes, contacts, gesteCarnet } from "../carnet.js";
 import { vueEnquetes } from "../enquetes-logique.js";
 import { vueContacts } from "../contacts-logique.js";
+import { etatCoffre } from "../coffre.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -16,6 +17,7 @@ export const ONGLETS = ["horloges", "enquetes", "contacts"];
 // Les joueurs n'y voient que ce que le MJ a montré (et d'une enquête, les seuls indices trouvés et conclusions révélées) ; le MJ
 // voit tout : il avance une horloge d'un clic (clic droit ou « − » : recule), coche un indice trouvé ou une conclusion révélée,
 // change l'attitude d'un contact, montre ou cache. Redessinée chez chacun quand un des réglages change (reglages.js).
+// Coffre du Carnet fermé dans ce navigateur (coffre.js) : un bandeau le dit au MJ ; il ne voit et ne change que le visible.
 export class FenetreCarnet extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: `${ID}-carnet`,
@@ -54,7 +56,7 @@ export class FenetreCarnet extends HandlebarsApplicationMixin(ApplicationV2) {
     const listeEnquetes = vueEnquetes(enquetes.lire(), { mj });
     const listeContacts = vueContacts(contacts.lire(), { mj });
     return {
-      mj, elements, vide: !elements.length, enquetes: listeEnquetes, contacts: listeContacts,
+      mj, elements, vide: !elements.length, enquetes: listeEnquetes, contacts: listeContacts, coffre: bandeauCoffre(),
       onglet: this.onglet, onglets: Object.fromEntries(ONGLETS.map(o => [o, o === this.onglet])),
       nombres: { horloges: elements.length, enquetes: listeEnquetes.length, contacts: listeContacts.length }
     };
@@ -71,6 +73,16 @@ export class FenetreCarnet extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
   }
+}
+
+// Le bandeau du coffre, chez un MJ qui n'a pas la clé : le MJ actif attend les parts des joueurs (seuil du trousseau), la clé
+// d'un autre MJ ou sa clé de secours ; un autre MJ ne voit
+// que le visible (seul le MJ actif rouvre le coffre). null sinon.
+export function bandeauCoffre() {
+  const { etat, parts = 0, joueurs = 0, seuil = 2 } = etatCoffre();
+  if (etat === "attente") return { classe: "attente", texte: game.i18n.format("LAKOUR_MJIA.Coffre.Fenetre.Attente", { parts, joueurs, seuil }) };
+  if (etat === "ferme") return { classe: "ferme", texte: game.i18n.localize("LAKOUR_MJIA.Coffre.Fenetre.Ferme") };
+  return null;
 }
 
 // Un geste du MJ sur une horloge (data-id) : la fenêtre suit le réglage ; en cas d'échec, l'erreur est montrée et la part

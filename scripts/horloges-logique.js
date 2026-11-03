@@ -1,5 +1,6 @@
 // Horloges, jauges et réputations : la logique pure, sans Foundry (essais/horloges.test.mjs). Le réglage monde « horloges »
-// (reglages.js) est un tableau d'éléments { id, nom, type, valeur, max, visible, faction, notes, paliers } :
+// (reglages.js) est un tableau d'éléments { id, nom, type, valeur, max, visible, faction, notes, paliers } (en clair, les seuls
+// visibles, sans leurs notes ; la liste complète est chiffrée au coffre du Carnet : secrets-logique.js, coffre.js) :
 // - horloge : max segments (4 à 12, à la façon de Blades in the Dark) ; elle se remplit puis « sonne » ;
 // - jauge : compteur de 0 à max avec des seuils nommés (l'Exposition en 40k : plus elle monte, plus l'équipe s'est fait remarquer) ;
 // - réputation : points auprès d'une faction, de -max à +max, lus en paliers nommés (Haï … Exalté, PALIERS_REPUTATION).
@@ -129,6 +130,7 @@ export function trouver(liste, ref) {
   if (!r) return null;
   const pli = s => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   return liste.find(e => e.id === r) ?? liste.find(e => pli(e.nom) === pli(r)) ?? liste.find(e => e.id === idDepuisNom(r))
+    ?? liste.find(e => idDepuisNom(e.nom) === idDepuisNom(r))   // un nom écrit autrement (« choeur » pour « Chœur »), id au hasard
     ?? liste.find(e => e.type === "reputation" && e.id === `rep-${idDepuisNom(r)}`)
     ?? liste.find(e => e.type === "reputation" && e.faction && pli(e.faction) === pli(r)) ?? null;
 }

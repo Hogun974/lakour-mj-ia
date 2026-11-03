@@ -85,6 +85,13 @@ voix Foundry de chaque navigateur, choisir les destinataires de la voix des IA (
   gardés jusqu'à l'affichage de la narration. Le MJ estime la fin de la lecture avec le même calendrier que les joueurs avant de
   rendre la parole et l'ambiance (atténuation 0.26.1 gardée). Le WAV complet est déposé ensuite (bouton 🔊, aussi sur les répliques
   de compagnons). Garde-fou : un tour que personne ne termine rend la parole au bout de 30 s.
+- Réplique PRIVÉE (0.34.0 ; ses destinataires ne sont qu'une partie des connectés : un mort qui ne parle qu'aux morts, les loups
+  la nuit) : jamais déposée dans Data, que Foundry sert à qui en connaît l'adresse. En direct, ses morceaux vont aux seuls
+  destinataires ; en repli, le fichier entier aussi, par le canal (`voix-privee { id, n, total, mime, donnees }`, morceaux de
+  256 Ko de base64, 4 Mo au plus, sinon texte seul), lu chez eux depuis un Blob (`URL.createObjectURL`) puis libéré ; pas de
+  réécoute. Au premier démarrage du MJ actif en 0.34.0, les fichiers de `voix/<monde>/` qui ne sont pas la réécoute d'un message
+  public sont écrasés par un silence (Foundry n'offre pas de suppression de fichier côté client) et les messages chuchotés
+  perdent leur bouton 🔊 (voix.js, `nettoyerVoixPrivees`).
 - Côté chaque navigateur : `LecteurVoix` joue en WebAudio dans le contexte « interface » de Foundry (son volume général compte),
   au volume `volumeVoix`, seulement si `entendreNarration` (le décocher coupe net ce qui joue) ; seul un MJ peut envoyer une voix
   (canal.js). Son verrouillé (aucun geste dans la page) : flux ignoré.

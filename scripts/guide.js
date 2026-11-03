@@ -2,7 +2,7 @@
 // joueurs, visible) et recopié dans docs/guide-utilisation.md par outils/ecrire-guide.mjs.
 // Texte au format des journaux du module (paragraphes, **gras**, *italique*, listes « - », titres « # »).
 
-export const VERSION_GUIDE = 9;
+export const VERSION_GUIDE = 12;
 
 export const GUIDE_MJ = [
   { titre: "Démarrer", texte: `
@@ -103,7 +103,16 @@ Onglet **Contacts**. Le MJ IA y note avec son outil **contact** les PNJ que les 
 - **+** et **−** changent l'attitude, l'**œil** montre le contact aux joueurs (sans tes notes ni l'historique).
 - Le MJ IA a dans son contexte les contacts présents sur la scène ou liés au lieu, puis les plus récents (six lignes au plus) : il les fait revenir, et les dettes avec eux.
 - **Modules des mondes** : *api.enquetes* et *api.contacts* — *assurer(def)* crée l'élément s'il n'existe pas (par son id) et le rend ; *lister()* ; *trouver(ref)*. Seul le MJ actif écrit.
-- **Réinitialiser la campagne** efface aussi enquêtes et contacts.` },
+- **Réinitialiser la campagne** efface aussi enquêtes et contacts.
+
+# Ce qui reste secret : le coffre
+Foundry envoie les réglages du monde à tous les navigateurs, et sert les fichiers de Data/ à qui en connaît l'adresse. Le Carnet n'y garde donc en clair que ce que voient les joueurs : les éléments montrés, sans tes notes, sans les indices non trouvés ni les conclusions cachées, sans l'historique ni le PNJ des contacts. Le reste du Carnet est **chiffré** dans un coffre, comme le **fil de l'IA** (Data/lakour-mj-ia/fils/, qui contient l'état du jeu donné à l'IA à chaque tour), dans les trois mondes, et les répliques de voix privées ne sont plus déposées dans Data. Ne sont PAS chiffrés : la mémoire de campagne et les journaux du MJ (scénarios, secrets), qui sont des documents réservés au MJ, protégés par les droits de Foundry. La clé reste dans ton navigateur ; chaque joueur qui l'accuse en garde une **part**, et il en faut une majorité pour la retrouver.
+- **Montrer** un élément le sort du coffre (sans ses notes) ; le **cacher** l'y range. Un élément caché a un identifiant tiré au hasard, qui ne dit pas son nom ; il ne fait pas de carte au chat (tu es prévenu par une notification).
+- **Clé de secours** (Réglages › MJ IA › **Coffre**) : un petit fichier à télécharger et à garder hors du monde, comme un mot de passe ; réimporté sur un autre navigateur, il rouvre tout sans les joueurs. Le MJ IA t'invite à l'exporter quand trop peu de joueurs gardent une part (table de un ou deux joueurs).
+- **Nouveau navigateur** (autre poste, cache vidé) : un bandeau le dit ; les parts sont demandées aux joueurs connectés et la clé aux autres MJ connectés. En attendant, les éléments visibles restent utilisables, mais rien n'est créé, caché, retiré ni changé de secret, l'IA repart d'un fil vide et rien de chiffré n'est écrasé. *api.coffre.chercher()* redemande les parts.
+- **Renouvellement** quand un compte est supprimé, créé ou change de rôle (et à la demande, fenêtre du Coffre ou *api.coffre.renouveler()*) : la nouvelle clé n'entre en vigueur qu'une fois ses parts reçues par assez de joueurs (ou sa clé de secours exportée) ; jusque-là l'ancienne reste en vigueur, et rien n'est jamais scellé sous une clé que personne ne pourrait retrouver.
+- **Mots de passe** : un compte joueur sans mot de passe est une part que n'importe qui peut prendre ; sans mots de passe, le coffre ne protège rien.
+- **Clé perdue** (ni parts, ni autre MJ, ni clé de secours) : *api.coffre.abandonner({ confirmer: true })* renonce aux éléments cachés et aux fils chiffrés (gardés à part, illisibles) ; les visibles restent.` },
   { titre: "Mener les Veillées soi-même, avec des joueurs IA", texte: `
 Sans séance du MJ IA, c'est toi qui mènes la **Table de jeu** des Veillées ; des **joueurs IA** peuvent quand même compléter la table.
 - **Ajouter des joueurs IA** : bouton **+ Joueur IA** de la Table. Chacun reçoit un nom du village et une personnalité ; la distribution des rôles de la Table les compte comme des joueurs.

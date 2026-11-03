@@ -349,40 +349,39 @@ const API = {
     assert.equal(K.trouverContact("nixi").visible, true);
   }
 };
+// [fichier, avant, après, (avant, après)…] : chaque règle cassée à son tour dans une copie des scripts.
 const MUTATIONS_API = {
-  "assurer remplace l'existant": ["  if (existante) return structuredClone(existante);\n", "",
-    "    const deja = dejaLa(liste, def, \"titre\") ?? liste.find(e => e.id === neuve.id);", "    const deja = null;"],
-  "assurer sans id : un doublon à chaque chargement": ["  const nom = plier(def?.[champ]);", "  const nom = \"\";"],
-  "toutes closes : le contexte réclame encore des indices": ["const enCours = E.enqueteEnCours(liste);", "const enCours = E.enqueteEnCours(liste) ?? E.derniereClose(liste);"],
-  "erreur d'un autre MJ tue": ["    envoyer({ type: \"carnet.erreur\", texte: e.message }, [emetteur]);\n", ""],
-  "élément introuvable passé sous silence": ["if (r === null) throw new Error", "if (false) throw new Error"],
-  "tout le monde écrit": ["    if (!estMJActif()) return Promise.resolve(null);\n", ""],
-  "gestes en parallèle sans file": ["const suite = file.then(async () => {", "const suite = (async () => {"],
-  "lister rend l'original": ["lister: () => structuredClone(lire())", "lister: () => lire()"],
-  "résumé sans les contacts de la scène": ["const acteurs = (scene?.tokens?.contents ?? []).flatMap(t => [t.actor?.uuid, t.actorId]).filter(Boolean);", "const acteurs = [];"],
-  "geste d'un autre MJ perdu": ["return versMJ({ type: \"carnet.geste\", ...message });", "return null;"],
-  "case d'indice sans effet": ["case \"indice\": return modifierEnquete(enquete, e => E.marquerIndice(e, entree, Boolean(valeur)));", "case \"indice\": return null;"]
+  "assurer remplace l'existant": ["carnet.js", "  if (existante) return structuredClone(existante);\n", "",
+    "    if (deja) return { liste, resultat: deja };\n    const e = E.normaliserEnquete", "    const e = E.normaliserEnquete"],
+  "assurer sans id : un doublon à chaque chargement": ["carnet.js", "  const nom = plier(def?.[champ]);", "  const nom = \"\";"],
+  "toutes closes : le contexte réclame encore des indices": ["carnet.js", "const enCours = E.enqueteEnCours(liste);", "const enCours = E.enqueteEnCours(liste) ?? E.derniereClose(liste);"],
+  "erreur d'un autre MJ tue": ["carnet.js", "    envoyer({ type: \"carnet.erreur\", texte: e.message }, [emetteur]);\n", ""],
+  "élément introuvable passé sous silence": ["carnet.js", "if (r === null) throw new Error", "if (false) throw new Error"],
+  "tout le monde écrit": ["registre-monde.js", "    if (!estMJActif()) return Promise.resolve(null);\n", ""],
+  "gestes en parallèle sans file": ["coffre.js", "  const suite = file.then(async () => {\n    await ouvrirDansFile();\n    return fn();\n  });",
+    "  const suite = (async () => {\n    await ouvrirDansFile();\n    return fn();\n  })();"],
+  "lister rend l'original": ["secrets-logique.js", "  const liste = structuredClone(Array.isArray(clair) ? clair : []);", "  const liste = Array.isArray(clair) ? clair : [];",
+    "  for (const el of structuredClone(coffre)) {", "  for (const el of coffre) {"],
+  "résumé sans les contacts de la scène": ["carnet.js", "const acteurs = (scene?.tokens?.contents ?? []).flatMap(t => [t.actor?.uuid, t.actorId]).filter(Boolean);", "const acteurs = [];"],
+  "geste d'un autre MJ perdu": ["carnet.js", "return versMJ({ type: \"carnet.geste\", ...message });", "return null;"],
+  "case d'indice sans effet": ["carnet.js", "case \"indice\": return modifierEnquete(enquete, e => E.marquerIndice(e, entree, Boolean(valeur)));", "case \"indice\": return null;"]
 };
-// « gestes en parallèle sans file » : la parenthèse fermante du (async () => { … })() est ajoutée par une seconde substitution.
-const FICHIERS_API = ["carnet.js", "registre-monde.js", "enquetes-logique.js", "contacts-logique.js", "horloges-logique.js", "recherche-nom.js", "canal.js", "constantes.js"];
+const FICHIERS_API = ["carnet.js", "registre-monde.js", "enquetes-logique.js", "contacts-logique.js", "horloges-logique.js", "recherche-nom.js", "canal.js", "fils.js", "utilitaires.js",
+  "constantes.js", "coffre.js", "coffre-logique.js", "secrets-logique.js"];
 test("API : assurer, lister, trouver ; seul le MJ actif écrit ; résumé et gestes (la batterie passe sur le vrai code)", async () => {
   assert.deepEqual(await verifierTout(API, K), []);
 });
 test("mutations (API) : la batterie attrape chaque règle cassée", async () => {
-  for (const [nom, [avant, apres, ...autres]] of Object.entries(MUTATIONS_API)) {
-    const fichier = ["file.then", "structuredClone(lire())", "estMJActif()) return Promise"].some(x => avant.includes(x)) ? "registre-monde.js" : "carnet.js";
+  for (const [nom, [fichier, ...remplacements]] of Object.entries(MUTATIONS_API)) {
     const dossier = mkdtempSync(join(tmpdir(), "lakour-carnet-api-"));
     try {
       for (const f of FICHIERS_API) {
         let t = readFileSync(join(SCRIPTS, f), "utf8").replace(/\r\n/g, "\n");
         if (f === fichier) {
-          assert.ok(t.includes(avant), `mutation obsolète : ${avant}`);
-          t = t.replace(avant, apres);
-          for (let i = 0; i < autres.length; i += 2) {
-            assert.ok(t.includes(autres[i]), `mutation obsolète : ${autres[i]}`);
-            t = t.replace(autres[i], autres[i + 1]);
+          for (let i = 0; i < remplacements.length; i += 2) {
+            assert.ok(t.includes(remplacements[i]), `mutation obsolète : ${remplacements[i]}`);
+            t = t.replace(remplacements[i], remplacements[i + 1]);
           }
-          if (nom === "gestes en parallèle sans file") t = t.replace("      return r.resultat ?? null;\n    });", "      return r.resultat ?? null;\n    })();");
         }
         writeFileSync(join(dossier, f), t);
       }
@@ -406,9 +405,11 @@ test("outil enquete : créer, conclusions, indices (rappel des trois indices), t
   assert.ok(!r.erreur, r.contenu);
   r = await enquete({ action: "ajouter_conclusion", texte: "Le diacre ment" });
   assert.match(r.contenu, /Conclusion ajoutée \[le-diacre-ment\]/);
-  assert.match((await enquete({ action: "creer", texte: "Second mystère" })).contenu, /\[second-mystere\] ; c'est l'enquête en cours/);
+  assert.match((await enquete({ action: "creer", texte: "Second mystère" })).contenu, /\[enquete-[0-9a-f]{16}\] ; c'est l'enquête en cours/,
+    "cachée : identifiant au hasard (il ne dit pas son titre)");
   await enquete({ action: "ajouter_conclusion", texte: "Le second" });
-  assert.deepEqual(etat.reglages.enquetes.map(e => e.conclusions.map(c => c.texte)), [["Le diacre ment"], ["Le second"]], "la conclusion va dans la neuve");
+  assert.deepEqual(K.enquetes.lister().map(e => e.conclusions.map(c => c.texte)), [["Le diacre ment"], ["Le second"]], "la conclusion va dans la neuve");
+  assert.deepEqual(etat.reglages.enquetes, [], "cachées : rien en clair");
   await enquete({ action: "retirer", enquete: "Second mystère" });
   assert.match(r.contenu, /« Le diacre ment » n'a que 0 indice\(s\) encore trouvable\(s\)/, "rappel à chaque modification");
   for (const [texte, ou] of [["Registre falsifié", "sacristie"], ["Témoignage de la sœur", "Sœur Ilsa"]]) await enquete({ action: "ajouter_indice", texte, ou, mene: ["Le diacre ment"] });
@@ -423,7 +424,8 @@ test("outil enquete : créer, conclusions, indices (rappel des trois indices), t
   r = await enquete({ action: "reveler", enquete: "Le Chœur creux", texte: "Le diacre ment" });
   assert.match(r.contenu, /Conclusion révélée/);
   await enquete({ action: "montrer" });
-  assert.equal(etat.reglages.enquetes[0].visible, true, "vide : l'enquête en cours");
+  assert.equal(etat.reglages.enquetes[0].visible, true, "vide : l'enquête en cours (montrée : en clair)");
+  assert.deepEqual(etat.reglages.enquetes[0].indices.map(i => [i.texte, i.ou]), [["Registre falsifié", ""]], "en clair : l'indice trouvé, sans où le trouver");
   r = await enquete({ action: "lister" });
   assert.match(r.contenu, /Indice \[registre-falsifie\] TROUVÉ : Registre falsifié \(où : sacristie\) → Le diacre ment/);
   assert.ok((await enquete({ action: "trouver", enquete: "Inconnue", texte: "x" })).erreur);
@@ -432,21 +434,25 @@ test("outil enquete : créer, conclusions, indices (rappel des trois indices), t
 test("outil contact : ajouter, attitude avec raison, dette puis solder, modifier, montrer", async () => {
   reinitialiser({ systeme: "dnd5e" });
   let r = await contact({ action: "ajouter", nom: "Nixi Pèse-Juste", faction: "Cartel", lieu: "Cabestan", attitude: 1, demande: "un passage discret", acteur: "Actor.nixi" });
-  assert.match(r.contenu, /Contact ajouté : Contact « Nixi Pèse-Juste » \[nixi-pese-juste\] \(Cartel, Cabestan\) : Bienveillant \(\+1\)/);
-  assert.equal(etat.reglages.contacts[0].acteur, "Actor.nixi");
+  assert.match(r.contenu, /Contact ajouté : Contact « Nixi Pèse-Juste » \[contact-[0-9a-f]{16}\] \(Cartel, Cabestan\) : Bienveillant \(\+1\)/,
+    "caché : identifiant au hasard");
+  assert.equal(K.contacts.lister()[0].acteur, "Actor.nixi");
   assert.ok((await contact({ action: "ajouter", nom: "nixi pese-juste" })).erreur, "pas de doublon");
   r = await contact({ action: "attitude", nom: "Nixi Pèse-Juste", attitude: 3, raison: "caisse livrée" });
   assert.match(r.contenu, /Allié \(\+3\)/);
-  assert.match(etat.reglages.contacts[0].historique.at(-1), /caisse livrée/);
+  assert.match(K.contacts.lister()[0].historique.at(-1), /caisse livrée/);
   r = await contact({ action: "dette", nom: "Nixi Pèse-Juste", dette: "le groupe lui doit un service" });
   assert.match(r.contenu, /dette : le groupe lui doit un service/);
   r = await contact({ action: "solder", nom: "Nixi Pèse-Juste" });
   assert.doesNotMatch(r.contenu, /dette :/);
   await contact({ action: "modifier", nom: "Nixi Pèse-Juste", lieu: "Theramore" });
-  assert.equal(etat.reglages.contacts[0].lieu, "Theramore");
-  assert.equal(etat.reglages.contacts[0].faction, "Cartel", "un champ vide ne change rien");
+  assert.equal(K.contacts.lister()[0].lieu, "Theramore");
+  assert.equal(K.contacts.lister()[0].faction, "Cartel", "un champ vide ne change rien");
   await contact({ action: "montrer", nom: "Nixi Pèse-Juste" });
-  assert.equal(etat.reglages.contacts[0].visible, true);
+  assert.equal(etat.reglages.contacts[0].visible, true, "montré : en clair");
+  assert.deepEqual(etat.reglages.contacts[0].historique, [], "en clair, sans son historique");
+  assert.equal(etat.reglages.contacts[0].acteur, "", "en clair, sans son PNJ (liste blanche)");
+  assert.match(K.contacts.lister()[0].historique.at(-1), /Dette soldée/, "le MJ, lui, l'a toujours");
   assert.ok((await contact({ action: "attitude", nom: "Nixi Pèse-Juste", attitude: 0 })).erreur);
   assert.ok((await contact({ action: "dette", nom: "Inconnu", dette: "x" })).erreur);
 });
