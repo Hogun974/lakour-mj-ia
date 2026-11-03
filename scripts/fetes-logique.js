@@ -251,5 +251,5 @@ export function ligneContexte(d, systeme) {
   const nom = d.nom !== nomDeFete(d.fete) ? `${d.nom} (${nomDeFete(d.fete)})` : d.nom;
   return `Fête en cours dans ce monde : ${nom}.${d.consigne ? ` ${/[.!?…]$/.test(d.consigne) ? d.consigne : `${d.consigne}.`}` : ""} Tu peux y faire allusion quand `
     + "c'est naturel, sans insister ni en parler à chaque réponse"
-    + (systeme === "lakour-loups" ? " ; elle ne change rien aux règles, aux rôles ni aux secrets de la partie." : ".");
+    + (systeme === "lakour-loups" ? " ; la date seule ne change rien aux règles : seule une veillée de fête choisie à la distribution (inscrite au Registre) en ajoute, et tu n'en trahis jamais les secrets." : ".");
 }

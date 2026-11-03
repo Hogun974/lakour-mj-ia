@@ -179,7 +179,7 @@ const BATTERIE_LOGIQUE = {
     assert.match(ligne, /^Fête en cours dans ce monde : Vigile des Cierges \(Noël\)\. Les ruches allument des cierges\. /);
     assert.match(ligne, /quand c'est naturel, sans insister/);
     assert.doesNotMatch(ligne, /secrets/);
-    assert.match(L.ligneContexte(d, "lakour-loups"), /ne change rien aux règles, aux rôles ni aux secrets/);
+    assert.match(L.ligneContexte(d, "lakour-loups"), /la date seule ne change rien aux règles : seule une veillée de fête choisie à la distribution/);
     assert.equal(L.ligneContexte(null, "impmal"), "");
   }
 };
@@ -219,7 +219,7 @@ const MUTATIONS_LOGIQUE = {
   "carte chaque fois": ["derniere !== cleCarte(jour, idFete)", "true"],
   "carte chez tout le monde": ["Boolean(mjActif && idFete", "Boolean(idFete"],
   "texte de la carte non échappé": ["<strong>${echapper(d.nom)}</strong>", "<strong>${d.nom}</strong>"],
-  "Veillées : pas de garde sur les secrets": ["(systeme === \"lakour-loups\" ? \" ; elle ne change rien aux règles, aux rôles ni aux secrets de la partie.\" : \".\")", "\".\""]
+  "Veillées : pas de garde sur les secrets": ["(systeme === \"lakour-loups\" ? \" ; la date seule ne change rien aux règles : seule une veillée de fête choisie à la distribution (inscrite au Registre) en ajoute, et tu n'en trahis jamais les secrets.\" : \".\")", "\".\""]
 };
 
 async function chargerCopie(fichiers, principal, mutation) {
