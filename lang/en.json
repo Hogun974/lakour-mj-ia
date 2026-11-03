@@ -458,10 +458,14 @@
         "Exporter": "Download the backup key",
         "Importer": "Import a backup key",
         "Chercher": "Request the shares again",
-        "Renouveler": "Renew the key"
+        "Renouveler": "Renew the key",
+        "Abandonner": "Start over with a new key",
+        "AbandonnerTitre": "Start over with a new key?",
+        "AbandonnerConfirmer": "Only if the key is lost: no browser has it any more, you have no backup key and the players' shares are not enough. A new key is created in this browser; the hidden Notebook entries and AI threads encrypted with the old key become unreadable for good. Visible entries do not change. Then export the backup key."
       },
       "RenouvellementAttente": "Vault key renewal pending: shares distributed {porteurs} / threshold {seuil}. The old key stays in force until {seuil} players have received the new one (or you export the backup key).",
       "SecoursConseille": "Too few share holders to recover the vault key ({porteurs} / threshold {seuil}): export the backup key (Settings › MJ IA › Vault) and keep it outside the world.",
+      "Abandonne": "New key created in this browser. Now export the backup key (\"Download the backup key\" button).",
       "SecoursImporte": "Backup key: {n} key(s) recognised and stored in this browser.",
       "Etats": {
         "joueur": "Player: you only keep one share of the key.",

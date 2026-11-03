@@ -1,5 +1,5 @@
 import { ID } from "../constantes.js";
-import { etatCoffre, secoursConseille, exporterSecours, importerSecours, chercherCoffre, renouveler } from "../coffre.js";
+import { etatCoffre, secoursConseille, exporterSecours, importerSecours, chercherCoffre, renouveler, abandonnerCoffre } from "../coffre.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -16,7 +16,8 @@ export class FenetreCoffre extends HandlebarsApplicationMixin(ApplicationV2) {
       exporter: function () { return agir(this, () => exporterSecours()); },
       importer: function () { return choisirFichier(this); },
       chercher: function () { return agir(this, () => chercherCoffre()); },
-      renouveler: function () { return agir(this, () => renouveler()); }
+      renouveler: function () { return agir(this, () => renouveler()); },
+      abandonner: function () { return abandonner(this); }
     }
   };
 
@@ -40,6 +41,19 @@ async function agir(app, fn) {
     ui.notifications.error(erreur.message);
   }
   app.render();
+}
+
+// La clé perdue (aucun navigateur ne l'a plus, aucune clé de secours, trop peu de parts) : repartir d'une clé neuve, après
+// confirmation. Les éléments cachés du Carnet et les fils de l'IA scellés avec l'ancienne clé deviennent illisibles pour de bon.
+async function abandonner(app) {
+  const ok = await foundry.applications.api.DialogV2.confirm({
+    window: { title: "LAKOUR_MJIA.Coffre.Fenetre.AbandonnerTitre" },
+    content: `<p>${game.i18n.localize("LAKOUR_MJIA.Coffre.Fenetre.AbandonnerConfirmer")}</p>`
+  });
+  if (!ok) return;
+  await agir(app, async () => {
+    if (await abandonnerCoffre({ confirmer: true })) ui.notifications.info(game.i18n.localize("LAKOUR_MJIA.Coffre.Abandonne"));
+  });
 }
 
 // La clé de secours, choisie sur le disque (jamais déposée nulle part).
