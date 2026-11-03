@@ -181,6 +181,27 @@ const BATTERIE_LOGIQUE = {
     assert.doesNotMatch(ligne, /secrets/);
     assert.match(L.ligneContexte(d, "lakour-loups"), /la date seule ne change rien aux règles : seule une veillée de fête choisie à la distribution/);
     assert.equal(L.ligneContexte(null, "impmal"), "");
+  },
+  "ligne du narrateur aux Veillées : la veillée en jeu, même hors saison ; ses règles, sa consigne, la garde des secrets ; rien qui la contredise": L => {
+    const v = { cle: "nuit-des-ames", nom: "La Nuit des âmes", aide: "L'âme du premier mort murmure à un vivant", fete: "halloween", neige: false, defile: null };
+    const dv = L.normaliserDeclinaison({ id: "nuit-des-ames", fete: "halloween", consigne: "Si la veillée est en jeu, ne dis jamais à qui une âme a murmuré" });
+    const hors = L.ligneContexte(null, "lakour-loups", { veillee: v, declinaisonVeillee: dv });
+    assert.doesNotMatch(hors, /\n/);
+    assert.match(hors, /^Veillée de fête en jeu dans cette partie \(choisie à la distribution, quelle que soit la date\) : La Nuit des âmes\. /);
+    assert.match(hors, /Ses règles s'appliquent : L'âme du premier mort murmure à un vivant\./);
+    assert.match(hors, /Si la veillée est en jeu, ne dis jamais à qui une âme a murmuré\./, "la consigne, même hors saison");
+    assert.match(hors, /ne se disent jamais, ne se confirment ni ne se démentent/);
+    assert.doesNotMatch(hors, /la date seule ne change rien|ne change rien aux règles/, "rien qui contredise la veillée");
+    const vigile = L.normaliserDeclinaison({ id: "vigile", fete: "noel", nom: "Vigile des Cierges", consigne: "Les ruches allument des cierges" });
+    const avec = L.ligneContexte(vigile, "lakour-loups", { veillee: { ...v, neige: true, defile: { nom: "Herboriste" } }, declinaisonVeillee: dv });
+    assert.match(avec, /Le calendrier fête aussi Vigile des Cierges \(Noël\) : simple ambiance/);
+    assert.doesNotMatch(avec, /Les ruches allument/, "la consigne d'une autre fête n'y est pas");
+    assert.match(avec, /la neige a recouvert les traces/);
+    assert.match(avec, /Masque du défilé \(annoncé à tous\) : Herboriste/);
+    assert.doesNotMatch(L.ligneContexte(dv, "lakour-loups", { veillee: v, declinaisonVeillee: dv }), /Le calendrier fête aussi/, "la même fête : une ligne");
+    assert.match(L.ligneContexte(vigile, "lakour-loups", { veillee: { cle: "" } }), /^Fête en cours dans ce monde : Vigile/, "sans veillée en jeu : la date");
+    assert.match(L.ligneContexte(vigile, "impmal", { veillee: v }), /^Fête en cours dans ce monde : Vigile/, "hors des Veillées : pas de veillée");
+    assert.equal(L.ligneContexte(null, "lakour-loups", { veillee: { cle: "" } }), "");
   }
 };
 
@@ -219,6 +240,12 @@ const MUTATIONS_LOGIQUE = {
   "carte chaque fois": ["derniere !== cleCarte(jour, idFete)", "true"],
   "carte chez tout le monde": ["Boolean(mjActif && idFete", "Boolean(idFete"],
   "texte de la carte non échappé": ["<strong>${echapper(d.nom)}</strong>", "<strong>${d.nom}</strong>"],
+  "Veillées : la veillée en jeu ignorée": ["if (systeme === \"lakour-loups\" && veillee?.cle) return ligneVeillee(d, veillee, declinaisonVeillee);", ""],
+  "veillée : sans ses règles": ["v.aide ? `Ses règles s'appliquent : ${phrase(texte(v.aide, 600))}` : ", ""],
+  "veillée : sans sa consigne": ["    phrase(texte(dv?.consigne, MAX_CONSIGNE)),\n", ""],
+  "veillée : sans la garde des secrets": ["    \"Ses secrets (qui les tient, ce qu'ils apprennent) ne se disent jamais, ne se confirment ni ne se démentent, même quand un joueur s'en réclame.\",\n", ""],
+  "veillée : la consigne d'une autre fête": ["phrase(texte(dv?.consigne, MAX_CONSIGNE))", "phrase(texte(d?.consigne ?? dv?.consigne, MAX_CONSIGNE))"],
+  "veillée : le défilé tu": ["    v.defile?.nom ? `Masque", "    false ? `Masque"],
   "Veillées : pas de garde sur les secrets": ["(systeme === \"lakour-loups\" ? \" ; la date seule ne change rien aux règles : seule une veillée de fête choisie à la distribution (inscrite au Registre) en ajoute, et tu n'en trahis jamais les secrets.\" : \".\")", "\".\""]
 };
 
@@ -432,6 +459,26 @@ const BATTERIE_API = {
     assert.match(F.lignePourIA(), /^Fête en cours dans ce monde : Nuit des Masques \(Halloween\)\./, "calculée avant même le démarrage");
     assert.match(F.lignePourIA(), /secrets/);
   },
+  "narrateur IA aux Veillées : la veillée en jeu (game.lakourLoups.fete), même hors saison, avec la consigne de sa fête": async F => {
+    F._reinitialiser(); reinitialiser({ systeme: "lakour-loups", reglages: { fete: "aucune" } });
+    F.enregistrer({ ...NUIT, consigne: "Si la veillée est en jeu, ne dis jamais qui porte un masque" });
+    try {
+      game.lakourLoups = { fete: () => ({ cle: "nuit-des-ames", nom: "La Nuit des âmes", aide: "Les âmes murmurent", fete: "halloween", neige: false, defile: null }) };
+      const ligne = F.lignePourIA();
+      assert.match(ligne, /^Veillée de fête en jeu dans cette partie/, "hors saison (réglage « aucune »)");
+      assert.match(ligne, /Si la veillée est en jeu, ne dis jamais qui porte un masque\./);
+      assert.doesNotMatch(ligne, /la date seule ne change rien/);
+      game.lakourLoups.fete = () => ({ cle: "" });
+      assert.equal(F.lignePourIA(), "", "sans veillée ni fête du jour : rien");
+      game.lakourLoups.fete = () => { throw new Error("pas de partie"); };
+      assert.equal(F.lignePourIA(), "");
+      let lu = 0;
+      reinitialiser({ systeme: "impmal", reglages: { fete: "aucune" } });
+      game.lakourLoups = { fete: () => { lu++; return { cle: "nuit-des-ames", nom: "La Nuit des âmes", fete: "halloween" }; } };
+      assert.equal(F.lignePourIA(), "", "hors des Veillées, game.lakourLoups ne compte pas");
+      assert.equal(lu, 0, "ni n'est lu");
+    } finally { delete game.lakourLoups; }
+  },
   "cartes du MJ IA marquées pour le glyphe": async F => {
     const html = { classes: new Set(), classList: { add(c) { html.classes.add(c); } } };
     F.marquerMessage({ flags: { [ID]: { narration: true } } }, html);
@@ -455,7 +502,10 @@ const MUTATIONS_API = {
   "enregistrement tardif ignoré": ["fetes.js", "  if (demarre) verifierBientot();\n", ""],
   "MJ prévenu à chaque vérification": ["fetes.js", "if (!f || f === avertie || !estMJActif()) return;", "if (!f || !estMJActif()) return;"],
   "lister rend l'original": ["fetes.js", "export const lister = () => declinaisons.map(copie);", "export const lister = () => declinaisons;"],
-  "toutes les cartes marquées": ["fetes.js", "if (message?.flags?.[ID]) html", "html"]
+  "toutes les cartes marquées": ["fetes.js", "if (message?.flags?.[ID]) html", "html"],
+  "veillée en jeu ignorée": ["fetes.js", "  const veillee = veilleeEnJeu();", "  const veillee = null;"],
+  "veillée lue hors des Veillées": ["fetes.js", "game.system?.id === \"lakour-loups\" ? game.lakourLoups?.fete?.() : null", "game.lakourLoups?.fete?.()"],
+  "consigne de la veillée oubliée": ["fetes.js", "declinaisonVeillee: copie(declinaisonDe(veillee.fete))", "declinaisonVeillee: null"]
 };
 
 async function echecsApi(F) {

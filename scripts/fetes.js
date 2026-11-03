@@ -48,8 +48,19 @@ export function active() {
 export const calendrier = (date = new Date()) => L.fetesDuJour(date);
 export const decors = () => ({ palettes: Object.keys(L.PALETTES), ornements: Object.keys(L.ORNEMENTS), parDefaut: structuredClone(L.DECORS_PAR_DEFAUT) });
 
-// La ligne de l'état du jeu donnée au narrateur IA (contexte.js) : vide sans fête.
-export const lignePourIA = () => L.ligneContexte(active(), game.system?.id);
+// La veillée de fête EN JEU aux Veillées (système lakour-loups : game.lakourLoups.fete(), d'après l'état public), ou null.
+function veilleeEnJeu() {
+  try {
+    const v = game.system?.id === "lakour-loups" ? game.lakourLoups?.fete?.() : null;
+    return v?.cle ? v : null;
+  } catch { return null; }
+}
+// La ligne de l'état du jeu donnée au narrateur IA (contexte.js) : vide sans fête. Aux Veillées, une veillée en jeu passe devant la
+// date (même hors saison), avec la consigne de la déclinaison de sa fête.
+export function lignePourIA() {
+  const veillee = veilleeEnJeu();
+  return L.ligneContexte(active(), game.system?.id, veillee ? { veillee, declinaisonVeillee: copie(declinaisonDe(veillee.fete)) } : {});
+}
 
 // ------------------------------------------------------------------ calcul, effets, carte, crochet
 

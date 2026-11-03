@@ -151,7 +151,10 @@ body.lakour-fete-effets.lakour-fete-noel .ma-fiche header { border-bottom: 2px s
 - **Narrateur IA** : une ligne dans l'état du jeu (`contexte.js`, `etatDuJeu`) :
   « Fête en cours dans ce monde : Vigile des Cierges (Noël). <consigne>. Tu peux y faire allusion quand c'est naturel, sans
   insister ni en parler à chaque réponse. » Aux Veillées (`lakour-loups`), elle ajoute que la date seule ne change rien aux
-  règles : seule une veillée de fête choisie à la distribution (inscrite au Registre) en ajoute, sans trahir ses secrets. Les compagnons IA ne la reçoivent pas.
+  règles : seule une veillée de fête choisie à la distribution (inscrite au Registre) en ajoute, sans trahir ses secrets.
+  Quand une veillée de fête est en jeu aux Veillées (`game.lakourLoups.fete()`), la ligne vient d'elle, même hors saison :
+  `ligneContexte(d, systeme, { veillee, declinaisonVeillee })` appelle `ligneVeillee`, qui donne son nom, ses règles publiques,
+  la consigne de la déclinaison et la garde des secrets. Les compagnons IA ne la reçoivent pas.
 - **Aux Veillées, aucune incidence sur les secrets** : rien de la partie n'est lu ni écrit ; la carte et la ligne ne parlent
   que de la fête. N'y mettez rien qui dépende des rôles.
 - **Changement de jour** : revu juste après minuit (et au moins une fois par heure), au chargement, et quand le réglage

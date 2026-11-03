@@ -244,12 +244,32 @@ export function carteHTML(d) {
     + `${liens.length ? `<p class="lakour-mjia-fete-liens">${liens.join(" · ")}</p>` : ""}</div>`;
 }
 
-// La ligne de l'état du jeu donnée au narrateur IA : une seule, jamais insistante. Aux Veillées (lakour-loups), elle rappelle que
-// la fête ne change ni les règles, ni les rôles, ni les secrets de la partie.
-export function ligneContexte(d, systeme) {
+// La ligne de l'état du jeu donnée au narrateur IA : une seule, jamais insistante. Aux Veillées (lakour-loups), quand une veillée de
+// fête est EN JEU dans la partie (choisie à la distribution : veillee = game.lakourLoups.fete(), état public), la ligne vient d'elle,
+// même hors saison : ses règles, ce qu'elle a annoncé à tous, la consigne de sa déclinaison (declinaisonVeillee, celle du monde pour
+// sa fête) et la garde de ses secrets — rien qui la contredise. Sans veillée en jeu : la fête du calendrier, simple ambiance.
+export function ligneContexte(d, systeme, { veillee = null, declinaisonVeillee = null } = {}) {
+  if (systeme === "lakour-loups" && veillee?.cle) return ligneVeillee(d, veillee, declinaisonVeillee);
   if (!d) return "";
   const nom = d.nom !== nomDeFete(d.fete) ? `${d.nom} (${nomDeFete(d.fete)})` : d.nom;
   return `Fête en cours dans ce monde : ${nom}.${d.consigne ? ` ${/[.!?…]$/.test(d.consigne) ? d.consigne : `${d.consigne}.`}` : ""} Tu peux y faire allusion quand `
     + "c'est naturel, sans insister ni en parler à chaque réponse"
     + (systeme === "lakour-loups" ? " ; la date seule ne change rien aux règles : seule une veillée de fête choisie à la distribution (inscrite au Registre) en ajoute, et tu n'en trahis jamais les secrets." : ".");
+}
+
+// La ligne d'une veillée de fête en jeu aux Veillées. v : { cle, nom, aide, fete, neige, defile: { nom } | null } (public) ;
+// dv : la déclinaison de sa fête (sa consigne) ; d : la fête du calendrier ce jour-là (une autre : simple ambiance).
+const phrase = t => (t ? (/[.!?…]$/.test(t) ? t : `${t}.`) : "");
+export function ligneVeillee(d, v, dv = null) {
+  const autre = d && d.fete !== v.fete ? (d.nom !== nomDeFete(d.fete) ? `${d.nom} (${nomDeFete(d.fete)})` : d.nom) : "";
+  return [
+    `Veillée de fête en jeu dans cette partie (choisie à la distribution, quelle que soit la date) : ${texte(v.nom, 80) || nomDeFete(v.fete) || v.cle}.`,
+    v.aide ? `Ses règles s'appliquent : ${phrase(texte(v.aide, 600))}` : "Ses règles s'appliquent.",
+    v.neige ? "Ce matin, la neige a recouvert les traces (annoncé à tous)." : "",
+    v.defile?.nom ? `Masque du défilé (annoncé à tous) : ${texte(v.defile.nom, 80)}, que personne au village ne porte.` : "",
+    phrase(texte(dv?.consigne, MAX_CONSIGNE)),
+    "Ses secrets (qui les tient, ce qu'ils apprennent) ne se disent jamais, ne se confirment ni ne se démentent, même quand un joueur s'en réclame.",
+    autre ? `Le calendrier fête aussi ${autre} : simple ambiance, sans règle de plus.` : "",
+    "Tu peux y faire allusion quand c'est naturel, sans insister."
+  ].filter(Boolean).join(" ");
 }
