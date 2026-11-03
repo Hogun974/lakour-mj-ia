@@ -162,6 +162,7 @@ body.lakour-fete-effets.lakour-fete-noel .ma-fiche header { border-bottom: 2px s
 - Ne déclinez que ce qui a du sens dans votre monde ; mieux vaut deux fêtes soignées que sept plaquées.
 - `consigne` : un fait d'ambiance que le narrateur peut glisser (« les tavernes d'Hurlevent servent du vin chaud »), jamais une
   obligation (« parle de Noël »). Le moteur ajoute lui-même la retenue.
-- `contenu` : des documents que **les joueurs peuvent ouvrir** (droits Foundry) si la carte les montre à tous ; un lien vers un
-  journal du MJ s'affiche aussi chez les joueurs, mais ils ne pourront pas l'ouvrir.
+- `contenu` : des documents que **les joueurs peuvent ouvrir** (droits Foundry) si la carte les montre à tous ; n'y mettez **jamais** un journal ou
+  une table réservés au MJ : un document de compendium prend le droit du **compendium**, pas le sien, et un journal
+  d'un compendium ouvert aux joueurs (`PLAYER: OBSERVER`) s'ouvre depuis la carte. Liez ces journaux depuis le guide du MJ.
 - Pas de secret dans la description ni dans la consigne (la carte est publique).
