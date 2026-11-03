@@ -31,6 +31,7 @@ Ce guide est aussi installé dans chaque monde par le MJ IA (journaux « MJ IA �
 - **Mettre en place le plateau avant de raconter** : l'IA pose PNJ, foules et personnages à l'endroit décrit avant d'afficher son récit.
 - **Réactions** : l'IA peut réagir aux déplacements des joueurs, aux portes ouvertes, et jouer les PNJ en combat.
 - **Style visuel** : cartes et jetons plats ou en relief.
+- **Fête de saison** : automatique (selon la date), aucune, ou une fête forcée ; chaque joueur coupe chez lui les *Effets visuels des fêtes*.
 
 ### Ce que l'IA sait faire
 
@@ -157,6 +158,16 @@ Quand une IA doit entendre (une séance du MJ IA est lancée, ou un compagnon IA
 - **Réglages** : *Écouter la parole des joueurs* (le couper arrête tout), *Modèle de transcription* (vide : le moins cher, environ 0,3 centime par minute de parole), *Montrer les transcriptions au MJ* (chuchotées aux MJ ; aux Veillées, affichées dans le chat des seuls MJ sans y être enregistrées). Le coût va au compteur de la séance, ou à *Compagnons hors séance*, borné par le budget.
 - **Limites** : sans serveur relais (TURN), la voix de Foundry passe de navigateur à navigateur ; un joueur derrière un réseau strict peut ne pas être entendu du MJ, ni donc transcrit. Un joueur sans casque peut renvoyer la voix des IA dans son micro : ce qui ressemble à ce qu'une IA vient de dire est ignoré.
 
+### Fêtes de saison
+
+#### Noël, Halloween et les autres, à la mode de chaque monde
+Quand une fête populaire approche, le monde peut la célébrer à sa façon : le module du monde en écrit une **déclinaison** (en 40k, une veillée de l'Imperium plutôt que Noël), et le MJ IA s'occupe du reste. Une fête que le monde ne décline pas ne fait rien.
+- **Les fêtes et leurs dates** (selon la date de ton ordinateur) : **Nouvel An** (31 décembre – 2 janvier), **Saint-Valentin** (12 – 15 février), **Carnaval** (du Jeudi gras au Mardi gras, date mobile), **Pâques** (du Vendredi saint au lundi, date mobile), **Fête de la musique** (20 – 22 juin, le solstice), **Halloween** (25 octobre – 2 novembre), **Noël** (tout décembre, le cœur du 24 au 26). Le 31 décembre, le Nouvel An passe devant Noël.
+- **Réglage** *Fête de saison* (Réglages › MJ IA) : **Automatique**, **Aucune**, ou **Forcer** une fête (jouer Halloween en juillet). Forcer une fête que ce monde ne décline pas ne fait rien (un avis te le dit).
+- **Ce qui change** : une **carte** sobre au chat, une fois par jour, avec le nom de la fête du monde et ses liens (journaux, tables, objets) ; un **décor léger** (une guirlande en haut du chat, quelques flocons, confettis ou cœurs qui tombent, un petit ornement sur les cartes du MJ IA) ; le **MJ IA** sait que la fête est là et peut y faire allusion quand c'est naturel, sans insister. Aux Veillées, la fête ne change rien aux règles, aux rôles ni aux secrets.
+- **Effets visuels des fêtes** (réglage de chacun, chez soi) : décoché, plus aucun décor ; le *mouvement réduit* de l'ordinateur est respecté (rien ne tombe).
+- **Modules des mondes** : *api.fetes.enregistrer({ id, fete, nom, description, consigne, decor, contenu })* au crochet *lakour-mj-ia.pret*, *api.fetes.active()*, *api.fetes.lister()* ; le crochet *lakour-mj-ia.fete* (ancienne, nouvelle) quand la fête change (docs/fetes.md).
+
 ### Sauvegardes et dépannage
 
 - Les mondes sont sauvegardés chaque nuit à 4 h 30 sur le serveur (14 jours). Avant chaque mise à jour des modules, une sauvegarde complète est faite aussi.
@@ -176,6 +187,7 @@ Quand une IA doit entendre (une séance du MJ IA est lancée, ou un compagnon IA
 - **Ta fiche** : le MJ peut la créer avec toi, et la tient à jour (expérience, argent, objets) ; tu peux toujours la consulter.
 - **Les cartes** : tu peux déplacer ton jeton ; le MJ réagit à ce que tu découvres. S'il bloque tes déplacements, c'est voulu (scène en cours).
 - **Les compagnons IA** : des personnages joués par l'IA peuvent compléter la table. Ils parlent sous leur nom et jouent comme toi, sans tricher : ils ne savent que ce que sait leur personnage.
+- **Les fêtes** : à Noël, Halloween et quelques autres fêtes, le monde peut se décorer un peu (guirlande, flocons…). Réglages › MJ IA › « Effets visuels des fêtes » pour les couper chez toi.
 
 ### Tour par tour (40k et Warcraft)
 

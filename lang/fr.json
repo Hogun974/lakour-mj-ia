@@ -161,6 +161,25 @@
       "appelJoueur": {
         "Nom": "M'appeler quand c'est à moi",
         "Aide": "Un tintement discret, chez moi seul, quand un vote, un choix secret, mon tour de combat ou ma parole au tour de table m'attend ; si je regarde un autre onglet, son titre clignote jusqu'à mon retour. Au combat, si un thème de combat de Foundry est choisi, c'est son son qui joue."
+      },
+      "Fete": {
+        "Nom": "Fête de saison",
+        "Aide": "Automatique : la fête du jour (date de ton ordinateur), si ce monde la décline — Nouvel An, Saint-Valentin, Carnaval, Pâques, Fête de la musique, Halloween, Noël. Décor léger, carte au chat une fois par jour, et le MJ IA peut y faire allusion. « Aucune » coupe tout ; une fête forcée se joue hors saison.",
+        "Choix": {
+          "auto": "Automatique (selon la date)",
+          "aucune": "Aucune",
+          "nouvel-an": "Forcer : Nouvel An",
+          "noel": "Forcer : Noël",
+          "paques": "Forcer : Pâques",
+          "carnaval": "Forcer : Carnaval",
+          "halloween": "Forcer : Halloween",
+          "saint-valentin": "Forcer : Saint-Valentin",
+          "musique": "Forcer : Fête de la musique"
+        }
+      },
+      "EffetsDeFete": {
+        "Nom": "Effets visuels des fêtes",
+        "Aide": "Chez toi seulement : ornements, guirlande du chat et flocons (ou confettis…) pendant une fête. Décoche-le pour un écran sobre ou une petite machine ; le mouvement réduit de ton système est respecté."
       }
     },
     "Console": {

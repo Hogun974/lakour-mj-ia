@@ -380,3 +380,62 @@
 .lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-contact-texte p { margin: 0.1rem 0; }
 .lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-contact-nom small { opacity: 0.7; }
 .lakour-mj-ia.lakour-mjia-carnet .lakour-mjia-contact-attitude { font-size: var(--font-size-12, 0.8rem); font-weight: bold; }
+
+/* Fêtes de saison (fetes.js, docs/fetes.md) : un décor léger, en CSS seulement, quand le monde décline la fête en cours et que
+   le réglage client « Effets visuels des fêtes » est coché (body.lakour-fete-effets). Palettes : --lakour-fete-c1, c2, c3. */
+body.lakour-fete-palette-sapin { --lakour-fete-c1: #1f6b3a; --lakour-fete-c2: #b3202a; --lakour-fete-c3: #e2b33c; }
+body.lakour-fete-palette-givre { --lakour-fete-c1: #dff3ff; --lakour-fete-c2: #8ec9f0; --lakour-fete-c3: #ffffff; }
+body.lakour-fete-palette-braise { --lakour-fete-c1: #e8711a; --lakour-fete-c2: #2a1a10; --lakour-fete-c3: #f3c04a; }
+body.lakour-fete-palette-crepuscule { --lakour-fete-c1: #6b3fa0; --lakour-fete-c2: #e8711a; --lakour-fete-c3: #2b2140; }
+body.lakour-fete-palette-rose { --lakour-fete-c1: #d6336c; --lakour-fete-c2: #f7a1c4; --lakour-fete-c3: #fff0f5; }
+body.lakour-fete-palette-printemps { --lakour-fete-c1: #f6d860; --lakour-fete-c2: #9ad19a; --lakour-fete-c3: #c9a0dc; }
+body.lakour-fete-palette-carnaval { --lakour-fete-c1: #e63946; --lakour-fete-c2: #2a9d8f; --lakour-fete-c3: #f4a261; }
+body.lakour-fete-palette-soleil { --lakour-fete-c1: #f9c74f; --lakour-fete-c2: #f3722c; --lakour-fete-c3: #277da1; }
+body.lakour-fete-palette-or { --lakour-fete-c1: #c9a227; --lakour-fete-c2: #3b2a10; --lakour-fete-c3: #f5e6b3; }
+body.lakour-fete-palette-nuit { --lakour-fete-c1: #1d2b53; --lakour-fete-c2: #c0c8e0; --lakour-fete-c3: #f5d76e; }
+/* Le glyphe posé après le nom de l’orateur sur les cartes du MJ IA (classe lakour-mjia-message, fetes.js). */
+body.lakour-fete-glyphe-neige { --lakour-fete-glyphe: "❄"; }
+body.lakour-fete-glyphe-confettis { --lakour-fete-glyphe: "✦"; }
+body.lakour-fete-glyphe-coeurs { --lakour-fete-glyphe: "♥"; }
+body.lakour-fete-glyphe-notes { --lakour-fete-glyphe: "♪"; }
+body.lakour-fete-glyphe-feuilles { --lakour-fete-glyphe: "🍂"; }
+body.lakour-fete-glyphe-guirlandes { --lakour-fete-glyphe: "✶"; }
+body.lakour-fete-glyphe-etoiles { --lakour-fete-glyphe: "✧"; }
+body.lakour-fete-glyphe-citrouilles { --lakour-fete-glyphe: "🎃"; }
+body.lakour-fete-glyphe-lanternes { --lakour-fete-glyphe: "🏮"; }
+body.lakour-fete-glyphe-oeufs { --lakour-fete-glyphe: "🥚"; }
+body.lakour-fete-glyphe-bougies { --lakour-fete-glyphe: "🕯"; }
+body.lakour-fete-glyphe-masques { --lakour-fete-glyphe: "🎭"; }
+body.lakour-fete-effets .chat-message.lakour-mjia-message .message-sender::after {
+  content: var(--lakour-fete-glyphe, ""); margin-left: 0.3em; color: var(--lakour-fete-c1); font-size: 0.9em; opacity: 0.85;
+}
+/* Guirlande d'ampoules en haut du chat (ornement « guirlandes »). */
+body.lakour-fete-orn-guirlandes #chat::before {
+  content: ""; display: block; flex: none; height: 9px; margin: 0 0 2px; pointer-events: none; opacity: 0.9;
+  background:
+    radial-gradient(circle at 6px 6px, var(--lakour-fete-c1) 2.5px, transparent 3px) 0 0 / 36px 9px repeat-x,
+    radial-gradient(circle at 18px 6px, var(--lakour-fete-c2) 2.5px, transparent 3px) 0 0 / 36px 9px repeat-x,
+    radial-gradient(circle at 30px 6px, var(--lakour-fete-c3) 2.5px, transparent 3px) 0 0 / 36px 9px repeat-x,
+    linear-gradient(rgba(60, 60, 60, 0.6), rgba(60, 60, 60, 0.6)) 0 2px / 100% 1px no-repeat;
+}
+/* La carte du jour au chat : sobre. */
+.lakour-mjia-fete-carte { border-left: 3px solid var(--lakour-fete-c1, #c9a227); padding-left: 0.4rem; }
+.lakour-mjia-fete-carte p { margin: 0.15rem 0; }
+.lakour-mjia-fete-carte small { opacity: 0.7; }
+/* Quelques ornements qui tombent lentement (neige, confettis, cœurs, notes, feuilles) : douze au plus, sans canvas, sans clic. */
+#lakour-fete-decor { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 40; }
+#lakour-fete-decor span {
+  position: absolute; top: -2rem; color: var(--lakour-fete-c3, #fff); opacity: 0.55; line-height: 1;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.35); animation-name: lakour-fete-chute; animation-timing-function: linear;
+  animation-iteration-count: infinite; will-change: transform;
+}
+#lakour-fete-decor.lakour-fete-chute-neige span { color: #fff; }
+#lakour-fete-decor.lakour-fete-chute-confettis span:nth-child(3n + 1) { color: var(--lakour-fete-c1); }
+#lakour-fete-decor.lakour-fete-chute-confettis span:nth-child(3n + 2) { color: var(--lakour-fete-c2); }
+#lakour-fete-decor.lakour-fete-chute-coeurs span { color: var(--lakour-fete-c1); }
+@keyframes lakour-fete-chute {
+  from { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(1.5rem, 52vh, 0) rotate(160deg); }
+  to { transform: translate3d(-0.5rem, 106vh, 0) rotate(320deg); }
+}
+@media (prefers-reduced-motion: reduce) { #lakour-fete-decor { display: none; } }

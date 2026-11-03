@@ -13,7 +13,8 @@ outils/      partagé par les mondes : valider-foundry.mjs, jetons-commun.mjs (d
              icones-foundry14.txt, embarquer-sdk.mjs, fabriquer-sons.mjs, ecrire-guide.mjs,
              lier-modules.ps1, reconstruire-lakour-v14.sh, serveur/
 essais/      essais node du moteur (aucun réseau, aucun coût), doublures/foundry-decisions.mjs
-docs/        guide-utilisation.md (recopié de scripts/guide.js), compagnons.md
+docs/        guide-utilisation.md (recopié de scripts/guide.js), compagnons.md, fetes.md (fêtes de saison :
+             le contrat des modules des mondes)
 ```
 
 ## Cloner, éprouver, fabriquer

@@ -5,6 +5,7 @@ import { voixRealtime } from "./voix-texte.js";
 import { ConfigIA } from "./apps/config-ia.js";
 import { EditeurPersonnalites } from "./apps/personnalites.js";
 import { FenetreCoffre } from "./apps/coffre.js";
+import { REGLAGES, REGLAGE_AUTO } from "./fetes-logique.js";
 
 export function enregistrerReglages() {
   // --- Secrets : portée "client" = stockés dans CE navigateur uniquement (localStorage).
@@ -107,6 +108,22 @@ export function enregistrerReglages() {
     choices: { "2d": "LAKOUR_MJIA.Reglages.Style.Plat", "3d": "LAKOUR_MJIA.Reglages.Style.Relief" },
     onChange: style => Hooks.callAll("lakourStyleVisuel", style)
   });
+
+  // --- Fêtes de saison (fetes.js, docs/fetes.md) : automatique (selon la date locale), aucune, ou une fête forcée (Halloween en
+  // juillet). Une fête que le monde ne décline pas (api.fetes.enregistrer) ne fait rien. Chaque navigateur coupe chez lui les effets
+  // visuels (accessibilité, petites machines) ; « feteCarte » retient la dernière carte du jour (« AAAA-MM-JJ|fête »).
+  game.settings.register(ID, "fete", {
+    name: "LAKOUR_MJIA.Reglages.Fete.Nom", hint: "LAKOUR_MJIA.Reglages.Fete.Aide",
+    scope: "world", config: true, type: String, default: REGLAGE_AUTO,
+    choices: Object.fromEntries(REGLAGES.map(r => [r, `LAKOUR_MJIA.Reglages.Fete.Choix.${r}`])),
+    onChange: () => game.modules.get(ID)?.api?.fetes?.verifier?.()
+  });
+  game.settings.register(ID, "effetsDeFete", {
+    name: "LAKOUR_MJIA.Reglages.EffetsDeFete.Nom", hint: "LAKOUR_MJIA.Reglages.EffetsDeFete.Aide",
+    scope: "client", config: true, type: Boolean, default: true,
+    onChange: () => game.modules.get(ID)?.api?.fetes?.rafraichir?.()
+  });
+  game.settings.register(ID, "feteCarte", { scope: "world", config: false, type: String, default: "" });
 
   // --- Réactions au plateau : ce que font les joueurs avec leurs jetons, et le tour des PNJ en combat.
   for (const [cle, def] of [["miseEnPlace", true], ["reagirDeplacements", true], ["reagirPortes", true], ["jouerPnj", true]]) {

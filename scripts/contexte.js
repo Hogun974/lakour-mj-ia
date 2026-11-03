@@ -12,6 +12,7 @@ import { resumePourIA as resumeHorloges } from "./horloges.js";
 import { horlogesDisponibles } from "./horloges-logique.js";
 import { resumeCarnetPourIA } from "./carnet.js";
 import { etatCoffre } from "./coffre.js";
+import { lignePourIA as ligneFete } from "./fetes.js";
 
 // Consigne au MJ sur les compagnons IA (docs/compagnons.md) : des joueurs comme les autres, à qui il ne souffle rien.
 export const CONSIGNE_COMPAGNONS = [
@@ -258,6 +259,8 @@ export function etatDuJeu() {
     // Coffre du Carnet fermé dans ce navigateur (coffre.js) : l'IA ne voit que le visible et ne doit rien créer ni cacher.
     if (etatCoffre().etat === "attente") lignes.push(AVIS_COFFRE_FERME);
   }
+  // Fête de saison déclinée par ce monde (fetes.js) : une ligne, jamais insistante ; aux Veillées, sans effet sur les secrets.
+  try { const fete = ligneFete(); if (fete) lignes.push(fete); } catch { /* pas de fête */ }
   // Tour par tour (tour-par-tour.js) : le même état et la même étape suivante que le panneau du MJ humain, pour rester cohérent
   // (détails : outil combat_etat) ; le tour de table en cours.
   try { lignes.push(...(game.modules.get(ID)?.api?.tour?.resumePourIA?.() ?? [])); } catch { /* pas de tour par tour */ }

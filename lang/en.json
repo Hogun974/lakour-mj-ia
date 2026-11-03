@@ -161,6 +161,25 @@
       "appelJoueur": {
         "Nom": "Call me when it is my turn",
         "Aide": "A soft chime, for me only, when a vote, a secret choice, my combat turn or my turn to speak is waiting for me; if I am looking at another tab, its title blinks until I come back. In combat, if a Foundry combat theme is chosen, its own sound plays instead."
+      },
+      "Fete": {
+        "Nom": "Seasonal festival",
+        "Aide": "Automatic: today's festival (your computer's date), if this world has a version of it — New Year, Valentine's Day, Carnival, Easter, Music Day, Halloween, Christmas. Light decoration, a chat card once a day, and the AI GM may allude to it. \"None\" turns it all off; a forced festival plays out of season.",
+        "Choix": {
+          "auto": "Automatic (by date)",
+          "aucune": "None",
+          "nouvel-an": "Force: New Year",
+          "noel": "Force: Christmas",
+          "paques": "Force: Easter",
+          "carnaval": "Force: Carnival",
+          "halloween": "Force: Halloween",
+          "saint-valentin": "Force: Valentine's Day",
+          "musique": "Force: Music Day"
+        }
+      },
+      "EffetsDeFete": {
+        "Nom": "Festival visual effects",
+        "Aide": "On your screen only: ornaments, chat garland and snowflakes (or confetti…) during a festival. Uncheck for a plain screen or a small machine; your system's reduced motion setting is respected."
       }
     },
     "Console": {

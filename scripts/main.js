@@ -22,6 +22,7 @@ import { brancherTourParTour, ouvrirPanneau } from "./apps/tour-par-tour.js";
 import * as horloges from "./horloges.js";
 import * as carnet from "./carnet.js";
 import * as coffre from "./coffre.js";
+import * as fetes from "./fetes.js";
 import { lireArchive } from "./fils.js";
 import { ouvrirCoffre as ouvrirFenetreCoffre } from "./apps/coffre.js";
 import { ouvrirCarnet, ouvrirHorloges, rafraichirCarnet } from "./apps/carnet.js";
@@ -108,6 +109,19 @@ Hooks.once("ready", () => {
       scellerAvec: (contenu, cle) => coffre.scellerAvec(contenu, cle),
       siRenouvele: fn => coffre.siRenouvele(fn),
       siDisponible: fn => coffre.siCleDisponible(fn)
+    },
+    // Fêtes de saison (fetes.js, docs/fetes.md), dans les trois mondes. Contrat des modules des mondes, au crochet « lakour-mj-ia.pret » :
+    // enregistrer({ id, fete, nom, description, consigne, decor, contenu }) rend la déclinaison (erreur si la fête est inconnue ou
+    // déjà déclinée) ; active() : la déclinaison de la fête en cours dans ce navigateur, ou null ; lister(). Crochet
+    // « lakour-mj-ia.fete » (ancienne, nouvelle) quand elle change.
+    fetes: {
+      enregistrer: def => fetes.enregistrer(def),
+      active: () => fetes.active(),
+      lister: () => fetes.lister(),
+      calendrier: (date = new Date()) => fetes.calendrier(date),
+      decors: () => fetes.decors(),
+      verifier: () => fetes.verifier(),
+      rafraichir: () => fetes.appliquerEffets()
     }
   };
   // Gestes de la fenêtre Carnet de campagne faits par un autre MJ : transmis au MJ actif.
@@ -179,6 +193,8 @@ Hooks.once("ready", () => {
   // L'API est prête : les modules des mondes peuvent y déclarer leurs horloges (api.horloges.assurer), quel que soit l'ordre
   // de chargement des modules.
   Hooks.callAll(`${ID}.pret`, game.modules.get(ID).api);
+  // Fêtes de saison : les déclinaisons sont enregistrées (crochet ci-dessus) ; la fête du monde, ses effets et la carte du jour.
+  fetes.demarrer().catch(e => console.error(`${ID} | fêtes`, e));
 
   // Une séance restée « active » (navigateur fermé en pleine partie) ne doit pas
   // reprendre en silence : le MJ la relance depuis la console.
@@ -210,6 +226,9 @@ Hooks.on("lakourStyleVisuel", async style => {
 Hooks.on("createChatMessage", message => {
   game.modules.get(ID).api?.moteur.recevoir(message);
 });
+
+// Les cartes du MJ IA reçoivent la classe lakour-mjia-message (le glyphe d'une fête en cours s'y pose en CSS).
+Hooks.on("renderChatMessageHTML", (message, html) => fetes.marquerMessage(message, html));
 
 // Bouton « lancer le test » des cartes de jet demandées par l'IA.
 Hooks.on("renderChatMessageHTML", (message, html) => {
