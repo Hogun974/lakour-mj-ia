@@ -9,7 +9,9 @@
 // La vue est remplie côté Foundry avec ce qu'un joueur à sa place saurait, et rien d'autre.
 //
 // Vue : { id, nom, monde, jeu ("loups" | "aventure"), personnalite: { temperament, parler, histoire }, fiche, prive: [texte],
-//         public: [texte], scene, autres: [{ id, nom, vivant }], allies: [id], suspects: [id], vivant, peutParler, tour }
+//         public: [texte], scene, autres: [{ id, nom, vivant, humain? }], allies: [id], suspects: [id], vivant, peutParler, tour,
+//         humains?: [id] (aux Veillées : les villageois tenus par un joueur humain — public), petiteTablee?: Boolean (la Petite
+//         tablée du système lakour-loups 0.11.0, publique : les compagnons y parlent d'abord aux humains) }
 // Demande (decider) : { type: "cibles", invite, candidats: [{ id, nom }], nombre, vote?, cle? }
 //                     { type: "texte", invite, max, cle? }
 //                     { type: "option", question, options: [libellé], cle? }
@@ -210,6 +212,13 @@ export function declarationAuRegistre(texte) {
 // Le cri de la peste noire dans une réplique de compagnon (compagnons-jeu.js le transmet au système des Veillées).
 export const CRI_PESTE = /c['’]est la peste noire/i;
 export const criePeste = texte => CRI_PESTE.test(String(texte ?? ""));
+// La Petite tablée (système lakour-loups 0.11.0, publique) : les compagnons s'adressent d'abord aux joueurs humains. Un biais de
+// parole seulement : jamais de vote ni de choix de nuit orienté vers les humains (repliDecision ne lit pas cette liste, et la
+// consigne n'entre que dans une réplique, jamais dans une décision).
+export const CONSIGNE_PETITE_TABLEE = noms => ` Petite tablée : les joueurs humains de cette veillée sont ${noms.join(", ")}. Adresse-toi d'abord `
+  + "à eux — accuse-les, défends-les, questionne-les, réponds à ce qu'ils viennent de dire — plutôt que de discuter avec les autres "
+  + "compagnons IA ; ne cite un autre compagnon que pour rebondir sur ce qu'un humain a dit.";
+export const nomsDesHumains = vue => (vue.autres ?? []).filter(a => (vue.humains ?? []).includes(a.id) && a.vivant !== false).map(a => a.nom);
 export const CONSIGNE_PARLER_AVENTURE = " Une action qui compte (attaquer, fouiller, partir…) se dit dans ta parole, le meneur la résout ; "
   + "la didascalie n'est qu'un geste.";
 export const CONSIGNE_COMBAT = "C'est ton tour de combat. Déclare en une ou deux phrases, à la première personne, ce que fait ton personnage "
@@ -217,7 +226,9 @@ export const CONSIGNE_COMBAT = "C'est ton tour de combat. Déclare en une ou deu
 
 // Le contexte complet d'un appel : { systeme, texte }. Seule la vue (et la demande) y entrent.
 export function contexteCompagnon(vue, { demande = null, consigne = "" } = {}) {
-  const attendu = consigneDemande(vue, demande) ?? (consigne || (CONSIGNE_PARLER + (vue.jeu === "loups" ? CONSIGNE_PARLER_LOUPS : CONSIGNE_PARLER_AVENTURE)));
+  const humains = vue.jeu === "loups" && vue.petiteTablee ? nomsDesHumains(vue) : [];
+  const attendu = consigneDemande(vue, demande) ?? (consigne || (CONSIGNE_PARLER + (vue.jeu === "loups"
+    ? CONSIGNE_PARLER_LOUPS + (humains.length ? CONSIGNE_PETITE_TABLEE(humains) : "") : CONSIGNE_PARLER_AVENTURE)));
   return { systeme: consigneSysteme(vue), texte: [...blocs(vue), "[Ce qu'on attend de toi]", attendu].join("\n") };
 }
 
@@ -312,13 +323,17 @@ const REPLIQUES = {
   ]
 };
 
-// Une réplique sans IA. "" = le compagnon se tait (selon son tempérament).
+// Une réplique sans IA. "" = le compagnon se tait (selon son tempérament). Petite tablée : la réplique nomme un humain
+// (PART_HUMAINS des fois, s'il en reste un en vie), un suspect humain d'abord.
+export const PART_HUMAINS = 0.8;
 export function repliReplique(vue, graine, { combat = false, n = 0 } = {}) {
   const h = hasard(`parler|${graine}|${vue.id}|${vue.tour ?? 0}|${n}`);
   if (combat) return choisir(REPLIQUES.combat, h)();
   const p = normaliserPersonnalite(vue.personnalite, vue.id);
   if (h() < TEMPERAMENTS[p.temperament].silence) return "";
-  const autres = (vue.autres ?? []).filter(a => a.vivant !== false && a.id !== vue.id && !(vue.allies ?? []).includes(a.id));
+  let autres = (vue.autres ?? []).filter(a => a.vivant !== false && a.id !== vue.id && !(vue.allies ?? []).includes(a.id));
+  const humains = vue.jeu === "loups" && vue.petiteTablee ? autres.filter(a => (vue.humains ?? []).includes(a.id)) : [];
+  if (humains.length && h() < PART_HUMAINS) autres = humains;
   const suspects = autres.filter(a => (vue.suspects ?? []).includes(a.id));
   const cible = choisir(suspects.length ? suspects : autres, h)?.nom ?? "quelqu'un";
   return choisir(REPLIQUES[vue.jeu] ?? REPLIQUES.aventure, h)(cible);

@@ -195,11 +195,16 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
     ...bancEtDeuil(api, acteur),
     pub.historique?.length ? `Annonces publiques récentes :\n${pub.historique.slice(-12).map(h => `· ${texteBrut(h.texte)}`).join("\n")}` : ""
   ].filter(Boolean).join("\n");
+  // La Petite tablée (système 0.11.0, publique : etat.petiteTablee) et les villageois tenus par un humain (system.joueur, public) :
+  // les compagnons y parlent d'abord aux humains (compagnons.js, CONSIGNE_PETITE_TABLEE, repliReplique). Un biais de parole
+  // seulement : les décisions (nuit, votes) ne lisent pas cette liste.
+  const humains = autres.filter(a => a.system.joueur).map(a => a.id);
   return {
     id: acteur.id, nom: acteur.name, monde: MONDE_VEILLEES, jeu: "loups", personnalite: personnaliteDe(acteur), fiche,
     prive: [...carnet, ...privesDe(acteur.id)], public: chatPublic({ messages, paroles: parolesPour(acteur.id) }), scene,
-    autres: autres.map(a => ({ id: a.id, nom: a.name, vivant: a.system.vivant !== false })), allies, suspects,
-    vivant, peutParler: vivant && !acteur.system.silence && pub.phase !== "nuit", tour: pub.tour
+    autres: autres.map(a => ({ id: a.id, nom: a.name, vivant: a.system.vivant !== false, humain: Boolean(a.system.joueur) })), allies, suspects,
+    vivant, peutParler: vivant && !acteur.system.silence && pub.phase !== "nuit", tour: pub.tour,
+    humains, petiteTablee: Boolean(pub.petiteTablee)
   };
 }
 

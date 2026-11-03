@@ -1584,7 +1584,7 @@ OUTILS.push(
         "Nuit (secret, pour toi seul) :", ...journal.map(l => `- ${l}`),
         `Morts de la nuit : ${morts.map(nomActeur).join(", ") || "aucun"}.`,
         deuil ? `Glas du deuil (SECRET) : la meute a appris le camp de ${nomActeur(deuil)}. N'en dis rien.` : "",
-        sauves.length ? `Sauvés cette nuit : ${sauves.map(x => nomActeur(x.acteurId ?? x)).join(", ")}.` : "",
+        sauves.length ? `Sauvés cette nuit : ${[...new Set(sauves.map(x => x.acteurId ?? x))].map(nomActeur).join(", ")}.` : "",
         revelations.length ? `Révélés : ${revelations.map(x => nomActeur(x.acteurId ?? x)).join(", ")}.` : "",
         messages.length ? (api.envoyerSecret ? `${messages.length} message(s) secret(s) remis aux joueurs concernés (carnet secret).`
           : `${messages.length} message(s) privé(s) chuchoté(s) aux joueurs concernés.`) : "",

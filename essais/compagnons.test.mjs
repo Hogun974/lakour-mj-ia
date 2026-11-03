@@ -158,6 +158,31 @@ test("repli : déterministe (même graine, même choix), un loup ne vise pas les
   assert.match(C.repliReplique(vue(), "g", { combat: true }), /\w/, "en combat, une action est toujours déclarée");
 });
 
+// La Petite tablée (système lakour-loups 0.11.0) : les compagnons parlent d'abord aux humains — un biais de PAROLE, jamais de vote.
+const TABLE = () => vue({ autres: [{ id: "a2", nom: "Ysaline Corbet", vivant: true, humain: true }, { id: "a3", nom: "Anselme Ferrand", vivant: true }, { id: "a4", nom: "Odile Basquin", vivant: true }],
+  humains: ["a2"], petiteTablee: true, personnalite: { temperament: "bavard" } });
+const CANDIDATS_TABLE = [{ id: "a2", nom: "Ysaline Corbet" }, { id: "a3", nom: "Anselme Ferrand" }, { id: "a4", nom: "Odile Basquin" }];
+const partDesVotes = (M, table) => {
+  const votes = Array.from({ length: 300 }, (_, i) => M.repliDecision(table, { type: "cibles", invite: "Vote", candidats: CANDIDATS_TABLE, nombre: 1, vote: true, cle: `v${i}` }, "pt").cibles[0]);
+  return votes.filter(v => v === "a2").length / votes.filter(Boolean).length;
+};
+const partDesParoles = (M, table) => {
+  const dites = Array.from({ length: 200 }, (_, i) => M.repliReplique(table, "pt", { n: i })).filter(t => /Ysaline|Anselme|Odile/.test(t));
+  return { part: dites.filter(t => t.includes("Ysaline")).length / dites.length, dites };
+};
+test("petite tablée : les répliques de repli nomment surtout les humains, la consigne IA les nomme ; les votes ne les visent pas plus", () => {
+  const table = TABLE();
+  const { part, dites } = partDesParoles(C, table);
+  assert.ok(part >= 0.6, `les compagnons parlent aux humains (${part})`);
+  assert.ok(dites.some(t => t.includes("Anselme") || t.includes("Odile")), "et encore un peu entre eux");
+  assert.ok(partDesParoles(C, vue({ ...table, petiteTablee: false })).part < 0.6, "hors petite tablée, aucun biais");
+  assert.match(C.contexteCompagnon(table).texte, /Petite tablée : les joueurs humains de cette veillée sont Ysaline Corbet\./);
+  assert.doesNotMatch(C.contexteCompagnon(vue({ ...table, petiteTablee: false })).texte, /Petite tablée/);
+  assert.doesNotMatch(C.contexteCompagnon(table, { demande: demandeCibles() }).texte, /Petite tablée/, "une décision n'en parle pas");
+  const p = partDesVotes(C, table);
+  assert.ok(p > 0.2 && p < 0.47, `un vote sans biais vers l'humain (${p})`);
+});
+
 test("personnalité : tirée d'une graine (toujours la même pour un acteur), complétée si incomplète", () => {
   assert.deepEqual(C.personnaliteAuHasard("acteur-1"), C.personnaliteAuHasard("acteur-1"));
   const p = C.normaliserPersonnalite({ temperament: "inconnu", parler: "" }, "acteur-1");
@@ -235,6 +260,8 @@ const MUTATIONS = {
   "un compagnon parle deux fois": [".slice(0, max);\n}", ".flatMap(c => [c, c]).slice(0, max);\n}"],
   "repli non déterministe": ["const h = hasard(`decider|${graine}|${vue.id}|${demande.cle ?? demande.invite ?? demande.question ?? \"\"}`);", "const h = Math.random;"],
   "un loup vise les siens": ["const permis = (allies.size ? pasSoi.filter(c => !allies.has(c.id)) : pasSoi);", "const permis = pasSoi;"],
+  "petite tablée : les compagnons n'y parlent pas plus aux humains": ["if (humains.length && h() < PART_HUMAINS) autres = humains;", ""],
+  "petite tablée : les votes visent les humains": ["  const pool = permis.length ? permis : demande.candidats;", "  const pool = (vue.humains ?? []).length && demande.vote ? permis.filter(c => (vue.humains ?? []).includes(c.id)) : permis.length ? permis : demande.candidats;"],
   "le prompt lit l'état complet": ["...liste(\"Ce que tu sais en privé\", vue.prive, \"(rien)\"),", "...liste(\"Ce que tu sais en privé\", [...(vue.prive ?? []), JSON.stringify(vue.etat ?? \"\")], \"(rien)\"),"]
 };
 
@@ -279,6 +306,8 @@ async function batterie(M) {
     for (let i = 0; i < 40; i++) assert.ok(!M.repliDecision(vue({ allies: ["a2"] }), demandeCibles({ cle: `m${i}` }), "g").cibles.includes("a2"));
   });
   await verifier("prompt", () => assert.ok(!JSON.stringify(M.contexteCompagnon({ ...vue(), etat: "CANARI" })).includes("CANARI")));
+  await verifier("petite tablée : parole aux humains", () => assert.ok(partDesParoles(M, TABLE()).part >= 0.6));
+  await verifier("petite tablée : vote sans biais", () => assert.ok(partDesVotes(M, TABLE()) < 0.47));
   return echecs;
 }
 
