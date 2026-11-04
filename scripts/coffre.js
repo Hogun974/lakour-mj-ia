@@ -596,10 +596,13 @@ export function exporterSecours() {
     if (!game.user?.isGM) throw new Error("seul un MJ garde la clé de secours");
     const cles = mesCles();
     if (!cles.length) throw new Error("ce navigateur n'a pas la clé du coffre");
-    const texte = JSON.stringify({ type: TYPE_SECOURS, version: 1, monde: monde(), cree: new Date().toISOString(), cles }, null, 1);
-    const nom = `cle-de-secours-${monde()}-${new Date().toISOString().slice(0, 10)}.json`;
+    // Une seule heure pour le fichier, son nom et la date notée « téléchargée le » (deux lectures de l'horloge pouvaient différer
+    // d'une milliseconde : la date notée n'était alors plus celle du fichier, qu'une réimportation reprend).
+    const cree = new Date().toISOString();
+    const texte = JSON.stringify({ type: TYPE_SECOURS, version: 1, monde: monde(), cree, cles }, null, 1);
+    const nom = `cle-de-secours-${monde()}-${cree.slice(0, 10)}.json`;
     globalThis.foundry?.utils?.saveDataToFile?.(texte, "application/json", nom);
-    await noterSecours(cles);
+    await noterSecours(cles, cree);
     const l = local();
     if (l.enAttente?.cle) await ecrireLocal({ ...l, enAttente: { ...l.enAttente, secours: true } });
     if (estMJActif()) await reprendreRenouvellement();

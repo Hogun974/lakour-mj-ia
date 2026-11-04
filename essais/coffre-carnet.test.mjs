@@ -665,8 +665,27 @@ const VERIFICATIONS = {
 
   async "remise à zéro dans la file : une écriture en cours ne fait pas renaître le coffre"(M) {
     await table(M);
-    const enCours = M.K.assurerEnquete({ titre: "Le Gouverneur Cultiste", conclusions: ["Il prie le Warp"] });
-    await Promise.all([enCours, M.coffre.viderCarnet()]);
+    // L'entrelacement est fixé, pas laissé au hasard des minuteries (le chiffrement WebCrypto contre les écritures de 1 ms de la
+    // doublure, ce qui rendait la détection d'une remise à zéro hors de la file aléatoire sous charge) : l'écriture du coffre par
+    // l'enquête est retenue ; pendant ce temps, la remise à zéro va aussi loin qu'elle peut ; puis l'écriture est lâchée.
+    const set = game.settings.set;
+    let lacher, atteinte;
+    const porte = new Promise(r => { lacher = r; });
+    const retenue = new Promise(r => { atteinte = r; });
+    let retenir = true;
+    game.settings.set = async (m, k, v) => {
+      if (k === "coffreCarnet" && retenir) { retenir = false; atteinte(); await porte; }
+      return set(m, k, v);
+    };
+    try {
+      const enCours = M.K.assurerEnquete({ titre: "Le Gouverneur Cultiste", conclusions: ["Il prie le Warp"] });
+      await retenue;
+      const vider = M.coffre.viderCarnet();
+      // Bien plus de tours que les écritures d'une remise à zéro (une minuterie de 1 ms chacune, servies dans l'ordre).
+      for (let i = 0; i < 4 * (M.S.REGISTRES.length + 2); i++) await new Promise(r => setTimeout(r, 1));
+      lacher();
+      await Promise.all([enCours, vider]);
+    } finally { game.settings.set = set; lacher(); }
     assert.deepEqual(reglage("coffreCarnet") ?? {}, {});
     assert.equal(M.K.enquetes.lister().length, 0);
   },
@@ -751,7 +770,7 @@ const MUTATIONS = [
   ["coffre.js", " || rappeles.has(t.empreinte) || secoursExportee()) return false;", " || rappeles.has(t.empreinte)) return false;", "pas de rappel si déjà exportée"],
   ["coffre.js", " || rappeles.has(t.empreinte) || secoursExportee()) return false;", " || secoursExportee()) return false;", "jamais deux rappels par chargement"],
   ["coffre.js", "  if (fenetre && fenetreRappel) {", "  if (false) {", "la fenêtre à la création"],
-  ["coffre.js", "    await noterSecours(cles);\n", "", "export noté"],
+  ["coffre.js", "    await noterSecours(cles, cree);\n", "", "export noté"],
   ["coffre.js", "    await noterSecours(connues, Number.isNaN(creee.getTime()) ? new Date().toISOString() : creee.toISOString());\n", "", "import noté comme exporté"],
   ["coffre.js", "await game.settings.set(ID, \"cleCarnet\", { ...tout, [monde()]: { ...parMonde, [game.user.id]: l } });",
     "await game.settings.set(ID, \"cleCarnet\", { ...tout, [monde()]: { ...parMonde, [game.user.id]: { ...l, secours: {} } } });", "dates d'export gardées"],
