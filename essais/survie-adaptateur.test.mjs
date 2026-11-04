@@ -95,4 +95,6 @@ test("résumé d'un survivant : passé du contenu, compétences non nulles, éta
 test("texte d'un test : échec forcé avec complication et marque", () => {
   assert.equal(L.texteTest("Lucie", "soins", { succes: 1, requis: 3, reussite: false, marge: -2, force: true, complication: true, marque: true, difficulte: "extreme" }),
     "Lucie, Soins (extreme) : 1 succès pour 3 requis — échec (marge -2), forcé ; COMPLICATION (choisis-en une : bruit, outil cassé, blessure légère, temps perdu) ; une marque gagnée.");
+  // monte (api.test) : la marque a fait monter la compétence ; le narrateur le dit.
+  assert.match(L.texteTest("Lucie", "soins", { succes: 0, requis: 1, reussite: false, marge: -1, marque: true, monte: true }), /une marque gagnée ; la compétence MONTE d'un niveau/);
 });

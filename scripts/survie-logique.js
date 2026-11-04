@@ -236,12 +236,13 @@ export function etatCourt(acteur) {
 }
 
 // Un test résolu, en une phrase : « Lucie, Soins (extrême) : 2 succès pour 3 requis — échec (marge -1), forcé ; complication ».
+// monte (api.test) : la marque a fait monter la compétence d'un niveau (le niveau rendu par l'API est celui d'AVANT le test).
 export function texteTest(nom, competence, r = {}) {
   const succes = entier(r.succes), requis = entier(r.requis ?? 1);
   return `${nom}, ${libelleCompetence(competence)}${r.difficulte ? ` (${r.difficulte})` : ""} : ${succes} succès `
     + `pour ${requis} requis — ${r.reussite ? "réussite" : "échec"} (marge ${signe(entier(r.marge))})`
     + `${r.force ? ", forcé" : ""}${r.complication ? " ; COMPLICATION (choisis-en une : bruit, outil cassé, blessure légère, temps perdu)" : ""}`
-    + `${r.marque ? " ; une marque gagnée" : ""}.`;
+    + `${r.marque ? " ; une marque gagnée" : ""}${r.monte ? " ; la compétence MONTE d'un niveau (dis-le au joueur)" : ""}.`;
 }
 
 // ------------------------------------------------------------------ renseignements (PUBLIC) et réel (SECRET)

@@ -139,6 +139,12 @@ const VERIFICATIONS = {
     assert.equal(M.h.boutonVisible(game.actors.get("s2"), { system: { id: "dnd5e" }, user: { isGM: false } }), false, "ni MJ ni propriétaire");
     assert.equal(M.h.boutonVisible(game.actors.get("s1"), { system: { id: "dnd5e" }, user: { isGM: false } }), true, "propriétaire");
     assert.equal(M.h.boutonVisible(game.actors.get("s1"), { system: { id: "lakour-loups" }, user: { isGM: true } }), false, "pas aux Veillées");
+    assert.equal(M.h.boutonVisible(game.actors.get("abri1"), { system: { id: "lakour-survie" }, user: { isGM: true } }), false, "un abri n'a pas d'histoire");
+    assert.equal(M.h.boutonVisible(game.actors.get("abri1"), { system: { id: "dnd5e" }, user: { isGM: true } }), true, "ailleurs, tout acteur (PNJ important)");
+    // La fiche de survivant de Fénoir a déjà son bouton (action « histoire ») : pas de second bouton dans son en-tête.
+    const deja = [];
+    for (const fn of crochets.get("getHeaderControlsActorSheetV2") ?? []) fn({ document: game.actors.get("s1"), options: { actions: { histoire() {} } } }, deja);
+    assert.equal(deja.length, 0);
   },
   async "un joueur sans journal le demande au MJ actif, qui le crée et le lui renvoie ; un autre joueur est refusé"(M) {
     const { journaux, emis } = monde("lakour-survie", { moi: "u1" });

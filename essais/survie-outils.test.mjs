@@ -93,6 +93,7 @@ test("survie_avancer : quarts bornés ; faits publics au connu, hors-champ depui
   assert.match(connu, /4 quart\(s\) passent .* jour 4/);
   assert.match(connu, /Une fumée noire monte du Port/);
   assert.match(connu, /Alerte orange cyclonique/);
+  assert.match(connu, /Départs : Eddy Payet/);
   sansSecret(connu, "survie_avancer");
   assert.match(secret, /JOURNAL-SECRET-NOUVEAU/);
   assert.ok(!secret.includes("JOURNAL-SECRET-ANCIEN"), "seulement depuis le jour d'avant l'avance");
@@ -122,6 +123,9 @@ test("survie_explorer : renseignement daté au connu ; rencontre, réel et faits
 
 test("survie_fouiller : site, cible, prudence ; butin et bruit au connu", async () => {
   const { api } = installerFenoir();
+  // La nature alentour (§2.1) est une cible comme une autre : passée telle quelle au système.
+  await executer("survie_fouiller", { region: "", site: "", cible: "peche", membres: ["Eddy"], quarts: 0, prudence: "normal" });
+  assert.deepEqual(derniersArgs(api), ["fouiller", { region: "saint-paul", cible: "peche", membres: ["s2"], quarts: 1, prudence: "normal" }]);
   const r = await executer("survie_fouiller", { region: "", site: "Case créole du lagon", cible: "medicaments", membres: [], quarts: 1, prudence: "discret" });
   assert.deepEqual(derniersArgs(api), ["fouiller", { region: "saint-paul", site: "case-du-lagon", cible: "medicaments", membres: ["s1", "s2"], quarts: 1, prudence: "discret" }]);
   assert.match(blocs(r.contenu).connu, /Butin : nourriture 3, médicaments 1\./);
@@ -147,6 +151,10 @@ test("survie_construire : construire par clé ou nom, plans signalés ; réparer
   assert.match(r.contenu, /Chantier : 2\/6 quarts-personne/);
   await executer("survie_construire", { action: "reparer", installation: "palissade", membres: [], quarts: 1 });
   assert.deepEqual(derniersArgs(api), ["reparer", { installationId: "i1", membres: ["s1", "s2"], quarts: 1 }]);
+  // Sans installation : les dégâts de l'abri lui-même (après un assaut).
+  const abri = await executer("survie_construire", { action: "reparer", installation: "", membres: ["Eddy"], quarts: 2 });
+  assert.deepEqual(derniersArgs(api), ["reparer", { membres: ["s2"], quarts: 2 }]);
+  assert.match(abri.contenu, /réparent l'abri Collège des Hauts \(2 quart\(s\)\).*Dégâts restants de l'abri : 1/s);
   assert.match((await executer("survie_construire", { action: "reparer", installation: "serre", membres: [], quarts: 1 })).contenu, /installation introuvable dans l'abri/);
 });
 
@@ -159,8 +167,10 @@ test("survie_voyager : seulement vers une voisine ; route réelle et destination
   assert.deepEqual(derniersArgs(api), ["voyager", { vers: "le-port", transport: "vehicule", membres: ["s1", "s2"], charge: 3 }]);
   const { connu, secret } = blocs(r.contenu);
   assert.match(connu, /arrivent à Le Port et La Possession après 2 quart/);
+  assert.match(connu, /Provisions qui ont manqué en route : eau 1/);
   sansSecret(connu, "survie_voyager");
   assert.match(secret, /Route réelle au départ : coupee/);
+  assert.ok(secret.includes("RENCONTRE-SECRETE-1") && secret.includes("RENCONTRE-SECRETE-2"), "une rencontre par étape du voyage");
 });
 
 test("survie_demenager : site, transport, seulement ce qu'on emporte", async () => {
@@ -183,8 +193,13 @@ test("survie_blessure : blesser (morsure -> rappel du test de soins extrême), s
   const r = await executer("survie_blessure", { action: "blesser", personnage: "Eddy", n: 1, morsure: true, soigneur: "" });
   assert.deepEqual(derniersArgs(api), ["blesser", { acteurId: "s2", n: 1, morsure: true }]);
   assert.match(r.contenu, /MORSURE : test de soins EXTRÊME/);
-  await executer("survie_blessure", { action: "soigner", personnage: "Eddy", n: 0, morsure: false, soigneur: "Lucie" });
+  const s = await executer("survie_blessure", { action: "soigner", personnage: "Eddy", n: 0, morsure: false, soigneur: "Lucie" });
   assert.deepEqual(derniersArgs(api), ["soigner", { acteurId: "s2", soigneurId: "s1" }]);
+  assert.match(s.contenu, /Lucie Hoarau, Soins : 2 succès pour 1 requis — réussite \(marge \+1\)\. 1 blessure\(s\) soignée\(s\), un médicament consommé\./);
+  // Sans soigneur nommé : le système choisit le meilleur (l'outil ne refuse pas), et nomme celui qui a fait le test.
+  const auto = await executer("survie_blessure", { action: "soigner", personnage: "Eddy", n: 0, morsure: false, soigneur: "" });
+  assert.deepEqual(derniersArgs(api), ["soigner", { acteurId: "s2" }]);
+  assert.match(auto.contenu, /Lucie Hoarau, Soins : 2 succès/);
   const i = await executer("survie_blessure", { action: "infecter", personnage: "Eddy", n: 0, morsure: false, soigneur: "" });
   assert.deepEqual(derniersArgs(api), ["infecter", { acteurId: "s2" }]);
   assert.match(i.contenu, /Aucun remède connu/);
@@ -217,7 +232,7 @@ test("survie_renseigner : ce que le groupe croit, daté du jour ; routes par nom
 });
 
 test("survie_fabriquer, survie_affliction, survie_feter (§9) : arguments supposés de l'API, textes", async () => {
-  const { api } = installerFenoir();
+  const { api, cadre } = installerFenoir();
   const f = await executer("survie_fabriquer", { recette: "Arc et flèches", artisan: "Eddy", membres: ["Lucie", "Eddy"] });
   assert.deepEqual(derniersArgs(api), ["fabriquer", { recette: "arc-et-fleches", acteurId: "s2", membres: ["s1"] }]);
   assert.ok(f.contenu.includes("Eddy Payet (aidé de Lucie Hoarau) travaille à Arc et flèches"), f.contenu);
@@ -227,12 +242,17 @@ test("survie_fabriquer, survie_affliction, survie_feter (§9) : arguments suppos
   assert.deepEqual(derniersArgs(api), ["affliction", { acteurId: "s1", cle: "leptospirose", action: "donner" }]);
   assert.ok(a.contenu.includes("Lucie Hoarau est atteint(e) : Leptospirose."), a.contenu);
   assert.match((await executer("survie_affliction", { action: "soigner", personnage: "Lucie", affliction: "fracture" })).contenu, /Fracture soigné/);
-  game.modules.set("lakour-mj-ia", { api: { fetes: { active: () => ({ id: "noel-austral", fete: "noel" }) } } });
+  // Fête vide : c'est le SYSTÈME qui la trouve, à la date de jeu (jamais la fête du calendrier réel des joueurs, fetes.js).
+  game.modules.set("lakour-mj-ia", { api: { fetes: { active: () => ({ id: "halloween-fenoir", fete: "halloween" }) } } });
   const t = await executer("survie_feter", { fete: "" });
-  assert.deepEqual(derniersArgs(api), ["feter", { fete: "noel" }], "vide = la fête en cours du monde");
-  assert.ok(t.contenu.includes("Moral +1 pour chacun"), t.contenu);
-  game.modules.set("lakour-mj-ia", { api: { fetes: { active: () => null } } });
-  assert.match((await executer("survie_feter", { fete: "" })).contenu, /aucune fête en cours/);
+  assert.deepEqual(derniersArgs(api), ["feter", { fete: "" }], "vide : le système cherche la fête du jour de jeu");
+  assert.ok(t.contenu.includes("Le groupe fête noel au camp") && t.contenu.includes("Moral +1 pour chacun"), t.contenu);
+  await executer("survie_feter", { fete: "liberte" });
+  assert.deepEqual(derniersArgs(api), ["feter", { fete: "liberte" }]);
+  cadre.feteDuJour = "";
+  const sans = await executer("survie_feter", { fete: "" });
+  assert.equal(sans.erreur, true);
+  assert.match(sans.contenu, /AucuneFete/);
 });
 
 test("hors du MJ actif : chaque outil qui écrit est refusé avec le message du système, et le dit à l'IA", async () => {
@@ -255,7 +275,7 @@ test("hors du MJ actif : chaque outil qui écrit est refusé avec le message du 
     survie_fabriquer: { recette: "filtre-portatif", artisan: "Eddy", membres: [] },
     survie_affliction: { action: "donner", personnage: "Lucie", affliction: "fracture" },
     survie_feter: { fete: "liberte" },
-    survie_recrue: { action: "generer", region: "", recrue: "", parleur: "" },
+    survie_recrue: { action: "generer", region: "", recrue: "", parleur: "", attitude: "" },
     survie_assigner: { personnage: "Eddy", tache: "garde", repartir: false },
     survie_ajouter_membre: { personnage: "Bellemène", statut: "pnj" }
   };
@@ -354,18 +374,22 @@ test("survie_besoins : les manques, urgences d'abord ; tous = avec les tâches c
 
 test("survie_recrue : generer (au secret, avec son prix), recruter par le test de parole ; identifiant inconnu refusé", async () => {
   const { api, acteurs } = installerFenoir();
-  const g = await executer("survie_recrue", { action: "generer", region: "", recrue: "", parleur: "" });
+  const g = await executer("survie_recrue", { action: "generer", region: "", recrue: "", parleur: "", attitude: "" });
   assert.deepEqual(derniersArgs(api), ["genererRecrue", { region: "saint-paul" }]);
   assert.ok(g.contenu.startsWith(SECRET), "une recrue tirée est pour le MJ");
   assert.match(g.contenu, /R1 — Gilles Técher, 52 ans — enfance : Enfant des Hauts de Salazie.*pourquoi il est là : Il garde seul la caserne vide — SON PRIX : Il veut qu'on aille chercher sa fille/);
-  const r = await executer("survie_recrue", { action: "recruter", region: "", recrue: "r1", parleur: "Lucie" });
+  const r = await executer("survie_recrue", { action: "recruter", region: "", recrue: "r1", parleur: "Lucie", attitude: "mefiante" });
   assert.equal(derniersArgs(api)[0], "recruter");
   assert.equal(derniersArgs(api)[1].parleurId, "s1");
+  assert.equal(derniersArgs(api)[1].attitude, "mefiante", "l'attitude règle la difficulté du test (API recruter)");
   assert.equal(derniersArgs(api)[1].recrue.nom, "Gilles Técher");
   assert.match(r.contenu, /Lucie Hoarau, Parole : 1 succès pour 1 requis — réussite/);
   assert.match(r.contenu, /Gilles Técher rejoint le groupe \(recrue\)/);
   assert.ok(acteurs.find(x => x.name === "Gilles Técher"));
-  assert.match((await executer("survie_recrue", { action: "recruter", region: "", recrue: "R1", parleur: "Lucie" })).contenu, /recrue « R1 » inconnue/);
+  assert.match((await executer("survie_recrue", { action: "recruter", region: "", recrue: "R1", parleur: "Lucie", attitude: "" })).contenu, /recrue « R1 » inconnue/);
+  await executer("survie_recrue", { action: "generer", region: "", recrue: "", parleur: "", attitude: "" });
+  await executer("survie_recrue", { action: "recruter", region: "", recrue: "R2", parleur: "Lucie", attitude: "" });
+  assert.equal("attitude" in derniersArgs(api)[1], false, "attitude vide : celle par défaut du système (neutre)");
 });
 
 test("survie_assigner : une tâche ; répartition automatique des compagnons et recrues selon les manques, jamais les joueurs", async () => {

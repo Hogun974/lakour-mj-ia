@@ -25,6 +25,9 @@ const liste = (items, description) => ({ type: "array", items, description });
 
 const MEMBRES = liste(chaine("Nom d'un survivant du groupe."), "Qui y va (noms) ; vide = tous les membres valides du groupe.");
 const RESSOURCES_PILLABLES = RESSOURCES.filter(r => r !== "energie");
+// Les ressources naturelles des alentours (§2.1 du contrat, NATURE du système) : cibles d'une fouille « nature » (cueillette, chasse,
+// pêche, bois), renouvelables, hors du pillage des maisons.
+const NATURE = ["cueillette", "gibier", "peche", "bois"];
 const ETATS_ROUTE = ["ouverte", "difficile", "coupee"];
 
 // ------------------------------------------------------------------ accès au jeu
@@ -106,6 +109,16 @@ function texteRencontre(r) {
   return `${qui || "rencontre"}${details ? ` (${details})` : ""}${texte ? ` : ${texte}` : ""}`;
 }
 const RENCONTRE = "Rencontre à mettre en scène MAINTENANT (les joueurs n'en savent que ce que tu décris ; intentions et nombre exact restent à toi) : ";
+// Les rencontres d'une action (une par étape d'un voyage : rencontres ; sinon la seule : rencontre), chacune une ligne du secret.
+const lignesRencontres = r => (Array.isArray(r?.rencontres) && r.rencontres.length ? r.rencontres : [r?.rencontre]).filter(Boolean)
+  .map(x => `${RENCONTRE}${texteRencontre(x)}`);
+// L'issue d'un assaut (logique du système : repoussee, endommagee, breche), en clair.
+const ISSUES_ASSAUT = { repoussee: "repoussé", endommagee: "une installation endommagée et un blessé", breche: "BRÈCHE" };
+// Les provisions de route qui ont manqué (voyage, déménagement : manque = { eau, nourriture, carburant }).
+const ligneManque = manque => {
+  const m = Object.entries(manque ?? {}).filter(([, v]) => Number(v) > 0).map(([k, v]) => `${libelleRessource(k)} ${v}`);
+  return m.length ? `Provisions qui ont manqué en route : ${m.join(", ")} (faim, soif ou panne sèche en chemin : fais-le sentir).` : "";
+};
 // Les faits d'une action : les publics aux joueurs, les autres au secret.
 function trierFaits(faits = []) {
   const ligne = f => `${f.region ? `${nomRegion(f.region)} : ` : ""}${brut(f.texte ?? f.cle)}`;
@@ -203,7 +216,7 @@ export const OUTILS_SURVIE = [
       + "Une nuit de repos à l'abri : 2 quarts (soir et nuit).",
     schema: objet({
       quarts: entier("Nombre de quarts (1 à 28 ; 4 = un jour)."),
-      raison: chaine("Ce que fait le groupe pendant ce temps (inscrit à la chronique).")
+      raison: chaine("Ce que fait le groupe pendant ce temps (inscrit à la chronique) ; vide = sans précision.")
     }),
     sensible: false,
     async executer({ quarts, raison }) {
@@ -224,6 +237,7 @@ export const OUTILS_SURVIE = [
           abri ? `Stocks : ${texteStocks(abri.system?.stocks)}${b?.joursDeStocks ? ` (eau ${b.joursDeStocks.eau ?? "?"} j, nourriture ${b.joursDeStocks.nourriture ?? "?"} j)` : ""}.` : "",
           b?.net ? `Net par jour : ${texteVariations(b.net)}.` : "",
           `État du groupe : ${(etat?.groupe?.membres ?? []).map(acteurDe).filter(Boolean).map(etatCourt).join(" ; ") || "?"}.`,
+          (r?.departs ?? []).length ? `Départs : ${r.departs.map(nomActeur).join(", ")} (à bout, ils quittent le groupe ; leur fiche reste : raconte-le).` : "",
           RAPPEL_RENSEIGNEMENTS
         ],
         secret: lignesMenaces({ monde, contenu: lire("contenu"), ici: etat?.groupe?.region, jour: r?.quand?.jour ?? avant, depuisJour: avant })
@@ -241,10 +255,10 @@ export const OUTILS_SURVIE = [
       competence: choix(CLES_COMPETENCES, "La compétence testée."),
       difficulte: choix(DIFFICULTES_SURVIE, "facile (1 succès, +1 dé), normale (1 succès), difficile (2), extreme (3)."),
       bonus: entier("Dés en plus : outil adapté +1, aide d'un autre +1, situation +1 ou +2. 0 si aucun."),
-      malus: entier("Dés en moins pour la situation (obscurité, pluie battante, panique) : 0 à 2 ; les malus d'état sont comptés par le système."),
+      malus: entier("Dés en moins pour la situation (obscurité, pluie battante, panique) : 1 ou 2, 0 si aucun ; les malus d'état sont comptés par le système."),
       forcer: booleen("true si le personnage force d'emblée (relance des dés ratés, +1 fatigue ; échec forcé = complication)."),
       compte: booleen("true si le test compte pour la progression (danger, enjeu réel)."),
-      raison: chaine("Ce qu'il tente, en quelques mots (titre de la carte au chat).")
+      raison: chaine("Ce qu'il tente, en quelques mots (titre de la carte au chat) ; vide = le nom de la compétence.")
     }),
     sensible: false,
     async executer({ personnage, competence, difficulte, bonus, malus, forcer, compte, raison }) {
@@ -292,7 +306,8 @@ export const OUTILS_SURVIE = [
     schema: objet({
       region: chaine("Région fouillée (clé ou nom) ; vide = celle du groupe."),
       site: chaine("Site précis (clé ou nom d'un site du contenu) ; vide = la région en général."),
-      cible: choix(["", ...RESSOURCES_PILLABLES], "Ressource cherchée en priorité ; vide = tout ce qui se trouve."),
+      cible: choix(["", ...RESSOURCES_PILLABLES, ...NATURE], "Ressource cherchée en priorité dans les maisons et commerces, ou la nature alentour "
+        + "(cueillette, gibier, peche : nourriture ; bois : matériaux) ; vide = tout ce qui se trouve."),
       membres: MEMBRES,
       quarts: entier("Durée en quarts (1 en général ; 0 = 1)."),
       prudence: choix(["discret", "normal", "rapide"], "Façon de fouiller.")
@@ -351,7 +366,8 @@ export const OUTILS_SURVIE = [
       + "construite ailleurs (plans du groupe) coûte 25 % de matériaux en moins et moitié moins de travail.",
     schema: objet({
       action: choix(["construire", "reparer"], "construire (ou poursuivre un chantier, ou monter d'un niveau), ou reparer."),
-      installation: chaine("construire : clé ou nom d'une installation du contenu ; reparer : nom de l'installation endommagée de l'abri."),
+      installation: chaine("construire : clé ou nom d'une installation du contenu ; reparer : nom de l'installation endommagée de l'abri, ou vide = "
+        + "les dégâts de l'abri lui-même (après un assaut)."),
       membres: MEMBRES,
       quarts: entier("Quarts de travail (1 à 8 en général ; 0 = 1).")
     }),
@@ -363,6 +379,12 @@ export const OUTILS_SURVIE = [
       if (action === "reparer") {
         const abri = acteurDe(lire("etat")?.groupe?.abri);
         if (!abri) throw new Refus("le groupe n'a pas d'abri.");
+        if (!installation.trim()) {
+          // Sans installation : les dégâts de l'abri (api.reparer sans installationId).
+          const r = await appeler("reparer", { membres: ids, quarts: q });
+          return { contenu: rendu({ connu: [`${ids.map(nomActeur).join(", ")} réparent l'abri ${abri.name} (${q} quart(s)) ; maintenant : ${quandTexte()}.`,
+            r?.degats !== undefined ? `Dégâts restants de l'abri : ${r.degats}.` : ""] }) };
+        }
         const items = [...(abri.items ?? [])].filter(i => i.type === "installation");
         const cible = items.find(i => n(i.name) === n(installation) || n(i.system?.cle) === n(installation))
           ?? items.find(i => n(i.name).includes(n(installation)));
@@ -410,9 +432,10 @@ export const OUTILS_SURVIE = [
           r?.arrivee ? `${ids.map(nomActeur).join(", ")} arrivent à ${nomRegion(cle)} après ${r.quarts ?? "?"} quart(s) de route ; maintenant : ${quandTexte()}.`
             : `${ids.map(nomActeur).join(", ")} sont en route vers ${nomRegion(cle)} (${r?.quarts ?? "?"} quart(s) passés, pas encore arrivés) ; maintenant : ${quandTexte()}.`,
           r?.arrivee ? `Ce qu'ils voient : ${ligneRenseignement(nomRegion(cle), lire("etat")?.renseignements?.[cle], lire("quand")?.jour ?? 0, nomRegion)}` : "",
+          ligneManque(r?.manque),
           ...lignePubliques("En chemin", publics)
         ],
-        secret: [r?.rencontre ? `${RENCONTRE}${texteRencontre(r.rencontre)}` : "", route ? `Route réelle au départ : ${route}.` : "",
+        secret: [...lignesRencontres(r), route ? `Route réelle au départ : ${route}.` : "",
           `Réel à destination : ${reelDe(cle)}`, ...lignePubliques("Hors de leur vue", secrets)]
       }) };
     }
@@ -434,11 +457,13 @@ export const OUTILS_SURVIE = [
       const pris = Object.fromEntries(Object.entries(emporter ?? {}).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Math.floor(v)]));
       const r = await appeler("demenager", { site: cleSite, emporter: pris, transport });
       const abri = acteurDe(lire("etat")?.groupe?.abri);
+      const { publics, secrets } = trierFaits(r?.faits ?? []);
       return { contenu: rendu({
         connu: [`Le groupe déménage vers ${nomDe(lire("contenu")?.sites, cleSite)} (${transport}) en emportant ${texteVariations(pris).replace(/\+/g, "")} ; maintenant : ${quandTexte()}.`,
           r?.arrivee === false ? "Ils ne sont pas encore arrivés." : abri ? `Nouvel abri : ${abri.name} ; stocks : ${texteStocks(abri.system?.stocks)}.` : "",
+          ligneManque(r?.manque), ...lignePubliques("En chemin", publics),
           RAPPEL_RENSEIGNEMENTS],
-        secret: r?.rencontre ? [`${RENCONTRE}${texteRencontre(r.rencontre)}`] : []
+        secret: [...lignesRencontres(r), ...lignePubliques("Hors de leur vue", secrets)]
       }) };
     }
   }),
@@ -451,11 +476,11 @@ export const OUTILS_SURVIE = [
       stocks: objet(Object.fromEntries(RESSOURCES.map(r => [r, entier(`Variation de ${libelleRessource(r)} (0 = inchangé).`)]))),
       personnage: chaine("Survivant dont l'état change ; vide = aucun."),
       etat: objet({
-        blessures: entier("Variation des blessures (0 à 4 ; pour une blessure de combat, préfère survie_blessure)."),
-        fatigue: entier("Variation de la fatigue (0 à 5)."), moral: entier("Variation du moral (0 à 5)."),
-        faim: entier("Variation des jours sans manger."), soif: entier("Variation des quarts sans boire.")
+        blessures: entier("Variation des blessures (échelle 0 à 4 ; 0 = inchangé ; pour une blessure de combat, préfère survie_blessure)."),
+        fatigue: entier("Variation de la fatigue (échelle 0 à 5 ; 0 = inchangé)."), moral: entier("Variation du moral (échelle 0 à 5 ; 0 = inchangé)."),
+        faim: entier("Variation des jours sans manger (0 = inchangé)."), soif: entier("Variation des quarts sans boire (0 = inchangé).")
       }),
-      raison: chaine("Pourquoi (inscrit à la chronique).")
+      raison: chaine("Pourquoi (inscrit à la chronique) ; vide = « ajustement ».")
     }),
     sensible: true,
     async executer({ stocks, personnage, etat, raison }) {
@@ -484,7 +509,7 @@ export const OUTILS_SURVIE = [
       personnage: chaine("Le survivant touché ou soigné."),
       n: entier("blesser : nombre de blessures (1 en général) ; 0 sinon."),
       morsure: booleen("blesser : true si c'est une morsure ou une griffure profonde de Livide."),
-      soigneur: chaine("soigner : nom de celui qui soigne ; vide sinon.")
+      soigneur: chaine("soigner : nom de celui qui soigne ; vide = le meilleur soigneur présent, choisi par le système (blesser, infecter : vide).")
     }),
     sensible: true,
     async executer({ action, personnage, n: nombre, morsure, soigneur }) {
@@ -496,8 +521,12 @@ export const OUTILS_SURVIE = [
         if (morsure) suite = "MORSURE : test de soins EXTRÊME maintenant, dans le quart (demander_jet soins « tres-ardue » pour un joueur, "
           + "survie_test soins extreme sinon) ; décris le geste (lavage, cautérisation, amputation selon l'endroit). Échec : survie_blessure infecter.";
       } else if (action === "soigner") {
-        const s = survivant(soigneur);
-        await appeler("soigner", { acteurId: a.id, soigneurId: s.id });
+        // Sans soigneur nommé, le système prend le meilleur en soins (api.soigner) : il rend le test (du soigneur) et les blessures soignées.
+        const s = survivant(soigneur, { requis: false });
+        const r = await appeler("soigner", { acteurId: a.id, ...(s ? { soigneurId: s.id } : {}) });
+        const qui = s?.name ?? nomActeur(r?.test?.acteurId);
+        suite = [r?.test ? texteTest(qui, "soins", r.test) : "",
+          r?.soignees !== undefined ? `${Number(r.soignees) || 0} blessure(s) soignée(s)${r.medicament ? ", un médicament consommé" : ""}.` : ""].filter(Boolean).join(" ");
       } else {
         await appeler("infecter", { acteurId: a.id });
         suite = "Le Gris est en lui : stade +1 tous les deux quarts, mort à 6 puis Livide au quart suivant si rien n'est fait. Aucun "
@@ -513,7 +542,7 @@ export const OUTILS_SURVIE = [
     schema: objet({
       personnage: chaine("Le survivant."),
       competence: choix(CLES_COMPETENCES, "La compétence qui progresse."),
-      raison: chaine("La scène qui lui a appris quelque chose.")
+      raison: chaine("La scène qui lui a appris quelque chose ; vide = sans précision.")
     }),
     sensible: false,
     async executer({ personnage, competence, raison }) {
@@ -531,8 +560,8 @@ export const OUTILS_SURVIE = [
       + "fuite possible). Raconte l'assaut d'après le résultat.",
     schema: objet({
       force: entier("Force de la menace en d6 (1 à 10 : une poignée de Livides 2, une horde 6 à 10, une bande armée 4 à 7)."),
-      type: chaine("Nature de la menace (« horde », « bande », « chiens »…)."),
-      description: chaine("Ce qui arrive, en une phrase (inscrit à la chronique).")
+      type: chaine("Nature de la menace (« horde », « bande », « chiens »…) ; vide = inconnue."),
+      description: chaine("Ce qui arrive, en une phrase (inscrit à la chronique) ; vide = rien de plus.")
     }),
     sensible: true,
     async executer({ force, type, description }) {
@@ -542,9 +571,9 @@ export const OUTILS_SURVIE = [
       const blesses = (r?.blesses ?? []).map(b => (typeof b === "string" ? nomActeur(b) : b?.nom ?? nomActeur(b?.acteurId ?? b?.id)));
       const degats = Array.isArray(r?.degats) ? r.degats.map(d => (typeof d === "string" ? d : d?.nom ?? d?.installation ?? "?")).join(", ") : r?.degats;
       return { contenu: rendu({ connu: [
-        `Assaut (${type.trim() || "?"}, force ${force}) : ${r?.issue ?? "?"} (marge ${r?.marge ?? "?"}).`,
+        `Assaut (${type.trim() || "?"}, force ${force}) : ${ISSUES_ASSAUT[r?.issue] ?? r?.issue ?? "?"} (marge ${r?.marge ?? "?"}).`,
         degats ? `Dégâts : ${degats}.` : "", blesses.length ? `Blessés : ${blesses.join(", ")}.` : "",
-        Number(r?.marge) <= -2 ? "BRÈCHE : joue la scène (combat simple, §1.7) ; la fuite est une vraie option." : ""
+        r?.issue === "breche" || Number(r?.marge) <= -2 ? "BRÈCHE : joue la scène (combat simple, §1.7) ; la fuite est une vraie option." : ""
       ] }) };
     }
   }),
@@ -646,7 +675,7 @@ export const OUTILS_SURVIE = [
         r?.test ? texteTest(a.name, r.test.competence ?? r.competence ?? "bricolage", r.test) : "",
         r?.termine === false ? `Pas encore fini${r?.chantier ? ` (${r.chantier.fait ?? "?"}/${r.chantier.requis ?? "?"} quarts)` : ""}.`
           : r?.reussite === false || r?.test?.reussite === false ? "Raté : matériaux perdus ou objet bancal (raconte-le)." : produit ? `Fabriqué : ${produit}.` : "Fabrication faite.",
-        r?.texte ? String(r.texte).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : ""
+        brut(r?.texte)
       ] }) };
     }
   }),
@@ -670,7 +699,8 @@ export const OUTILS_SURVIE = [
       const nom = nomDe(lire("contenu")?.afflictions, cle);
       return { contenu: rendu({ connu: [
         action === "donner" ? `${a.name} est atteint(e) : ${nom}.` : `${a.name} : ${nom}${r?.gueri === false || r?.reussite === false ? " résiste au soin" : " soigné(e)"}.`,
-        r?.texte ? String(r.texte).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "",
+        r?.test ? texteTest(nomActeur(r.test.acteurId), r.test.competence ?? "soins", r.test) : "",
+        brut(r?.texte),
         resumerSurvivant(acteurDe(a.id) ?? a)
       ] }) };
     }
@@ -681,21 +711,20 @@ export const OUTILS_SURVIE = [
       + "personne, +1 de moral pour chacun, une fois par fête (le système refuse la seconde). Seulement si les joueurs le décident ; "
       + "une fête, ça s'entend (bruit) et ça se voit : raconte-le.",
     schema: objet({
-      fete: chaine("La fête (id du calendrier : « noel », « liberte », « nouvel-an »…) ; vide = la fête en cours dans ce monde.")
+      fete: chaine("La fête (clé du calendrier de Fénoir : « noel », « liberte », « nouvel-an »…) ; vide = la fête du jour DE JEU, que le "
+        + "système trouve d'après la date de la partie (pas celle des joueurs) ; il refuse s'il n'y en a pas.")
     }),
     sensible: true,
     async executer({ fete }) {
       api();
-      let id = fete.trim();
-      if (!id) {
-        try { id = jeu()?.modules?.get?.(ID_MJIA)?.api?.fetes?.active?.()?.fete ?? ""; } catch { id = ""; }
-      }
-      if (!id) throw new Refus("aucune fête en cours dans ce monde : nomme la fête (fete).");
-      const r = await appeler("feter", { fete: id });
+      // Fête vide : le système la cherche à la date DE JEU (api.feter) ; la fête du calendrier réel des joueurs (fetes.js) n'est pas
+      // la bonne : la date de Fénoir est une autre.
+      const r = await appeler("feter", { fete: fete.trim() });
       const abri = acteurDe(lire("etat")?.groupe?.abri);
+      const nom = String(r?.fete || fete.trim() || "la fête du jour");
       return { contenu: rendu({ connu: [
-        `Le groupe fête ${id} au camp : une ration de plus chacun, +1 de moral.`,
-        r?.texte ? String(r.texte).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "",
+        `Le groupe fête ${nom} au camp : une ration de plus chacun, +1 de moral.`,
+        brut(r?.texte),
         abri ? `Stocks : ${texteStocks(abri.system?.stocks)}.` : ""
       ] }) };
     }
@@ -772,7 +801,7 @@ OUTILS_SURVIE.push(outil({
     nom: chaine("creer : nom du survivant (vide = celui du tirage)."),
     joueur: chaine("creer : nom du joueur Foundry qui reçoit la fiche ; vide = aucun (PNJ, compagnon IA)."),
     acteur_existant: chaine("creer : nom d'une fiche de survivant existante à compléter ; vide = nouvelle fiche."),
-    passe: chaine("creer sans tirage : clé ou nom d'un passé du compendium, ou texte libre (donne alors toutes les compétences)."),
+    passe: chaine("creer sans tirage : clé ou nom d'un passé du compendium, ou texte libre (donne alors toutes les compétences) ; vide = celui du tirage."),
     competences: liste(objet({ competence: choix(CLES_COMPETENCES, "Compétence."), niveau: entier("Niveau 0 à 5.") }),
       "creer : niveaux qui REMPLACENT ceux du tirage ou du passé (ajustements choisis avec le joueur) ; vide = aucun."),
     equipement: liste(chaine("Clé ou nom d'un équipement du compendium."), "creer : équipement en plus ; vide = rien de plus."),
@@ -903,10 +932,12 @@ OUTILS_SURVIE.push(
       action: choix(["generer", "recruter"], "generer une recrue, ou la recruter."),
       region: chaine("generer : région où on la croise (clé ou nom) ; vide = celle du groupe."),
       recrue: chaine("recruter : identifiant de la recrue rendu par generer (« R1 ») ; vide sinon."),
-      parleur: chaine("recruter : le survivant qui la convainc (test de parole) ; vide sinon.")
+      parleur: chaine("recruter : le survivant qui la convainc (test de parole) ; vide sinon."),
+      attitude: choix(["", "amicale", "neutre", "mefiante", "hostile"], "recruter : l'attitude de la recrue envers le groupe (elle règle la difficulté "
+        + "du test : amicale facile, neutre normale, méfiante difficile, hostile extrême ; un cran de moins si elle comble un manque) ; vide = neutre.")
     }),
     sensible: true,
-    async executer({ action, region, recrue, parleur }) {
+    async executer({ action, region, recrue, parleur, attitude }) {
       api();
       if (action === "generer") {
         const cle = cleDe("regions", region, "une région", { defaut: regionDuGroupe() });
@@ -921,7 +952,7 @@ OUTILS_SURVIE.push(
       const d = recrues.get(id);
       if (!d) throw new Refus(`recrue « ${recrue} » inconnue (recrues proposées : ${[...recrues.keys()].join(", ") || "aucune"}).`);
       const p = survivant(parleur);
-      const r = await appeler("recruter", { recrue: d, parleurId: p.id });
+      const r = await appeler("recruter", { recrue: d, parleurId: p.id, ...(attitude ? { attitude } : {}) });
       const nouvel = acteurDe(r?.acteurId ?? r?.acteur?.id ?? r?.id);
       const reussi = r?.reussite ?? r?.test?.reussite ?? Boolean(nouvel);
       if (reussi) recrues.delete(id);

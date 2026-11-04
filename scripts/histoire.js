@@ -64,8 +64,10 @@ export async function ouvrirHistoire(acteur) {
   return ui.notifications?.info(traduire("LAKOUR_MJIA.Histoire.Demandee"));
 }
 
+// Les types d'acteur qui ont une histoire : à Fénoir, un survivant (pas un abri) ; ailleurs, tous (un PNJ important aussi).
+const TYPES_HISTOIRE = { "lakour-survie": ["survivant"] };
 export const boutonVisible = (acteur, jeu = globalThis.game) => Boolean(acteur) && H.SYSTEMES_HISTOIRE.includes(jeu?.system?.id)
-  && Boolean(jeu?.user?.isGM || acteur.isOwner);
+  && (TYPES_HISTOIRE[jeu?.system?.id]?.includes(acteur.type) ?? true) && Boolean(jeu?.user?.isGM || acteur.isOwner);
 
 const ouvrir = acteur => ouvrirHistoire(acteur).catch(e => { console.error(`${ID} | histoire`, e); ui.notifications?.error(e.message); });
 
@@ -79,9 +81,11 @@ export function brancherHistoire() {
     envoyer({ type: "histoire.ouvrir", uuid: journal.uuid }, [qui]);
   }, { pourMJ: true });
   recevoir("histoire.ouvrir", async m => (await fromUuid(m.uuid))?.sheet?.render(true));
+  // Une fiche qui a déjà son bouton « Histoire » (la fiche de survivant de Fénoir : action « histoire », par api.histoire.ouvrir) n'en
+  // reçoit pas un second.
   Hooks.on("getHeaderControlsActorSheetV2", (app, controles) => {
     const acteur = app.document ?? app.actor;
-    if (!boutonVisible(acteur) || controles.some(c => c.action === "lakourHistoire")) return;
+    if (!boutonVisible(acteur) || controles.some(c => c.action === "lakourHistoire") || app.options?.actions?.histoire) return;
     controles.push({ icon: "fa-solid fa-book-open", label: traduire("LAKOUR_MJIA.Histoire.Bouton"), action: "lakourHistoire", onClick: () => ouvrir(acteur) });
   });
   Hooks.on("getActorSheetHeaderButtons", (app, boutons) => {

@@ -142,7 +142,7 @@ export function apiDoublure(cadre) {
       cadre.etat.horloge.quart += quarts;
       cadre.monde.journalSecret.push({ jour: quand().jour, texte: "JOURNAL-SECRET-NOUVEAU : une bande s'installe au Port." });
       return { quand: quand(), faits: [{ jour: quand().jour, region: "le-port", cle: "fumee", public: true, texte: "Une fumée noire monte du Port." }],
-        alertes: [{ quart: cadre.etat.horloge.quart, type: "cyclone", texte: "Alerte orange cyclonique." }], bilan: bilan() };
+        alertes: [{ quart: cadre.etat.horloge.quart, type: "cyclone", texte: "Alerte orange cyclonique." }], bilan: bilan(), departs: quarts >= 4 ? ["s2"] : [] };
     }),
     test: enregistrer("test", async ({ difficulte, forcer, compte }) => {
       const succes = 2, requis = REQUIS[difficulte] ?? 1;
@@ -159,12 +159,18 @@ export function apiDoublure(cadre) {
     fouiller: enregistrer("fouiller", async () => ({ butin: { nourriture: 3, medicaments: 1, eau: 0 }, rencontre: null, bruit: 1, faits: [] })),
     installer: enregistrer("installer", async () => ({})),
     construire: enregistrer("construire", async () => ({ chantier: { fait: 2, requis: 6 }, termine: false, niveau: 0 })),
-    reparer: enregistrer("reparer", async () => ({ etat: 0 })),
-    voyager: enregistrer("voyager", async ({ vers }) => { cadre.etat.groupe.region = vers; return { arrivee: true, quarts: 2, rencontre: null, faits: [] }; }),
+    reparer: enregistrer("reparer", async ({ installationId = "" }) => (installationId ? { etat: 0 } : { degats: 1, repares: 1 })),
+    // Un voyage en deux étapes : une rencontre par étape (rencontres), la première aussi en rencontre ; des provisions qui ont manqué.
+    voyager: enregistrer("voyager", async ({ vers }) => {
+      cadre.etat.groupe.region = vers;
+      const rencontres = [{ type: "livides", nombre: 2, texte: "RENCONTRE-SECRETE-1 : deux Livides sur la quatre-voies." }, { type: "animaux", texte: "RENCONTRE-SECRETE-2 : des chiens." }];
+      return { arrivee: true, quarts: 2, rencontre: rencontres[0], rencontres, faits: [], manque: { eau: 1, nourriture: 0, carburant: 0 } };
+    }),
     demenager: enregistrer("demenager", async () => ({})),
     ajuster: enregistrer("ajuster", async () => ({})),
     blesser: enregistrer("blesser", async () => ({})),
-    soigner: enregistrer("soigner", async () => ({})),
+    // Le soigneur est celui donné, sinon le meilleur en soins (s1) : le test est le sien.
+    soigner: enregistrer("soigner", async ({ soigneurId = "" }) => ({ test: { acteurId: soigneurId || "s1", succes: 2, requis: 1, reussite: true, marge: 1 }, soignees: 1, blessures: 0, medicament: true })),
     infecter: enregistrer("infecter", async () => ({})),
     marquer: enregistrer("marquer", async () => ({ niveau: 3, marques: 2, monte: false })),
     assaut: enregistrer("assaut", async () => ({ marge: -1, issue: "installation endommagée", degats: ["Palissade"], blesses: ["s1"] })),
@@ -172,7 +178,12 @@ export function apiDoublure(cadre) {
     fabriquer: enregistrer("fabriquer", async ({ acteurId }) => ({ termine: true, produit: { equipement: "arc-et-fleches", n: 1 },
       test: { competence: "bricolage", succes: 1, requis: 1, reussite: true, marge: 0 }, acteurId })),
     affliction: enregistrer("affliction", async ({ action }) => (action === "soigner" ? { gueri: true } : {})),
-    feter: enregistrer("feter", async () => ({ texte: "Moral +1 pour chacun." })),
+    // Fête vide : celle du jour DE JEU (ici Noël, 2026-12-xx) ; LAKOUR_SURVIE.Erreurs.AucuneFete si le cadre n'en a pas.
+    feter: enregistrer("feter", async ({ fete = "" }) => {
+      const cle = fete || cadre.feteDuJour;
+      if (!cle) throw new Error("LAKOUR_SURVIE.Erreurs.AucuneFete");
+      return { ok: true, fete: cle, texte: "Moral +1 pour chacun." };
+    }),
     // §10 (supposées) : générateur, besoins, recrues, tâches, membres. generer : le premier tirage hors budget, puis dans le budget.
     generer: async options => {
       cadre.generes.push(structuredClone(options));
@@ -201,7 +212,7 @@ export function apiDoublure(cadre) {
 
 // Installe le monde Fénoir de la doublure dans globalThis. -> { cadre, api, chat, acteurs }
 export function installerFenoir({ mjActif = true, mondeOuvert = true, systeme = "lakour-survie", avecApi = true } = {}) {
-  const cadre = { mjActif, mondeOuvert, etat: etatDeDepart(), monde: mondeDeDepart(), derniersArgs: [], generes: [] };
+  const cadre = { mjActif, mondeOuvert, etat: etatDeDepart(), monde: mondeDeDepart(), derniersArgs: [], generes: [], feteDuJour: "noel" };
   const chat = [];
   const acteurs = new Collection(acteursDeDepart().map(a => [a.id, a]));
   const mj = { id: "mj", name: "Hogun", isGM: true, active: true, update: async () => {} };
