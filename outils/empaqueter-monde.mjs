@@ -51,7 +51,7 @@ import { basename, dirname, join, posix, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { crc32, deflateRawSync } from "node:zlib";
 
-// ---------------------------------------------------------------- Les trois mondes
+// ---------------------------------------------------------------- Les quatre mondes
 
 export const MONDES = {
   "lakour-40k": {
@@ -59,7 +59,8 @@ export const MONDES = {
     requis: [{ id: "warhammer-lib", type: "module" }]
   },
   "lakour-warcraft": { id: "la-kour-warcraft", depot: "lakour-warcraft", systeme: "dnd5e", typesJoueur: ["character"], requis: [] },
-  "lakour-veillees": { id: "la-kour-veillees", depot: "lakour-veillees", systeme: "lakour-loups", typesJoueur: ["villageois"], requis: [] }
+  "lakour-veillees": { id: "la-kour-veillees", depot: "lakour-veillees", systeme: "lakour-loups", typesJoueur: ["villageois"], requis: [] },
+  "lakour-fenoir": { id: "la-kour-fenoir", depot: "lakour-fenoir", systeme: "lakour-survie", typesJoueur: ["survivant"], requis: [] }
 };
 export const MOTEUR = "lakour-mj-ia";
 export const COMPTE_GITHUB = "https://github.com/Hogun974";
