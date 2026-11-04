@@ -42,7 +42,7 @@ function acteur(nom, system, items = []) {
 }
 
 function monde(systeme, acteurs, extra = {}) {
-  const utilisateurs = [{ id: "u1", name: "Hogun974", isGM: false, character: acteurs[0] }, { id: "mj", name: "MJ", isGM: true }];
+  const utilisateurs = [{ id: "u1", name: "Camille", isGM: false, character: acteurs[0] }, { id: "mj", name: "MJ", isGM: true }];
   globalThis.game = {
     system: { id: systeme }, user: { id: "mj" }, users: utilisateurs,
     actors: Object.assign([...acteurs], { get: () => undefined, getName: n => acteurs.find(a => a.name === n) }),
@@ -112,7 +112,7 @@ test("message_prive : chuchoté au joueur et au MJ seulement ; chronique : journ
   const lazar = acteur("Lazar Vosk", {});
   const journaux = [];
   monde("impmal", [lazar], { journal: journaux });
-  await outil("message_prive").executer({ joueur: "Hogun974", texte: "Tu entends ton nom murmuré dans l'eau." });
+  await outil("message_prive").executer({ joueur: "Camille", texte: "Tu entends ton nom murmuré dans l'eau." });
   assert.deepEqual(messages.at(-1).whisper, ["u1", "mj"]);
   globalThis.JournalEntry = { implementation: { create: async d => {
     const pages = [];

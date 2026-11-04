@@ -46,7 +46,7 @@ test("creer_personnage_dnd5e : compléter une fiche inexistante est refusé, san
   let cree = false;
   globalThis.game = { system: { id: "dnd5e" }, actors: { find: () => null } };
   globalThis.Actor = { implementation: { create: async () => { cree = true; } } };
-  const r = await outil.executer({ nom: "Rowan", joueur: "Hogun974", acteur_existant: "Rowan Harlowe", caracteristiques: { str: 8, dex: 15, con: 14, int: 12, wis: 13, cha: 10 },
+  const r = await outil.executer({ nom: "Rowan", joueur: "Camille", acteur_existant: "Rowan Harlowe", caracteristiques: { str: 8, dex: 15, con: 14, int: 12, wis: 13, cha: 10 },
     peuple_uuid: "", historique_uuid: "", classe_uuid: "", bonus_historique: [], maitrises: [], choix_uuid: [], taille: "", carac_sorts: "", equipement: "objets", description: "" });
   assert.ok(r.erreur);
   assert.match(r.contenu, /Fiche introuvable : Rowan Harlowe/);

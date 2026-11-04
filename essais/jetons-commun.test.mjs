@@ -10,7 +10,7 @@ import {
   DOSSIER_ICONES, controleurJetons, couleurAnneau, dessinerJetons, erreursSvg, jetonPlat, jetonRelief, lireIcone, tableauCredits, tracesIcone
 } from "../outils/jetons-commun.mjs";
 
-// Déplacé de essais/jetons.test.mjs de l'archive (foundry-modules@bc94625) : il n'éprouve que l'aide commune.
+// Déplacé de l'ancien essai des jetons : il n'éprouve que l'aide commune.
 test("le lecteur d'icônes refuse tout ce qui n'est pas un simple tracé (mutation)", () => {
   const base = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M0 0h512v512H0z"/><path fill="#fff" d="M10 10h20v20z"/></svg>';
   assert.deepEqual(tracesIcone(base), ["M10 10h20v20z"]);
