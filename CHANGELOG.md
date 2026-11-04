@@ -4,7 +4,7 @@ Versions du moteur MJ IA de La Kour (les modules de contenu des mondes tiennent 
 suivent `module.json` ; chaque release GitHub `v<version>` reprend la section correspondante. Avant la 0.26, le moteur
 vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici.
 
-## Non publié
+## 0.40.0 — 2026-11-04
 
 - Fénoir (système `lakour-survie`) branché : adaptateur, outils `survie_*`, état du jeu en deux blocs (connu des
   joueurs / secret du MJ), création de survivant guidée, recrues et tâches ; voir `docs/survie.md`.
@@ -16,6 +16,8 @@ vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici
 - Publication : README français et anglais, manifeste complété (titre « MJ IA (Anthropic / OpenAI) », adresses de
   diffusion), `THIRD-PARTY-NOTICES.md` (licences des SDK embarqués), `outils/empaqueter-module.mjs`, workflow de
   release GitHub, `docs/publication.md` ; scripts d'infrastructure privée et plans internes sortis du dépôt.
+- Contenu bilingue : outil `outils/traduction.mjs`, variantes anglaises `<module>-en` des modules de contenu reconnues partout
+  (packs, drapeaux, assets), voir `docs/traduction.md`.
 
 ## 0.39.0 — 2026-11-03
 

@@ -13,6 +13,7 @@
 // (api.monde()) ni les jetons cachés.
 import { ID } from "./constantes.js";
 import { adaptateur } from "./adaptateurs.js";
+import { contenuNomme, packDeContenu, drapeauxDuContenu } from "./contenus.js";
 import { versHTML, roleLoups, campLoups, secretsVeilleesEnAttente } from "./utilitaires.js";
 import { vuePubliqueDepuisApi } from "./survie-logique.js";
 import { ligneHistoireActeur } from "./histoire-logique.js";
@@ -302,13 +303,15 @@ export function vueDe(acteur, options = {}) {
 const NOMS_DE_SECOURS = ["Mathurin Vaudrey", "Ysaline Corbet", "Anselme Ferrand", "Odile Basquin", "Gaspard Lerouge", "Clémence Aubrac",
   "Firmin Delorme", "Rosalie Brunet", "Eudes Malivert", "Perrine Sauvage", "Bastien Corbière", "Léontine Gaudry"];
 
-// n noms tirés de la table « Noms de villageois » du module de contenu (lakour-veillees.tables), sans ceux déjà pris.
+// n noms tirés de la table « Noms de villageois » du module de contenu (compendium « tables » de lakour-veillees ou de sa variante
+// anglaise lakour-veillees-en, celle qui est active), sans ceux déjà pris.
 export async function nomsPourCompagnons(n, { exclus = [] } = {}) {
   let noms = [];
   try {
-    const pack = game.packs?.get("lakour-veillees.tables");
+    const module = contenuNomme("lakour-loups");
+    const pack = game.packs?.get(packDeContenu("tables", "lakour-loups"));
     const docs = pack ? await pack.getDocuments() : [];
-    const table = docs.find(d => d.flags?.["lakour-veillees"]?.cle === "noms-de-villageois") ?? docs.find(d => /noms/i.test(d.name ?? ""));
+    const table = docs.find(d => drapeauxDuContenu(d.flags, module)?.cle === "noms-de-villageois") ?? docs.find(d => /noms/i.test(d.name ?? ""));
     const resultats = table ? [...(table.results?.contents ?? table.results ?? [])] : [];
     noms = resultats.map(r => texteBrut(r.description || r.name || r.text)).filter(Boolean);
   } catch { /* pas de table : noms de secours */ }

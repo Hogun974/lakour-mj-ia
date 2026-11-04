@@ -1,7 +1,9 @@
 // Tirages sur une table (lancer_table) : plusieurs résultats SANS doublon, en écartant ceux déjà tirés ou pris (le tableau des
 // contrats de Warcraft en tire trois par jour), et les données que le module de contenu range sur chaque résultat
-// (flags.<module>.contrat : { type, po, faction, reputation } à Warcraft ; flags.lakour-fenoir.appel : { type, faction, reputation,
-// recompense: { ressource: n } } à Fénoir, les appels radio et demandes des factions). Logique pure, sans Foundry (essais/lancer-table.test.mjs).
+// (flags.<module>.contrat : { type, po, faction, reputation } à Warcraft ; flags.<module>.appel : { type, faction, reputation,
+// recompense: { ressource: n } } à Fénoir, les appels radio et demandes des factions). <module> est l'identifiant du module de contenu
+// qui a posé le résultat, français (lakour-fenoir) ou anglais (lakour-fenoir-en) : l'appelant lit les deux (drapeauxDuContenu, contenus.js)
+// et passe ici le seul objet des drapeaux. Logique pure, sans Foundry (essais/lancer-table.test.mjs).
 import { plier } from "./recherche-nom.js";
 
 export const TIRAGES_MAX = 10;

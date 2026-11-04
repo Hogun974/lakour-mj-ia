@@ -7,7 +7,7 @@ import { estNarrationAudible, lireNavigateur, taireNavigateur, jouerTousLesMorce
 import { brancherReactions } from "./reactions.js";
 import { redessinerCartes, donnerMunitions } from "./outils.js";
 import { definirFigurants } from "./placement.js";
-import { figurantsDuContenu } from "./contenus.js";
+import { figurantsDuContenu, packDeContenu } from "./contenus.js";
 import { brancherVue3d } from "./vue3d.js";
 import { brancherDecisions, brancherCompagnonsDecisions } from "./decisions.js";
 import { installerGuide } from "./guide.js";
@@ -381,7 +381,8 @@ Hooks.on("getSceneControlButtons", controles => {
 // - munitions (0.22.0) : les armes à chargeur des personnages joueurs créés avant n'avaient aucune munition reliée.
 async function reparerMonde() {
   const faites = { ...game.settings.get(ID, "reparations") };
-  if (!faites.munitions && game.system.id === "impmal" && game.packs.get("lakour-40k.armement")) {
+  // Le compendium d'armement du module de contenu 40k, dans sa langue active (lakour-40k ou lakour-40k-en).
+  if (!faites.munitions && game.system.id === "impmal" && game.packs.get(packDeContenu("armement", "impmal"))) {
     const rapport = [];
     for (const acteur of game.actors.filter(a => a.type === "character")) {
       const lots = await donnerMunitions(acteur);

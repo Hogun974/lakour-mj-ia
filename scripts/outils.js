@@ -9,7 +9,7 @@ import { OUTILS_SURVIE } from "./outils-survie.js";
 import { OUTIL_HISTOIRE } from "./outils-histoire.js";
 import { ecrireHistoire } from "./histoire.js";
 import { ajouterAvecAvancements, donnerEquipement, monterNiveau } from "./creation-dnd5e.js";
-import { jetonJoueur, moduleDeContenu } from "./contenus.js";
+import { jetonJoueur, moduleDeContenu, contenuNomme, packDeContenu, drapeauxDuContenu } from "./contenus.js";
 import { lire, ecrire } from "./reglages.js";
 import { volumeAmbiance } from "./voix-texte.js";
 import { ouvrirVote, cloreVote, demanderChoix, nomPourIA, DELAI_VOTE, DELAI_CHOIX, MAX_OPTIONS } from "./decisions.js";
@@ -606,10 +606,11 @@ OUTILS.push(
       }
       if (!t) return { erreur: true, contenu: `Table introuvable : ${table}. Tables du monde : ${game.tables.map(x => x.name).join(", ")}.` };
       const nomDe = r => r.name || versTexte(r.description);
-      // Les données du module de contenu du monde (lakour-warcraft : flags.lakour-warcraft.contrat), pour l'IA seule.
+      // Les données du module de contenu du monde (lakour-warcraft : flags.lakour-warcraft.contrat ; lakour-fenoir : flags.lakour-fenoir.appel),
+      // pour l'IA seule. Les drapeaux portent l'identifiant du module qui a posé le résultat (français ou « -en ») : les deux sont lus.
       const contenu = (() => { try { return moduleDeContenu(); } catch { return null; } })();
       const ligne = (r, total) => `jet ${total} → ${nomDe(r)}${r.documentUuid ? ` (uuid ${r.documentUuid})` : ""}`
-        + `${contenu && donneesDuResultat(r.flags?.[contenu]) ? ` [${donneesDuResultat(r.flags[contenu])}]` : ""}`;
+        + `${contenu && donneesDuResultat(drapeauxDuContenu(r.flags, contenu)) ? ` [${donneesDuResultat(drapeauxDuContenu(r.flags, contenu))}]` : ""}`;
       // Un seul résultat, rien à écarter : le tirage de Foundry, affiché tel quel.
       if ((nombre || 1) <= 1 && !exclure.length) {
         const tirage = await t.draw({ displayChat: true, rollMode: CONST.DICE_ROLL_MODES.PUBLIC });
@@ -695,7 +696,7 @@ OUTILS.push(
       const neuf = d => (d.parent ? undefined : d.toObject().system);
       // Le module de contenu 40k range la fiche ensuite (armure portée, arme en main, munitions, doublons fusionnés) :
       // on lui laisse les doubles voulus (deux Stimm). Sans lui, un seul exemplaire de chaque objet.
-      const preparerDepart = game.modules.get("lakour-40k")?.api?.preparerDepart;
+      const preparerDepart = game.modules.get(contenuNomme("impmal"))?.api?.preparerDepart;
       const dejaLa = new Set((existant?.items ?? []).map(i => `${i.type}:${i.name}`));
       const introuvables = [];
       for (const uuid of objetsDeDepart({ origine: neuf(origine), faction: neuf(faction), role: neuf(role) }, a.objets, { garderDoubles: Boolean(preparerDepart) })) {
@@ -709,7 +710,7 @@ OUTILS.push(
 
       const utilisateur = trouverJoueur(a.joueur);
       // Jeton du rôle, si le module de contenu en fournit un.
-      const jeton = existant ? null : await jetonJoueur(role.flags?.["lakour-40k"]?.cle, lire("styleVisuel"));
+      const jeton = existant ? null : await jetonJoueur(drapeauxDuContenu(role.flags, contenuNomme("impmal"))?.cle, lire("styleVisuel"));
       const acteur = existant ?? await Actor.implementation.create({
         name: a.nom, type: "character",
         ...(jeton ? { img: jeton } : {}),
@@ -808,7 +809,7 @@ OUTILS.push({
     } catch (e) { return { erreur: true, contenu: e.message }; }
 
     // Jeton du peuple, si le module de contenu en fournit un (nouvelle fiche seulement).
-    const jeton = existant ? null : await jetonJoueur(peuple?.flags?.["lakour-warcraft"]?.cle, lire("styleVisuel"));
+    const jeton = existant ? null : await jetonJoueur(drapeauxDuContenu(peuple?.flags, contenuNomme("dnd5e"))?.cle, lire("styleVisuel"));
     const acteur = existant ?? await Actor.implementation.create({
       name: a.nom, type: "character",
       ...(jeton ? { img: jeton } : {}),
@@ -853,18 +854,21 @@ OUTILS.push({
   }
 });
 
-// Imperium Maledictum : chaque arme à chargeur sans munitions reliées reçoit deux lots de sa munition (compendium de
-// lakour-40k), branchés sur l'arme (system.ammo.id) : elle peut tirer et recharger depuis la fiche. Renvoie les lots ajoutés.
+// Imperium Maledictum : chaque arme à chargeur sans munitions reliées reçoit deux lots de sa munition (compendium « armement » du
+// module de contenu 40k, lakour-40k ou lakour-40k-en), branchés sur l'arme (system.ammo.id) : elle peut tirer et recharger depuis
+// la fiche. Renvoie les lots ajoutés.
 export async function donnerMunitions(acteur) {
-  const pack = game.packs.get("lakour-40k.armement");
+  const module = contenuNomme("impmal");
+  const pack = game.packs.get(packDeContenu("armement", "impmal"));
   if (!pack || game.system.id !== "impmal") return [];
   const sources = await pack.getDocuments();
   const ajoutes = [];
+  const cleDe = d => drapeauxDuContenu(d.flags, module)?.cle;
   for (const arme of acteur.items.filter(i => munitionPour(i) && !i.system.ammo?.id)) {
     const cle = munitionPour(arme);
-    let lot = acteur.items.find(i => i.type === "ammo" && i.flags?.["lakour-40k"]?.cle === cle);
+    let lot = acteur.items.find(i => i.type === "ammo" && cleDe(i) === cle);
     if (!lot) {
-      const source = sources.find(d => d.flags?.["lakour-40k"]?.cle === cle);
+      const source = sources.find(d => cleDe(d) === cle);
       if (!source) continue;
       const donnees = game.items.fromCompendium(source);
       donnees.system.quantity = (donnees.system.quantity ?? 1) * 2;
@@ -1186,7 +1190,7 @@ OUTILS.push(
 
 // ---------------------------------------------------------------- Narrateur des « Veillées de Brumecombe » (système lakour-loups)
 // Ces outils appellent l'API du système (game.lakourLoups, docs/loups-contrat.md) ; le contenu (rôles, compositions) vient du
-// module lakour-veillees.
+// module lakour-veillees (ou de sa variante anglaise lakour-veillees-en : contenuNomme("lakour-loups")).
 const LOUPS = ["lakour-loups"];
 const apiLoups = () => {
   const api = game.lakourLoups;
@@ -1206,11 +1210,12 @@ const vivants = () => apiLoups().villageois().filter(a => a.system.vivant);
 
 // Compositions, équilibre et rôles du module de contenu : clé -> uuid du compendium, et clé -> nom (pour parler aux joueurs).
 async function contenuVeillees() {
-  const json = async f => (await fetch(foundry.utils.getRoute(`modules/lakour-veillees/assets/${f}`), { cache: "no-store" })).json();
+  const module = contenuNomme("lakour-loups");
+  const json = async f => (await fetch(foundry.utils.getRoute(`modules/${module}/assets/${f}`), { cache: "no-store" })).json();
   const [compositions, equilibre] = await Promise.all([json("compositions.json"), json("equilibre.json").catch(() => ({ roles: {}, batiments: {} }))]);
   // Index en tableau d'entrées (une Collection de Foundry s'itère par valeurs, une Map par paires : on prend les valeurs).
   const index = async nom => {
-    const idx = await game.packs.get(`lakour-veillees.${nom}`)?.getIndex({ fields: ["system.cle"] });
+    const idx = await game.packs.get(packDeContenu(nom, "lakour-loups"))?.getIndex({ fields: ["system.cle"] });
     return idx ? [...(typeof idx.values === "function" ? idx.values() : idx)] : [];
   };
   const [ir, im, ib] = await Promise.all([index("roles"), index("metiers"), index("batiments")]);

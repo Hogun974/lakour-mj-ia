@@ -14,8 +14,28 @@ export const variantes = id => (id ? [id, `${id}${SUFFIXE_ANGLAIS}`] : []);
 export const moduleDeBase = id => (typeof id === "string" ? id.replace(new RegExp(`${SUFFIXE_ANGLAIS}$`), "") : id);
 
 // Module de contenu actif pour le système du monde (sa version française ou anglaise), ou null.
-export function moduleDeContenu(systeme = game.system.id) {
-  return variantes(CONTENUS[systeme]).find(id => game.modules.get(id)?.active) ?? null;
+export function moduleDeContenu(systeme = globalThis.game?.system?.id) {
+  return variantes(CONTENUS[systeme]).find(id => globalThis.game?.modules?.get?.(id)?.active) ?? null;
+}
+
+// Identifiant à nommer quand le moteur cherche un compendium, un asset ou l'API du module de contenu : la variante active, sinon
+// l'identifiant français (le monde n'a pas le module : la recherche échoue proprement, comme avant). null : système sans contenu.
+export const contenuNomme = (systeme = globalThis.game?.system?.id) => moduleDeContenu(systeme) ?? CONTENUS[systeme] ?? null;
+
+// Identifiant d'un compendium du module de contenu (« lakour-40k-en.armement » quand la variante anglaise est active).
+export function packDeContenu(nom, systeme = globalThis.game?.system?.id) {
+  const module = contenuNomme(systeme);
+  return module ? `${module}.${nom}` : null;
+}
+
+// Drapeaux posés par le module de contenu sur un document (flags.<id>) : ils portent l'identifiant du module qui a posé le document
+// (un document importé de « lakour-40k-en » porte flags["lakour-40k-en"] ; un autre, importé avant le changement de langue, porte
+// flags["lakour-40k"]). On lit la variante active d'abord, puis les autres variantes du même module ; undefined sinon.
+export function drapeauxDuContenu(flags, module = moduleDeContenu()) {
+  if (!flags || !module) return undefined;
+  const base = moduleDeBase(module);
+  for (const id of [module, ...variantes(base).filter(v => v !== module)]) if (flags[id] !== undefined) return flags[id];
+  return undefined;
 }
 
 // Jeton de personnage joueur fourni par le module de contenu pour cette clé, dans le style voulu ; null sinon.

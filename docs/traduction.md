@@ -141,21 +141,25 @@ module reste installable.
 - **Warcraft** : `flags.lakour-warcraft.contrat` (contrats des joueurs, lus par le moteur) et les recettes : les champs
   textuels y sont extraits par l'heuristique (`type`, `faction` exclus par `CLES_EXCLUES`/minuscules) ; vérifier le squelette.
 - **Veillées** : `system.cle` des objets (lu par `outils.js` du moteur) est en minuscules : non extrait ; les noms de
-  villageois tirés de `lakour-veillees.tables` (compagnons-jeu.js) passent par un pack nommé en dur dans le moteur.
-- **Fénoir** : `PACKS` de `outils-survie.js` (`lakour-fenoir.passes`, `.savoirs`, `.equipements`) et
-  `flags.lakour-fenoir.appel` nommés en dur dans le moteur.
+  villageois viennent du compendium `tables` de la variante active (compagnons-jeu.js, `packDeContenu`).
+- **Fénoir** : les compendiums `passes`, `savoirs`, `equipements` (`outils-survie.js`) et les drapeaux `appel` des tables
+  sont lus sous l'identifiant de la variante active (`packDeContenu`, `drapeauxDuContenu`).
 
-### Endroits du moteur qui nomment encore un module de contenu en dur
+### Le moteur ne nomme plus aucun module de contenu en dur
 
-À faire passer par `moduleDeContenu()` / `variantes()` de `scripts/contenus.js` (hors périmètre du pilote, fichiers en
-cours de modification par d'autres chantiers) :
+`scripts/contenus.js` fournit, en plus de `moduleDeContenu()` (la variante active, ou null) :
 
-- `scripts/main.js` : `game.packs.get("lakour-40k.armement")` (réparation des munitions) ;
-- `scripts/outils.js` : `game.modules.get("lakour-40k")?.api?.preparerDepart`, `flags["lakour-40k"]?.cle`,
-  `game.packs.get("lakour-40k.armement")` (munitions), `flags["lakour-warcraft"]?.cle`, `modules/lakour-veillees/assets/…`,
-  `game.packs.get(\`lakour-veillees.${nom}\`)` ;
-- `scripts/compagnons-jeu.js` : `game.packs.get("lakour-veillees.tables")`, `flags["lakour-veillees"]` ;
-- `scripts/outils-survie.js` : `PACKS` `lakour-fenoir.*` ;
-- `scripts/placement.js` : `moduleFigurants = "lakour-40k"` par défaut (remplacé au chargement par `figurantsDuContenu()`,
-  qui rend déjà le bon identifiant) ;
-- `scripts/tirages.js` : `flags.lakour-fenoir.appel` (commentaire et lecture des drapeaux).
+- `contenuNomme(systeme)` : l'identifiant à nommer (compendium, asset, API) — la variante active, sinon l'identifiant
+  français (le monde n'a pas le module : la recherche échoue proprement, comme avant) ;
+- `packDeContenu(nom, systeme)` : `lakour-40k-en.armement` quand la variante anglaise est active ;
+- `drapeauxDuContenu(flags, module)` : les drapeaux posés par le contenu (`flags.<id>`) portent l'identifiant du module qui a
+  posé le document (un document importé de `lakour-40k-en` porte `flags["lakour-40k-en"]`, un autre importé avant le
+  changement de langue porte `flags["lakour-40k"]`) : on lit la variante active d'abord, puis l'autre.
+
+Endroits passés par ces aides : `scripts/main.js` (réparation des munitions), `scripts/outils.js` (`preparerDepart` de
+l'API 40k, jeton du rôle et du peuple, munitions, assets et compendiums des Veillées, drapeaux des résultats de
+`lancer_table`), `scripts/compagnons-jeu.js` (table des noms de villageois), `scripts/outils-survie.js` (compendiums des
+passés, savoirs et équipements de Fénoir), `scripts/placement.js` (module des figurants par défaut, résolu à chaque appel),
+`scripts/tirages.js` (lecture des drapeaux `contrat` / `appel`, quel que soit le module qui les a posés). L'essai
+`essais/contenu-variantes.test.mjs` rejoue chaque endroit avec la variante `-en` active et refuse tout nouvel identifiant de
+module de contenu écrit en dur dans `scripts/` (hors `contenus.js` et le guide).

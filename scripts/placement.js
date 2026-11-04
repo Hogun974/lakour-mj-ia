@@ -1,5 +1,6 @@
 // Placement des jetons sur la grille : pièces de la carte et cases libres. Pur : éprouvé hors Foundry
 // (essais/placement.test.mjs). Toutes les positions sont en cases (0,0 = coin haut-gauche de la scène).
+import { CONTENUS, moduleDeContenu } from "./contenus.js";
 
 // Pièces de la carte, d'après les dessins rectangulaires cachés dont le texte est le nom de la pièce
 // (posés par creer_scene et par les cartes des aventures). grille = { size, sceneX, sceneY }.
@@ -78,8 +79,9 @@ export function casesOccupees(jetons, { size, sceneX, sceneY }) {
   return occupees;
 }
 
-// Figurants : types proposés à l'IA et jeton du module de contenu qui les représente. Par défaut ceux de lakour-40k ;
-// un autre module (lakour-warcraft sur dnd5e) fournit les siens au chargement (definirFigurants).
+// Figurants : types proposés à l'IA et jeton du module de contenu qui les représente. Par défaut ceux du module 40k, dans sa
+// langue active (lakour-40k ou lakour-40k-en) ; un autre module (lakour-warcraft sur dnd5e) fournit les siens au chargement
+// (definirFigurants).
 export const TYPES_FIGURANTS = {
   citoyen: { libelle: "Citoyen", jeton: "citoyen-de-ruche" },
   ouvrier: { libelle: "Ouvrier", jeton: "citoyen-de-ruche" },
@@ -98,8 +100,10 @@ export const TYPES_FIGURANTS = {
   mutant: { libelle: "Mutant", jeton: "mutant-renegat" }
 };
 
-let moduleFigurants = "lakour-40k";
-export const moduleDesFigurants = () => moduleFigurants;
+// Tant que definirFigurants n'a rien fourni : la variante active du module 40k, sinon « lakour-40k » (résolu à chaque appel :
+// les modules ne sont pas encore connus quand ce script se charge).
+let moduleFigurants = null;
+export const moduleDesFigurants = () => moduleFigurants ?? moduleDeContenu("impmal") ?? CONTENUS.impmal;
 
 // Remplace les types de figurants (même objet : les schémas des outils lisent ses clés à chaque appel).
 export function definirFigurants(types, module) {
@@ -111,7 +115,7 @@ export function definirFigurants(types, module) {
 
 // Jeton d'un type de figurant, plat ou en relief (type inconnu : le premier type de la liste).
 export const jetonFigurant = (type, style) =>
-  `modules/${moduleFigurants}/assets/jetons/${style === "3d" ? "3d/" : ""}${(TYPES_FIGURANTS[type] ?? Object.values(TYPES_FIGURANTS)[0]).jeton}.svg`;
+  `modules/${moduleDesFigurants()}/assets/jetons/${style === "3d" ? "3d/" : ""}${(TYPES_FIGURANTS[type] ?? Object.values(TYPES_FIGURANTS)[0]).jeton}.svg`;
 
 // Résumé des figurants d'une scène pour l'IA : un groupe par ligne, avec effectif et comportement.
 // figurants : [{ groupe, comportement, salle }]

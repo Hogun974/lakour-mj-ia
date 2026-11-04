@@ -4,6 +4,7 @@
 // du monde, pour le narrateur seul). Les outils qui écrivent passent TOUS par l'API, qui refuse hors du MJ actif ou tant que le
 // monde n'est pas ouvert (coffre) : le refus revient à l'IA, rien n'est écrit en douce. Ajoutés à OUTILS par outils.js.
 import { versHTML } from "./utilitaires.js";
+import { packDeContenu } from "./contenus.js";
 import {
   CLES_COMPETENCES, RESSOURCES, DIFFICULTES_SURVIE, convertirDifficulte, apiSurvie, fonctionSurvie, lireSurvie, messageErreurSurvie,
   trouverFiche, listeDe, nomDe, voisinsDe, texteQuand, texteStocks, texteVariations, texteTest, ligneRenseignement, ligneReel,
@@ -702,11 +703,12 @@ export const OUTILS_SURVIE = [
 ];
 
 // ------------------------------------------------------------------ création d'un survivant (création guidée, compagnons)
-// Le passé vient du compendium lakour-fenoir.passes (Item « passe » : { cle, competences: { cle: niveau }, savoirs: [cle],
-// equipement: [cle] }) ; ses savoirs et son équipement des compendiums lakour-fenoir.savoirs et lakour-fenoir.equipements.
-const PACKS = { passes: "lakour-fenoir.passes", savoirs: "lakour-fenoir.savoirs", equipements: "lakour-fenoir.equipements" };
-async function documentsDe(id) {
-  const pack = jeu()?.packs?.get?.(id);
+// Le passé vient du compendium « passes » du module de contenu (Item « passe » : { cle, competences: { cle: niveau }, savoirs: [cle],
+// equipement: [cle] }) ; ses savoirs et son équipement des compendiums « savoirs » et « equipements ». Le module est lakour-fenoir ou
+// sa variante anglaise lakour-fenoir-en, celle qui est active (packDeContenu, contenus.js) : résolu à chaque appel, pas au chargement.
+const PACKS = { passes: "passes", savoirs: "savoirs", equipements: "equipements" };
+async function documentsDe(nom) {
+  const pack = jeu()?.packs?.get?.(packDeContenu(nom, "lakour-survie"));
   if (!pack) return [];
   try { return [...(await pack.getDocuments())]; } catch { return []; }
 }
