@@ -32,13 +32,37 @@ export const CONTENU = {
     { cle: "case-du-lagon", region: "saint-paul", nom: "Case créole du lagon" }
   ],
   installations: [{ cle: "citerne", nom: "Citerne de pluie" }, { cle: "potager", nom: "Potager" }],
-  savoirs: [], factions: [], evenements: [],
+  savoirs: [{ cle: "premiers-secours", nom: "Premiers secours avancés" }], factions: [], evenements: [],
   passes: [{ cle: "infirmiere", nom: "Infirmière" }],
   recettes: [{ cle: "arc-et-fleches", nom: "Arc et flèches", competence: "bricolage" }, { cle: "filtre-portatif", nom: "Filtre portatif" }],
   afflictions: [{ cle: "leptospirose", nom: "Leptospirose" }, { cle: "fracture", nom: "Fracture" }],
   enfances: [{ cle: "gamin-du-port", nom: "Gamin du Port" }, { cle: "hauts-de-salazie", nom: "Enfant des Hauts de Salazie" }],
   traits: [{ cle: "main-verte", nom: "Main verte" }, { cle: "insomniaque", nom: "Insomniaque" }],
-  equipements: []
+  // Comme contenu() du système : les véhicules et montures normalisés par son registre (type, terrains, charge, places, rapide,
+  // allure, carburantParQuart, bruit), le transport d'origine gardé.
+  equipements: [
+    { cle: "trousse", nom: "Trousse de secours", categorie: "soin" },
+    { cle: "machette", nom: "Machette", categorie: "arme" },
+    { cle: "scooter", nom: "Scooter", categorie: "transport", type: "vehicule", terrains: ["route", "piste"], charge: 4, places: 2, rapide: true,
+      allure: null, carburantParQuart: 0.25, bruit: 1, poids: 0,
+      transport: { mode: "vehicule", places: 2, chargeMax: 4, carburantParQuart: 0.25, terrains: ["route", "piste"], bruit: 1 } },
+    { cle: "quatre-quatre", nom: "4×4", categorie: "transport", type: "vehicule", terrains: ["route", "piste"], charge: 30, places: 5, rapide: true,
+      allure: null, carburantParQuart: 2, bruit: 1, poids: 0 },
+    { cle: "voiture", nom: "Voiture", categorie: "transport", type: "vehicule", terrains: ["route"], charge: 15, places: 5, rapide: true,
+      allure: null, carburantParQuart: 1, bruit: 2, poids: 0 },
+    { cle: "ane", nom: "Âne de bât", categorie: "transport", type: "monture", terrains: ["route", "piste", "sentier"], charge: 8, places: 0,
+      rapide: false, allure: 0.8, carburantParQuart: 0, bruit: 1, poids: 0 },
+    { cle: "kayak", nom: "Kayak de mer", categorie: "transport", type: "vehicule", terrains: ["mer"], charge: 4, places: 2, rapide: false,
+      allure: 0.7, carburantParQuart: 0, bruit: 0, poids: 0 }
+  ]
+};
+// Le carburant d'un trajet de la doublure (deux quarts de route), comme la logique du système : véhicule du contenu
+// ceil(quarts × carburantParQuart) ; générique : 1 en véhicule ou en bateau, 0 à pied.
+const QUARTS_ROUTE = 2;
+const vehiculeDe = cle => CONTENU.equipements.find(e => e.cle === cle && Array.isArray(e.terrains)) ?? null;
+const carburantDe = transport => {
+  const v = vehiculeDe(transport);
+  return v ? Math.ceil(QUARTS_ROUTE * v.carburantParQuart) : transport === "pied" ? 0 : 1;
 };
 
 const REQUIS = { facile: 1, normale: 1, difficile: 2, extreme: 3 };
@@ -161,12 +185,21 @@ export function apiDoublure(cadre) {
     construire: enregistrer("construire", async () => ({ chantier: { fait: 2, requis: 6 }, termine: false, niveau: 0 })),
     reparer: enregistrer("reparer", async ({ installationId = "" }) => (installationId ? { etat: 0 } : { degats: 1, repares: 1 })),
     // Un voyage en deux étapes : une rencontre par étape (rencontres), la première aussi en rencontre ; des provisions qui ont manqué.
-    voyager: enregistrer("voyager", async ({ vers }) => {
+    // Le retour de l'API réelle (voyagerInterne) : carburant rendu, pas le bruit.
+    voyager: enregistrer("voyager", async ({ vers, transport = "pied" }) => {
       cadre.etat.groupe.region = vers;
       const rencontres = [{ type: "livides", nombre: 2, texte: "RENCONTRE-SECRETE-1 : deux Livides sur la quatre-voies." }, { type: "animaux", texte: "RENCONTRE-SECRETE-2 : des chiens." }];
-      return { arrivee: true, quarts: 2, rencontre: rencontres[0], rencontres, faits: [], manque: { eau: 1, nourriture: 0, carburant: 0 } };
+      return { possible: true, arrivee: true, quarts: QUARTS_ROUTE, chemin: ["saint-paul", vers], carburant: carburantDe(transport), rencontre: rencontres[0], rencontres,
+        faits: [], manque: { eau: 1, nourriture: 0, carburant: 0 } };
     }),
-    demenager: enregistrer("demenager", async () => ({})),
+    // Le retour de l'API réelle : ni carburant ni bruit (le voyage interne les garde) ; la charge d'un véhicule borne ce qu'on emporte.
+    demenager: enregistrer("demenager", async ({ emporter = {}, transport = "pied" }) => {
+      const v = vehiculeDe(transport);
+      let place = v ? v.charge : 3 * cadre.etat.groupe.membres.length;
+      const emporte = {};
+      for (const [r, q] of Object.entries(emporter)) { const n = Math.min(q, place); if (n > 0) { emporte[r] = n; place -= n; } }
+      return { arrivee: true, emporte, laisse: {}, quarts: QUARTS_ROUTE, rencontre: null, rencontres: [], abriId: "abri1", faits: [] };
+    }),
     ajuster: enregistrer("ajuster", async () => ({})),
     blesser: enregistrer("blesser", async () => ({})),
     // Le soigneur est celui donné, sinon le meilleur en soins (s1) : le test est le sien.
@@ -205,6 +238,33 @@ export function apiDoublure(cadre) {
     recruter: enregistrer("recruter", async ({ recrue }) => ({ test: { succes: 1, requis: 1, reussite: true, marge: 0 }, reussite: true,
       acteurId: (await globalThis.Actor.implementation.create({ name: recrue.nom, type: "survivant", system: { statut: "recrue" } })).id })),
     assigner: enregistrer("assigner", async ({ acteurId, tache }) => { const a = globalThis.game.actors.get(acteurId); if (a) a.system.tache = tache; }),
+    // creerSurvivant({ donnees, userId, rejoindre, statut }) comme l'API (creerSurvivantDirect, MJ actif) -> { acteurId, nom, membre } :
+    // jeton du passé, genre, graine (flags.lakour-survie.graine ; graineHistoire du moteur seulement s'il est actif), objets du contenu par
+    // clé, propriété et personnage du joueur (s'il n'en a pas), entrée au groupe si rejoindre et partie démarrée.
+    creerSurvivant: enregistrer("creerSurvivant", async ({ donnees: d, userId = "", rejoindre = true, statut = null }) => {
+      const g = globalThis.game;
+      const user = userId ? g.users.get(userId) : null;
+      const st = statut ?? (user && !user.isGM ? "joueur" : d.statut ?? "joueur");
+      const jeton = CONTENU.passes.some(p => p.cle === d.passe) ? `modules/lakour-fenoir/assets/jetons/joueurs/${d.passe}.svg` : "icons/svg/mystery-man.svg";
+      const moteur = g.modules.get("lakour-mj-ia");
+      const competences = Object.fromEntries(Object.entries(d.competences ?? {}).map(([k, v]) => [k, { niveau: Number(v?.niveau ?? v) || 0, marques: 0 }]));
+      const a = await globalThis.Actor.implementation.create({
+        name: d.nom, type: "survivant", img: jeton,
+        system: { competences, passions: d.passions ?? {}, enfance: d.enfance ?? "", passe: d.passe ?? "", genre: ["f", "m"].includes(d.genre) ? d.genre : "",
+          traits: [...(d.traits ?? [])], incapacites: [...(d.incapacites ?? [])], statut: st, tache: "repos", age: d.age ?? 30, lien: d.lien ?? "",
+          vivant: true, livide: false, notes: d.notes ?? "" },
+        ownership: user && !user.isGM ? { default: 0, [user.id]: 3 } : { default: 0 },
+        prototypeToken: { name: d.nom, actorLink: true, disposition: 1, sight: { enabled: true }, texture: { src: jeton } },
+        flags: { "lakour-survie": { graine: d.graine ?? "" }, ...(moteur?.active && d.graine ? { "lakour-mj-ia": { graineHistoire: d.graine } } : {}) }
+      });
+      const objets = [...(d.savoirs ?? []).map(c => ["savoir", CONTENU.savoirs.find(x => x.cle === c)]), ...(d.equipement ?? []).map(c => ["equipement", CONTENU.equipements.find(x => x.cle === c)])]
+        .filter(([, def]) => def).map(([type, def]) => ({ type, name: def.nom, system: { cle: def.cle } }));
+      if (objets.length) await a.createEmbeddedDocuments("Item", objets);
+      if (user && !user.isGM && !user.character) await user.update({ character: a.id });
+      const membre = Boolean(rejoindre && cadre.etat.demarree);
+      if (membre) cadre.etat.groupe.membres.push(a.id);
+      return { acteurId: a.id, nom: a.name, membre };
+    }),
     ajouterMembre: enregistrer("ajouterMembre", async ({ acteurId }) => { cadre.etat.groupe.membres.push(acteurId); }),
     renseigner: enregistrer("renseigner", async args => { cadre.etat.renseignements[args.region] = { ...cadre.etat.renseignements[args.region], ...args }; })
   };

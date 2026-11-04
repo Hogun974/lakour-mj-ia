@@ -44,9 +44,24 @@ abri, réserves, état du groupe, alertes, renseignement de leur région). `api.
   avec Halloween (même fenêtre, cœur du 31 octobre au 1er novembre ; `docs/fetes.md`).
 - **Création guidée** (`CREATION_GUIDEE`, §10.2) : `creer_survivant` « tirer » fait tirer au générateur du système deux ou trois
   survivants (enfance, passé, compétences, passions, traits, incapacités, graine d'histoire ; verrous pour relancer en gardant ce
-  que le joueur aime ; un tirage hors du budget 10 – 16 est relancé, cinq fois au plus), résumés au joueur ; « creer » crée la fiche
-  du tirage choisi (ajustements compris). Sans tirage, création à la main d'après un passé du compendium. Puis son histoire
-  (`histoire_personnage`, commun aux trois mondes de jeu de rôle). `compagnon_ajouter` passe par `creer_survivant` (statut compagnon).
+  que le joueur aime ; un tirage hors du budget 10 – 16 est relancé, cinq fois au plus), résumés au joueur ; « creer » fait créer
+  la fiche du tirage choisi (ajustements compris) **par le système** : `creerSurvivant({ donnees, userId, rejoindre, statut })`
+  (le MJ IA est le MJ actif, l'appel est direct) pose le jeton du passé (`modules/lakour-fenoir/assets/jetons/joueurs/<passé>.svg`),
+  le genre, la graine (`flags.lakour-survie.graine` ; le MJ IA ajoute `flags.lakour-mj-ia.graineHistoire` si le système ne l'a pas
+  mis), les savoirs et l'équipement par clé, la propriété du joueur nommé (`joueur` ; vide = personne), et l'entrée au groupe
+  (`rejoindre`, partie démarrée) avec le `statut` (joueur, compagnon, recrue, pnj). Sans tirage, même chemin d'après un passé du
+  compendium. La fiche devient le personnage du joueur, sauf s'il en joue déjà un autre, vivant (il le garde ; le texte le dit).
+  Repli à la main (`Actor.create`, même jeton et mêmes drapeaux, `ajouterMembre` pour le groupe) seulement pour compléter une
+  fiche existante ou si le système n'a pas `creerSurvivant`. Puis son histoire (`histoire_personnage`, commun aux trois mondes de
+  jeu de rôle). `compagnon_ajouter` passe par `creer_survivant` (statut compagnon).
+- **Véhicules et montures** : `survie_voyager` et `survie_demenager` prennent `pied`, `vehicule`, `bateau` (génériques) ou la clé
+  ou le nom d'un équipement du contenu qui transporte (`contenu().equipements` à `terrains` : scooter, voiture, 4×4, camion,
+  vélo, vélo-cargo, kayak, barque à moteur, âne, cheval ; « 4x4 » trouve le 4×4). L'outil passe la **clé** à l'API, qui en tire durée,
+  terrains, charge, carburant par quart et bruit. Le texte rendu (connu) dit le carburant consommé (rendu par `voyager` ; calculé
+  `ceil(quarts × carburantParQuart)` pour `demenager`, qui ne le rend pas) et le bruit (+10 % de rencontres par point ; génériques :
+  0 à pied, 2 sinon). Le système ne vérifie pas que le groupe a le véhicule : une ligne au secret dit qui le porte, ou que personne.
+- **Atelier** : `survie_fabriquer` passe à `fabriquer` `membres` = l'artisan ET ses aides : l'API compte `bras = membres.length || 1`
+  (travail en quarts-personne ÷ bras).
 - **Le groupe** (§10.2, §10.3) : les manques (`survie_besoins`, et une ligne dans l'état du jeu), les recrues qui les comblent avec
   un prix (`survie_recrue` generer, au secret ; recruter, test de parole), la tâche du jour des compagnons et des recrues
   (`survie_assigner`, ou répartition automatique : urgences d'abord, le plus compétent, jamais une tâche dont il est incapable ;
@@ -68,8 +83,8 @@ abri, réserves, état du groupe, alertes, renseignement de leur région). `api.
 | `survie_fouiller` | fouiller un lieu (butin, bruit, rencontre) | `fouiller` |
 | `survie_installer` | s'installer dans un site, reprendre un abri abandonné | `installer` |
 | `survie_construire` | chantier d'une installation, ou réparation | `construire`, `reparer` |
-| `survie_voyager` | aller dans une région voisine | `voyager` |
-| `survie_demenager` | la voie « repartir » | `demenager` |
+| `survie_voyager` | aller dans une région voisine (à pied, véhicule générique ou du contenu) | `voyager`, `contenu` |
+| `survie_demenager` | la voie « repartir » (idem) | `demenager`, `contenu` |
 | `survie_ajuster` | troc, don, perte, fatigue, moral (variations) | `ajuster` |
 | `survie_blessure` | blesser (morsure), soigner, infecter | `blesser`, `soigner`, `infecter` |
 | `survie_marquer` | marque de progression après une scène marquante | `marquer` |
@@ -80,7 +95,7 @@ abri, réserves, état du groupe, alertes, renseignement de leur région). `api.
 | `survie_fabriquer` | l'atelier, d'après une recette | `fabriquer` (supposée, §9) |
 | `survie_affliction` | donner ou soigner une maladie, une blessure persistante | `affliction` (supposée, §9) |
 | `survie_feter` | fêter une fête au camp | `feter` (supposée, §9) |
-| `creer_survivant` | création guidée (tirer, puis creer), compagnon | `generer` (supposée, §10) ; compendiums `lakour-fenoir.passes`, `.savoirs`, `.equipements` |
+| `creer_survivant` | création guidée (tirer, puis creer), compagnon | `generer`, `creerSurvivant` (repli : `Actor.create`, `ajouterMembre`) ; compendiums `lakour-fenoir.passes`, `.savoirs`, `.equipements` |
 | `survie_besoins` | ce qui manque au groupe, le profil à chercher | `besoins` (supposée, §10) |
 | `survie_recrue` | une recrue qui comble les manques, avec son prix ; la recruter | `genererRecrue`, `recruter` (supposées, §10) |
 | `survie_assigner` | tâche du jour d'un compagnon ou d'une recrue, ou répartition automatique | `assigner`, `besoins` (supposées, §10) |
@@ -102,15 +117,16 @@ absente de l'API donne une erreur claire (`ne fournit pas game.lakourSurvie.x()`
 - `ajuster({ etat })` : des **variations** (comme `stocks`).
 - `renseigner` : reçoit `{ region, source, vu: jour du jour, … }`, `electricite`/`eau` en booléens, `routes: { voisine: état }`.
 - `demarrer({ pnj })` : `[{ nom, passe }]`.
-- `fabriquer({ recette, acteurId, membres })`, `affliction({ acteurId, cle, action: "donner" | "soigner" })`, `feter({ fete })`.
+- `fabriquer({ recette, acteurId, membres })` (membres : l'artisan compris), `affliction({ acteurId, cle, action: "donner" | "soigner" })`, `feter({ fete })`.
 - Les menaces du jour : `monde().menaces` (ou `menacesDuJour`) si le système les garde.
 - `test` appelable depuis le navigateur du joueur propriétaire (bouton de `demander_jet`).
 - §10 : `generer({ verrous: { nom, age, enfance, passe, traits }, statut, region, favoriser: { competence: poids } })` -> `{ nom, age,
   enfance, passe, competences: { cle: niveau | { niveau } }, passions, traits, incapacites, equipement, savoirs, graine }` ;
   `besoins()` -> `[{ tache, competence, meilleur, couverture, urgence, profil }]` (ou un objet indexé par tâche) ;
   `genererRecrue({ region })` -> les mêmes données plus `raison` et `prix` ; `recruter({ recrue, parleurId })` -> `{ test, reussite,
-  acteurId }` ; `assigner({ acteurId, tache })` ; `ajouterMembre({ acteurId, statut })`. La fiche d'un tirage est créée par le MJ
-  IA (`Actor.create`, type `survivant`) ; la graine d'histoire est gardée en `flags.lakour-mj-ia.graineHistoire`.
+  acteurId }` ; `assigner({ acteurId, tache })` ; `ajouterMembre({ acteurId, statut })`. La fiche est créée par `creerSurvivant({ donnees,
+  userId, rejoindre, statut })` -> `{ acteurId, nom, membre }` (lu dans `systems/lakour-survie/scripts/api.mjs`) ; la graine
+  d'histoire est gardée en `flags.lakour-mj-ia.graineHistoire`.
 
 ## Essais
 

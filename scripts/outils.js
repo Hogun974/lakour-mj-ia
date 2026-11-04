@@ -2777,6 +2777,8 @@ OUTILS.push(
         try { args = JSON.parse(creation); } catch (e) { return { erreur: true, contenu: `creation n'est pas du JSON valide : ${e.message}` }; }
         if (!args || typeof args !== "object" || Array.isArray(args)) return { erreur: true, contenu: "creation doit être un objet JSON." };
         args = { ...args, nom: nom.trim() || String(args.nom ?? ""), joueur: "", acteur_existant: "" };
+        // Fénoir : un compagnon rejoint le groupe avec le statut « compagnon », sauf si l'IA a dit autre chose.
+        if (game.system.id === "lakour-survie") args = { rejoindre: true, statut: "compagnon", ...args };
         const invalides = validerSchema(def.schema, args);
         if (invalides.length) return { erreur: true, contenu: `Arguments de ${def.nom} invalides, rien n'a été créé : ${invalides.join(" ; ")}.` };
         const r = await def.executer(args);

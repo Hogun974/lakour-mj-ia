@@ -4,12 +4,13 @@
 // du monde, pour le narrateur seul). Les outils qui écrivent passent TOUS par l'API, qui refuse hors du MJ actif ou tant que le
 // monde n'est pas ouvert (coffre) : le refus revient à l'IA, rien n'est écrit en douce. Ajoutés à OUTILS par outils.js.
 import { versHTML } from "./utilitaires.js";
-import { packDeContenu } from "./contenus.js";
+import { packDeContenu, CONTENUS } from "./contenus.js";
 import {
   CLES_COMPETENCES, RESSOURCES, DIFFICULTES_SURVIE, convertirDifficulte, apiSurvie, fonctionSurvie, lireSurvie, messageErreurSurvie,
   trouverFiche, listeDe, nomDe, voisinsDe, texteQuand, texteStocks, texteVariations, texteTest, ligneRenseignement, ligneReel,
   lignesSurvie, lignesMenaces, rendu, resumerSurvivant, etatCourt, jourDuQuart, libelleRessource, TACHES, STATUTS,
-  dansLeBudget, sommeNiveaux, resumerTirage, lignesBesoins, repartirTaches, resumerRecrue
+  dansLeBudget, sommeNiveaux, resumerTirage, lignesBesoins, repartirTaches, resumerRecrue,
+  resoudreTransport, vehiculesDu, ligneVehicule, ligneTransport, portentVehicule
 } from "./survie-logique.js";
 
 const SURVIE = ["lakour-survie"];
@@ -133,6 +134,30 @@ const reelDe = region => {
   if (!monde) return "Monde réel indisponible (coffre pas encore ouvert) : ne devine pas.";
   return ligneReel(nomRegion(region), monde.regions?.[region], nomRegion);
 };
+
+// Le transport d'un voyage ou d'un déménagement : générique (pied, vehicule, bateau) ou véhicule du contenu (clé ou nom).
+const CHOIX_TRANSPORT = "transport : « pied », « vehicule » ou « bateau » (génériques), ou la clé ou le nom d'un véhicule ou d'une monture "
+  + "du contenu (scooter, voiture, quatre-quatre, camion-plateau, velo, velo-cargo, kayak, barque-a-moteur, ane, cheval-de-la-plaine…) : "
+  + "prends celui que les joueurs utilisent et qu'ils ont (sur une fiche, à l'abri, ou trouvé en scène) ; le système en tire la durée "
+  + "(moteur : vite ; vélo, âne : à l'allure), les terrains praticables (un sentier : à pied ou à dos d'âne ; la mer : bateau), la charge, "
+  + "le carburant par quart (pris dans les stocks) et le bruit (+10 % de rencontres en route par point). Le texte rendu dit le carburant "
+  + "consommé et le bruit.";
+const TRANSPORT = chaine("pied, vehicule, bateau, ou clé ou nom d'un véhicule du contenu (« scooter », « 4×4 », « Âne de bât ») ; vide = à pied.");
+function transportDe(reference) {
+  const contenu = lire("contenu");
+  const t = resoudreTransport(contenu, reference);
+  if (t) return t;
+  if (!contenu?.equipements) return { transport: String(reference).trim(), vehicule: null };   // registre illisible : le système jugera
+  const v = vehiculesDu(contenu);
+  throw new Refus(`transport « ${reference} » inconnu : pied, vehicule, bateau, ou un véhicule du contenu (${v.map(x => `${x.cle} (${x.nom ?? x.cle})`).join(", ") || "aucun"}).`);
+}
+// Au secret : le véhicule choisi, et personne du groupe (ni l'abri) ne l'a sur sa fiche (le système ne le vérifie pas).
+function noteVehicule({ vehicule }, ids = []) {
+  if (!vehicule) return "";
+  const porteurs = portentVehicule([...ids, lire("etat")?.groupe?.abri].map(acteurDe).filter(Boolean), vehicule);
+  return `Véhicule : ${ligneVehicule(vehicule)}${porteurs.length ? `, porté par ${porteurs.map(a => a.name).join(", ")}`
+    : " ; aucune fiche du groupe ne l'a : s'ils l'ont trouvé en scène, donne-le à l'un d'eux, sinon ce trajet ne devait pas se faire ainsi"}.`;
+}
 
 // ------------------------------------------------------------------ les outils
 export const OUTILS_SURVIE = [
@@ -407,10 +432,10 @@ export const OUTILS_SURVIE = [
     nom: "survie_voyager",
     description: "Fénoir : le groupe part vers une région voisine (à pied, en véhicule, en bateau) : le temps de route passe, l'état RÉEL "
       + "des routes compte (pas celui qu'ils croient : une route crue ouverte peut être coupée), une rencontre peut survenir ; à l'arrivée, "
-      + "ils voient la région (renseignement mis à jour). Pour quitter l'abri pour de bon, survie_demenager.",
+      + "ils voient la région (renseignement mis à jour). Pour quitter l'abri pour de bon, survie_demenager. " + CHOIX_TRANSPORT,
     schema: objet({
       vers: chaine("Région voisine de destination (clé ou nom)."),
-      transport: choix(["pied", "vehicule", "bateau"], "Moyen de transport."),
+      transport: TRANSPORT,
       membres: MEMBRES,
       charge: entier("Unités portées en plus (butin, matériel) ; 0 si rien.")
     }),
@@ -424,7 +449,8 @@ export const OUTILS_SURVIE = [
         throw new Refus(`${nomRegion(cle)} n'est pas voisine de ${nomRegion(ici)} (voisines : ${voisinsDe(contenu, ici).map(nomRegion).join(", ")}) : voyage étape par étape.`);
       }
       const ids = membres(noms);
-      const r = await appeler("voyager", { vers: cle, transport, membres: ids, charge: Math.max(0, charge) });
+      const moyen = transportDe(transport);
+      const r = await appeler("voyager", { vers: cle, transport: moyen.transport, membres: ids, charge: Math.max(0, charge) });
       const { publics, secrets } = trierFaits(r?.faits ?? []);
       const route = lire("monde")?.regions?.[ici]?.routes?.[cle];
       return { contenu: rendu({
@@ -432,10 +458,11 @@ export const OUTILS_SURVIE = [
           r?.arrivee ? `${ids.map(nomActeur).join(", ")} arrivent à ${nomRegion(cle)} après ${r.quarts ?? "?"} quart(s) de route ; maintenant : ${quandTexte()}.`
             : `${ids.map(nomActeur).join(", ")} sont en route vers ${nomRegion(cle)} (${r?.quarts ?? "?"} quart(s) passés, pas encore arrivés) ; maintenant : ${quandTexte()}.`,
           r?.arrivee ? `Ce qu'ils voient : ${ligneRenseignement(nomRegion(cle), lire("etat")?.renseignements?.[cle], lire("quand")?.jour ?? 0, nomRegion)}` : "",
+          ligneTransport(moyen, r),
           ligneManque(r?.manque),
           ...lignePubliques("En chemin", publics)
         ],
-        secret: [...lignesRencontres(r), route ? `Route réelle au départ : ${route}.` : "",
+        secret: [...lignesRencontres(r), noteVehicule(moyen, ids), route ? `Route réelle au départ : ${route}.` : "",
           `Réel à destination : ${reelDe(cle)}`, ...lignePubliques("Hors de leur vue", secrets)]
       }) };
     }
@@ -444,10 +471,10 @@ export const OUTILS_SURVIE = [
     nom: "survie_demenager",
     description: "Fénoir : la voie « repartir » : le groupe abandonne son abri (gardé comme abri abandonné, que d'autres pourront occuper), "
       + "emporte ce qu'il peut porter, voyage et s'installe sur un nouveau site. Les compétences et les plans suivent. À utiliser quand "
-      + "le lieu est épuisé ou intenable et que les joueurs l'ont décidé.",
+      + "le lieu est épuisé ou intenable et que les joueurs l'ont décidé. " + CHOIX_TRANSPORT + " La charge du véhicule borne ce qu'ils emportent.",
     schema: objet({
       site: chaine("Site d'arrivée (clé ou nom d'un site du contenu)."),
-      transport: choix(["pied", "vehicule", "bateau"], "Moyen de transport."),
+      transport: TRANSPORT,
       emporter: objet(Object.fromEntries(RESSOURCES.map(r => [r, entier(`${libelleRessource(r)} emporté(es) (0 si rien).`)])))
     }),
     sensible: true,
@@ -455,15 +482,17 @@ export const OUTILS_SURVIE = [
       api();
       const cleSite = cleDe("sites", site, "un site d'arrivée");
       const pris = Object.fromEntries(Object.entries(emporter ?? {}).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Math.floor(v)]));
-      const r = await appeler("demenager", { site: cleSite, emporter: pris, transport });
+      const moyen = transportDe(transport);
+      const r = await appeler("demenager", { site: cleSite, emporter: pris, transport: moyen.transport });
       const abri = acteurDe(lire("etat")?.groupe?.abri);
       const { publics, secrets } = trierFaits(r?.faits ?? []);
       return { contenu: rendu({
-        connu: [`Le groupe déménage vers ${nomDe(lire("contenu")?.sites, cleSite)} (${transport}) en emportant ${texteVariations(pris).replace(/\+/g, "")} ; maintenant : ${quandTexte()}.`,
+        connu: [`Le groupe déménage vers ${nomDe(lire("contenu")?.sites, cleSite)} en emportant ${texteVariations(r?.emporte ?? pris).replace(/\+/g, "") || "rien"} ; maintenant : ${quandTexte()}.`,
+          ligneTransport(moyen, r),
           r?.arrivee === false ? "Ils ne sont pas encore arrivés." : abri ? `Nouvel abri : ${abri.name} ; stocks : ${texteStocks(abri.system?.stocks)}.` : "",
           ligneManque(r?.manque), ...lignePubliques("En chemin", publics),
           RAPPEL_RENSEIGNEMENTS],
-        secret: [...lignesRencontres(r), ...lignePubliques("Hors de leur vue", secrets)]
+        secret: [...lignesRencontres(r), noteVehicule(moyen, membres([])), ...lignePubliques("Hors de leur vue", secrets)]
       }) };
     }
   }),
@@ -656,7 +685,8 @@ export const OUTILS_SURVIE = [
     description: "Fénoir : l'atelier. Un survivant fabrique un objet ou une ressource d'après une recette du contenu (arc et flèches, "
       + "pièges, filtre portatif, alambic, réchaud à bois, munitions rechargées, savon…) : coût payé sur les stocks, temps de travail, "
       + "test de la compétence de la recette, savoirs et installation requis vérifiés par le système. À utiliser quand les joueurs "
-      + "veulent fabriquer quelque chose de précis.",
+      + "veulent fabriquer quelque chose de précis. Les bras comptent : le système compte l'artisan ET ses aides (membres), plus de bras "
+      + "pour un travail plus court.",
     schema: objet({
       recette: chaine("Clé ou nom d'une recette du contenu (« arc-et-fleches », « Filtre portatif »)."),
       artisan: chaine("Le survivant qui fabrique (sa compétence fait le test)."),
@@ -667,8 +697,9 @@ export const OUTILS_SURVIE = [
       api();
       const cle = cleDe("recettes", recette, "une recette");
       const a = survivant(artisan);
-      const ids = aides.map(x => survivant(x).id).filter(id => id !== a.id);
-      const r = await appeler("fabriquer", { recette: cle, acteurId: a.id, membres: ids });
+      const ids = [...new Set(aides.map(x => survivant(x).id).filter(id => id !== a.id))];
+      // L'API compte bras = membres.length || 1 : l'artisan et ses aides, tous dans membres.
+      const r = await appeler("fabriquer", { recette: cle, acteurId: a.id, membres: [a.id, ...ids] });
       const produit = r?.produit ? Object.entries(r.produit).filter(([, v]) => v !== undefined && v !== null && v !== "").map(([k, v]) => `${k} ${v}`).join(", ") : "";
       return { contenu: rendu({ connu: [
         `${a.name}${ids.length ? ` (aidé de ${ids.map(nomActeur).join(", ")})` : ""} travaille à ${nomDe(lire("contenu")?.recettes, cle)} ; maintenant : ${quandTexte()}.`,
@@ -750,6 +781,18 @@ const trouverJoueur = nom => {
   if (typeof users?.find !== "function") return null;
   return users.find(u => n(u.name) === x) ?? users.find(u => n(u.character?.name) === x) ?? null;
 };
+// Le jeton d'un passé, au même chemin que le système (api.mjs : JETON_PASSE, dans le module de contenu de base).
+const JETON_PASSE = cle => `modules/${CONTENUS[SURVIE[0]]}/assets/jetons/joueurs/${cle}.svg`;
+// La fiche devient le personnage du joueur, sauf s'il en joue déjà un autre, vivant (il garde le sien ; la nouvelle lui appartient
+// aussi). -> le nom du personnage gardé, ou "".
+async function confier(utilisateur, acteur) {
+  if (!utilisateur || utilisateur.isGM || !acteur) return "";
+  const actuel = utilisateur.character;
+  if (actuel?.id === acteur.id) return "";
+  if (actuel && actuel.type === "survivant" && actuel.system?.vivant !== false && !actuel.system?.livide) return actuel.name;
+  await utilisateur.update({ character: acteur.id });
+  return "";
+}
 
 // Les tirages du générateur (creer_survivant, action « tirer ») et les recrues proposées (survie_recrue), gardés ici jusqu'à leur
 // création : clé (« A », « R1 ») -> données du générateur. Chez le MJ actif seulement, en mémoire.
@@ -789,17 +832,20 @@ OUTILS_SURVIE.push(outil({
   description: "Fénoir : création d'un survivant « tiré au sort mais cohérent » par le générateur du système (enfance, passé, "
     + "compétences, passions, traits, incapacités, équipement, graine d'histoire). D'abord « tirer » : deux ou trois tirages résumés à "
     + "proposer au joueur (verrous : ce qu'il garde — nom, âge, enfance, passé, traits — pour relancer le reste). Puis « creer » avec la "
-    + "lettre du tirage choisi (et ses ajustements) : la fiche est créée et confiée au joueur. Sans tirage (lettre vide), création à la "
-    + "main d'après un passé du compendium. Pour un compagnon IA, statut « compagnon » (compagnon_ajouter s'en sert).",
+    + "lettre du tirage choisi (et ses ajustements) : le SYSTÈME crée la fiche (creerSurvivant : jeton du passé, genre, graine, objets), "
+    + "la confie au joueur nommé (joueur ; vide = personne : PNJ, compagnon IA) et, rejoindre = true, la fait entrer au groupe avec son "
+    + "statut. Sans tirage (lettre vide), même chose d'après un passé du compendium. Pour un compagnon IA, statut « compagnon » "
+    + "(compagnon_ajouter s'en sert).",
   schema: objet({
     action: choix(["tirer", "creer"], "tirer : proposer des tirages ; creer : créer la fiche."),
     nombre: entier("tirer : combien de tirages (1 à 3 ; 0 = 3)."),
     verrous: VERROUS,
     favoriser: liste(choix(CLES_COMPETENCES, "Compétence à favoriser."), "tirer : compétences à favoriser (le concept du joueur) ; vide = aucune."),
     tirage: chaine("creer : lettre du tirage choisi (« A », « B », « C ») ; vide = création à la main d'après passe et competences."),
-    statut: choix(STATUTS, "joueur, compagnon (IA), recrue ou pnj."),
+    statut: choix(STATUTS, "joueur, compagnon (IA), recrue ou pnj : son statut sur la fiche et dans le groupe."),
+    rejoindre: booleen("creer : true = il entre au groupe dès sa création (partie démarrée) ; false = pas encore (survie_ajouter_membre plus tard)."),
     nom: chaine("creer : nom du survivant (vide = celui du tirage)."),
-    joueur: chaine("creer : nom du joueur Foundry qui reçoit la fiche ; vide = aucun (PNJ, compagnon IA)."),
+    joueur: chaine("creer : à qui la donner : nom du joueur Foundry (ou de son personnage) qui en devient propriétaire ; vide = personne (PNJ, compagnon IA)."),
     acteur_existant: chaine("creer : nom d'une fiche de survivant existante à compléter ; vide = nouvelle fiche."),
     passe: chaine("creer sans tirage : clé ou nom d'un passé du compendium, ou texte libre (donne alors toutes les compétences) ; vide = celui du tirage."),
     competences: liste(objet({ competence: choix(CLES_COMPETENCES, "Compétence."), niveau: entier("Niveau 0 à 5.") }),
@@ -849,60 +895,105 @@ OUTILS_SURVIE.push(outil({
     const niveaux = Object.fromEntries(CLES_COMPETENCES.map(c => [c, Number(base[c]?.niveau ?? base[c] ?? 0) || 0]));
     for (const c of a.competences) niveaux[c.competence] = c.niveau;
     const competences = Object.fromEntries(CLES_COMPETENCES.map(c => [c, { niveau: niveaux[c], marques: existant?.system?.competences?.[c]?.marques ?? 0 }]));
-    // Objets : savoirs et équipement du tirage ou du passé, puis l'équipement demandé en plus ; sans doublon avec la fiche.
-    const introuvables = [];
-    const objets = [];
-    const deja = new Set([...(existant?.items ?? [])].map(i => `${i.type}:${n(i.name)}`));
-    const ajouter = (docs, ref, genre) => {
-      const d = parCleOuNom(docs, ref);
-      if (!d) { introuvables.push(`${genre} ${ref}`); return; }
-      const cle = `${d.type}:${n(d.name)}`;
-      if (deja.has(cle)) return;
-      deja.add(cle);
-      objets.push(g.items?.fromCompendium ? g.items.fromCompendium(d) : (d.toObject?.() ?? d));
-    };
     const source = tire ?? sp;
-    for (const s of source.savoirs ?? []) ajouter(savoirs, s, "savoir");
-    for (const e of [...(source.equipement ?? []), ...a.equipement]) ajouter(equipements, e, "équipement");
     const utilisateur = trouverJoueur(a.joueur);
     if (a.joueur.trim() && !utilisateur) throw new Refus(`joueur introuvable : ${a.joueur}.`);
     const nom = a.nom.trim() || tire?.nom || "";
     if (!nom && !existant) throw new Refus("donne un nom.");
     const age = a.age > 0 ? a.age : Number(tire?.age) || 0;
-    const systeme = {
-      competences, statut: a.statut, passe: tire?.passe ?? sp.cle ?? passe?.name ?? a.passe.trim(),
-      ...(tire ? { enfance: tire.enfance ?? "", genre: tire.genre ?? "", passions: tire.passions ?? {}, traits: tire.traits ?? [], incapacites: tire.incapacites ?? [] } : {}),
-      ...(age > 0 ? { age } : {}), ...(a.lien.trim() ? { lien: a.lien.trim() } : {}), ...(a.description.trim() ? { notes: versHTML(a.description) } : {})
-    };
+    const rejoindre = a.rejoindre !== false;
+    const clePasse = tire?.passe ?? sp.cle ?? passe?.name ?? a.passe.trim();
     // La graine d'histoire du générateur : gardée pour l'histoire du personnage (histoire_personnage, preparer).
     const graine = tire?.graine ?? tire?.histoire ?? "";
-    const PROPRIO = globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.OWNER ?? 3;
-    const AMICAL = globalThis.CONST?.TOKEN_DISPOSITIONS?.FRIENDLY ?? 1;
+    const introuvables = [];
+    const parApi = !existant && typeof g.lakourSurvie?.creerSurvivant === "function";
     let acteur = existant;
-    if (existant) {
-      await existant.update({ ...Object.fromEntries(Object.entries(systeme).map(([k, v]) => [`system.${k}`, v])),
-        ...(graine ? { [`flags.${ID_MJIA}.graineHistoire`]: graine } : {}) });
+    let membre = false;
+    let objets = [];
+
+    if (parApi) {
+      // Par l'API du système (creerSurvivant, chez le MJ actif) : jeton du passé, genre, graine, objets du contenu, propriété du
+      // joueur, entrée au groupe et journal. Savoirs et équipement y vont par clé (compendiums d'abord, sinon le contenu).
+      const versCles = (docs, collection, refs, genre) => [...new Set(refs.map(ref => {
+        const cle = parCleOuNom(docs, ref)?.system?.cle ?? trouverFiche(lire("contenu")?.[collection], ref)?.cle ?? null;
+        if (!cle) introuvables.push(`${genre} ${ref}`);
+        return cle;
+      }).filter(Boolean))];
+      const donnees = {
+        ...(tire ?? {}), nom, statut: a.statut, passe: clePasse, competences: niveaux,
+        savoirs: versCles(savoirs, "savoirs", source.savoirs ?? [], "savoir"),
+        equipement: versCles(equipements, "equipements", [...(source.equipement ?? []), ...a.equipement], "équipement"),
+        ...(age > 0 ? { age } : {}), lien: a.lien.trim() || tire?.lien || "",
+        notes: a.description.trim() ? versHTML(a.description) : tire?.notes ?? "", graine
+      };
+      const r = await appeler("creerSurvivant", { donnees, userId: utilisateur?.id ?? "", rejoindre, statut: a.statut });
+      acteur = acteurDe(r?.acteurId);
+      if (!acteur) throw new Refus(`le système n'a pas rendu la fiche créée (${JSON.stringify(r ?? null)}).`);
+      membre = Boolean(r?.membre);
+      // Le moteur lit la graine en flags.lakour-mj-ia.graineHistoire ; le système ne l'y met que s'il voit le module actif.
+      if (graine && !acteur.flags?.[ID_MJIA]?.graineHistoire) await acteur.update({ [`flags.${ID_MJIA}.graineHistoire`]: graine });
+      objets = [...(acteur.items ?? [])];
+      const portes = new Set(objets.flatMap(o => [o.system?.cle, n(o.name)]).filter(Boolean));
+      const absent = (collection, cle) => !portes.has(cle) && !portes.has(n(nomContenu(collection, cle)));
+      introuvables.push(...donnees.savoirs.filter(c => absent("savoirs", c)).map(c => `savoir ${c}`),
+        ...donnees.equipement.filter(c => absent("equipements", c)).map(c => `équipement ${c}`));
     } else {
-      acteur = await globalThis.Actor.implementation.create({
-        name: nom, type: "survivant", system: { ...systeme, vivant: true, livide: false },
-        ...(graine ? { flags: { [ID_MJIA]: { graineHistoire: graine } } } : {}),
-        ownership: utilisateur ? { default: 0, [utilisateur.id]: PROPRIO } : { default: 0 },
-        prototypeToken: { name: nom, actorLink: true, disposition: AMICAL, sight: { enabled: true } }
-      });
+      // Repli à la main : fiche existante à compléter, ou système sans creerSurvivant.
+      const deja = new Set([...(existant?.items ?? [])].map(i => `${i.type}:${n(i.name)}`));
+      const ajouter = (docs, ref, genre) => {
+        const d = parCleOuNom(docs, ref);
+        if (!d) { introuvables.push(`${genre} ${ref}`); return; }
+        const cle = `${d.type}:${n(d.name)}`;
+        if (deja.has(cle)) return;
+        deja.add(cle);
+        objets.push(g.items?.fromCompendium ? g.items.fromCompendium(d) : (d.toObject?.() ?? d));
+      };
+      for (const s of source.savoirs ?? []) ajouter(savoirs, s, "savoir");
+      for (const e of [...(source.equipement ?? []), ...a.equipement]) ajouter(equipements, e, "équipement");
+      const systeme = {
+        competences, statut: a.statut, passe: clePasse,
+        ...(tire ? { enfance: tire.enfance ?? "", genre: tire.genre ?? "", passions: tire.passions ?? {}, traits: tire.traits ?? [], incapacites: tire.incapacites ?? [] } : {}),
+        ...(age > 0 ? { age } : {}), ...(a.lien.trim() ? { lien: a.lien.trim() } : {}), ...(a.description.trim() ? { notes: versHTML(a.description) } : {})
+      };
+      const PROPRIO = globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.OWNER ?? 3;
+      const AMICAL = globalThis.CONST?.TOKEN_DISPOSITIONS?.FRIENDLY ?? 1;
+      if (existant) {
+        await existant.update({ ...Object.fromEntries(Object.entries(systeme).map(([k, v]) => [`system.${k}`, v])),
+          ...(graine ? { [`flags.${ID_MJIA}.graineHistoire`]: graine } : {}) });
+      } else {
+        // Le jeton du passé, comme le système ; sinon celui par défaut de Foundry.
+        const passeConnu = trouverFiche(lire("contenu")?.passes, clePasse)?.cle ?? sp.cle ?? "";
+        const jeton = passeConnu ? JETON_PASSE(passeConnu) : null;
+        acteur = await globalThis.Actor.implementation.create({
+          name: nom, type: "survivant", ...(jeton ? { img: jeton } : {}), system: { ...systeme, vivant: true, livide: false },
+          ...(graine ? { flags: { [SURVIE[0]]: { graine }, [ID_MJIA]: { graineHistoire: graine } } } : {}),
+          ownership: utilisateur && !utilisateur.isGM ? { default: 0, [utilisateur.id]: PROPRIO } : { default: 0 },
+          prototypeToken: { name: nom, actorLink: true, disposition: AMICAL, sight: { enabled: true }, ...(jeton ? { texture: { src: jeton } } : {}) }
+        });
+      }
+      if (objets.length) await acteur.createEmbeddedDocuments("Item", objets);
+      const e = lire("etat");
+      if (rejoindre && e?.demarree && !(e.groupe?.membres ?? []).includes(acteur.id) && typeof g.lakourSurvie?.ajouterMembre === "function") {
+        await appeler("ajouterMembre", { acteurId: acteur.id, statut: a.statut });
+        membre = true;
+      }
     }
-    if (objets.length) await acteur.createEmbeddedDocuments("Item", objets);
-    if (utilisateur && !utilisateur.isGM) await utilisateur.update({ character: acteur.id });
+    const garde = await confier(utilisateur, acteur);
     if (tire) tirages.clear();
     const somme = sommeNiveaux(competences);
+    const etat = lire("etat");
+    const dansLeGroupe = membre || (etat?.groupe?.membres ?? []).includes(acteur.id);
     return { contenu: [
       `Survivant « ${acteur.name} » ${existant ? "complété" : "créé"}${utilisateur ? `, confié à ${utilisateur.name}` : ""}${tire ? ` (tirage ${lettre})` : ""}.`,
       resumerSurvivant(acteur, { nomDe: nomContenu }),
+      garde ? `${utilisateur.name} garde ${garde} comme personnage principal (vivant) ; cette fiche lui appartient aussi.` : "",
       a.statut === "joueur" && !dansLeBudget({ competences }) ? `Attention : somme des niveaux ${somme}, hors du budget de départ (10 à 16).` : "",
-      objets.length ? `Ajoutés : ${objets.map(o => o.name).join(", ")}.` : "",
+      objets.length ? `${parApi ? "Sur lui" : "Ajoutés"} : ${objets.map(o => o.name).join(", ")}.` : "",
       introuvables.length ? `Introuvables, non ajoutés : ${introuvables.join(", ")} (vérifie avec chercher_compendium).` : "",
       "Son histoire : histoire_personnage (preparer, puis ecrire).",
-      lire("etat")?.demarree && !(lire("etat")?.groupe?.membres ?? []).includes(acteur.id)
-        ? "La partie est déjà démarrée et ce survivant n'est pas membre du groupe : survie_ajouter_membre quand il le rejoint." : ""
+      membre ? `Il rejoint le groupe (${a.statut}).`
+        : etat?.demarree && !dansLeGroupe
+          ? `Pas membre du groupe${rejoindre ? " (le système ne l'a pas ajouté : monde fermé ?)" : ""} : survie_ajouter_membre quand il le rejoint.` : ""
     ].filter(Boolean).join("\n") };
   }
 }));

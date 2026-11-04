@@ -522,3 +522,63 @@ export function resumerRecrue(d = {}, id = "?", options = {}) {
   const prix = d.prix ? (typeof d.prix === "string" ? d.prix : texteBrut(d.prix.texte ?? d.prix.description ?? JSON.stringify(d.prix))) : "";
   return `${resumerTirage(d, id, options)}${d.raison ? ` — pourquoi il est là : ${texteBrut(d.raison)}` : ""}${prix ? ` — SON PRIX : ${prix}` : ""}`;
 }
+
+// ------------------------------------------------------------------ véhicules et montures (§9 : équipement à `transport`)
+// Le système accepte pour voyager et déménager « pied », « vehicule », « bateau » (génériques) ou la CLÉ d'un équipement du contenu
+// qui transporte (contenu().equipements : normalisé par le registre du système en { type: "vehicule" | "monture", terrains, charge,
+// places, rapide, allure, carburantParQuart, bruit } ; brut, il garde `transport: { mode, chargeMax, carburantParQuart, terrains,
+// bruit }`). Le système ne vérifie pas que le groupe l'a : c'est au MJ (ligne au secret quand personne ne le porte).
+export const TRANSPORTS_GENERIQUES = ["pied", "vehicule", "bateau"];
+const ALIAS_TRANSPORT = { pied: "pied", "a pied": "pied", marche: "pied", vehicule: "vehicule", bateau: "bateau" };
+// Bruit des génériques (logique du système : 0 à pied, 2 sinon) ; +10 % de rencontres en route par point.
+const BRUIT_GENERIQUE = { pied: 0, vehicule: 2, bateau: 2 };
+const nombreOuNull = v => (v === undefined || v === null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
+const objetOuVide = v => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
+export const estVehiculeContenu = e => Boolean(e && typeof e === "object"
+  && (Array.isArray(e.terrains) || (e.transport && typeof e.transport === "object") || e.categorie === "transport"));
+// Les propriétés d'un véhicule, normalisé ou brut. -> { cle, nom, mode: "vehicule" | "monture" | "bateau", terrains, charge, places,
+// carburantParQuart, bruit, moteur }
+export function proprietesVehicule(e) {
+  const tr = objetOuVide(e?.transport);
+  const norme = Array.isArray(e?.terrains);
+  const terrains = [...(norme ? e.terrains : Array.isArray(tr.terrains) ? tr.terrains : [])];
+  const carburantParQuart = Number(norme ? e.carburantParQuart : tr.carburantParQuart) || 0;
+  const mode = e?.type === "monture" || tr.mode === "pied" ? "monture"
+    : tr.mode === "bateau" || (terrains.length && terrains.every(t => t === "mer")) ? "bateau" : "vehicule";
+  return { cle: e?.cle ?? "", nom: e?.nom ?? e?.cle ?? "", mode, terrains, charge: Number(norme ? e.charge : tr.chargeMax ?? tr.charge) || 0,
+    places: Number(norme ? e.places : tr.places) || 0, carburantParQuart, bruit: Number(norme ? e.bruit : tr.bruit ?? e?.bruit) || 0,
+    moteur: carburantParQuart > 0 };
+}
+export const vehiculesDu = contenu => listeDe(contenu?.equipements).filter(estVehiculeContenu);
+// « Scooter (scooter : route, piste ; charge 4 ; 2 places ; carburant 0,25/quart ; bruit 1) ».
+export function ligneVehicule(v) {
+  const p = v?.terrains ? v : proprietesVehicule(v);
+  return `${p.nom} (${[p.cle, p.terrains.join(", ") || "?", `charge ${p.charge}`, p.places ? `${p.places} place(s)` : "",
+    p.moteur ? `carburant ${String(p.carburantParQuart).replace(".", ",")}/quart` : "sans carburant", `bruit ${p.bruit}`].filter(Boolean).join(" ; ")})`;
+}
+// Le transport demandé -> { transport: ce que l'API reçoit (générique ou clé), vehicule: propriétés | null } ; null si inconnu.
+// Vide = à pied. Les génériques d'abord (« voiture » est un véhicule du contenu, pas le générique) ; puis un véhicule par clé ou nom.
+export function resoudreTransport(contenu, reference) {
+  const n = normaliser(reference);
+  if (!n) return { transport: "pied", vehicule: null };
+  if (ALIAS_TRANSPORT[n]) return { transport: ALIAS_TRANSPORT[n], vehicule: null };
+  const vehicules = vehiculesDu(contenu);
+  const x = t => normaliser(String(t ?? "").replace(/×/g, "x"));   // « 4x4 » pour « 4×4 »
+  const f = trouverFiche(vehicules, reference) ?? vehicules.find(v => x(v.nom) === x(reference) || x(v.cle) === x(reference)) ?? null;
+  return f ? { transport: f.cle, vehicule: proprietesVehicule(f) } : null;
+}
+// Le bruit et le carburant d'un trajet, pour le texte rendu. r : retour de l'API (carburant, bruit, quarts) ; sans carburant rendu
+// (déménagement), il est calculé comme le système le fait pour un véhicule : ceil(quarts × carburantParQuart).
+export function ligneTransport({ transport = "pied", vehicule = null } = {}, r = {}) {
+  const bruit = nombreOuNull(r?.bruit) ?? (vehicule ? vehicule.bruit : BRUIT_GENERIQUE[transport] ?? 0);
+  const carburant = nombreOuNull(r?.carburant) ?? (vehicule ? Math.ceil(Math.max(0, Number(r?.quarts) || 0) * vehicule.carburantParQuart) : transport === "pied" ? 0 : null);
+  const moyen = vehicule ? `${vehicule.nom}${vehicule.mode === "monture" ? " (monture)" : ""}` : transport === "pied" ? "à pied" : transport;
+  return `Transport : ${moyen} ; carburant consommé : ${carburant === null ? "?" : carburant} ; bruit ${bruit}`
+    + `${bruit > 0 ? ` (rencontres en route +${bruit * 10} %, ça s'entend de loin)` : " (silencieux)"}.`;
+}
+// Les objets d'acteurs qui sont ce véhicule (par clé, sinon par nom).
+export function portentVehicule(acteurs = [], vehicule) {
+  if (!vehicule) return [];
+  const nn = normaliser(vehicule.nom);
+  return acteurs.filter(a => [...(a?.items ?? [])].some(i => (i?.system?.cle && i.system.cle === vehicule.cle) || (nn && normaliser(i?.name) === nn)));
+}
