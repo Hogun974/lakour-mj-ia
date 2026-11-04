@@ -155,7 +155,7 @@ Quand une fête populaire approche, le monde peut la célébrer à sa façon : l
 - **Effets visuels des fêtes** (réglage de chacun, chez soi) : décoché, plus aucun décor ; le *mouvement réduit* de l'ordinateur est respecté (rien ne tombe).
 - **Modules des mondes** : *api.fetes.enregistrer({ id, fete, nom, description, consigne, decor, contenu })* au crochet *lakour-mj-ia.pret*, *api.fetes.active()*, *api.fetes.lister()* ; le crochet *lakour-mj-ia.fete* (ancienne, nouvelle) quand la fête change (docs/fetes.md).` },
   { titre: "Sauvegardes et dépannage", texte: `
-- Les mondes sont sauvegardés chaque nuit à 4 h 30 sur le serveur (14 jours). Avant chaque mise à jour des modules, une sauvegarde complète est faite aussi.
+- Sauvegarde ton monde régulièrement (dossier du monde dans les données de Foundry, ou l'outil de sauvegarde de ton hébergeur) et avant chaque mise à jour des modules.
 - Une mise à jour d'un script se voit après **F5**. Une mise à jour des compendiums demande un redémarrage du serveur.
 - Si l'IA ne répond plus : la séance est-elle démarrée ? la clé est-elle valide (Configurer › Vérifier) ? le budget est-il atteint ?
 - Si une fenêtre de D&D 5e s'ouvre pendant une création : un choix de l'IA a été refusé par le système ; finis-la à la main.` }

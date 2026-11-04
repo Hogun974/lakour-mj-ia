@@ -1,0 +1,61 @@
+# Release GitHub à chaque tag « v<version> » (ex. v0.39.0) : essais, archive du module, puis publication du manifeste
+# et de l'archive en pièces jointes. Adresse stable donnée aux joueurs (Foundry › Modules › Installer un module) :
+#   https://github.com/Hogun974/lakour-mj-ia/releases/latest/download/module.json
+# Le tag doit porter la version déjà écrite dans module.json (outils/empaqueter-module.mjs refuse sinon), et la
+# section correspondante de CHANGELOG.md sert de notes de version.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dépôt
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Dépendances (versions épinglées de package-lock.json)
+        run: npm ci
+
+      - name: Version du tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Essais (aucun réseau, aucune clé)
+        run: npm run essais
+
+      - name: SDK embarqués à jour (vendor/ doit correspondre aux versions de package.json)
+        run: |
+          for p in "@anthropic-ai/sdk vendor/anthropic.mjs" "openai vendor/openai.mjs"; do
+            set -- $p
+            attendu=$(node -p "require('./node_modules/$1/package.json').version")
+            head -c 200 "$2" | grep -q "$1 $attendu " || { echo "$2 n'est pas embarqué depuis $1 $attendu : lancer npm run embarquer et commiter vendor/"; exit 1; }
+          done
+
+      - name: Archive du module et manifeste publié
+        run: node outils/empaqueter-module.mjs --version "$VERSION" --sortie dist
+
+      - name: Notes de version (section du CHANGELOG)
+        run: |
+          awk -v v="$VERSION" '/^## /{p = ($2 == v)} p' CHANGELOG.md > dist/notes.md
+          if [ ! -s dist/notes.md ]; then echo "Version $VERSION du module La Kour – MJ IA." > dist/notes.md; fi
+
+      - name: Publication
+        uses: softprops/action-gh-release@v2
+        with:
+          name: La Kour – MJ IA ${{ env.VERSION }}
+          body_path: dist/notes.md
+          files: |
+            dist/module.json
+            dist/lakour-mj-ia.zip
+          fail_on_unmatched_files: true

@@ -1,0 +1,150 @@
+# Passer en public — liste de contrôle
+
+Ce qu'il reste à faire, dans l'ordre, pour que `lakour-mj-ia` devienne un dépôt GitHub public avec un module installable
+dans Foundry VTT v14. Rien ici n'est automatique : chaque case est un choix ou un geste de Jordan. Les quatre dépôts de
+monde en dépendent : leur workflow de release clone ce dépôt en sous-module depuis GitHub, et leurs README renvoient à
+son manifeste.
+
+## 0. Avant tout : le dépôt GitHub
+
+- [ ] `https://github.com/Hogun974/lakour-mj-ia` reçoit la branche `principale`, déclarée **branche par défaut** sur
+      GitHub : le manifeste (`changelog`, `media`) et les README pointent sur `.../HEAD/...`, qui suit la branche par
+      défaut quel que soit son nom.
+- [x] Les scripts d'infrastructure privée (`outils/reconstruire-lakour-v14.sh`, `outils/serveur/`) et le plan de
+      travail interne sont sortis du dépôt, et le pseudonyme retiré des essais (commit « Avant publication »).
+- [ ] Reste une phrase d'infrastructure dans le **guide installé dans chaque monde** (`scripts/guide.js`, section
+      « Sauvegardes et dépannage », recopiée dans `docs/guide-utilisation.md` par `npm run ecrire-guide`) : « Les
+      mondes sont sauvegardés chaque nuit à 4 h 30 sur le serveur (14 jours) ». À reformuler pour un inconnu (« faites
+      des sauvegardes de votre monde ») ou à retirer, puis relancer `npm run ecrire-guide`.
+- [ ] L'historique git porte l'ancien titre « (Claude / ChatGPT) » et des messages de commit avec les noms des modèles :
+      sans gravité, mais le savoir avant de rendre l'historique public.
+- [ ] Aucune adresse IP privée, aucune clé, aucun mot de passe nulle part (`git grep -nE "sk-|172\.|192\.168"` doit ne
+      rien rendre hors `docs/empaqueter-monde.md`, qui décrit le filtre).
+- [ ] `.gitmodules` des quatre mondes pointe sur `../lakour-mj-ia` : il faut que ce dépôt soit public **avant** la
+      première release d'un monde, sinon `actions/checkout` (`submodules: recursive`) échoue chez eux.
+
+## 1. La licence
+
+- [ ] Choisir : **MIT** pour le code (proposition des README, avec un `TODO`), ou une autre licence.
+- [ ] Déposer `LICENSE` à la racine (texte complet, nom de l'auteur, année). `module.json` déclare déjà
+      `"license": "LICENSE"` et `outils/empaqueter-module.mjs` copie ce fichier dans l'archive ; sans lui, l'empaqueteur
+      avertit et le champ pointe dans le vide.
+- [ ] Remplacer le `TODO` de la section « Licence » des deux README par la décision.
+- [ ] `THIRD-PARTY-NOTICES.md` (écrit) : les deux SDK de `vendor/` sont sous **Apache-2.0** (vérifié dans leurs
+      `package.json` et `LICENSE` ; aucun `NOTICE`), minifiés sans commentaire de licence. L'article 4 d'Apache 2.0 exige
+      de livrer le texte de la licence avec toute redistribution : le fichier est dans l'archive. Le relire à chaque
+      `npm run embarquer` qui change une version (mettre à jour le tableau).
+- [ ] Les icônes de `outils/game-icons/` (CC BY 3.0, `license.txt`) ne sont pas dans l'archive du module, seulement dans
+      le dépôt : le crédit est dans les README et `THIRD-PARTY-NOTICES.md`.
+
+## 2. Les captures d'écran
+
+- [ ] Poser dans `docs/captures/` les PNG listés dans `docs/captures/LISEZ-MOI.md` (au minimum `console.png`,
+      `plateau.png`, `carnet.png`, `tour-par-tour.png`, qui font le bandeau des README et la couverture du manifeste).
+- [ ] Vérifier qu'aucune capture ne montre un nom de joueur réel, une clé d'API (même partielle), une adresse de serveur
+      dans la barre du navigateur, un chemin de machine.
+
+## 3. Le contenu de l'archive
+
+- [ ] `node outils/empaqueter-module.mjs --version 0.39.0 --sortie dist` : 100 fichiers, environ 10 Mo (l'archive
+      pèse presque entièrement par les dix WAV de `assets/sons/`, 1 Mo chacun, qui ne se compressent pas). Si le poids
+      gêne, `outils/fabriquer-sons.mjs` pourrait écrire de l'OGG (Foundry le lit) : à décider, ce n'est pas bloquant.
+- [ ] Installer `dist/lakour-mj-ia.zip` à la main dans un Foundry de test (ou pointer un manifeste local) et vérifier :
+      le module se charge, la console s'ouvre, le fournisseur factice répond, le guide s'installe.
+- [ ] `vendor/` est à jour par rapport à `package.json` (le workflow le vérifie : la première ligne de chaque fichier
+      embarqué doit porter le nom et la version du paquet).
+
+## 4. La première release
+
+- [ ] `package-lock.json` à jour après les changements de `package.json` (`npm install`, puis `npm ci` doit passer :
+      c'est ce que fait le workflow, avec Node 24).
+- [ ] `npm run essais` vert (438 essais au moment d'écrire ces lignes).
+- [ ] La version du tag doit être **celle de `module.json`** et avoir sa section dans `CHANGELOG.md` (le workflow en fait
+      le texte de la release). La section « Non publié » du CHANGELOG doit être renommée en version datée au moment de
+      publier (par exemple `0.40.0`, puisque Fénoir et les histoires ne sont pas dans la 0.39.0 ; mettre alors
+      `"version": "0.40.0"` dans `module.json`). Pour publier :
+
+  ```bash
+  git tag v0.40.0
+  git push github principale --tags
+  ```
+
+- [ ] Suivre l'action **Release** sur GitHub : elle doit déposer `module.json` et `lakour-mj-ia.zip`. Puis tester dans
+      Foundry l'installation par `https://github.com/Hogun974/lakour-mj-ia/releases/latest/download/module.json`.
+- [ ] Les versions suivantes : bumper `version` dans `module.json`, ajouter la section au `CHANGELOG.md`, commiter,
+      tagger. Puis, dans chaque monde, `git submodule update --remote modules/lakour-mj-ia` et `npm run essais`.
+
+## 5. Passer le dépôt en public
+
+- [ ] GitHub › Settings › General › Danger zone › **Change visibility** › Public.
+- [ ] Vérifier que la release et ses pièces jointes sont visibles sans être connecté (navigateur privé).
+- [ ] Activer les **Issues** ; les README y renvoient pour les bogues.
+- [ ] Mettre une description et des sujets (*topics*) sur le dépôt : `foundry-vtt`, `foundryvtt-module`, `ai-game-master`,
+      `claude`, `openai`, `jdr`, `ttrpg`, `french`.
+
+## 6. Facultatif : le catalogue de paquets Foundry
+
+Le catalogue <https://foundryvtt.com/packages> référence les modules soumis par un détenteur de licence Foundry
+(« Packages can be submitted by any user who is the owner of an active Foundry Virtual Tabletop software license ») ;
+modules et systèmes passent par une relecture manuelle (« The submission process for Modules and Systems requires a
+manual review and approval »). Le formulaire est lié en bas de la page des paquets, visible connecté.
+
+### Ce que Foundry exige d'un module qui appelle une IA à l'exécution
+
+La **politique sur l'IA** de Foundry VTT (<https://foundryvtt.com/article/ai-policy>, dernière révision substantielle le
+18 mars 2026) s'applique à tout paquet du catalogue et de la boutique. Ce qu'elle dit, et ce que ça implique ici :
+
+| Règle (citation) | Pour `lakour-mj-ia` |
+|---|---|
+| « Packages that invoke AI generation at runtime » sont admis, mais « Runtime-generated content must be entirely improvisational » ; « Improvised Content is content generated at runtime in direct response to unpredictable prompts ». | C'est exactement ce que fait le module : narration, voix, images et cartes produites en réponse à ce que les joueurs écrivent. Rien n'est pré-généré. |
+| Ces paquets « must be categorized in an "AI Tools" category on our package listing ». | Choisir la catégorie **AI Tools** à la soumission. |
+| « Packages must not be designed to automatically collect or inject context from sources the author does not have rights to ». | Le module envoie à l'IA ce que l'utilisateur a installé dans **son** monde (fiches, journaux, compendiums du système et des modules qu'il a choisis) : c'est son usage, pas une collecte par l'auteur. Le dire tel quel dans la description ; la section « Ce que ça envoie » du README le détaille. |
+| « All user-facing prepared written text must be human-authored. » ; « AI-generated images, illustrations, video, and UI assets are not permitted as prepared content » ; « AI-generated music, ambient audio, sound effects, and narration are not permitted as prepared content ». | Le contenu **préparé** du module (guide, personnalités, chaînes d'interface, cartes au chat) est écrit par l'auteur ; aucune image embarquée ; les sons sont synthétisés par un programme, sans modèle d'IA. Les captures d'écran doivent être de vraies captures. |
+| « AI-assisted software development is not prohibited » ; « An author must be able to understand, explain, modify, and maintain every part of their submitted codebase. » | Le code de ce dépôt a été écrit avec une assistance IA (voir les `Co-Authored-By` de l'historique) : Jordan doit pouvoir en répondre. Les paquets conformes « are no longer required to disclose that usage » ; une déclaration incorrecte « may result in permanent de-listing ». |
+| « The user must explicitly confirm their understanding of generated code before it may be executed. » | Sans objet : le module ne génère ni n'exécute aucun code à l'exécution (outils déclarés, arguments validés par schéma). Le dire dans la soumission. |
+| Label « Zero AI » : « Authors who have not used any AI tools at any stage of their package's creation ». | Ne pas le demander. |
+| « Non-compliant packages will be archived or deleted. » ; « all rulings by Foundry VTT staff regarding compliance with this policy are final. » | En connaissance de cause. |
+
+La politique ne parle pas explicitement des **clés d'API fournies par l'utilisateur** ni d'un consentement spécifique à
+l'envoi de données vers un service tiers ; mais les modules d'IA déjà au catalogue affichent une mention du type « des
+services en nuage (OpenAI) traiteront les données de campagne ». La page du paquet doit donc dire, en clair : que la clé
+est celle de l'utilisateur, que les appels partent de son navigateur vers Anthropic ou OpenAI, ce qui est envoyé, et ce
+que ça coûte (la section « Ce que ça coûte, ce que ça envoie » du README, en version courte). Le guide des licences
+(<https://foundryvtt.com/article/licensing-guide/>) rappelle par ailleurs ce que vérifie la relecture : « Does the author
+have the rights to everything this module contains? », « Does it contain content from another company […] », « Does it
+contain art assets which the author did not create? » : ici, SDK Apache-2.0 avec leur notice, icônes CC BY 3.0 créditées,
+sons originaux, aucune image.
+
+### Le formulaire de soumission
+
+| Champ | Quoi donner |
+|---|---|
+| Package name | `lakour-mj-ia` — doit être **exactement** l'`id` du manifeste |
+| Title | `La Kour – MJ IA (Anthropic / OpenAI)` (le `title` du manifeste) |
+| Description | Le `description` du manifeste, plus la version courte de « Ce que ça envoie » (clé de l'utilisateur, appels directs, données envoyées, coût) |
+| Author | Jordan, avec l'URL GitHub |
+| URL | `https://github.com/Hogun974/lakour-mj-ia` |
+| Manifest URL de la version | **L'adresse datée**, `https://github.com/Hogun974/lakour-mj-ia/releases/download/v<version>/module.json`, pas l'adresse `latest` (le catalogue attend une adresse par version ; le champ `manifest` *dans* le fichier reste, lui, l'adresse `latest`, celle que Foundry interroge pour les mises à jour) |
+| Compatibilité | Minimum 14, vérifié 14.369 (reprise du manifeste) |
+| Système | Aucun (le module marche dans tous les systèmes ; adaptateurs dédiés pour `impmal`, `dnd5e`, `lakour-loups`, `lakour-survie`) |
+| Tags / catégories | **AI Tools** (obligatoire), Game master tools, Automation, Audio, Chat & messaging (choisir dans la liste du formulaire) |
+| Média | Couverture et captures : adresses publiques (celles du `media` du manifeste, dès que les captures sont posées) |
+| Licence | Celle choisie à l'étape 1 |
+
+Ensuite, à chaque version, ajouter la nouvelle version depuis la page d'administration du paquet avec son manifeste daté.
+
+## Les adresses à donner aux joueurs
+
+| Quoi | Adresse |
+|---|---|
+| Le module MJ IA (manifeste, Foundry › Modules › Installer) | `https://github.com/Hogun974/lakour-mj-ia/releases/latest/download/module.json` |
+| L'archive de la dernière version | `https://github.com/Hogun974/lakour-mj-ia/releases/latest/download/lakour-mj-ia.zip` |
+| Le dépôt, le mode d'emploi | `https://github.com/Hogun974/lakour-mj-ia` (README en français, `README.en.md` en anglais) |
+| Le guide d'utilisation complet | `https://github.com/Hogun974/lakour-mj-ia/blob/HEAD/docs/guide-utilisation.md` |
+| Signaler un bogue | `https://github.com/Hogun974/lakour-mj-ia/issues` |
+| Le journal des versions | `https://github.com/Hogun974/lakour-mj-ia/blob/HEAD/CHANGELOG.md` |
+| Les mondes | `https://github.com/Hogun974/lakour-w40k`, `https://github.com/Hogun974/lakour-warcraft`, `https://github.com/Hogun974/lakour-veillees` |
+
+Ordre d'installation chez un joueur-MJ : Foundry 14 → le système du monde choisi → le module de contenu du monde et
+`lakour-mj-ia` → le monde vierge du dépôt du monde (ou un monde neuf, où le module de contenu propose d'installer son
+contenu) → *Réglages › MJ IA › Configurer* pour la clé, ou le fournisseur factice pour essayer.
