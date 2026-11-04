@@ -122,7 +122,13 @@ export function trouverFiche(collection, reference) {
   return liste.find(f => f?.cle === reference) ?? liste.find(f => normaliser(f?.cle) === n) ?? liste.find(f => normaliser(f?.nom) === n)
     ?? liste.find(f => normaliser(f?.nom).includes(n)) ?? null;
 }
-export const nomDe = (collection, cle) => trouverFiche(collection, cle)?.nom ?? cle;
+// Le nom d'une fiche ; genre ("f" | "m") : le libellé accordé d'une enfance ou d'un passé genré (`nomAutre` quand le genre du
+// survivant est l'autre), comme nomAccorde du système lakour-survie.
+export function nomDe(collection, cle, genre = "") {
+  const f = trouverFiche(collection, cle);
+  if (!f) return cle;
+  return f.genre && genre && f.genre !== genre && f.nomAutre ? f.nomAutre : f.nom ?? cle;
+}
 
 // Régions voisines d'une région (clés), d'après le contenu.
 export const voisinsDe = (contenu, cle) => (trouverFiche(contenu?.regions, cle)?.voisins ?? []).map(v => v?.region).filter(Boolean);
@@ -173,8 +179,10 @@ export function texteVariations(v = {}) {
 // ------------------------------------------------------------------ un survivant
 // Résumé d'un acteur « survivant » pour l'IA (adaptateur, compagnons) : PUBLIC (les acteurs sont publics, §4) ; rien du monde.
 // nomPasse(cle) : le nom d'un passé du contenu (facultatif).
-export function resumerSurvivant(acteur, { nomPasse = c => c, nomDe: nomContenu = (_c, cle) => cle } = {}) {
+// nomDe(collection, cle, genre) reçoit le genre du survivant (system.genre) : les libellés genrés s'accordent.
+export function resumerSurvivant(acteur, { nomPasse = null, nomDe: nomContenu = (_c, cle) => cle } = {}) {
   const s = acteur?.system ?? {};
+  const genre = s.genre ?? "";
   const compagnon = Boolean(acteur?.flags?.[ID_MJIA]?.compagnon);
   const comps = Object.entries(s.competences ?? {})
     .filter(([, c]) => entier(c?.niveau) > 0)
@@ -183,7 +191,7 @@ export function resumerSurvivant(acteur, { nomPasse = c => c, nomDe: nomContenu 
   const savoirs = objets.filter(i => i.type === "savoir").map(i => i.name);
   const equipement = objets.filter(i => i.type === "equipement").map(i => i.name);
   const inf = s.infection ?? {};
-  const passe = s.passe ? nomPasse(s.passe) : "";
+  const passe = s.passe ? (nomPasse ? nomPasse(s.passe, genre) : nomContenu("passes", s.passe, genre)) : "";
   const etat = [`blessures ${entier(s.blessures)}/4 (${etiquetteBlessures(s.blessures)})`, `fatigue ${entier(s.fatigue)}/5`,
     `moral ${entier(s.moral ?? 4)}/5`, entier(s.faim) ? `faim ${pluriel(entier(s.faim), "jour")}` : "",
     entier(s.soif) ? `soif ${pluriel(entier(s.soif), "quart")}` : ""].filter(Boolean).join(", ");
@@ -191,7 +199,7 @@ export function resumerSurvivant(acteur, { nomPasse = c => c, nomDe: nomContenu 
   return [
     `${acteur?.name ?? "?"}${compagnon ? " [compagnon IA]" : ""} (survivant${entier(s.age) ? `, ${entier(s.age)} ans` : ""})`,
     s.statut && s.statut !== "joueur" ? `statut : ${s.statut}` : "",
-    s.enfance ? `enfance : ${nomContenu("enfances", s.enfance)}` : "",
+    s.enfance ? `enfance : ${nomContenu("enfances", s.enfance, genre)}` : "",
     passe ? `passé : ${passe}` : "",
     s.lien ? `lien : ${couper(texteBrut(s.lien), 80)}` : "",
     `compétences : ${comps.join(", ") || "aucune au-dessus de 0"}`,
@@ -461,7 +469,7 @@ export function resumerTirage(d = {}, lettre = "?", { nomDe: nomContenu = (_c, c
   const graine = Array.isArray(d.graine ?? d.histoire) ? (d.graine ?? d.histoire).join(" ") : (d.graine ?? d.histoire ?? "");
   return [
     `${lettre} — ${d.nom || "(sans nom)"}${entier(d.age) ? `, ${entier(d.age)} ans` : ""}`,
-    [d.enfance ? `enfance : ${nomContenu("enfances", d.enfance)}` : "", d.passe ? `passé : ${nomContenu("passes", d.passe)}` : ""].filter(Boolean).join(" ; "),
+    [d.enfance ? `enfance : ${nomContenu("enfances", d.enfance, d.genre ?? "")}` : "", d.passe ? `passé : ${nomContenu("passes", d.passe, d.genre ?? "")}` : ""].filter(Boolean).join(" ; "),
     `${comps.join(", ") || "aucune compétence"} (somme ${sommeNiveaux(d.competences)}${dansLeBudget(d) ? "" : ", HORS BUDGET 10 – 16"})`,
     (d.traits ?? []).length ? `traits : ${d.traits.map(t => nomContenu("traits", t)).join(", ")}` : "",
     (d.incapacites ?? []).length ? `INCAPABLE de : ${d.incapacites.join(", ")}` : "",

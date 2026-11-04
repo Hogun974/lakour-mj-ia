@@ -728,7 +728,7 @@ const tirages = new Map();
 const recrues = new Map();
 let compteurRecrues = 0;
 export function oublierTirages() { tirages.clear(); recrues.clear(); compteurRecrues = 0; }
-const nomContenu = (collection, cle) => nomDe(lire("contenu")?.[collection], cle);
+const nomContenu = (collection, cle, genre = "") => nomDe(lire("contenu")?.[collection], cle, genre);
 const VERROUS = objet({
   nom: chaine("Nom gardé (vide = tiré)."), age: entier("Âge gardé, 16 à 75 (0 = tiré)."),
   enfance: chaine("Enfance gardée (clé ou nom ; vide = tirée)."), passe: chaine("Passé gardé (clé ou nom ; vide = tiré)."),
@@ -842,7 +842,7 @@ OUTILS_SURVIE.push(outil({
     const age = a.age > 0 ? a.age : Number(tire?.age) || 0;
     const systeme = {
       competences, statut: a.statut, passe: tire?.passe ?? sp.cle ?? passe?.name ?? a.passe.trim(),
-      ...(tire ? { enfance: tire.enfance ?? "", passions: tire.passions ?? {}, traits: tire.traits ?? [], incapacites: tire.incapacites ?? [] } : {}),
+      ...(tire ? { enfance: tire.enfance ?? "", genre: tire.genre ?? "", passions: tire.passions ?? {}, traits: tire.traits ?? [], incapacites: tire.incapacites ?? [] } : {}),
       ...(age > 0 ? { age } : {}), ...(a.lien.trim() ? { lien: a.lien.trim() } : {}), ...(a.description.trim() ? { notes: versHTML(a.description) } : {})
     };
     // La graine d'histoire du générateur : gardée pour l'histoire du personnage (histoire_personnage, preparer).
@@ -867,7 +867,7 @@ OUTILS_SURVIE.push(outil({
     const somme = sommeNiveaux(competences);
     return { contenu: [
       `Survivant « ${acteur.name} » ${existant ? "complété" : "créé"}${utilisateur ? `, confié à ${utilisateur.name}` : ""}${tire ? ` (tirage ${lettre})` : ""}.`,
-      resumerSurvivant(acteur, { nomPasse: c => nomContenu("passes", c), nomDe: nomContenu }),
+      resumerSurvivant(acteur, { nomDe: nomContenu }),
       a.statut === "joueur" && !dansLeBudget({ competences }) ? `Attention : somme des niveaux ${somme}, hors du budget de départ (10 à 16).` : "",
       objets.length ? `Ajoutés : ${objets.map(o => o.name).join(", ")}.` : "",
       introuvables.length ? `Introuvables, non ajoutés : ${introuvables.join(", ")} (vérifie avec chercher_compendium).` : "",

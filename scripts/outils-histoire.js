@@ -26,7 +26,7 @@ function quandChapitre() {
   }
   return `Séance du ${new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`;
 }
-const nomContenu = (collection, cle) => { try { return nomDe(game.lakourSurvie?.contenu?.()?.[collection], cle); } catch { return cle; } };
+const nomContenu = (collection, cle, genre = "") => { try { return nomDe(game.lakourSurvie?.contenu?.()?.[collection], cle, genre); } catch { return cle; } };
 
 export const OUTIL_HISTOIRE = {
   nom: "histoire_personnage",

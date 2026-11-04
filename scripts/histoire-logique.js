@@ -136,7 +136,8 @@ export function etapeHistoire(systeme, nomJoueur = "le joueur") {
     + "(ce dernier, son joueur et toi seuls le lisent). Quelques paragraphes, dans le ton du monde, sans contredire sa fiche.";
 }
 // Le matériau de l'histoire, lu sur la fiche (objets d'origine, de faction, de rôle ; peuple, historique, classe ; enfance, passé,
-// traits) : [« Origine : Monde-ruche — Des milliards d'âmes… »]. nomDe(collection, cle) : nom d'une clé du contenu (Fénoir).
+// traits) : [« Origine : Monde-ruche — Des milliards d'âmes… »]. nomDe(collection, cle, genre) : nom d'une clé du contenu (Fénoir),
+// accordé au genre du survivant pour l'enfance et le passé.
 const TYPES_MATERIAU = {
   impmal: { origin: "Origine", faction: "Faction", role: "Rôle", duty: "Devoir", boonLiability: "Atout ou handicap" },
   dnd5e: { race: "Peuple", background: "Historique", class: "Classe", subclass: "Sous-classe" }
@@ -153,8 +154,8 @@ export function materiauHistoire(acteur, systeme, { nomDe = (_c, cle) => cle, ma
   }
   if (systeme === "lakour-survie") {
     const s = acteur?.system ?? {};
-    if (s.enfance) lignes.push(`Enfance : ${nomDe("enfances", s.enfance)}`);
-    if (s.passe) lignes.push(`Passé : ${nomDe("passes", s.passe)}`);
+    if (s.enfance) lignes.push(`Enfance : ${nomDe("enfances", s.enfance, s.genre ?? "")}`);
+    if (s.passe) lignes.push(`Passé : ${nomDe("passes", s.passe, s.genre ?? "")}`);
     if ((s.traits ?? []).length) lignes.push(`Traits : ${s.traits.map(t => nomDe("traits", t)).join(", ")}`);
     if ((s.incapacites ?? []).length) lignes.push(`Incapacités : ${s.incapacites.join(", ")}`);
     if (s.age) lignes.push(`Âge : ${s.age} ans`);

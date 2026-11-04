@@ -338,8 +338,8 @@ const survie = {
     // Le nom d'un passé, d'une enfance, d'un trait du contenu (registre du système) ; une clé inconnue ou un texte libre restent tels quels.
     let contenu = null;
     try { contenu = globalThis.game?.lakourSurvie?.contenu?.() ?? null; } catch { contenu = null; }
-    const nomContenu = (collection, cle) => nomDe(contenu?.[collection], cle);
-    return resumerSurvivant(acteur, { nomPasse: cle => nomContenu("passes", cle), nomDe: nomContenu });
+    const nomContenu = (collection, cle, genre = "") => nomDe(contenu?.[collection], cle, genre);
+    return resumerSurvivant(acteur, { nomDe: nomContenu });
   }
 };
 
