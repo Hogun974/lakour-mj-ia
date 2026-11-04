@@ -5,10 +5,17 @@
 // Ce qu'on ajoute à l'un s'ajoute à l'autre : on écrit ici ce qui est commun, une seule fois.
 export const CONTENUS = { impmal: "lakour-40k", dnd5e: "lakour-warcraft", "lakour-loups": "lakour-veillees", "lakour-survie": "lakour-fenoir" };
 
-// Module de contenu actif pour le système du monde, ou null.
+// Chaque module de contenu existe en français (« lakour-40k ») et en anglais (« lakour-40k-en » : même fabricant, mêmes _id
+// de documents, mêmes drapeaux sous sa propre portée ; outils/traduction.mjs, docs/traduction.md). Un seul des deux est actif
+// à la fois (ils se déclarent en conflit) : partout où le moteur nomme un module de contenu, il prend celui qui est actif.
+export const SUFFIXE_ANGLAIS = "-en";
+export const variantes = id => (id ? [id, `${id}${SUFFIXE_ANGLAIS}`] : []);
+// Identifiant de base d'un module de contenu, quelle que soit sa langue : « lakour-40k-en » -> « lakour-40k ».
+export const moduleDeBase = id => (typeof id === "string" ? id.replace(new RegExp(`${SUFFIXE_ANGLAIS}$`), "") : id);
+
+// Module de contenu actif pour le système du monde (sa version française ou anglaise), ou null.
 export function moduleDeContenu(systeme = game.system.id) {
-  const id = CONTENUS[systeme];
-  return id && game.modules.get(id)?.active ? id : null;
+  return variantes(CONTENUS[systeme]).find(id => game.modules.get(id)?.active) ?? null;
 }
 
 // Jeton de personnage joueur fourni par le module de contenu pour cette clé, dans le style voulu ; null sinon.

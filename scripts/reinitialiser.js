@@ -3,6 +3,7 @@ import { lire, ecrire } from "./reglages.js";
 import { ecrireJSON } from "./utilitaires.js";
 import { consignerComposition } from "./historique-loups.js";
 import { viderCarnet } from "./coffre.js";
+import { moduleDeContenu } from "./contenus.js";
 
 // Remise à zéro de la campagne, dans le navigateur du MJ, par l'API de Foundry (qui défait proprement
 // tous les liens) : chat, combats, scènes, journaux, objets, tables, dossiers, brouillard, horloges, enquêtes, contacts, acteurs — sauf les
@@ -11,7 +12,7 @@ import { viderCarnet } from "./coffre.js";
 // à neuf et une scène activée (sans elle, plus de barre d'outils pour le MJ).
 
 const COLLECTIONS = ["ChatMessage", "Combat", "Scene", "JournalEntry", "Item", "RollTable"];
-const CONTENU_PAR_SYSTEME = { impmal: "lakour-40k", dnd5e: "lakour-warcraft", "lakour-loups": "lakour-veillees", "lakour-survie": "lakour-fenoir" };
+// Le module de contenu du système (français ou anglais « -en ») : moduleDeContenu() de contenus.js.
 // Types d'acteur d'un personnage joueur, proposés à la conservation (Fénoir : « survivant »).
 const TYPES_PERSONNAGE = ["character", "survivant"];
 // Fénoir (système lakour-survie, docs/survie.md) : l'état de la partie (public), le monde scellé (coffre), son double en clair
@@ -50,18 +51,20 @@ async function choisirPersonnagesGardes() {
   });
 }
 
-// Jeton du rôle (module lakour-40k), dans le style visuel choisi.
+// Jeton du rôle (module de contenu 40k actif : lakour-40k ou lakour-40k-en), dans le style visuel choisi.
 async function jetonDuRole(acteur) {
-  let cle = acteur.items.find(i => i.type === "role")?.getFlag("lakour-40k", "cle");
+  const module = moduleDeContenu();
+  if (!module) return null;
+  let cle = acteur.items.find(i => i.type === "role")?.getFlag(module, "cle");
   if (!cle) {
     const nomRole = acteur.items.find(i => i.type === "role")?.name;
-    const pack = game.packs.get("lakour-40k.creation");
-    cle = nomRole && pack ? (await pack.getIndex({ fields: ["flags"] })).find(e => e.type === "role" && e.name === nomRole)?.flags?.["lakour-40k"]?.cle : null;
+    const pack = game.packs.get(`${module}.creation`);
+    cle = nomRole && pack ? (await pack.getIndex({ fields: ["flags"] })).find(e => e.type === "role" && e.name === nomRole)?.flags?.[module]?.cle : null;
   }
   if (!cle) return null;
   const fichier = lire("styleVisuel") === "3d" ? "index-3d.json" : "index.json";
   try {
-    const index = await (await fetch(foundry.utils.getRoute(`modules/lakour-40k/assets/jetons/${fichier}`), { cache: "no-store" })).json();
+    const index = await (await fetch(foundry.utils.getRoute(`modules/${module}/assets/jetons/${fichier}`), { cache: "no-store" })).json();
     return index[cle] ?? null;
   } catch { return null; }
 }
@@ -109,7 +112,7 @@ export async function reinitialiserCampagne(moteur) {
   }
 
   // 4. Le contenu du jeu de ce monde réinstallé à neuf (guides, tables, aventure, cartes), s'il est là.
-  const contenu = game.modules.get(CONTENU_PAR_SYSTEME[game.system.id]);
+  const contenu = game.modules.get(moduleDeContenu());
   if (contenu?.active) {
     await game.settings.set(contenu.id, "installe", "");
     await contenu.api?.installer?.();
