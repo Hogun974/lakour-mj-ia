@@ -567,7 +567,8 @@ export async function recevoirPart({ id, seuil, x, y } = {}, emetteur) {
   const part = { id, seuil: Number(seuil) || 2, x: String(x), y: String(y), recue: Date.now() };
   if (!S.egaux({ ...miennes[id], recue: 0 }, { ...part, recue: 0 })) {
     const gardees = Object.fromEntries([...Object.entries(miennes).filter(([k]) => k !== id), [id, part]]
-      .sort((a, b) => (b[1].recue ?? 0) - (a[1].recue ?? 0)).slice(0, MAX_PARTS_GARDEES));
+      // À heure égale (même milliseconde), la part qui arrive passe devant : elle n'est jamais celle qu'on écarte.
+      .sort((a, b) => (b[1].recue ?? 0) - (a[1].recue ?? 0) || (a[0] === id ? -1 : b[0] === id ? 1 : 0)).slice(0, MAX_PARTS_GARDEES));
     await game.settings.set(ID, "partCarnet", { ...tout, [monde()]: { ...parMonde, [game.user.id]: gardees } });
   }
   emettre({ type: "coffre.accuse", id }, [emetteur]);

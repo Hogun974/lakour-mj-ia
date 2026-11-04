@@ -282,6 +282,16 @@ const VERIFICATIONS = {
       assert.equal(await M.coffre.recevoirPart({ id: "k9", x: "1", y: "2" }), false);
     });
     assert.equal(partsDe("u3").k9, undefined);
+    // Cinq parts dans la même milliseconde : la dernière reçue est gardée (quatre au plus), jamais écartée à égalité.
+    const vraiNow = Date.now;
+    Date.now = () => 1_000_000;
+    try {
+      await comme("u3", async () => {
+        for (const k of ["e1", "e2", "e3", "e4", "e5"]) assert.equal(await M.coffre.recevoirPart({ id: k, seuil: 2, x: "1", y: "2" }, "mj"), true);
+      });
+    } finally { Date.now = vraiNow; }
+    assert.ok(partsDe("u3").e5, "la part reçue en dernier est gardée à heure égale");
+    assert.equal(Object.keys(partsDe("u3")).length, M.coffre.MAX_PARTS_GARDEES ?? 4);
     // Un joueur qui arrive reçoit la sienne et devient porteur.
     U.u4.active = true;
     envoyerDe("u4", { type: "coffre.bonjour", userId: "u4" }, ["mj"]);
@@ -753,7 +763,8 @@ const MUTATIONS = [
   ["coffre.js", "  await game.settings.set(ID, \"trousseau\", {\n    id: cle.id, seuil: cle.seuil,", "  await null;\n  if (false) await game.settings.set(ID, \"trousseau\", {\n    id: cle.id, seuil: cle.seuil,", "le trousseau publié"],
   ["coffre.js", "  if (t.id === id && !(t.porteurs ?? []).includes(userId)) {", "  if (false) {", "porteurs accusés"],
   ["coffre.js", "  emettre({ type: \"coffre.accuse\", id }, [emetteur]);\n", "", "le joueur accuse"],
-  ["coffre.js", ".sort((a, b) => (b[1].recue ?? 0) - (a[1].recue ?? 0)).slice(0, MAX_PARTS_GARDEES));", ".slice(-1));", "parts gardées par id"],
+  ["coffre.js", ".sort((a, b) => (b[1].recue ?? 0) - (a[1].recue ?? 0) || (a[0] === id ? -1 : b[0] === id ? 1 : 0)).slice(0, MAX_PARTS_GARDEES));", ".slice(-1));", "parts gardées par id"],
+  ["coffre.js", " || (a[0] === id ? -1 : b[0] === id ? 1 : 0)).slice(0, MAX_PARTS_GARDEES));", ").slice(0, MAX_PARTS_GARDEES));", "la part reçue gagne à heure égale"],
   ["coffre.js", "  if (game.user.isGM || !id || !x || !y || !emetteur || emetteur !== game.users.activeGM?.id) return false;",
     "  if (game.user.isGM || !id || !x || !y) return false;", "part du seul MJ actif"],
   ["coffre.js", "  if (game.user.isGM || !emetteur || emetteur !== game.users.activeGM?.id) return false;\n  const miennes",
