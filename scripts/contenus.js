@@ -3,7 +3,7 @@
 // - assets/jetons/index.json et index-3d.json : jeton d'un personnage joueur, par clé (rôle en 40k, peuple en Warcraft) ;
 // - assets/cartes/plans.json et le plan dans les drapeaux des scènes (repères pour placer les jetons).
 // Ce qu'on ajoute à l'un s'ajoute à l'autre : on écrit ici ce qui est commun, une seule fois.
-export const CONTENUS = { impmal: "lakour-40k", dnd5e: "lakour-warcraft", "lakour-loups": "lakour-veillees" };
+export const CONTENUS = { impmal: "lakour-40k", dnd5e: "lakour-warcraft", "lakour-loups": "lakour-veillees", "lakour-survie": "lakour-fenoir" };
 
 // Module de contenu actif pour le système du monde, ou null.
 export function moduleDeContenu(systeme = game.system.id) {

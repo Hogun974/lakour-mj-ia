@@ -2,7 +2,7 @@
 // joueurs, visible) et recopié dans docs/guide-utilisation.md par outils/ecrire-guide.mjs.
 // Texte au format des journaux du module (paragraphes, **gras**, *italique*, listes « - », titres « # »).
 
-export const VERSION_GUIDE = 15;
+export const VERSION_GUIDE = 16;
 
 export const GUIDE_MJ = [
   { titre: "Démarrer", texte: `
@@ -17,7 +17,7 @@ export const GUIDE_MJ = [
 - **Démarrer / Terminer la séance** : l'IA ne répond qu'en séance. Une séance restée ouverte au départ du MJ est arrêtée au retour.
 - **Souffler une consigne secrète** : une instruction que seuls toi et l'IA voyez (« fais intervenir un assassin à la prochaine scène »).
 - **Préparer un scénario** : donne un thème ; l'IA crée journaux, PNJ et cartes, hors séance.
-- **Créer un personnage avec le MJ** : l'IA guide le joueur dans le chat et crée SA fiche complète (Imperium Maledictum et D&D 5e). Un joueur connecté sans personnage se voit proposer une création automatiquement.
+- **Créer un personnage avec le MJ** : l'IA guide le joueur dans le chat et crée SA fiche complète (Imperium Maledictum, D&D 5e, Fénoir), puis écrit son histoire avec lui. Un joueur connecté sans personnage se voit proposer une création automatiquement.
 - **Vision des joueurs** : répare la vision des personnages (s'ils voient tout noir sur une carte).
 - **Coût estimé** : ce que la séance a coûté chez le fournisseur ; un budget par séance arrête l'IA s'il est dépassé.` },
   { titre: "Réglages utiles", texte: `
@@ -137,10 +137,19 @@ Quand une IA doit entendre (une séance du MJ IA est lancée, ou un compagnon IA
 - **Chaque joueur est prévenu** : une pastille « L'IA écoute » en haut de l'écran tant que l'écoute tourne.
 - **Réglages** : *Écouter la parole des joueurs* (le couper arrête tout), *Modèle de transcription* (vide : le moins cher, environ 0,3 centime par minute de parole), *Montrer les transcriptions au MJ* (chuchotées aux MJ ; aux Veillées, affichées dans le chat des seuls MJ sans y être enregistrées). Le coût va au compteur de la séance, ou à *Compagnons hors séance*, borné par le budget.
 - **Limites** : sans serveur relais (TURN), la voix de Foundry passe de navigateur à navigateur ; un joueur derrière un réseau strict peut ne pas être entendu du MJ, ni donc transcrit. Un joueur sans casque peut renvoyer la voix des IA dans son micro : ce qui ressemble à ce qu'une IA vient de dire est ignoré.` },
+  { titre: "Histoire des personnages (40k, Warcraft, Fénoir)", texte: `
+# Un journal par personnage
+Chaque personnage joueur et chaque compagnon IA (et, si tu veux, une recrue ou un PNJ important) a son journal **« Histoire de <nom> »**, rangé dans le dossier **Histoires des personnages**, avec quatre pages :
+- **Qui il est** (lisible de tous) : origine, famille, ce qu'il faisait, apparence, manières ;
+- **Son histoire** (lisible de tous) : le passé raconté, ce qui l'a amené là ;
+- **Ce qu'il garde pour lui** (son joueur et le MJ seulement) : un secret, une peur, ce qu'il cherche. Attention : c'est une **propriété de page**, pas un coffre ; Foundry envoie les documents à tous les navigateurs, un joueur curieux peut le lire dans la console ;
+- **Chapitres** : le MJ IA y ajoute un paragraphe daté après chaque événement marquant.
+- **Avec le MJ IA** : à la création guidée, il pose deux ou trois questions courtes au joueur (ou invente s'il le demande), puis écrit l'histoire à partir du contenu du monde (40k : origine, faction, rôle ; Warcraft : peuple, historique, classe ; Fénoir : enfance, passé, traits, région, proche perdu). Outil *histoire_personnage* : préparer, écrire, compléter, ajouter un chapitre. Un compagnon IA reçoit le résumé de son histoire dans sa personnalité : il en parle et agit selon elle. Le MJ IA lit une ligne de chaque histoire dans le résumé des personnages, et ce que chacun garde pour lui.
+- **Sans IA** : le bouton **Histoire** de l'en-tête de la fiche ouvre le journal, ou le crée avec ses quatre pages vides et des questions pour aider le joueur à l'écrire lui-même. Un joueur qui clique sur le bouton de son personnage le demande au MJ connecté, qui le crée aussitôt.` },
   { titre: "Fêtes de saison", texte: `
 # Noël, Halloween et les autres, à la mode de chaque monde
 Quand une fête populaire approche, le monde peut la célébrer à sa façon : le module du monde en écrit une **déclinaison** (en 40k, une veillée de l'Imperium plutôt que Noël), et le MJ IA s'occupe du reste. Une fête que le monde ne décline pas ne fait rien.
-- **Les fêtes et leurs dates** (selon la date de ton ordinateur) : **Nouvel An** (31 décembre – 2 janvier), **Saint-Valentin** (12 – 15 février), **Carnaval** (du Jeudi gras au Mardi gras, date mobile), **Pâques** (du Vendredi saint au lundi, date mobile), **Fête de la musique** (20 – 22 juin, le solstice), **Halloween** (25 octobre – 2 novembre), **Noël** (tout décembre, le cœur du 24 au 26). Le 31 décembre, le Nouvel An passe devant Noël.
+- **Les fêtes et leurs dates** (selon la date de ton ordinateur) : **Nouvel An** (31 décembre – 2 janvier), **Saint-Valentin** (12 – 15 février), **Carnaval** (du Jeudi gras au Mardi gras, date mobile), **Pâques** (du Vendredi saint au lundi, date mobile), **Fête de la musique** (20 – 22 juin, le solstice), **Halloween** (25 octobre – 2 novembre, la Toussaint comprise), **Noël** (tout décembre, le cœur du 24 au 26), **Fête nationale** (14 juillet) ; et, pour La Réunion (Fénoir), la **fête de la liberté** (20 décembre), la **fête des letchis** (mi-décembre), **Dipavali**, **Cavadee** et le **Nouvel An chinois** (dates lunaires connues de 2026 à 2036). Le 31 décembre, le Nouvel An passe devant Noël.
 - **Réglage** *Fête de saison* (Réglages › MJ IA) : **Automatique**, **Aucune**, ou **Forcer** une fête (jouer Halloween en juillet). Forcer une fête que ce monde ne décline pas ne fait rien (un avis te le dit).
 - **Ce qui change** : une **carte** sobre au chat, une fois par jour, avec le nom de la fête du monde et ses liens (journaux, tables, objets) ; un **décor léger** (une guirlande en haut du chat, quelques flocons, confettis ou cœurs qui tombent, un petit ornement sur les cartes du MJ IA) ; le **MJ IA** sait que la fête est là et peut y faire allusion quand c'est naturel, sans insister. Aux Veillées, la date seule ne change rien aux règles : seule une veillée de fête choisie à la distribution en ajoute, et ses secrets restent gardés.
 - **Effets visuels des fêtes** (réglage de chacun, chez soi) : décoché, plus aucun décor ; le *mouvement réduit* de l'ordinateur est respecté (rien ne tombe).
@@ -163,6 +172,10 @@ export const GUIDE_JOUEURS = [
 - **Les cartes** : tu peux déplacer ton jeton ; le MJ réagit à ce que tu découvres. S'il bloque tes déplacements, c'est voulu (scène en cours).
 - **Les compagnons IA** : des personnages joués par l'IA peuvent compléter la table. Ils parlent sous leur nom et jouent comme toi, sans tricher : ils ne savent que ce que sait leur personnage.
 - **Les fêtes** : à Noël, Halloween et quelques autres fêtes, le monde peut se décorer un peu (guirlande, flocons…). Réglages › MJ IA › « Effets visuels des fêtes » pour les couper chez toi.` },
+  { titre: "Histoire de ton personnage (40k, Warcraft, Fénoir)", texte: `
+- Le bouton **Histoire** en haut de ta fiche ouvre le journal de ton personnage (s'il n'existe pas encore, le MJ le crée pour toi).
+- **Qui il est** et **Son histoire** sont lisibles de tous ; **Ce qu'il garde pour lui**, seulement de toi et du MJ ; les **Chapitres** racontent la campagne.
+- À la création, le MJ IA te pose deux ou trois questions et l'écrit avec toi ; tu peux la compléter toi-même à tout moment (les questions d'aide disent quoi y mettre).` },
   { titre: "Tour par tour (40k et Warcraft)", texte: `
 - **En combat**, un bandeau en haut de l'écran te dit où on en est : « ⚔️ Round 3 — À toi de jouer ! », ou « Au tour de X, puis toi ».
 - **À ton tour**, il montre ce qu'il te reste (D&D 5e : action, action bonus, réaction, mouvement en mètres ; Imperium Maledictum : action et déplacement) et tes attaques en boutons : ils ouvrent tes vrais jets. Désigne d'abord ta cible (touche **T** sur son jeton).

@@ -15,16 +15,39 @@ Fenêtres en **heure locale du navigateur** (celle du MJ chez le MJ : c'est son 
 | id | Fête | Fenêtre | Cœur | Priorité |
 |---|---|---|---|---|
 | `nouvel-an` | Nouvel An | 31 déc. – 2 janv. | 31 déc. – 1er janv. | 70 |
+| `liberte` | Fête de la liberté (20 décembre, La Réunion) | 19 – 21 déc. | 20 déc. | 65 |
 | `noel` | Noël | 1er – 31 déc. | 24 – 26 déc. | 60 |
+| `letchis` | Fête des letchis (La Réunion, fenêtre fixe choisie) | 12 – 15 déc. | 13 – 14 déc. | 55 |
 | `paques` | Pâques | Vendredi saint – lundi de Pâques (mobile) | dimanche et lundi | 50 |
+| `dipavali` | Dipavali (La Réunion) | 3 j avant – 3 j après (table 2026 – 2036) | le jour | 45 |
+| `cavadee` | Cavadee (Thaipoosam) | veille – lendemain (table 2026 – 2036) | le jour | 44 |
+| `nouvel-an-chinois` | Nouvel An chinois | veille – 3 j après (table 2026 – 2036) | le jour | 42 |
 | `carnaval` | Carnaval | Jeudi gras – Mardi gras (mobile, Mardi gras = Pâques − 47 j) | Mardi gras | 40 |
-| `halloween` | Halloween | 25 oct. – 2 nov. | 31 oct. | 30 |
+| `halloween` | Halloween (et la Toussaint) | 25 oct. – 2 nov. | 31 oct. – 1er nov. | 30 |
 | `saint-valentin` | Saint-Valentin | 12 – 15 févr. | 14 févr. | 20 |
+| `fete-nationale` | Fête nationale (14 juillet) | 13 – 14 juil. | 14 juil. | 15 |
 | `musique` | Fête de la musique (solstice d'été) | 20 – 22 juin | 21 juin | 10 |
 
 Pâques : calcul grégorien (algorithme de Meeus, Jones et Butcher). Deux fêtes le même jour : celle qui est **à son cœur**
 passe devant, puis la **priorité** (le 31 décembre, Nouvel An avant Noël ; le 14 février, Saint-Valentin avant un Carnaval
-qui n'est pas à son Mardi gras).
+qui n'est pas à son Mardi gras ; le 20 décembre, la fête de la liberté avant Noël).
+
+**Fêtes à date lunaire** (`DATES_LUNAIRES` de `scripts/fetes-logique.js`) : une date par année de 2026 à 2036 ; hors de la
+table, la fête n'a pas lieu (à prolonger avant 2037). Relevés du 4 novembre 2026, sources concordantes :
+- Dipavali : la Deepavali (amavasya), telle que La Réunion la date (reunion.fr donne le 8 novembre 2026) ; le défilé de
+  Saint-André se tient sur le week-end proche, d'où la fenêtre de 3 jours de part et d'autre
+  (https://testbook.com/articles/diwali-dates-for-next-20-years, https://en.reunion.fr/organize/local-events/cultural-events-you-must-not-miss/dipavali) ;
+- Cavadee : Thaipoosam, pleine lune du mois tamoul de Thai (https://www.qppstudio.net/global-holidays-observances/thaipusam.htm,
+  https://www.officeholidays.com/holidays/mauritius/thaipoosam-cavadee) ; un temple peut la décaler d'un jour ;
+- Nouvel An chinois : fête du Printemps (https://chinahighlights.com/travelguide/festivals/when-chinese-new-year.htm).
+
+**Fête des letchis** : aucune date officielle ; fenêtre fixe au cœur de la saison des letchis (mi-décembre).
+
+**Toussaint** : pas d'entrée à elle. Elle est dans la fenêtre d'Halloween, dont le cœur va désormais du 31 octobre au
+1er novembre. Un monde qui la veut (Fénoir : la Toussaint au cimetière, très suivie à La Réunion, sujet fort dans un monde où
+les morts se relèvent) décline `halloween` sous le nom de la Toussaint. Deux fêtes concurrentes pour les mêmes jours se
+gêneraient (une seule est retenue chaque jour) ; la règle « fêtes populaires seulement » reste : on ne célèbre pas un deuil,
+on raconte ce qu'un peuple fait ce jour-là.
 
 En mode automatique, la fête du monde est **la plus prioritaire des fêtes du jour que le monde décline** : un monde qui ne
 décline que Noël garde Noël le 31 décembre.

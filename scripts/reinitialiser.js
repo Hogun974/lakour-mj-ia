@@ -7,14 +7,27 @@ import { viderCarnet } from "./coffre.js";
 // Remise à zéro de la campagne, dans le navigateur du MJ, par l'API de Foundry (qui défait proprement
 // tous les liens) : chat, combats, scènes, journaux, objets, tables, dossiers, brouillard, horloges, enquêtes, contacts, acteurs — sauf les
 // personnages cochés. Restent : utilisateurs, réglages (clés comprises), macros, musiques, compendiums.
-// Le personnage gardé reçoit le jeton de son rôle ; le contenu du jeu (40k, Warcraft, Veillées) est ensuite réinstallé
+// Le personnage gardé reçoit le jeton de son rôle ; le contenu du jeu (40k, Warcraft, Veillées, Fénoir) est ensuite réinstallé
 // à neuf et une scène activée (sans elle, plus de barre d'outils pour le MJ).
 
 const COLLECTIONS = ["ChatMessage", "Combat", "Scene", "JournalEntry", "Item", "RollTable"];
-const CONTENU_PAR_SYSTEME = { impmal: "lakour-40k", dnd5e: "lakour-warcraft", "lakour-loups": "lakour-veillees" };
+const CONTENU_PAR_SYSTEME = { impmal: "lakour-40k", dnd5e: "lakour-warcraft", "lakour-loups": "lakour-veillees", "lakour-survie": "lakour-fenoir" };
+// Types d'acteur d'un personnage joueur, proposés à la conservation (Fénoir : « survivant »).
+const TYPES_PERSONNAGE = ["character", "survivant"];
+// Fénoir (système lakour-survie, docs/survie.md) : l'état de la partie (public), le monde scellé (coffre), son double en clair
+// (sans le moteur) et le monde gardé en réglage client chez le MJ reviennent à leur valeur par défaut. Les abris et les
+// survivants non gardés partent avec les acteurs.
+export const REGLAGES_SURVIE = ["partie", "coffre", "mondeClair", "monde"];
+
+// Les réglages du système de jeu à remettre à zéro (une partie qui désignait des acteurs effacés) : [[système, clé]], seulement
+// ceux que le système a enregistrés (existe(« système.clé »)).
+export function reglagesAReinitialiser(systeme, existe = () => false) {
+  const cles = systeme === "lakour-loups" ? ["partie"] : systeme === "lakour-survie" ? REGLAGES_SURVIE : [];
+  return cles.filter(cle => existe(`${systeme}.${cle}`)).map(cle => [systeme, cle]);
+}
 
 async function choisirPersonnagesGardes() {
-  const persos = game.actors.filter(a => a.type === "character");
+  const persos = game.actors.filter(a => TYPES_PERSONNAGE.includes(a.type));
   const esc = foundry.utils.escapeHTML;
   // Cochés d'office : les personnages assignés à un joueur.
   const assignes = new Set(game.users.filter(u => !u.isGM && u.character).map(u => u.character.id));
@@ -101,9 +114,14 @@ export async function reinitialiserCampagne(moteur) {
     await game.settings.set(contenu.id, "installe", "");
     await contenu.api?.installer?.();
   }
-  // La partie des Veillées désignait des villageois effacés : retour aux préparatifs.
-  const partie = game.settings.settings.get(`${game.system.id}.partie`);
-  if (game.system.id === "lakour-loups" && partie) await game.settings.set(game.system.id, "partie", foundry.utils.deepClone(partie.default));
+  // La partie des Veillées désignait des villageois effacés : retour aux préparatifs. Fénoir : partie, monde scellé, monde en
+  // clair et monde gardé chez le MJ, remis à leur valeur par défaut (REGLAGES_SURVIE) ; le système peut aussi oublier le monde
+  // qu'il garde en mémoire (game.lakourSurvie.oublier, s'il la fournit un jour : hors contrat, facultative).
+  for (const [systeme, cle] of reglagesAReinitialiser(game.system.id, c => game.settings.settings.has(c))) {
+    const defaut = game.settings.settings.get(`${systeme}.${cle}`).default;
+    await game.settings.set(systeme, cle, foundry.utils.deepClone(defaut)).catch(e => console.error(`${ID} | ${systeme}.${cle}`, e));
+  }
+  if (typeof game.lakourSurvie?.oublier === "function") await Promise.resolve(game.lakourSurvie.oublier()).catch(() => null);
   // Sans scène active, Foundry masque la barre d'outils (console du MJ IA, Table de veillée, tour par tour).
   if (!game.scenes.active && game.scenes.size) await game.scenes.contents[0].activate();
   if (game.paused) game.togglePause(false, { broadcast: true });

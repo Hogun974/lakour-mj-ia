@@ -2,6 +2,11 @@
   "LAKOUR_MJIA": {
     "Enregistrer": "Enregistrer",
     "Supprimer": "Supprimer",
+    "Histoire": {
+      "Bouton": "Histoire",
+      "Demandee": "Demande envoyée au MJ : son journal d'histoire s'ouvrira dès qu'il sera créé.",
+      "SansMJ": "Aucun MJ connecté pour créer le journal d'histoire."
+    },
     "Efforts": {
       "low": "Faible (rapide, économique)",
       "medium": "Moyen (recommandé)",
@@ -164,16 +169,22 @@
       },
       "Fete": {
         "Nom": "Fête de saison",
-        "Aide": "Automatique : la fête du jour (date de ton ordinateur), si ce monde la décline — Nouvel An, Saint-Valentin, Carnaval, Pâques, Fête de la musique, Halloween, Noël. Décor léger, carte au chat une fois par jour, et le MJ IA peut y faire allusion. « Aucune » coupe tout ; une fête forcée se joue hors saison.",
+        "Aide": "Automatique : la fête du jour (date de ton ordinateur), si ce monde la décline — Nouvel An, Saint-Valentin, Carnaval, Pâques, Fête de la musique, Fête nationale, Halloween (et Toussaint), Dipavali, Fête des letchis, Fête de la liberté (20 décembre), Noël, Cavadee, Nouvel An chinois. Décor léger, carte au chat une fois par jour, et le MJ IA peut y faire allusion. « Aucune » coupe tout ; une fête forcée se joue hors saison.",
         "Choix": {
           "auto": "Automatique (selon la date)",
           "aucune": "Aucune",
           "nouvel-an": "Forcer : Nouvel An",
+          "liberte": "Forcer : Fête de la liberté (20 décembre)",
           "noel": "Forcer : Noël",
           "paques": "Forcer : Pâques",
           "carnaval": "Forcer : Carnaval",
           "halloween": "Forcer : Halloween",
           "saint-valentin": "Forcer : Saint-Valentin",
+          "fete-nationale": "Forcer : Fête nationale (14 juillet)",
+          "letchis": "Forcer : Fête des letchis",
+          "dipavali": "Forcer : Dipavali",
+          "cavadee": "Forcer : Cavadee (Thaipoosam)",
+          "nouvel-an-chinois": "Forcer : Nouvel An chinois",
           "musique": "Forcer : Fête de la musique"
         }
       },

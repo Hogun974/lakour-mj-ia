@@ -17,6 +17,8 @@ import { EcouteJoueurs, afficherEcoute, brancherTranscription } from "./transcri
 import { compagnonsPresents } from "./compagnons-jeu.js";
 import { versHTML } from "./utilitaires.js";
 import { consignerComposition } from "./historique-loups.js";
+import { texteAvanceSurvie, textePalierSurvie } from "./survie-logique.js";
+import { brancherHistoire, ouvrirHistoire, journalDe, assurerJournal } from "./histoire.js";
 import { TourParTour, mouvementHorsTour } from "./tour-par-tour.js";
 import { brancherTourParTour, ouvrirPanneau } from "./apps/tour-par-tour.js";
 import * as horloges from "./horloges.js";
@@ -87,6 +89,9 @@ Hooks.once("ready", () => {
     // "ferme" | "joueur", … } ; chercher() : rouvrir, ou redemander les parts ; renouveler() : nouvelle clé, en vigueur une fois
     // ses parts accusées (tout est alors rescellé) ; abandonner({ confirmer: true }) : parts perdues, le MJ renonce aux éléments cachés et aux fils chiffrés ;
     // lireArchive(nom) : le contenu d'un fil ou d'une archive de Data/lakour-mj-ia/fils/.
+    // Histoire de chaque personnage (histoire.js ; 40k, Warcraft, Fénoir) : ouvrir(acteur) ouvre ou crée son journal ; journal(acteur)
+    // le rend (ou null) ; assurer(acteur) le crée chez un MJ. Les systèmes peuvent s'en servir dans leur propre fiche.
+    histoire: { ouvrir: acteur => ouvrirHistoire(acteur), journal: acteur => journalDe(acteur), assurer: acteur => assurerJournal(acteur) },
     coffre: {
       etat: () => coffre.etatCoffre(),
       chercher: () => coffre.chercherCoffre(),
@@ -174,6 +179,17 @@ Hooks.once("ready", () => {
   for (const crochet of ["lakourLoups.victoire", "lakourLoups.nouvellePartie"]) {
     Hooks.on(crochet, () => { if (game.user === game.users.activeGM) consignerComposition().catch(e => console.error(`${ID} | historique`, e)); });
   }
+  // Histoire de chaque personnage (40k, Warcraft, Fénoir) : bouton « Histoire » des fiches, demandes des joueurs au MJ actif.
+  brancherHistoire();
+  // Fénoir (lakour-survie) : le temps avancé hors de l'IA (tableau de bord du MJ humain) arrive au narrateur avec ses faits
+  // PUBLICS (crochet du système : quand, faits publics). Pendant un tour de l'IA, c'est son propre outil : il a déjà la réponse.
+  Hooks.on("lakourSurvie.avance", (quand, faits) => {
+    if (moteur.enCours) return;
+    moteur.signaler(texteAvanceSurvie(quand, faits));
+  });
+  // Fénoir : la visibilité de l'abri franchit un palier à la hausse (crochet du système : { palier, table }) : la table d'événements
+  // de ce palier est proposée au narrateur (en séance ; sans séance, la carte privée du système suffit au MJ humain).
+  Hooks.on("lakourSurvie.palier", charge => moteur.signaler(textePalierSurvie(charge)));
   // Sans narrateur IA : le jour, les compagnons débattent ; une nouvelle partie remet leur compteur hors séance à zéro.
   Hooks.on("lakourLoups.phase", phase => { sansNarrateur.surPhase(phase).catch(e => console.error(`${ID} | compagnons`, e)); });
   // Les coûts des IA, gardés en mémoire pendant une partie des Veillées (moteur.compterCout), s'écrivent d'un coup quand elle est

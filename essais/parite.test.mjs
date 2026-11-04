@@ -37,7 +37,7 @@ test("creer_personnage (impmal) : compléter une fiche inexistante est refusé, 
 });
 
 test("module de contenu : un par système, seulement s'il est actif", () => {
-  assert.deepEqual(CONTENUS, { impmal: "lakour-40k", dnd5e: "lakour-warcraft", "lakour-loups": "lakour-veillees" });
+  assert.deepEqual(CONTENUS, { impmal: "lakour-40k", dnd5e: "lakour-warcraft", "lakour-loups": "lakour-veillees", "lakour-survie": "lakour-fenoir" });
   avecMonde("dnd5e", ["lakour-warcraft"]);
   assert.equal(moduleDeContenu(), "lakour-warcraft");
   avecMonde("dnd5e", ["lakour-40k"]);

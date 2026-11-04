@@ -2,6 +2,11 @@
   "LAKOUR_MJIA": {
     "Enregistrer": "Save",
     "Supprimer": "Delete",
+    "Histoire": {
+      "Bouton": "Story",
+      "Demandee": "Request sent to the GM: the story journal will open as soon as it is created.",
+      "SansMJ": "No GM connected to create the story journal."
+    },
     "Efforts": {
       "low": "Low (fast, cheap)",
       "medium": "Medium (recommended)",
@@ -169,11 +174,17 @@
           "auto": "Automatic (by date)",
           "aucune": "None",
           "nouvel-an": "Force: New Year",
+          "liberte": "Force: Freedom Day (20 December)",
           "noel": "Force: Christmas",
           "paques": "Force: Easter",
           "carnaval": "Force: Carnival",
           "halloween": "Force: Halloween",
           "saint-valentin": "Force: Valentine's Day",
+          "fete-nationale": "Force: National Day (14 July)",
+          "letchis": "Force: Lychee Festival",
+          "dipavali": "Force: Deepavali",
+          "cavadee": "Force: Cavadee (Thaipusam)",
+          "nouvel-an-chinois": "Force: Chinese New Year",
           "musique": "Force: Music Day"
         }
       },

@@ -4,6 +4,11 @@
 
 import { versMetres, moyenneFormule } from "./tour-logique.js";
 import { roleLoups, campLoups } from "./utilitaires.js";
+import { ligneHistoireActeur } from "./histoire-logique.js";
+import {
+  COMPETENCES_SURVIE, CLES_COMPETENCES, libelleCompetence, reglagesVersTest, fonctionSurvie, resumerSurvivant, nomDe,
+  texteTest as texteTestSurvie
+} from "./survie-logique.js";
 
 const texte = v => (v === undefined || v === null || v === "" ? "?" : v);
 
@@ -255,6 +260,86 @@ const loups = {
       + `${metier ? ` — métier public : ${metier.name}` : ""}`
       + `${role ? ` — rôle ${s.revele ? "révélé" : "SECRET (ne le dis à personne)"} : ${role.name} (camp ${camp || role.system?.camp})` : ""}`
       + `${s.maison ? ` — dort à : ${s.maison}` : ""}${amoureux ? " — amoureux lié" : ""}`;
+  }
+};
+
+// Fénoir (système lakour-survie, monde lakour-fenoir ; docs/survie.md) : survie à La Réunion au début d'une épidémie de morts-
+// vivants, les Livides. Réserve de d6 (5 et 6 = succès), difficulté en succès requis ; le test se fait par l'API du système
+// (game.lakourSurvie.test : dés au chat, marque de progression) ; pas de tour par tour (combats réglés par les règles simples
+// du §1.7). Le résumé d'un survivant est public (les acteurs le sont) : jamais rien du monde réel, qu'il serve au narrateur
+// ou à un compagnon IA. La logique pure est dans survie-logique.js.
+async function testSurvie(acteur, cle, reglages = {}) {
+  if (!CLES_COMPETENCES.includes(cle)) throw new Error(`Compétence inconnue : ${cle} (compétences : ${CLES_COMPETENCES.join(", ")}).`);
+  const test = fonctionSurvie(globalThis.game?.lakourSurvie, "test");
+  const { difficulte, bonus, malus } = reglagesVersTest(reglages);
+  const r = await test({ acteurId: acteur.id, competence: cle, difficulte, bonus, malus, forcer: Boolean(reglages.forcer),
+    titre: reglages.titre || libelleCompetence(cle), compte: reglages.compte !== false });
+  return { ...(r ?? {}), difficulte: r?.difficulte ?? difficulte };
+}
+
+const survie = {
+  id: "lakour-survie",
+  typePnj: "survivant",
+  cheminNotesMJ: "system.notes",
+  // Pas d'expérience : on progresse par les marques des tests échoués ou forcés (outil survie_marquer pour une scène marquante).
+  xp: () => ({ total: 0 }),
+  cheminXp: null,
+  devises: [],
+  bourse: () => ({}),
+  majBourse: () => ({}),
+  consignes: "Jeu « Fénoir » (système lakour-survie) : La Réunion, au jour zéro d'un mal inconnu, le Gris, qui relève les morts en "
+    + "Livides. Tu es le NARRATEUR d'une survie réaliste et humaine : entraide, dilemmes, fatigue, peur ; horreur sobre, jamais de gore "
+    + "complaisant ; la beauté de l'île en contrepoint (cirques, lagon, brume des Hauts, letchis de décembre, pluie d'été sur les tôles). "
+    + "Créole réunionnais en touches légères dans les répliques des PNJ (« lé la », « mi koné pa », « kosa i spass ? »), toujours compréhensible. "
+    + "LE TEMPS : chaque action coûte du temps, compté en quarts de six heures (matin, après-midi, soir, nuit) ; fouiller un lieu 1 quart, "
+    + "explorer une région 1 à 2, monter la garde 1, voyager selon la route, construire selon le chantier. Fais-le passer avec "
+    + "survie_avancer (ou les outils qui le comptent eux-mêmes : survie_explorer, survie_fouiller, survie_construire, survie_voyager) ; "
+    + "le monde avance avec lui (réseaux qui tombent, villes qui se vident ou grouillent, bandes, hordes, cyclones, éruption) : raconte "
+    + "ce que les joueurs en perçoivent, les faits publics que l'outil te rend. LE SECRET : tu vois le réel (état du jeu et outils, blocs "
+    + "« [secret MJ] ») ; les joueurs ne savent que leurs renseignements, datés et parfois faux (une radio, une rumeur). Ne révèle jamais "
+    + "le réel qu'ils n'ont pas vu, et ne le laisse pas deviner : un lieu d'arrivée a changé depuis la dernière fois, c'est voulu. "
+    + "Corrige un renseignement (survie_renseigner) seulement quand ils apprennent quelque chose (radio, rencontre, rumeur, vue). "
+    + "DEUX VOIES aussi valables l'une que l'autre : repartir (déménager quand le lieu est épuisé ou intenable, avec ce qu'on porte, ses "
+    + "compétences et ses plans : ce qu'on a déjà construit se reconstruit 25 % moins cher et deux fois plus vite) ou s'enraciner (viser "
+    + "l'autonomie : citerne, potager, élevage, solaire, pico-hydro, galeries ; la prospérité se voit et s'entend, elle attire bandes et "
+    + "hordes : discrétion et défense la protègent). Rappelle-leur ce que l'île devient : la chaleur des Bas décompose les Livides en "
+    + "quelques mois, le frais des Hauts les garde ; le « meilleur endroit » change avec le temps. TESTS : demande un test (demander_jet "
+    + "pour un personnage joueur, survie_test pour un PNJ ou un compagnon) seulement quand l'enjeu le justifie (danger, temps compté, "
+    + "ressource rare) ; sinon, raconte la réussite. Réserve = niveau + 1 dé, bonus d'outil ou d'aide +1, désavantage −1 ; le joueur peut "
+    + "forcer une fois (1 fatigue ; échec forcé = complication que tu choisis). Une MORSURE ou une griffure profonde de Livide : tout de "
+    + "suite un test de soins extrême (difficulte « ardue » ou « extreme »), décris le geste (lavage, cautérisation, amputation selon "
+    + "l'endroit) ; échec : survie_blessure infecter, et le mal suit sa route (stade +1 tous les deux quarts, mort et Livide à 6, aucun "
+    + "remède connu). COMBATS sans tour par tour : chaque succès de combat ou de tir met un Livide hors d'état ; chaque Livide restant "
+    + "attaque d'un d6 (6 = une blessure, puis un d6 de morsure : 6 = morsure) ; tirer fait du bruit (+2 par échange). Un assaut contre "
+    + "l'abri : survie_assaut. Les stocks se mangent chaque jour : fais sentir la faim, la soif et la fatigue, les choix qu'elles imposent. "
+    + "LA VIE AU CAMP : l'atelier (survie_fabriquer, d'après une recette), les maladies et blessures persistantes (survie_affliction : "
+    + "eau des ravines, moustiques, chutes ; pas l'infection du Gris), une fête fêtée au camp (survie_feter, si les joueurs le "
+    + "décident). LES FACTIONS : leur estime suit une horloge de réputation rep-<faction> (horloge, avancer ; un service +3 à +5, un "
+    + "affront -5) ; note les survivants rencontrés et leurs dettes au Carnet (contact), les mystères du Gris en enquête (enquete). Avec "
+    + "une radio, tire environ trois appels par semaine de jeu sur la table des appels radio (lancer_table, nombre, exclure ceux déjà "
+    + "pris) : leur récompense et leurs points de réputation sont dans le résultat. Quand l'abri franchit un palier de visibilité, "
+    + "on te le signale avec sa table : tire en secret et fais venir la suite. "
+    + "LE GROUPE : chacun a une tâche par jour (garde, cultures, chantier, soins…) ; les joueurs choisissent la leur, toi celle des "
+    + "compagnons et des recrues (survie_assigner, ou repartir). Regarde ce qui manque (état du jeu, survie_besoins) et cherche, fais "
+    + "croiser et propose des PNJ qui complètent les compétences manquantes (survie_recrue generer), toujours avec un prix ou un "
+    + "défaut (ce qu'ils demandent, une méfiance, un proche à sauver, un trait gênant) ; les recruter demande un test de parole "
+    + "(survie_recrue recruter). Un compagnon IA arrivé en cours de partie rejoint le groupe par survie_ajouter_membre. "
+    + `Les dix compétences : ${COMPETENCES_SURVIE.map(c => `${c.cle} (${c.aide})`).join(", ")}.`,
+  competences() { return COMPETENCES_SURVIE.map(({ cle, libelle }) => ({ cle, libelle })); },
+  // Le test du système, sans fenêtre (il n'en a pas) : dés au chat, bouton « forcer » sur la carte, marque si le test compte.
+  async lancer(acteur, cle, reglages = {}) { return testSurvie(acteur, cle, reglages); },
+  // Même test, lancé directement (compagnon IA) -> { total: succès, reussite, marge, texte }.
+  async lancerDirect(acteur, cle, reglages = {}) {
+    const r = await testSurvie(acteur, cle, reglages);
+    return { total: Number(r.succes ?? 0), reussite: Boolean(r.reussite), marge: Number(r.marge ?? 0), requis: r.requis,
+      texte: texteTestSurvie(acteur.name, cle, r) };
+  },
+  resumer(acteur) {
+    // Le nom d'un passé, d'une enfance, d'un trait du contenu (registre du système) ; une clé inconnue ou un texte libre restent tels quels.
+    let contenu = null;
+    try { contenu = globalThis.game?.lakourSurvie?.contenu?.() ?? null; } catch { contenu = null; }
+    const nomContenu = (collection, cle) => nomDe(contenu?.[collection], cle);
+    return resumerSurvivant(acteur, { nomPasse: cle => nomContenu("passes", cle), nomDe: nomContenu });
   }
 };
 
@@ -582,7 +667,18 @@ const TOUR_DND5E = {
   }
 };
 
-const ADAPTATEURS = { impmal, dnd5e, "lakour-loups": loups };
+// Histoire de chaque personnage (histoire-logique.js ; 40k, Warcraft, Fénoir) : le résumé d'un personnage cite une ligne de son
+// journal d'histoire, tirée des pages PUBLIQUES seulement (jamais « Ce qu'il garde pour lui »).
+for (const sys of [impmal, dnd5e, survie]) {
+  const resumer = sys.resumer;
+  sys.resumer = function (acteur) {
+    const base = resumer.call(this, acteur);
+    const histoire = ligneHistoireActeur(acteur);
+    return histoire ? `${base} — ${histoire}` : base;
+  };
+}
+
+const ADAPTATEURS = { impmal, dnd5e, "lakour-loups": loups, "lakour-survie": survie };
 
 export function adaptateur() {
   return ADAPTATEURS[game.system.id] ?? generique;

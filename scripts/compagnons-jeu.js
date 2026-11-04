@@ -7,11 +7,15 @@
 // - ce qu'on lui a dit en privé : aux Veillées, son carnet secret (gardé par le système chez le MJ actif) ; partout, les
 //   messages qui lui sont destinés et ses propres choix secrets, gardés ici dans un réglage « client » du MJ actif ;
 // - le chat PUBLIC récent (jamais un chuchotement) et ce que son personnage voit : la scène (jetons visibles) ou, aux
-//   Veillées, l'état PUBLIC de la partie (celui que reçoit chaque navigateur).
-// Jamais le prompt du MJ, sa mémoire de campagne, les rôles des autres, l'état secret de la nuit ni les jetons cachés.
+//   Veillées, l'état PUBLIC de la partie (celui que reçoit chaque navigateur) ; à Fénoir, l'état PUBLIC de la survie (moment,
+//   abri, stocks, membres, ce que le groupe croit de sa région : survie-logique.js, vuePubliqueSurvie).
+// Jamais le prompt du MJ, sa mémoire de campagne, les rôles des autres, l'état secret de la nuit, le monde réel de Fénoir
+// (api.monde()) ni les jetons cachés.
 import { ID } from "./constantes.js";
 import { adaptateur } from "./adaptateurs.js";
 import { versHTML, roleLoups, campLoups, secretsVeilleesEnAttente } from "./utilitaires.js";
+import { vuePubliqueDepuisApi } from "./survie-logique.js";
+import { ligneHistoireActeur } from "./histoire-logique.js";
 import {
   CerveauxCompagnons, BAVARDAGE, normaliserPersonnalite, texteBrut, choisirOrateurs, repliReplique, criePeste, declarationAuRegistre, accusationDans
 } from "./compagnons.js";
@@ -266,7 +270,7 @@ function bailliEtRegistre(api, acteur) {
   return lignes;
 }
 
-// ------------------------------------------------------------------ la vue d'un compagnon d'aventure (40k, Warcraft)
+// ------------------------------------------------------------------ la vue d'un compagnon d'aventure (40k, Warcraft, Fénoir)
 export function vueAventure(acteur, { messages, scene = game.scenes?.active } = {}) {
   const sys = adaptateur();
   const visibles = scene ? scene.tokens.contents.filter(t => !t.hidden) : [];
@@ -276,12 +280,16 @@ export function vueAventure(acteur, { messages, scene = game.scenes?.active } = 
     scene ? `Lieu : « ${scene.navName || scene.name} ».` : "Aucun lieu affiché.",
     visibles.length ? `Tu vois : ${visibles.map(t => `${t.name}${t.actor?.id === acteur.id ? " (toi)" : ` (${genre(t)})`}`).join(", ")}.` : "",
     combat?.started ? `Combat : round ${combat.round}, tour de ${combat.combatant?.name ?? "?"} ; ordre : `
-      + `${combat.turns.filter(c => !c.hidden).map(c => c.name).join(", ")}.` : ""
+      + `${combat.turns.filter(c => !c.hidden).map(c => c.name).join(", ")}.` : "",
+    // Fénoir : ce que tout membre du groupe sait (état public seulement ; le monde réel n'est jamais lu ici).
+    ...(game.system?.id === "lakour-survie" && game.lakourSurvie
+      ? vuePubliqueDepuisApi(game.lakourSurvie, { acteur: id => game.actors?.get?.(id) ?? null }) : [])
   ];
   const autres = visibles.filter(t => t.actor && t.actor.id !== acteur.id).map(t => ({ id: t.actor.id, nom: t.name, vivant: true }));
   return {
     id: acteur.id, nom: acteur.name, monde: game.world?.title ?? game.system?.title ?? "", jeu: "aventure",
-    personnalite: personnaliteDe(acteur), fiche: sys.resumer(acteur), prive: privesDe(acteur.id), public: chatPublic({ messages, paroles: parolesPour(acteur.id) }),
+    // Sa fiche, et ce qu'il garde pour lui (sa propre page secrète : c'est la sienne) ; jamais celle d'un autre.
+    personnalite: personnaliteDe(acteur), fiche: [sys.resumer(acteur), ligneHistoireActeur(acteur, { publique: false, secret: true })].filter(Boolean).join(" — "), prive: privesDe(acteur.id), public: chatPublic({ messages, paroles: parolesPour(acteur.id) }),
     scene: lignes.filter(Boolean).join("\n"), autres, allies: [], suspects: [], vivant: true, peutParler: true, tour: combat?.round ?? 0
   };
 }

@@ -14,8 +14,11 @@ outils/      partagé par les mondes : valider-foundry.mjs, jetons-commun.mjs (d
              lier-modules.ps1, reconstruire-lakour-v14.sh, serveur/
 essais/      essais node du moteur (aucun réseau, aucun coût), doublures/foundry-decisions.mjs
 docs/        guide-utilisation.md (recopié de scripts/guide.js), compagnons.md, fetes.md (fêtes de saison :
-             le contrat des modules des mondes)
+             le contrat des modules des mondes), survie.md (Fénoir : comment le MJ IA mène lakour-survie)
 ```
+
+Fénoir (`lakour-fenoir`, système `lakour-survie`) est branché aussi : adaptateur, outils `survie_*` (`scripts/outils-survie.js`),
+état du jeu en « connu » / « secret » ; voir `docs/survie.md`.
 
 ## Cloner, éprouver, fabriquer
 

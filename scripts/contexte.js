@@ -13,6 +13,11 @@ import { horlogesDisponibles } from "./horloges-logique.js";
 import { resumeCarnetPourIA } from "./carnet.js";
 import { etatCoffre } from "./coffre.js";
 import { lignePourIA as ligneFete } from "./fetes.js";
+import { contexteSurvie } from "./survie-logique.js";
+import { ligneHistoireActeur } from "./histoire-logique.js";
+
+// Pour le narrateur seul : ce que le personnage garde pour lui (page secrète de son journal d'histoire), "" sinon.
+const secretHistoire = a => { const l = ligneHistoireActeur(a, { publique: false, secret: true }); return l ? ` — ${l}` : ""; };
 
 // Consigne au MJ sur les compagnons IA (docs/compagnons.md) : des joueurs comme les autres, à qui il ne souffle rien.
 export const CONSIGNE_COMPAGNONS = [
@@ -83,7 +88,8 @@ export function personnagesJoueurs() {
   const joueurs = game.users.filter(u => !u.isGM);
   const assignes = joueurs.map(u => u.character).filter(Boolean);
   if (assignes.length) return [...new Set(assignes)];
-  return game.actors.filter(a => a.hasPlayerOwner && a.type === "character");
+  // Fénoir (lakour-survie) : un personnage joueur est un « survivant ».
+  return game.actors.filter(a => a.hasPlayerOwner && ["character", "survivant"].includes(a.type));
 }
 
 // Cartes prêtes des compendiums (aventures et lieux génériques) : nom exact pour amener_joueurs, et à quoi elles servent.
@@ -104,7 +110,7 @@ export async function promptSysteme(personnalite, { mission } = {}) {
   const sys = adaptateur();
   const fiches = personnagesJoueurs().map(a => {
     const joueur = game.users.find(u => u.character === a)?.name;
-    return `- ${sys.resumer(a)}${joueur ? ` [joué par ${joueur}]` : ""}`;
+    return `- ${sys.resumer(a)}${secretHistoire(a)}${joueur ? ` [joué par ${joueur}]` : ""}`;
   }).join("\n") || "(aucun personnage joueur assigné)";
   const competences = personnagesJoueurs()[0] ? sys.competences(personnagesJoueurs()[0]) : sys.competences(null);
   const cartes = await cartesPretes().catch(() => []);
@@ -138,9 +144,11 @@ export async function promptSysteme(personnalite, { mission } = {}) {
     "- Tu peux mettre ou enlever la pause (pause) et régler l'obscurité de la scène (ambiance_lumiere).",
     "- Ambiance sonore (ambiance_sonore) : lance celle du lieu à chaque changement de lieu ou d'atmosphère (taverne → foule, souterrain → grotte, "
       + "combat imminent → tension), coupe-la pour un silence voulu.",
-    "- Campagne : donne de l'expérience (donner_xp) aux moments mérités ; les personnages progressent avec monter_niveau (D&D 5e) ou "
-      + "depenser_xp (Imperium Maledictum), en suivant ce que le joueur veut. Marchands, butins et récompenses passent par donner_objets "
-      + "(avec prix pour un achat), bourse et retirer_objet : la fiche reste toujours juste.",
+    // Fénoir : ni expérience ni bourse (progression par marques, stocks de l'abri : consignes de l'adaptateur, outils survie_*).
+    sys.id === "lakour-survie" ? ""
+      : "- Campagne : donne de l'expérience (donner_xp) aux moments mérités ; les personnages progressent avec monter_niveau (D&D 5e) ou "
+        + "depenser_xp (Imperium Maledictum), en suivant ce que le joueur veut. Marchands, butins et récompenses passent par donner_objets "
+        + "(avec prix pour un achat), bourse et retirer_objet : la fiche reste toujours juste.",
     "- Secrets : ce qu'un seul personnage perçoit (vision, murmure, indice personnel) va en message_prive, pas dans le chat commun.",
     "- Décisions : quand le groupe doit trancher une décision collective qui le divise (attaquer ou négocier, qui envoyer, quelle route), "
       + "propose un vote (vote_groupe) plutôt que d'attendre un accord dans le chat ; pour une intrigue, une trahison ou une tentation qui ne "
@@ -190,7 +198,7 @@ export async function promptSysteme(personnalite, { mission } = {}) {
     fiches,
     "",
     "Compagnons IA (des joueurs comme les autres, joués par une IA qui ne sait que ce que sait leur personnage) :",
-    compagnonsDuMonde().map(a => `- ${sys.resumer(a)} [compagnon IA, ${TEMPERAMENTS[personnaliteDe(a).temperament].libelle}]`).join("\n") || "(aucun)",
+    compagnonsDuMonde().map(a => `- ${sys.resumer(a)}${secretHistoire(a)} [compagnon IA, ${TEMPERAMENTS[personnaliteDe(a).temperament].libelle}]`).join("\n") || "(aucun)",
     "",
     "Mémoire de campagne :",
     // Aux Veillées, chaque partie repart de zéro : rien des parties précédentes (seul l'historique des compositions reste, pour varier).
@@ -203,6 +211,9 @@ export function etatDuJeu() {
   const lignes = [];
   // Partie de loup-garou (système lakour-loups) : phase, tour, vote et morts, pour que le narrateur sache où il en est.
   if (game.lakourLoups) lignes.push(...etatPartieLoups(game.lakourLoups));
+  // Fénoir (système lakour-survie) : le moment, l'abri, les stocks, les membres, les renseignements datés (connus des joueurs) et,
+  // marqué SECRET, le réel des mêmes régions et les menaces qui approchent (survie-logique.js, contexteSurvie).
+  if (game.lakourSurvie) lignes.push(...contexteSurvie(game.lakourSurvie, { acteur: id => game.actors.get(id) ?? null }));
   const vote = voteEnCours();
   if (vote) lignes.push(`Vote de groupe OUVERT : « ${vote.question} » — ${vote.exprimes} voix reçue(s) sur ${vote.total} (contenu caché), clôture dans ${vote.reste} s.`);
   const scene = game.scenes.active;

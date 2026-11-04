@@ -2,6 +2,7 @@ import { ID, prixDuModele, coutDe } from "./constantes.js";
 import { lire, ecrire } from "./reglages.js";
 import { fournisseurTexte, fournisseurCompagnons, modeleCompagnons, expliquerErreur } from "./fournisseurs/index.js";
 import { OUTILS, outil, resumerAppel, outilsDuSysteme, partieLoupsEnCoursIci } from "./outils.js";
+import { etapeHistoire } from "./histoire-logique.js";
 import { promptSysteme, etatDuJeu, decrireMessage, messagePourIA } from "./contexte.js";
 import { versHTML, roleLoups, campLoups, secretsVeilleesEnAttente } from "./utilitaires.js";
 import { lireFil, ecrireFil } from "./fils.js";
@@ -42,7 +43,9 @@ export const CONSIGNE_PLATEAU = [
 export function consigneCreation(nomJoueur, { enParenthese = false, systeme = "impmal" } = {}) {
   return [
     `[Création de personnage — à mener maintenant avec ${nomJoueur}]`,
-    ...(systeme === "dnd5e" ? etapesDnd5e(nomJoueur) : etapesImpmal(nomJoueur)),
+    ...(systeme === "dnd5e" ? etapesDnd5e(nomJoueur) : systeme === "lakour-survie" ? etapesSurvie(nomJoueur) : etapesImpmal(nomJoueur)),
+    // Histoire du personnage (histoire-logique.js) : quelques questions, puis son journal écrit à partir du contenu du monde.
+    `Après la fiche. ${etapeHistoire(systeme, nomJoueur)}`,
     "Reste dans ta personnalité, mais sois clair sur les règles. Une question à la fois.",
     ...(enParenthese ? [
       `C'est une parenthèse dans la partie en cours : préviens brièvement les autres joueurs (« un instant, ${nomJoueur} nous rejoint »), `
@@ -90,7 +93,26 @@ const partieLoupsEnCours = api => {
 const filNonVide = fil => Boolean(fil?.messages?.length || fil?.elements?.length);
 
 // Systèmes où la création guidée existe.
-export const CREATION_GUIDEE = ["impmal", "dnd5e"];
+export const CREATION_GUIDEE = ["impmal", "dnd5e", "lakour-survie"];
+
+// Fénoir (lakour-survie, docs/survie.md, §10 du contrat) : un survivant « tiré au sort mais cohérent » par le générateur du système
+// (enfance, passé, compétences, passions, traits, incapacités), que le joueur choisit parmi deux ou trois tirages, relance en
+// verrouillant ce qu'il garde, ajuste ; le budget (somme des niveaux 10 à 16) évite les super-héros.
+function etapesSurvie(nomJoueur) {
+  return [
+    `Guide ${nomJoueur} pas à pas, une étape par message, en attendant sa réponse dans le chat avant de passer à la suivante :`,
+    "1. Demande-lui qui il était la veille du jour zéro, en deux ou trois phrases (son métier, sa vie à La Réunion, où il habitait) ; "
+      + "ou s'il préfère se laisser surprendre.",
+    "2. Tirages : creer_survivant, action « tirer » (statut joueur ; favoriser les compétences de son idée ; verrous : ce qu'il a déjà "
+      + "fixé, un passé, un âge). Résume-lui les trois tirages en une phrase chacun (enfance, passé, deux points forts, un trait, une "
+      + "incapacité s'il y en a), il en choisit un, ou fais « tirer » de nouveau en verrouillant ce qu'il garde.",
+    "3. Ajustements, s'il le veut : déplacer un niveau d'une compétence à une autre (la somme reste entre 10 et 16, rien au-dessus de 3 "
+      + "sauf le cœur de son métier) ; nom, et son lien avec les autres membres du groupe.",
+    "4. Récapitule, demande confirmation, puis creer_survivant, action « creer » (tirage : la lettre choisie ; joueur : son nom) : c'est "
+      + "TOI qui crées la fiche. Annonce-lui ensuite ses compétences, ses passions, ses traits et ce qu'il a sur lui.",
+    "Si la partie n'est pas encore démarrée et que tout le groupe est prêt, survie_demarrer avec leur région."
+  ];
+}
 
 function etapesDnd5e(nomJoueur) {
   return [

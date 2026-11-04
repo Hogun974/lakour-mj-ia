@@ -1,6 +1,7 @@
 // Tirages sur une table (lancer_table) : plusieurs résultats SANS doublon, en écartant ceux déjà tirés ou pris (le tableau des
 // contrats de Warcraft en tire trois par jour), et les données que le module de contenu range sur chaque résultat
-// (flags.<module>.contrat : { type, po, faction, reputation }). Logique pure, sans Foundry (essais/lancer-table.test.mjs).
+// (flags.<module>.contrat : { type, po, faction, reputation } à Warcraft ; flags.lakour-fenoir.appel : { type, faction, reputation,
+// recompense: { ressource: n } } à Fénoir, les appels radio et demandes des factions). Logique pure, sans Foundry (essais/lancer-table.test.mjs).
 import { plier } from "./recherche-nom.js";
 
 export const TIRAGES_MAX = 10;
@@ -35,11 +36,16 @@ export async function tirerSansDoublon(tirer, n, { exclus = [], cleDe = r => r.i
 // horloge rep-<faction>), le reste en JSON court. "" sans données.
 export function donneesDuResultat(drapeaux) {
   if (!drapeaux || typeof drapeaux !== "object" || !Object.keys(drapeaux).length) return "";
-  const { contrat, ...autres } = drapeaux;
+  const { contrat, appel, ...autres } = drapeaux;
   const morceaux = [];
   if (contrat) {
     morceaux.push(`contrat${contrat.type ? ` (${contrat.type})` : ""} : ${Number(contrat.po) || 0} po, +${Number(contrat.reputation) || 0} de `
       + `réputation${contrat.faction ? ` auprès de ${contrat.faction} (horloge rep-${contrat.faction})` : ""}`);
+  }
+  if (appel) {
+    const recompense = Object.entries(appel.recompense ?? {}).filter(([, n]) => Number(n) > 0).map(([r, n]) => `${r} ${Number(n)}`).join(", ");
+    morceaux.push(`appel${appel.type ? ` (${appel.type})` : ""} : récompense ${recompense || "aucune"}, +${Number(appel.reputation) || 0} de `
+      + `réputation${appel.faction ? ` auprès de ${appel.faction} (horloge rep-${appel.faction})` : ""}`);
   }
   if (Object.keys(autres).length) {
     const json = JSON.stringify(autres);

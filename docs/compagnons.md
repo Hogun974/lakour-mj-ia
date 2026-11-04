@@ -161,3 +161,9 @@ le camp d'un compagnon se lisent par l'API du système (`roleDe`, `campDe` : ses
 
 Essais : `essais/pilote.test.mjs`, `essais/nouvelle-partie.test.mjs`, `essais/didascalies.test.mjs`, `essais/sans-narrateur.test.mjs`
 de ce dépôt ; dans lakour-veillees, `essais/pilote-automatique.test.mjs` et `essais/compagnons-sans-narrateur.test.mjs`.
+
+## Histoire d'un compagnon (40k, Warcraft, Fénoir)
+
+À sa création (`compagnon_ajouter`), son journal « Histoire de <nom> » est créé (`scripts/histoire.js`) ; le MJ IA l'écrit avec
+`histoire_personnage`, et le résumé entre dans le champ `histoire` de sa personnalité, que son cerveau lit à chaque réplique. Sa
+vue contient aussi sa propre page « Ce qu'il garde pour lui », jamais celle d'un autre personnage.

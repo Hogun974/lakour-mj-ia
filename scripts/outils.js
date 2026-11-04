@@ -5,6 +5,9 @@ import { SECTIONS, noterMemoire } from "./memoire.js";
 import { fournisseurImages } from "./fournisseurs/index.js";
 import { versTexte, versHTML, tronquer, trouverActeur, deposerFichier, roleLoups } from "./utilitaires.js";
 import { CARACS, calculerCaracteristiques, objetsDeDepart, munitionPour } from "./creation-impmal.js";
+import { OUTILS_SURVIE } from "./outils-survie.js";
+import { OUTIL_HISTOIRE } from "./outils-histoire.js";
+import { ecrireHistoire } from "./histoire.js";
 import { ajouterAvecAvancements, donnerEquipement, monterNiveau } from "./creation-dnd5e.js";
 import { jetonJoueur, moduleDeContenu } from "./contenus.js";
 import { lire, ecrire } from "./reglages.js";
@@ -129,7 +132,7 @@ function horsVeillees() {
 export const OUTILS = [
   {
     nom: "demander_jet",
-    systemes: ["impmal", "dnd5e"],
+    systemes: ["impmal", "dnd5e", "lakour-survie"],
     description: "Demande à un joueur de lancer un test pour son personnage, avec la fenêtre de test du système PRÉ-REMPLIE selon la situation "
       + "(difficulté, modificateur, DR bonus, avantages, désavantages) : le joueur n'a qu'à valider. Le résultat t'arrivera dans un prochain message. "
       + "Arrête ta narration juste après.",
@@ -137,7 +140,7 @@ export const OUTILS = [
       personnage: chaine("Nom exact du personnage joueur."),
       competence: chaine("Clé de compétence parmi la liste donnée dans tes consignes (ou une formule de dés si le système n'a pas d'adaptateur)."),
       difficulte: { type: "string", enum: DIFFICULTES, description: "Difficulté du test (« aucune » = celle par défaut du système)." },
-      modificateur: entier("Modificateur au seuil (Imperium Maledictum : par paliers de 10 ; D&D : bonus de situation). 0 si aucun."),
+      modificateur: entier("Modificateur au seuil (Imperium Maledictum : par paliers de 10 ; D&D : bonus de situation ; Fénoir : dés de situation, ±1 ou ±2). 0 si aucun."),
       dr_bonus: entier("Degrés de réussite ajoutés ou retirés (Imperium Maledictum). 0 si aucun."),
       avantages: entier("Nombre d'avantages (situation favorable). 0 si aucun."),
       desavantages: entier("Nombre de désavantages (situation défavorable). 0 si aucun."),
@@ -182,7 +185,7 @@ export const OUTILS = [
   },
   {
     nom: "lancer_des",
-    systemes: ["impmal", "dnd5e"],
+    systemes: ["impmal", "dnd5e", "lakour-survie"],
     description: "Lance des dés pour un PNJ ou un événement (jamais pour un personnage joueur). Renvoie le total.",
     schema: objet({
       formule: chaine("Formule Foundry, ex. « 1d100 », « 2d6+3 »."),
@@ -2718,8 +2721,11 @@ OUTILS.push({
 // ---------------------------------------------------------------- Compagnons IA (docs/compagnons.md)
 // Des personnages côté joueurs, sans joueur, joués par une IA à part (compagnons.js, compagnons-jeu.js) qui ne sait que ce que
 // sait son personnage. Aux Veillées, ils viennent de loups_distribuer (compagnons) ; en 40k et en Warcraft, de compagnon_ajouter.
-const SYSTEMES_AVENTURE = ["impmal", "dnd5e"];
-const OUTIL_CREATION = { impmal: "creer_personnage", dnd5e: "creer_personnage_dnd5e" };
+// Fénoir (lakour-survie) : des compagnons génériques aussi (docs/survie.md), créés par creer_survivant.
+const SYSTEMES_AVENTURE = ["impmal", "dnd5e", "lakour-survie"];
+const OUTIL_CREATION = { impmal: "creer_personnage", dnd5e: "creer_personnage_dnd5e", "lakour-survie": "creer_survivant" };
+// Types d'acteur d'un personnage côté joueurs (fiche de joueur ou de compagnon).
+const TYPES_PERSONNAGE = ["character", "survivant"];
 
 // Pose le jeton d'un compagnon près du groupe (ou d'un repère), sur la carte affichée.
 async function poserCompagnon(acteur, pres_de = "") {
@@ -2743,6 +2749,7 @@ OUTILS.push(
     description: "Ajoute au groupe un COMPAGNON IA : un personnage côté joueurs, sans joueur, joué par une IA à part qui ne sait que ce que sait "
       + "son personnage (il parle dans le chat sous son nom, réagit à tes narrations, agit à son tour en combat, vote). Sa fiche est COMPLÈTE, "
       + "comme celle d'un joueur : donne creation (les arguments de creer_personnage en Imperium Maledictum, de creer_personnage_dnd5e en D&D 5e, "
+      + "de creer_survivant à Fénoir, "
       + "en JSON ; fais toi-même les choix, et les tirages avec lancer_des), ou fiche_existante (une fiche sans joueur déjà créée). "
       + "Son jeton est posé près du groupe.",
     schema: objet({
@@ -2770,7 +2777,7 @@ OUTILS.push(
         const r = await def.executer(args);
         if (r.erreur) return { erreur: true, contenu: `${def.nom} : ${r.contenu}` };
         rapport = r.contenu;
-        acteur = game.actors.filter(a => a.type === "character" && a.name === args.nom && !a.hasPlayerOwner).at(-1) ?? null;
+        acteur = game.actors.filter(a => TYPES_PERSONNAGE.includes(a.type) && a.name === args.nom && !a.hasPlayerOwner).at(-1) ?? null;
         if (!acteur) return { erreur: true, contenu: `La fiche « ${args.nom} » a été créée mais reste introuvable : ${rapport}` };
       } else if (fiche_existante.trim()) {
         acteur = await trouverActeur(fiche_existante);
@@ -2783,8 +2790,15 @@ OUTILS.push(
         temperament, parler: facon_de_parler.trim() || personnaliteAuHasard(acteur.id).parler, histoire: histoire.trim()
       } });
       const pose = await poserCompagnon(acteur, pres_de);
+      // Son journal d'histoire (histoire.js) : créé, « Son histoire » commencée avec ces phrases ; à écrire en entier ensuite.
+      let journal = "";
+      try {
+        await ecrireHistoire(acteur, { histoire: histoire.trim() ? versHTML(histoire) : "" });
+        journal = `\nSon journal « Histoire de ${acteur.name} » est créé : écris maintenant son histoire (histoire_personnage, preparer puis `
+          + "ecrire, avec resume_compagnon) ; le résumé entre dans sa personnalité.";
+      } catch (e) { journal = `\nJournal d'histoire non créé : ${e.message}`; }
       return { contenu: `${acteur.name} rejoint le groupe comme compagnon IA (${TEMPERAMENTS[temperament].libelle}).${pose}`
-        + `${rapport ? `\n${rapport}` : ""}\nIl jouera seul : traite-le comme un joueur, ne lui souffle rien que son personnage ne sache.` };
+        + `${rapport ? `\n${rapport}` : ""}\nIl jouera seul : traite-le comme un joueur, ne lui souffle rien que son personnage ne sache.${journal}` };
     }
   },
   {
@@ -3739,6 +3753,11 @@ OUTILS.push({
     return { contenu: `Supériorité : ${avant} → ${apres}.${apres > 4 ? " Au-delà de 3 ou 4, les combats deviennent trop faciles." : ""}` };
   }
 });
+
+// ---------------------------------------------------------------- Fénoir (système lakour-survie : outils-survie.js, docs/survie.md)
+OUTILS.push(...OUTILS_SURVIE);
+// ---------------------------------------------------------------- Histoire de chaque personnage (outils-histoire.js ; 40k, Warcraft, Fénoir)
+OUTILS.push(OUTIL_HISTOIRE);
 
 export const outil = nom => OUTILS.find(o => o.nom === nom);
 // Outils utiles au système du monde : sans « systemes », un outil sert partout (sauf dans ses « horsSystemes ») ; avec

@@ -6,7 +6,8 @@
 // Quand : une séance est active, l'autonomie vaut « autonome », le réglage « pilote » est coché, et
 //   - aux Veillées : une partie est en cours (phase ni « preparation » ni « fin ») et AUCUN vivant n'est tenu par un humain
 //     (des humains morts peuvent regarder) ;
-//   - en 40k et en Warcraft : aucun personnage d'un joueur connecté n'est présent (sur la scène active), et des compagnons le sont.
+//   - en 40k, en Warcraft et à Fénoir : aucun personnage d'un joueur connecté n'est présent (sur la scène active), et des compagnons
+//     le sont (à Fénoir, la consigne de scène ajoute CONSIGNE_PILOTE_SURVIE : le temps passe par les outils survie_*).
 // En mode Validation, pas de pilote : le MJ humain reçoit un avis.
 //
 // Peste noire (secret) : la première nuit (pas encore de porteur), la consigne de la nuit dit au narrateur de choisir la victime
@@ -152,6 +153,10 @@ export function libelleVainqueurPilote(v, nom = id => id, peste = false, glas = 
   return `${v === "village" || v === "meute" ? `le camp « ${v} »` : nom(v)}${fin}`;
 }
 
+// Fénoir (lakour-survie) : le même pilote « aventure » (aucun humain présent, des compagnons) ; la scène avance aussi par le temps.
+export const CONSIGNE_PILOTE_SURVIE = "À Fénoir, le temps compte : quand les compagnons ont décidé d'une action (fouille, garde, chantier, "
+  + "repos, route), résous-la avec l'outil survie_* qui convient (il fait passer le temps), sans choisir à leur place ; s'ils attendent, "
+  + "survie_avancer. Le réel reste secret, même pour eux.";
 export const CONSIGNES_AVENTURE = {
   scene: "Étape : la scène continue. Fais-la avancer d'un pas (un événement, un PNJ qui agit, un choix qui se présente au groupe), "
     + "en quelques phrases, puis laisse les compagnons réagir.",
@@ -464,7 +469,7 @@ export class PiloteAutomatique {
     }
     m.echanges++;
     if (etape === "scene") {
-      await this.#tour(ENTETE_AVENTURE, CONSIGNES_AVENTURE.scene);
+      await this.#tour(ENTETE_AVENTURE, game.system?.id === "lakour-survie" ? `${CONSIGNES_AVENTURE.scene} ${CONSIGNE_PILOTE_SURVIE}` : CONSIGNES_AVENTURE.scene);
       return this.moteur.compagnons.reagir();
     }
     // Un échange : les compagnons réagissent à la dernière narration ; le MJ leur répond (file normale du moteur).
