@@ -32,7 +32,7 @@ export function guideEnMarkdown(langue = "fr") {
   ].join("\n").replace(/\n{3,}/g, "\n\n");
 }
 
-if (process.argv[1] && import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}`) {
+if (process.argv[1] && import.meta.url === (await import("node:url")).pathToFileURL((await import("node:path")).resolve(process.argv[1])).href) {
   for (const [langue, fichier] of Object.entries(FICHIERS_GUIDE)) {
     writeFileSync(new URL(`../${fichier}`, import.meta.url), `${guideEnMarkdown(langue).trim()}\n`);
     console.log(`${fichier} écrit`);

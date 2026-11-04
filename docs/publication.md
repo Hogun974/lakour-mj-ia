@@ -148,3 +148,23 @@ Ensuite, à chaque version, ajouter la nouvelle version depuis la page d'adminis
 Ordre d'installation chez un joueur-MJ : Foundry 14 → le système du monde choisi → le module de contenu du monde et
 `lakour-mj-ia` → le monde vierge du dépôt du monde (ou un monde neuf, où le module de contenu propose d'installer son
 contenu) → *Réglages › MJ IA › Configurer* pour la clé, ou le fournisseur factice pour essayer.
+
+## Release à blanc du 4 novembre 2026
+
+Chaque workflow a été rejoué étape par étape (Ubuntu 24.04 sous WSL, **Node 24.22**, npm 10) dans un clone neuf
+`git clone --recurse-submodules`, avec un tag local et les variables `GITHUB_REF_NAME` / `GITHUB_REPOSITORY` du runner ;
+les archives produites ont été relues (manifeste à la racine, chemins `/`, `packs/` complets, ni `src/`, ni `contenu/`, ni
+`essais/`, ni `node_modules`, ni `.git`, CRC vérifiés). Les actions sont passées en versions Node 24
+(`actions/checkout@v5`, `actions/setup-node@v5`, `softprops/action-gh-release@v3` : les v4/v2 tournent encore sous
+Node 20, en fin de vie sur les runners GitHub).
+
+- Résultat : toutes les étapes passent (`npm ci`, essais, SDK embarqués, archive, notes) ; `dist/` = `module.json` et
+  `lakour-mj-ia.zip` (~10 Mo, une centaine de fichiers), `download` daté du tag. Un essai
+  `coffre-carnet` a échoué une fois sur deux (écart d'une milliseconde entre deux horodatages) : instable, à fiabiliser
+  avant de tagger, sinon relancer le workflow.
+- [ ] Reste : le dépôt doit être **public** (ou les mondes doivent avoir un PAT de lecture dans le secret
+      `SOUS_MODULE_TOKEN`) avant la première release d'un monde : leur `.gitmodules` pointe sur `../lakour-mj-ia`, soit
+      `https://github.com/Hogun974/lakour-mj-ia`.
+- [ ] Reste : `module.json` annonce `"license": "LICENSE"` mais aucun fichier `LICENSE` n'existe (voir § 1).
+- [ ] Même garde cassée (voir les mondes) dans `outils/ecrire-guide.mjs` et `outils/fabriquer-sons.mjs` : sans effet sur
+      la release, mais ces commandes ne font rien sous Linux.

@@ -694,4 +694,4 @@ export function fabriquerSons({ dossier = join(RACINE, DOSSIER_SONS_DISQUE), jou
 }
 
 // Lancé directement (npm run fabriquer-sons) ; importé par les essais, on n'écrit rien.
-if (process.argv[1] && import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}`) fabriquerSons();
+if (process.argv[1] && import.meta.url === (await import("node:url")).pathToFileURL((await import("node:path")).resolve(process.argv[1])).href) fabriquerSons();

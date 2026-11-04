@@ -17,10 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Dépôt
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -51,7 +51,7 @@ jobs:
           if [ ! -s dist/notes.md ]; then echo "Version $VERSION du module La Kour – MJ IA." > dist/notes.md; fi
 
       - name: Publication
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: La Kour – MJ IA ${{ env.VERSION }}
           body_path: dist/notes.md
