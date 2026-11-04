@@ -10,6 +10,7 @@ vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici
   joueurs / secret du MJ), création de survivant guidée, recrues et tâches ; voir `docs/survie.md`.
 - Histoire de chaque personnage (40k, Warcraft, Fénoir) : un journal en quatre pages par personnage et par compagnon,
   outil `histoire_personnage`, bouton **Histoire** sur la fiche, sans IA aussi.
+- Personnalité « La Gramoune » : une narratrice de survie pour Fénoir.
 - Calendrier des fêtes : Dipavali, Cavadee, Nouvel An chinois, fête des letchis et 20 décembre (La Réunion).
 - Outil commun `outils/empaqueter-monde.mjs` : un monde vierge publiable à partir d'une copie du monde joué, sans
   utilisateur, message, personnage de joueur, coffre ni clé (`docs/empaqueter-monde.md`).

@@ -72,11 +72,11 @@ test("personnalité : liberté avec le scénario dans la consigne, avec repli po
 
 test("personnalités livrées après coup : ajoutées une fois, jamais réimposées si supprimées", async () => {
   const { personnalitesAAjouter } = await import("../scripts/reglages.js");
-  const anciennes = PERSONNALITES_DE_BASE.filter(p => p.id !== "voix-de-la-brume");
-  // Monde d'avant le suivi : la nouvelle arrive.
+  const anciennes = PERSONNALITES_DE_BASE.filter(p => p.id !== "voix-de-la-brume" && p.id !== "gramoune");
+  // Monde d'avant le suivi : les nouvelles arrivent (la Voix de la brume pour les Veillées, la Gramoune pour Fénoir).
   const premier = personnalitesAAjouter(anciennes, undefined);
-  assert.deepEqual(premier.nouvelles.map(p => p.id), ["voix-de-la-brume"]);
-  assert.ok(premier.vues.includes("voix-de-la-brume"));
+  assert.deepEqual(premier.nouvelles.map(p => p.id), ["voix-de-la-brume", "gramoune"]);
+  assert.ok(premier.vues.includes("voix-de-la-brume") && premier.vues.includes("gramoune"));
   // Le MJ l'a supprimée ensuite : elle ne revient pas.
   assert.deepEqual(personnalitesAAjouter(anciennes, premier.vues).nouvelles, []);
   // Personnalité maison conservée, rien en double.
