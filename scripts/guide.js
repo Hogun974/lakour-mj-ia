@@ -1,11 +1,16 @@
 // Guide d'utilisation du MJ IA, écrit une fois ici : installé dans chaque monde (deux journaux : guide du MJ, caché ; guide des
 // joueurs, visible) et recopié dans docs/guide-utilisation.md par outils/ecrire-guide.mjs.
 // Texte au format des journaux du module (paragraphes, **gras**, *italique*, listes « - », titres « # »).
+// Sa traduction anglaise est dans guide-en.js, section par section (même clé « cle ») : toute modification d'ici s'y reporte
+// (essais/guide.test.mjs vérifie que les deux langues ont les mêmes sections, titres, listes, outils et libellés d'interface).
+import { GUIDE_MJ_EN, GUIDE_JOUEURS_EN } from "./guide-en.js";
+import { moduleDeContenu, SUFFIXE_ANGLAIS } from "./contenus.js";
 
-export const VERSION_GUIDE = 16;
+// À incrémenter à chaque modification du texte (dans l'une ou l'autre langue) : les mondes réinstallent alors le guide.
+export const VERSION_GUIDE = 17;
 
 export const GUIDE_MJ = [
-  { titre: "Démarrer", texte: `
+  { cle: "demarrer", titre: "Démarrer", texte: `
 # En deux minutes
 
 - **Clés** : Réglages du jeu › Configurer les modules › MJ IA › **Configurer**. Choisis le fournisseur du MJ (Claude ou ChatGPT), colle sa clé, vérifie-la. La voix et les images passent par OpenAI : sans clé OpenAI, pas de voix payante ni d'image. Les clés restent dans TON navigateur, jamais dans le monde.
@@ -13,14 +18,14 @@ export const GUIDE_MJ = [
 - **Console** : bouton **chapeau de magicien** dans la barre de gauche (calque des jetons). Choisis la personnalité, puis **Démarrer la séance**.
 - **Jouer** : les joueurs écrivent dans le chat. Le MJ IA leur répond quelques secondes après qu'ils ont fini d'écrire, pose les jetons sur la carte avant de raconter, lance les ambiances, demande les jets.
 - **Finir** : **Terminer la séance**. L'IA donne l'expérience, écrit la chronique pour les joueurs et met à jour sa mémoire de campagne.` },
-  { titre: "La console du MJ IA", texte: `
+  { cle: "console", titre: "La console du MJ IA", texte: `
 - **Démarrer / Terminer la séance** : l'IA ne répond qu'en séance. Une séance restée ouverte au départ du MJ est arrêtée au retour.
 - **Souffler une consigne secrète** : une instruction que seuls toi et l'IA voyez (« fais intervenir un assassin à la prochaine scène »).
 - **Préparer un scénario** : donne un thème ; l'IA crée journaux, PNJ et cartes, hors séance.
 - **Créer un personnage avec le MJ** : l'IA guide le joueur dans le chat et crée SA fiche complète (Imperium Maledictum, D&D 5e, Fénoir), puis écrit son histoire avec lui. Un joueur connecté sans personnage se voit proposer une création automatiquement.
 - **Vision des joueurs** : répare la vision des personnages (s'ils voient tout noir sur une carte).
 - **Coût estimé** : ce que la séance a coûté chez le fournisseur ; un budget par séance arrête l'IA s'il est dépassé.` },
-  { titre: "Réglages utiles", texte: `
+  { cle: "reglages", titre: "Réglages utiles", texte: `
 - **Autonomie** : « Validation par le MJ humain » te demande d'approuver les actions sensibles (créer une fiche, éliminer, modifier un objet) ; « Autonome » laisse l'IA faire.
 - **Délai avant réponse** : le temps que l'IA attend la fin des messages des joueurs.
 - **Voix du narrateur** : aucune, navigateur (gratuite, chacun chez soi) ou OpenAI (payante, en direct, et chaque compagnon IA a la sienne). Chaque joueur règle s'il l'entend.
@@ -28,14 +33,14 @@ export const GUIDE_MJ = [
 - **Réactions** : l'IA peut réagir aux déplacements des joueurs, aux portes ouvertes, et jouer les PNJ en combat.
 - **Style visuel** : cartes et jetons plats ou en relief.
 - **Fête de saison** : automatique (selon la date), aucune, ou une fête forcée ; chaque joueur coupe chez lui les *Effets visuels des fêtes*.` },
-  { titre: "Ce que l'IA sait faire", texte: `
+  { cle: "capacites", titre: "Ce que l'IA sait faire", texte: `
 - **Plateau** : créer des cartes jouables (murs, portes, lumières, sons d'ambiance, zones invisibles des joueurs), les faire évoluer en jeu (zone de lore qui s'affiche quand un jeton entre, piège qui met en pause, escalier qui téléporte, obscurité, épingle vers un journal, son localisé), y amener les personnages, poser PNJ et figurants « près du puits », les retirer, régler vision, lumières, portes et brouillard, passer en vue 3D (3D Canvas) et cadrer la caméra.
 - **Récit** : voix, images (OpenAI), ambiances sonores (vent, pluie, taverne, forge, tension…), messages secrets à un seul joueur, votes de groupe et choix secrets ; **montrer une aide de jeu** aux joueurs (lettre, contrat, page par page), jamais un journal réservé au MJ ; tirer dans les tables du module (rumeurs, visages, complications…).
 - **Règles** : demander des jets pré-remplis (difficulté, modificateurs), lancer les dés des PNJ, mener les combats.
 - **Campagne** : expérience, montée de niveau (D&D 5e) ou dépense d'XP (Imperium Maledictum), argent, objets, marchands, chronique visible des joueurs, mémoire de campagne.
 - **Modules d'effets** (seulement s'ils sont actifs dans le monde) : animations de sorts, tirs, explosions et soins (**Sequencer** + **JB2A**), météo sur la carte (**FXMaster** : pluie, orage, neige, brouillard, braises…), date, heure et météo du jour (**Calendaria**, 40k et Warcraft), tas de butin, coffres et marchands (**Item Piles**, Warcraft).
 - **Scénario** : suivre l'aventure écrite, ou l'adapter en jeu selon sa liberté (fidèle, adaptative, libre) ; chaque page réécrite garde sa version précédente.` },
-  { titre: "Les trois mondes", texte: `
+  { cle: "mondes", titre: "Les trois mondes", texte: `
 # Warhammer 40 000 — Imperium Maledictum
 Modules **lakour-mj-ia** et **lakour-40k**. Contenu original du sous-secteur de la Kour : origines, factions, rôles, talents (une partie automatisés), armement, bestiaire, deux aventures et une campagne, lieux prêts à l'emploi, des tables du MJ (Patron, missions, enquête, ruche, Warp, butin…). **Fiche La Kour** : en-tête avec Origine, Faction, Rôle et Patron, jauges, inventaire par catégories avec icônes et encombrement (on peut revenir à la fiche d'impmal dans la configuration de la fiche). L'assistant de création équipe le personnage (armure portée, arme en main, munitions). Cartes d'aventure épinglées sur le journal du MJ, avec sons et zones. Installer : Réglages › La Kour 40k › Installer, ou importer l'aventure du compendium **Aventures** (proposée aussi à la création d'un monde).
 
@@ -44,7 +49,7 @@ Modules **lakour-mj-ia**, **lakour-warcraft**, **dnd5e_fr-FR**, **babele**, **fr
 
 # Les Veillées de Brumecombe — loup-garou original
 Modules **lakour-mj-ia**, **lakour-veillees**, **fr-core**, système **lakour-loups**. Personnalité conseillée : *La Voix de la brume*. L'IA compose une partie équilibrée pour le nombre de joueurs (ou prend votre liste), distribue les rôles en secret, mène les nuits, l'aube et le vote. La **Table de jeu** (bouton dans la barre de gauche) montre la partie à tous. Le vote à minuteur se clôt seul à zéro ; chaque partie finie entre aux **Chroniques de Brumecombe** (palmarès). La brume tombe la nuit, l'écran tremble à une mort (réglage client « Effets visuels »). Chaque bâtiment de la carte est épinglé sur sa page de règles.` },
-  { titre: "Compagnons IA", texte: `
+  { cle: "compagnons", titre: "Compagnons IA", texte: `
 # Des joueurs tenus par l'IA
 Pour combler une table : des personnages côté joueurs, joués par une IA comme s'ils étaient des joueurs. Chacun a **son propre cerveau** (un appel au modèle séparé de celui du MJ) et ne sait que ce que sait son personnage : sa fiche, ce qu'on lui a dit en privé, le chat public, ce qu'il voit. Il ne triche pas : ni le prompt du MJ, ni la mémoire de campagne, ni les rôles des autres, ni les jetons cachés, ni les chuchotements.
 
@@ -63,7 +68,7 @@ En mode **Autonome**, si plus aucun joueur humain n'est en jeu (aux Veillées : 
 - **Garde-fous** : il s'arrête net à la victoire, à la fin de la séance, dès qu'un joueur humain revient, si tu repasses en *Validation*, au budget de la séance, après un nombre maximal d'étapes (réglage, 60 par défaut) ou quand la partie n'avance plus. Tu reçois un avis à chaque arrêt. Jamais deux étapes à la fois, jamais pendant que le MJ IA réfléchit.
 - **Le reprendre en main** : la console du MJ IA montre le pilote, avec **Arrêter le pilote** (ou **Relancer le pilote** après une pause). Le réglage *Pilote automatique (compagnons seuls)* le coupe tout à fait. En mode *Validation*, pas de pilote : un avis te propose de passer en autonome ou de mener la suite.
 - **Coût d'un tour de pilote aux Veillées** : par jour de jeu, sept tours du MJ IA (nuit, aube, réponses aux deux tours de parole, vote, dépouillement, exécution), soit une dizaine d'appels au modèle, plus les appels courts des compagnons (leurs choix de nuit, deux à quatre répliques, un vote chacun : une dizaine pour six compagnons).` },
-  { titre: "Tour par tour (40k et Warcraft)", texte: `
+  { cle: "tour", titre: "Tour par tour (40k et Warcraft)", texte: `
 # Le combat guidé pas à pas
 Le panneau **Tour par tour** (bouton **bouclier** dans la barre de gauche, calque des jetons) s'ouvre aussi tout seul quand un combat commence. Il s'appuie sur le combat de Foundry, sans le remplacer, et sert avec ou sans MJ IA. À chaque instant, **l'étape suivante** est écrite en haut (« Prochaine étape : … ») et le bouton qui la fait est **encadré de pointillés** : il suffit de suivre les pointillés.
 - **Préparer** : coche les jetons de la scène (joueurs, compagnons et ennemis visibles cochés d'office), **Ajouter au combat**, **Lancer l'initiative** (la vraie méthode du système : d20 + initiative en D&D 5e ; Initiative + Réflexes en Imperium Maledictum), **Commencer le combat**.
@@ -78,7 +83,7 @@ Le panneau **Tour par tour** (bouton **bouclier** dans la barre de gauche, calqu
 
 # Le tour de table, hors combat
 Bouton **Commencer un tour de table** du panneau : la parole passe à chacun dans l'ordre (joueurs, puis compagnons IA). Celui qui a la parole décrit ce que fait son personnage ; son message dans le chat, ou son bouton **J'ai fini** / **Je passe**, donne la parole au suivant. Tu peux aussi presser **A parlé** ou **Passe**. Avec le MJ IA en séance, il attend que tout le monde ait parlé (ou passé) avant de raconter la suite, puis peut relancer un tour (outil tour_de_table).` },
-  { titre: "Horloges, jauges et réputations (40k et Warcraft)", texte: `
+  { cle: "horloges", titre: "Horloges, jauges et réputations (40k et Warcraft)", texte: `
 # Ce qui avance hors champ
 Le **Carnet de campagne** (bouton **livre ouvert** dans la barre de gauche, calque des jetons, ou bouton **Carnet de campagne** de la console), onglet **Horloges**, montre trois sortes d'éléments, que le MJ IA crée et fait vivre avec son outil **horloge** :
 - **Horloge** : 4 à 12 segments, à la façon de *Blades in the Dark*. Une menace ou un projet qui mûrit (« le culte achève son rituel », « les renforts arrivent ») : elle avance quand le temps passe ou qu'un échec la nourrit, et quand elle est pleine, **elle sonne** : l'événement arrive.
@@ -91,7 +96,7 @@ Le **Carnet de campagne** (bouton **livre ouvert** dans la barre de gauche, calq
 - Le MJ IA voit l'état de chaque élément à chaque tour ; ses **notes** (ce qui arrive quand l'horloge sonne) restent secrètes. Pendant un intermède, il avance les horloges des factions.
 - **Modules des mondes** : *game.modules.get("lakour-mj-ia").api.horloges* — *assurer(def)* crée un élément s'il n'existe pas (par son id) et le rend ; *avancer(id, n)* ; *lister()* ; *palier(id)*. Seul le MJ actif écrit.
 - **Réinitialiser la campagne** efface aussi les horloges.` },
-  { titre: "Enquêtes et contacts (40k et Warcraft)", texte: `
+  { cle: "enquetes", titre: "Enquêtes et contacts (40k et Warcraft)", texte: `
 # Le tableau d'enquête
 Onglet **Enquêtes** du **Carnet de campagne**. Le MJ IA y tient chaque mystère avec son outil **enquete**, selon la **règle des trois indices** :
 - des **conclusions** : ce que les joueurs doivent comprendre (« le diacre ment sur les muets ») ;
@@ -114,13 +119,13 @@ Foundry envoie les réglages du monde à tous les navigateurs, et sert les fichi
 - **Renouvellement** quand un compte est supprimé, créé ou change de rôle (et à la demande, fenêtre du Coffre ou *api.coffre.renouveler()*) : la nouvelle clé n'entre en vigueur qu'une fois ses parts reçues par assez de joueurs (ou sa clé de secours exportée) ; jusque-là l'ancienne reste en vigueur, et rien n'est jamais scellé sous une clé que personne ne pourrait retrouver.
 - **Mots de passe** : un compte joueur sans mot de passe est une part que n'importe qui peut prendre ; sans mots de passe, le coffre ne protège rien.
 - **Clé perdue** (ni parts, ni autre MJ, ni clé de secours) : *api.coffre.abandonner({ confirmer: true })* renonce aux éléments cachés et aux fils chiffrés (gardés à part, illisibles) ; les visibles restent.` },
-  { titre: "Mener les Veillées soi-même, avec des joueurs IA", texte: `
+  { cle: "veillees-sans-mj", titre: "Mener les Veillées soi-même, avec des joueurs IA", texte: `
 Sans séance du MJ IA, c'est toi qui mènes la **Table de jeu** des Veillées ; des **joueurs IA** peuvent quand même compléter la table.
 - **Ajouter des joueurs IA** : bouton **+ Joueur IA** de la Table. Chacun reçoit un nom du village et une personnalité ; la distribution des rôles de la Table les compte comme des joueurs.
 - **La nuit** : quand tu réveilles un rôle tenu par un joueur IA, il choisit seul, en secret. **Le jour**, dès que la phase passe à « jour », les joueurs IA vivants prennent la parole (selon le *Bavardage des compagnons IA*), et ils répondent aux messages des joueurs humains — jamais entre eux sans un humain. **Au vote**, ils votent dans le même vote que tout le monde.
 - **Coût** : leurs appels vont au compteur *Compagnons hors séance* de la console, remis à zéro à chaque nouvelle partie et borné par le budget de séance ; sans clé ou budget atteint, ils jouent en mode simple, sans IA.
 - **Une autre partie** : avec le MJ IA, en fin de partie, il propose « une autre partie avec les mêmes joueurs ? » ; chaque partie repart de zéro (l'ancienne conversation est archivée, les joueurs IA oublient tout).` },
-  { titre: "Voix et écoute", texte: `
+  { cle: "voix", titre: "Voix et écoute", texte: `
 # Les IA parlent en direct
 Avec la voix **OpenAI**, chaque morceau de voix part aux joueurs dès qu'il est produit : la voix démarre presque aussitôt, sans les deux secondes d'attente d'avant. Le fichier complet est gardé ensuite pour le bouton 🔊 (réécouter).
 - **Toutes les IA parlent** : le narrateur, et chaque compagnon IA avec sa propre voix, choisie selon son tempérament (jamais celle du narrateur, autant que possible différente de celle des autres compagnons) et gardée sur sa fiche. Un compagnon ne dit que sa parole : son geste en italique ne se lit pas.
@@ -137,7 +142,7 @@ Quand une IA doit entendre (une séance du MJ IA est lancée, ou un compagnon IA
 - **Chaque joueur est prévenu** : une pastille « L'IA écoute » en haut de l'écran tant que l'écoute tourne.
 - **Réglages** : *Écouter la parole des joueurs* (le couper arrête tout), *Modèle de transcription* (vide : le moins cher, environ 0,3 centime par minute de parole), *Montrer les transcriptions au MJ* (chuchotées aux MJ ; aux Veillées, affichées dans le chat des seuls MJ sans y être enregistrées). Le coût va au compteur de la séance, ou à *Compagnons hors séance*, borné par le budget.
 - **Limites** : sans serveur relais (TURN), la voix de Foundry passe de navigateur à navigateur ; un joueur derrière un réseau strict peut ne pas être entendu du MJ, ni donc transcrit. Un joueur sans casque peut renvoyer la voix des IA dans son micro : ce qui ressemble à ce qu'une IA vient de dire est ignoré.` },
-  { titre: "Histoire des personnages (40k, Warcraft, Fénoir)", texte: `
+  { cle: "histoire", titre: "Histoire des personnages (40k, Warcraft, Fénoir)", texte: `
 # Un journal par personnage
 Chaque personnage joueur et chaque compagnon IA (et, si tu veux, une recrue ou un PNJ important) a son journal **« Histoire de <nom> »**, rangé dans le dossier **Histoires des personnages**, avec quatre pages :
 - **Qui il est** (lisible de tous) : origine, famille, ce qu'il faisait, apparence, manières ;
@@ -146,7 +151,7 @@ Chaque personnage joueur et chaque compagnon IA (et, si tu veux, une recrue ou u
 - **Chapitres** : le MJ IA y ajoute un paragraphe daté après chaque événement marquant.
 - **Avec le MJ IA** : à la création guidée, il pose deux ou trois questions courtes au joueur (ou invente s'il le demande), puis écrit l'histoire à partir du contenu du monde (40k : origine, faction, rôle ; Warcraft : peuple, historique, classe ; Fénoir : enfance, passé, traits, région, proche perdu). Outil *histoire_personnage* : préparer, écrire, compléter, ajouter un chapitre. Un compagnon IA reçoit le résumé de son histoire dans sa personnalité : il en parle et agit selon elle. Le MJ IA lit une ligne de chaque histoire dans le résumé des personnages, et ce que chacun garde pour lui.
 - **Sans IA** : le bouton **Histoire** de l'en-tête de la fiche ouvre le journal, ou le crée avec ses quatre pages vides et des questions pour aider le joueur à l'écrire lui-même. Un joueur qui clique sur le bouton de son personnage le demande au MJ connecté, qui le crée aussitôt.` },
-  { titre: "Fêtes de saison", texte: `
+  { cle: "fetes", titre: "Fêtes de saison", texte: `
 # Noël, Halloween et les autres, à la mode de chaque monde
 Quand une fête populaire approche, le monde peut la célébrer à sa façon : le module du monde en écrit une **déclinaison** (en 40k, une veillée de l'Imperium plutôt que Noël), et le MJ IA s'occupe du reste. Une fête que le monde ne décline pas ne fait rien.
 - **Les fêtes et leurs dates** (selon la date de ton ordinateur) : **Nouvel An** (31 décembre – 2 janvier), **Saint-Valentin** (12 – 15 février), **Carnaval** (du Jeudi gras au Mardi gras, date mobile), **Pâques** (du Vendredi saint au lundi, date mobile), **Fête de la musique** (20 – 22 juin, le solstice), **Halloween** (25 octobre – 2 novembre, la Toussaint comprise), **Noël** (tout décembre, le cœur du 24 au 26), **Fête nationale** (14 juillet) ; et, pour La Réunion (Fénoir), la **fête de la liberté** (20 décembre), la **fête des letchis** (mi-décembre), **Dipavali**, **Cavadee** et le **Nouvel An chinois** (dates lunaires connues de 2026 à 2036). Le 31 décembre, le Nouvel An passe devant Noël.
@@ -154,7 +159,7 @@ Quand une fête populaire approche, le monde peut la célébrer à sa façon : l
 - **Ce qui change** : une **carte** sobre au chat, une fois par jour, avec le nom de la fête du monde et ses liens (journaux, tables, objets) ; un **décor léger** (une guirlande en haut du chat, quelques flocons, confettis ou cœurs qui tombent, un petit ornement sur les cartes du MJ IA) ; le **MJ IA** sait que la fête est là et peut y faire allusion quand c'est naturel, sans insister. Aux Veillées, la date seule ne change rien aux règles : seule une veillée de fête choisie à la distribution en ajoute, et ses secrets restent gardés.
 - **Effets visuels des fêtes** (réglage de chacun, chez soi) : décoché, plus aucun décor ; le *mouvement réduit* de l'ordinateur est respecté (rien ne tombe).
 - **Modules des mondes** : *api.fetes.enregistrer({ id, fete, nom, description, consigne, decor, contenu })* au crochet *lakour-mj-ia.pret*, *api.fetes.active()*, *api.fetes.lister()* ; le crochet *lakour-mj-ia.fete* (ancienne, nouvelle) quand la fête change (docs/fetes.md).` },
-  { titre: "Sauvegardes et dépannage", texte: `
+  { cle: "depannage", titre: "Sauvegardes et dépannage", texte: `
 - Sauvegarde ton monde régulièrement (dossier du monde dans les données de Foundry, ou l'outil de sauvegarde de ton hébergeur) et avant chaque mise à jour des modules.
 - Une mise à jour d'un script se voit après **F5**. Une mise à jour des compendiums demande un redémarrage du serveur.
 - Si l'IA ne répond plus : la séance est-elle démarrée ? la clé est-elle valide (Configurer › Vérifier) ? le budget est-il atteint ?
@@ -162,7 +167,7 @@ Quand une fête populaire approche, le monde peut la célébrer à sa façon : l
 ];
 
 export const GUIDE_JOUEURS = [
-  { titre: "Jouer avec le MJ IA", texte: `
+  { cle: "jouer", titre: "Jouer avec le MJ IA", texte: `
 - **Parle dans le chat**, comme à une table : ce que fait ton personnage, ce qu'il dit. Le MJ répond quand tout le monde a fini d'écrire.
 - **Les jets** : quand le MJ demande un test, une fenêtre s'ouvre déjà réglée (difficulté, modificateurs) ; vérifie et lance.
 - **Ce que toi seul vois** : les messages chuchotés du MJ, les choix secrets et les votes s'ouvrent chez toi seulement.
@@ -172,23 +177,23 @@ export const GUIDE_JOUEURS = [
 - **Les cartes** : tu peux déplacer ton jeton ; le MJ réagit à ce que tu découvres. S'il bloque tes déplacements, c'est voulu (scène en cours).
 - **Les compagnons IA** : des personnages joués par l'IA peuvent compléter la table. Ils parlent sous leur nom et jouent comme toi, sans tricher : ils ne savent que ce que sait leur personnage.
 - **Les fêtes** : à Noël, Halloween et quelques autres fêtes, le monde peut se décorer un peu (guirlande, flocons…). Réglages › MJ IA › « Effets visuels des fêtes » pour les couper chez toi.` },
-  { titre: "Histoire de ton personnage (40k, Warcraft, Fénoir)", texte: `
+  { cle: "histoire", titre: "Histoire de ton personnage (40k, Warcraft, Fénoir)", texte: `
 - Le bouton **Histoire** en haut de ta fiche ouvre le journal de ton personnage (s'il n'existe pas encore, le MJ le crée pour toi).
 - **Qui il est** et **Son histoire** sont lisibles de tous ; **Ce qu'il garde pour lui**, seulement de toi et du MJ ; les **Chapitres** racontent la campagne.
 - À la création, le MJ IA te pose deux ou trois questions et l'écrit avec toi ; tu peux la compléter toi-même à tout moment (les questions d'aide disent quoi y mettre).` },
-  { titre: "Tour par tour (40k et Warcraft)", texte: `
+  { cle: "tour", titre: "Tour par tour (40k et Warcraft)", texte: `
 - **En combat**, un bandeau en haut de l'écran te dit où on en est : « ⚔️ Round 3 — À toi de jouer ! », ou « Au tour de X, puis toi ».
 - **À ton tour**, il montre ce qu'il te reste (D&D 5e : action, action bonus, réaction, mouvement en mètres ; Imperium Maledictum : action et déplacement) et tes attaques en boutons : ils ouvrent tes vrais jets. Désigne d'abord ta cible (touche **T** sur son jeton).
 - **Fin de mon tour** passe la main au suivant.
 - Quand ton tour arrive, un **tintement** discret sonne chez toi seul (réglage « M'appeler quand c'est à moi » du MJ IA) ; de même pour un vote de groupe ou un choix secret.
 - Si le MJ l'a réglé ainsi, seul le combattant dont c'est le tour peut bouger son jeton.
 - **Hors combat**, le MJ peut faire un **tour de table** : quand vient ton tour, le bandeau dit « À toi de décrire ce que fait ton personnage ». Écris-le dans le chat (ou presse **J'ai fini**), ou **Je passe**.` },
-  { titre: "Carnet de campagne (40k et Warcraft)", texte: `
+  { cle: "carnet", titre: "Carnet de campagne (40k et Warcraft)", texte: `
 - Le bouton **livre ouvert** de la barre de gauche ouvre le **Carnet de campagne** : ce que le MJ a choisi de te montrer, en trois onglets (Horloges, Enquêtes, Contacts).
 - Une **horloge** se remplit segment par segment : quand elle est pleine, quelque chose arrive. Une **jauge** monte avec vos actions (l'Exposition, en 40k : plus elle est haute, plus vous êtes repérés). Une **réputation** dit ce qu'une faction pense de vous, de **Haï** à **Exalté**.
 - Quand une horloge sonne ou qu'une réputation change, le chat te le dit.
 - **Enquêtes** : les indices que vous avez trouvés et les conclusions que vous avez comprises. **Contacts** : les gens que vous connaissez, ce qu'ils pensent de vous, ce que vous leur devez (ou eux à vous).` },
-  { titre: "Les Veillées de Brumecombe", texte: `
+  { cle: "veillees", titre: "Les Veillées de Brumecombe", texte: `
 - Ton **rôle** t'est donné en secret au début ; garde-le pour toi.
 - La **nuit**, si ton rôle agit, une fenêtre s'ouvre chez toi seul : choisis, ou passe.
 - Le **jour**, débattez, puis **votez** dans la fenêtre de vote ou la Table de jeu. Les voix restent cachées jusqu'à la fin du vote.
@@ -198,25 +203,49 @@ export const GUIDE_JOUEURS = [
 - À la fin, les **Chroniques de Brumecombe** racontent la partie et tiennent le palmarès.` }
 ];
 
-// Installe ou met à jour les deux journaux du guide dans le monde (MJ actif seulement, une fois par version du guide).
-export async function installerGuide({ id, versHTML }) {
+// Les deux langues du guide : pages et noms des journaux.
+export const GUIDES = {
+  fr: { mj: GUIDE_MJ, joueurs: GUIDE_JOUEURS, noms: { "guide-mj": "MJ IA — Guide du MJ", "guide-joueurs": "MJ IA — Guide des joueurs" } },
+  en: { mj: GUIDE_MJ_EN, joueurs: GUIDE_JOUEURS_EN, noms: { "guide-mj": "MJ IA — GM's Guide", "guide-joueurs": "MJ IA — Players' Guide" } }
+};
+
+// Langue du guide pour ce monde. Le module de contenu actif décide (« lakour-40k-en » : anglais ; « lakour-40k » : français),
+// car c'est lui qui fait la langue du monde ; sans module de contenu (système générique), la langue de l'interface du MJ.
+export function langueDuGuide({ module = moduleDeContenu(), lang = globalThis.game?.i18n?.lang } = {}) {
+  if (module) return module.endsWith(SUFFIXE_ANGLAIS) ? "en" : "fr";
+  return String(lang ?? "").toLowerCase().startsWith("en") ? "en" : "fr";
+}
+
+// Installe ou met à jour les deux journaux du guide dans le monde (MJ actif seulement), une fois par version du guide et par
+// langue. Un seul journal par rôle (drapeau « guide »), quelle que soit la langue : quand la langue du monde change (variante
+// -en du module de contenu activée ou retirée), ses pages sont réécrites dans l'autre langue et il est renommé, s'il porte
+// encore un nom donné par le guide. Il garde ainsi son identifiant, son dossier et ses droits ; jamais deux guides côte à côte.
+export async function installerGuide({ id, versHTML, langue = langueDuGuide() }) {
+  const guide = GUIDES[langue] ?? GUIDES.fr;
+  const nomsConnus = new Set(Object.values(GUIDES).flatMap(g => Object.values(g.noms)));
   const journaux = [
-    { cle: "guide-mj", nom: "MJ IA — Guide du MJ", pages: GUIDE_MJ, visible: false },
-    { cle: "guide-joueurs", nom: "MJ IA — Guide des joueurs", pages: GUIDE_JOUEURS, visible: true }
+    { cle: "guide-mj", pages: guide.mj, visible: false },
+    { cle: "guide-joueurs", pages: guide.joueurs, visible: true }
   ];
   for (const j of journaux) {
+    const nom = guide.noms[j.cle];
     const existant = game.journal.find(x => x.getFlag(id, "guide") === j.cle);
-    if (existant && existant.getFlag(id, "versionGuide") >= VERSION_GUIDE) continue;
+    // Un guide posé avant la version anglaise n'a pas de langue : il est en français.
+    const aJour = existant && existant.getFlag(id, "versionGuide") >= VERSION_GUIDE && (existant.getFlag(id, "langueGuide") ?? "fr") === langue;
+    if (aJour) continue;
     const pages = j.pages.map((p, i) => ({ name: p.titre, type: "text", sort: (i + 1) * 100, text: { content: versHTML(p.texte) } }));
     if (existant) {
       await existant.deleteEmbeddedDocuments("JournalEntryPage", existant.pages.map(p => p.id));
       await existant.createEmbeddedDocuments("JournalEntryPage", pages);
-      await existant.setFlag(id, "versionGuide", VERSION_GUIDE);
+      await existant.update({
+        ...(existant.name !== nom && nomsConnus.has(existant.name) ? { name: nom } : {}),
+        [`flags.${id}.versionGuide`]: VERSION_GUIDE, [`flags.${id}.langueGuide`]: langue
+      });
     } else {
       await JournalEntry.implementation.create({
-        name: j.nom, pages,
+        name: nom, pages,
         ownership: { default: j.visible ? CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER : CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
-        flags: { [id]: { guide: j.cle, versionGuide: VERSION_GUIDE } }
+        flags: { [id]: { guide: j.cle, versionGuide: VERSION_GUIDE, langueGuide: langue } }
       });
     }
   }

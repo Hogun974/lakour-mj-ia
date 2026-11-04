@@ -137,7 +137,7 @@ option ; `--inventaire` et `--extraire` restent français : les sources `monde/s
   d'aventures, étiquettes du manifeste `contenu/en/module.json`) passent par la mémoire de traduction. Uuid
   (`Compendium.<module>.` → `<module>-en.`), chemins `modules/<module>/` et portée des drapeaux sont récrits à toute
   profondeur. Les guides et la liste de lecture du **MJ IA** (drapeaux `lakour-mj-ia`) n'ont pas de dictionnaire :
-  ils restent tels quels. Les clés que le système lit par nom (Veillées : « Maison N », repères et noms du plan,
+  ils restent tels quels (au premier chargement du monde anglais, le MJ IA réécrit ses deux guides en anglais). Les clés que le système lit par nom (Veillées : « Maison N », repères et noms du plan,
   `MONDES[<module>].traduction.exclure`, mêmes clés que `OPTIONS_TRADUCTION` du fabricant) ne sont ni traduites ni
   comptées. Le résumé de la construction dit, pack par pack, ce qui est traduit, par mémoire, obsolète (le français du
   monde n'est plus celui du dictionnaire : le monde du serveur a une version plus ancienne du document) ou resté en

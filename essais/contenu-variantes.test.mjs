@@ -305,10 +305,10 @@ test("main.js : la réparation des munitions cherche le compendium « armement �
   assert.doesNotMatch(source, /"lakour-40k\.armement"/);
 });
 
-test("aucun script du moteur ne nomme un module de contenu en dur dans son code (hors contenus.js et le guide)", () => {
+test("aucun script du moteur ne nomme un module de contenu en dur dans son code (hors contenus.js et le guide, dans ses deux langues)", () => {
   const motif = /["'`][^"'`\n]*\blakour-(40k|warcraft|veillees|fenoir)\b[^"'`\n]*["'`]/;
   const fautifs = [];
-  for (const f of readdirSync(SCRIPTS).filter(f => f.endsWith(".js") && !["contenus.js", "guide.js"].includes(f))) {
+  for (const f of readdirSync(SCRIPTS).filter(f => f.endsWith(".js") && !["contenus.js", "guide.js", "guide-en.js"].includes(f))) {
     const lignes = readFileSync(join(SCRIPTS, f), "utf8").split("\n");
     lignes.forEach((l, i) => { if (motif.test(l.replace(/\/\/.*$/, ""))) fautifs.push(`${f}:${i + 1} ${l.trim()}`); });
   }

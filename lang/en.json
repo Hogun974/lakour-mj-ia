@@ -144,7 +144,7 @@
         "Complete": "Full (whole text)"
       },
       "EcouteJoueurs": {
-        "Nom": "Listen to players speech (transcription)",
+        "Nom": "Listen to players' speech (transcription)",
         "Aide": "When an AI must hear (AI GM session started, or a living AI companion at the table), what players say in Foundry built-in voice chat is transcribed for the AI GM and the companions (OpenAI key, billed per minute). Each player sees an icon while listening is on. Unchecked: no microphone is listened to."
       },
       "ModeleTranscription": {

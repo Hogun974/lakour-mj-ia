@@ -1,6 +1,6 @@
 # Guide d'utilisation — MJ IA de La Kour
 
-Ce guide est aussi installé dans chaque monde par le MJ IA (journaux « MJ IA — Guide du MJ » et « MJ IA — Guide des joueurs »).
+Ce guide est aussi installé dans chaque monde par le MJ IA (journaux « MJ IA — Guide du MJ » et « MJ IA — Guide des joueurs »). In English: [guide-utilisation.en.md](guide-utilisation.en.md).
 
 ## Pour le MJ
 

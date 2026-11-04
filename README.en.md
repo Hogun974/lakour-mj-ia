@@ -99,8 +99,8 @@ https://github.com/Hogun974/lakour-mj-ia/releases/latest/download/module.json
 ```
 
 Then, in the world: **Settings › Manage Modules**, tick *La Kour – MJ IA*. On first load the module installs its **user
-guide** in the world (two journals: the GM guide, hidden from players, and the players' guide) and offers to configure a
-key. The wizard hat in the left bar opens the console.
+guide** in the world (two journals: the GM guide, hidden from players, and the players' guide; in English in an English
+world) and offers to configure a key. The wizard hat in the left bar opens the console.
 
 ### 2. From the sources
 
@@ -137,7 +137,8 @@ does not read sheets nor roll the system's dice for them.
 
 ## What the module does, chapter by chapter
 
-The full guide, as installed in every world, is in [`docs/guide-utilisation.md`](docs/guide-utilisation.md) (French).
+The full guide, as installed in every English world, is in [`docs/guide-utilisation.en.md`](docs/guide-utilisation.en.md)
+(French version: [`docs/guide-utilisation.md`](docs/guide-utilisation.md)).
 
 ### Narration and the AI GM's tools
 
@@ -266,9 +267,12 @@ places, open threads, notes) that the AI rereads at the start of each session an
 ## Languages
 
 The module's **interface** exists in French and English (`lang/fr.json`, `lang/en.json`). The AI GM's **texts** (model
-instructions, user guide, chat cards, personalities) and the worlds' content are in **French**; the AI narrates in
-French. An English version is in progress, through `-en` modules specific to each world; it is not published yet. The
-project itself is French-speaking: code, comments, tests and documentation are written in French.
+instructions, chat cards, personalities) and the worlds' content are in **French**; the AI narrates in French. The
+**user guide** exists in both languages (`scripts/guide.js` and its translation `scripts/guide-en.js`): a world whose content
+module is the `-en` variant (or, with no content module, whose interface is in English) gets the English guide, and an
+installed guide switches language along with the world. An English version of the content is in progress, through
+`-en` modules specific to each world; it is not published yet. The project itself is French-speaking: code, comments,
+tests and documentation are written in French.
 
 ## Tests
 
@@ -292,14 +296,14 @@ module.json, scripts/, templates/, styles/, lang/, assets/sons/, vendor/   the F
 scripts/        main.js, moteur.js (AI GM loop), contexte.js (what is sent to the AI), outils*.js (the AI's tools),
                 adaptateurs.js (what depends on the system), fournisseurs/ (anthropic, openai, dummy),
                 compagnons*.js, pilote.js, voix*.js, transcription.js, ecoute.js, coffre*.js, fils.js, carnet.js,
-                horloges*.js, tour-*.js, cartes*.js, placement.js, histoire*.js, fetes*.js, guide.js, apps/ (windows)
+                horloges*.js, tour-*.js, cartes*.js, placement.js, histoire*.js, fetes*.js, guide*.js, apps/ (windows)
 vendor/         embedded Anthropic and OpenAI SDKs (npm run embarquer)
 assets/sons/    ten synthesised ambient loops (npm run fabriquer-sons) and their index
 outils/         empaqueter-module.mjs, embarquer-sdk.mjs, fabriquer-sons.mjs, ecrire-guide.mjs,
                 contrat-contenu.mjs, jetons-commun.mjs, traduction.mjs and empaqueter-monde.mjs (shared with
                 the worlds), valider-foundry.mjs, game-icons/ (CC BY 3.0 icons and their licence), lier-modules.ps1
 essais/         Node tests, doublures/, donnees/
-docs/           guide-utilisation.md, compagnons.md, voix-et-ecoute.md, tour-par-tour.md, fetes.md, survie.md,
+docs/           guide-utilisation.md (.en.md), compagnons.md, voix-et-ecoute.md, tour-par-tour.md, fetes.md, survie.md,
                 empaqueter-monde.md, traduction.md, publication.md, captures/
 .github/workflows/release.yml   on every v* tag: tests, archive and GitHub release
 ```

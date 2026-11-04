@@ -104,8 +104,8 @@ https://github.com/Hogun974/lakour-mj-ia/releases/latest/download/module.json
 ```
 
 Puis, dans le monde : **Réglages › Gérer les modules**, cocher *La Kour – MJ IA*. Au premier chargement, le module installe
-dans le monde son **guide d'utilisation** (deux journaux : guide du MJ, caché aux joueurs, et guide des joueurs) et
-propose de configurer une clé. Chapeau de magicien dans la barre de gauche : la console.
+dans le monde son **guide d'utilisation** (deux journaux : guide du MJ, caché aux joueurs, et guide des joueurs ; en
+anglais dans un monde anglais) et propose de configurer une clé. Chapeau de magicien dans la barre de gauche : la console.
 
 ### 2. Depuis les sources
 
@@ -143,7 +143,7 @@ précisant la formule ; il ne lit pas les fiches et ne lance pas les jets du sys
 ## Ce que fait le module, chapitre par chapitre
 
 Le guide complet, tel qu'il est installé dans chaque monde, est dans
-[`docs/guide-utilisation.md`](docs/guide-utilisation.md).
+[`docs/guide-utilisation.md`](docs/guide-utilisation.md) (en anglais : [`docs/guide-utilisation.en.md`](docs/guide-utilisation.en.md)).
 
 ### Narration et outils du MJ IA
 
@@ -273,9 +273,12 @@ reprenne où il en était ; il est chiffré avec la clé du coffre. La **mémoir
 ## Langues
 
 L'**interface** du module existe en français et en anglais (`lang/fr.json`, `lang/en.json`). Les **textes** du MJ IA
-(consignes au modèle, guide d'utilisation, cartes au chat, personnalités) et les contenus des mondes sont en **français** ;
-l'IA raconte en français. Une version anglaise est en cours, par des modules `-en` propres à chaque monde ; elle n'est pas
-encore publiée. Le projet lui-même est francophone : code, commentaires, essais et documentation sont écrits en français.
+(consignes au modèle, cartes au chat, personnalités) et les contenus des mondes sont en **français** ; l'IA raconte en
+français. Le **guide d'utilisation** existe dans les deux langues (`scripts/guide.js` et sa traduction `scripts/guide-en.js`) :
+un monde dont le module de contenu est la variante `-en` (ou, sans module de contenu, dont l'interface est en anglais)
+reçoit le guide anglais, et le guide déjà installé change de langue avec le monde. Une version anglaise des contenus
+est en cours, par des modules `-en` propres à chaque monde ; elle n'est pas encore publiée. Le projet lui-même est francophone :
+code, commentaires, essais et documentation sont écrits en français.
 
 ## Essais
 
@@ -299,14 +302,14 @@ module.json, scripts/, templates/, styles/, lang/, assets/sons/, vendor/   le mo
 scripts/        main.js, moteur.js (boucle du MJ IA), contexte.js (ce qui est envoyé à l'IA), outils*.js (outils de l'IA),
                 adaptateurs.js (ce qui dépend du système), fournisseurs/ (anthropic, openai, factice),
                 compagnons*.js, pilote.js, voix*.js, transcription.js, ecoute.js, coffre*.js, fils.js, carnet.js,
-                horloges*.js, tour-*.js, cartes*.js, placement.js, histoire*.js, fetes*.js, guide.js, apps/ (fenêtres)
+                horloges*.js, tour-*.js, cartes*.js, placement.js, histoire*.js, fetes*.js, guide*.js, apps/ (fenêtres)
 vendor/         SDK Anthropic et OpenAI embarqués (npm run embarquer)
 assets/sons/    dix boucles d'ambiance synthétisées (npm run fabriquer-sons) et leur index
 outils/         empaqueter-module.mjs, embarquer-sdk.mjs, fabriquer-sons.mjs, ecrire-guide.mjs,
                 contrat-contenu.mjs, jetons-commun.mjs, traduction.mjs et empaqueter-monde.mjs (partagés par
                 les mondes), valider-foundry.mjs, game-icons/ (icônes CC BY 3.0 et leur licence), lier-modules.ps1
 essais/         essais Node, doublures/, donnees/
-docs/           guide-utilisation.md, compagnons.md, voix-et-ecoute.md, tour-par-tour.md, fetes.md, survie.md,
+docs/           guide-utilisation.md (.en.md), compagnons.md, voix-et-ecoute.md, tour-par-tour.md, fetes.md, survie.md,
                 empaqueter-monde.md, traduction.md, publication.md, captures/
 .github/workflows/release.yml   à chaque tag v*, essais, archive et release GitHub
 ```

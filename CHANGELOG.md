@@ -19,6 +19,9 @@ vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici
   release GitHub, `docs/publication.md` ; scripts d'infrastructure privée et plans internes sortis du dépôt.
 - Contenu bilingue : outil `outils/traduction.mjs`, variantes anglaises `<module>-en` des modules de contenu reconnues partout
   (packs, drapeaux, assets), voir `docs/traduction.md`.
+- Guide d'utilisation en anglais (`scripts/guide-en.js`, `docs/guide-utilisation.en.md`) : installé dans les mondes dont le
+  module de contenu est la variante `-en` (sans module de contenu : selon la langue de l'interface) ; un guide déjà installé
+  est réécrit et renommé quand la langue du monde change (version 17 du guide).
 
 ## 0.39.0 — 2026-11-03
 
