@@ -27,7 +27,8 @@ npm run empaqueter-monde                                               # --const
 ```
 
 Options : `--depot <dossier>` (le dépôt du monde ; par défaut le dossier courant), `--version x.y.z` (par défaut la
-version du module de contenu, `modules/<module>/module.json` : le monde et son module portent la même version).
+version du module de contenu, `modules/<module>/module.json` : le monde et son module portent la même version),
+`--langue en` (le monde vierge anglais, voir plus bas).
 
 Ce qui est versionné : `monde/src/<collection>/*.json` (un fichier par document, lisible, nettoyé) et `monde/world.json`.
 Ce qui ne l'est pas : `monde/dist/` (dans `.gitignore`), reconstruit à chaque `npm run empaqueter-monde`.
@@ -122,6 +123,44 @@ n'en crée pas de second. Le tiers met un mot de passe depuis la configuration d
 5. Commiter `monde/` avec la version du module de contenu : la release (`.github/workflows/release.yml`, tag `v<version>`)
    lance `npm run empaqueter-monde` puis `outils/empaqueter-module.mjs --monde monde/dist`, qui aligne `world.json`
    (version, `manifest`, `download`) et publie `world.json` et `<id>.zip` en pièces jointes.
+
+## Le monde vierge anglais (`--langue en`)
+
+Chaque monde a son jumeau anglais, `<id>-en` (`la-kour-40k-en`, `la-kour-warcraft-en`, `la-kour-veillees-en`,
+`la-kour-fenoir-en`), construit par `npm run empaqueter-monde -- --langue en` (`--construire`, `--verifier` ou sans
+option ; `--inventaire` et `--extraire` restent français : les sources `monde/src` sont celles du monde français) :
+
+- **documents** : les mêmes que le monde français (mêmes `_id` et `_key`), traduits par les dictionnaires du module de
+  contenu (`modules/<module>/contenu/en/<pack>.json`, `outils/traduction.mjs`). Un document installé depuis un de nos
+  compendiums (`_stats.compendiumSource`) prend l'entrée de son document source (son `_id` dans le monde peut différer :
+  l'entrée est recopiée) ; ses pages re-créées à l'installation et les textes repris ailleurs (noms de dossiers : titres
+  d'aventures, étiquettes du manifeste `contenu/en/module.json`) passent par la mémoire de traduction. Uuid
+  (`Compendium.<module>.` → `<module>-en.`), chemins `modules/<module>/` et portée des drapeaux sont récrits à toute
+  profondeur. Les guides et la liste de lecture du **MJ IA** (drapeaux `lakour-mj-ia`) n'ont pas de dictionnaire :
+  ils restent tels quels. Les clés que le système lit par nom (Veillées : « Maison N », repères et noms du plan,
+  `MONDES[<module>].traduction.exclure`, mêmes clés que `OPTIONS_TRADUCTION` du fabricant) ne sont ni traduites ni
+  comptées. Le résumé de la construction dit, pack par pack, ce qui est traduit, par mémoire, obsolète (le français du
+  monde n'est plus celui du dictionnaire : le monde du serveur a une version plus ancienne du document) ou resté en
+  français ;
+- **réglages** : `core.moduleConfiguration` active `<module>-en` à la place du module français, les clés
+  `<module>.<pack>` (`core.compendiumConfiguration`, `packSourceConfiguration`…) et le marqueur `<module>.installe`
+  passent sous `<module>-en` ; les autres réglages ne changent pas ; le `Gamemaster` est le même ;
+- **manifeste** : engendré de `monde/world.json` et de `monde/world.en.json` (versionné : `{ id: "<id>-en", title,
+  description }`, traduction fidèle de la description) : même version, mêmes auteurs et adresses ; `background` du
+  module anglais, `manifest` `…/releases/latest/download/world-en.json`, `download` `…/<id>-en.zip`, et le module de
+  contenu requis devient `<module>-en` (manifeste `<module>-en.json`) ; système, moteur et autres modules inchangés.
+
+Produits : `monde/dist/<id>-en/` (base LevelDB + `world.json`), `monde/dist/<id>-en.zip`, `monde/dist/world-en.json`.
+`--verifier --langue en` relit ce paquet avec les mêmes contrôles que le français (fuites, structure, liens vers
+`modules/<module>-en/src`, chemins), et **échoue** en plus s'il reste une trace du module français (uuid, chemin,
+drapeaux, réglage) ou si `core.moduleConfiguration` n'active pas `<module>-en`. Le module anglais doit avoir été
+fabriqué (`npm run fabriquer-<monde>-en`) : ses `src/` et son fond d'écran sont ceux que la vérification lit.
+
+Release : chaque workflow lance `npm run empaqueter-monde` puis `npm run empaqueter-monde -- --langue en` et publie
+`world.json`, `<id>.zip`, `world-en.json` et `<id>-en.zip` (40k : `outils/empaqueter-module.mjs --monde monde/dist`
+les recopie dans `dist/` en alignant `manifest` et `download` ; Warcraft, Veillées et Fénoir les recopient tels quels).
+Adresse stable du manifeste anglais : `https://github.com/Hogun974/<dépôt>/releases/latest/download/world-en.json`.
+Essais : `essais/empaqueter-monde.test.mjs` (manifeste, traduction, réglages, clés protégées, contexte).
 
 ## Ce qu'un tiers obtient
 

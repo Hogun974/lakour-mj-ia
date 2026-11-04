@@ -130,20 +130,34 @@ module reste installable.
 8. **Essais** : copier `lakour-w40k/essais/traduction-40k.test.mjs` (mêmes `_id`, aucun uuid vers l'id français, balises,
    dictionnaires à jour, manifeste).
 
-### Particularités repérées (à traiter dans chaque module)
+### Particularités repérées (traitées dans chaque module)
 
 - **Assets JSON** lus par le moteur (`assets/jetons/index.json`, `index-3d.json`, `figurants.json`, `assets/cartes/plans.json`)
-  portent des chemins `modules/<id>/…` : récrits à la copie. `figurants.json` a des libellés français (`libelle`) lus par
-  le MJ IA : laissés en français pour l'instant (un dictionnaire des assets serait l'étape suivante).
-- **Textes dans les scripts** (ex. `scripts/fetes.js` de lakour-40k : nom, description et consigne des fêtes enregistrées
-  auprès du moteur) restent en français dans le module anglais : à passer par `lang/*.json` si on veut les traduire.
+  portent des chemins `modules/<id>/…` : récrits à la copie. Les libellés des **figurants** (`figurants.json`, champ
+  `libelle`, lus par le MJ IA) sont traduits à la copie par un petit dictionnaire `contenu/en/figurants.json`
+  (`{ "<type>": "English label" }`, clés et jetons inchangés) dans les quatre modules (`traduireFigurants` des fabricants ;
+  `lireDictionnaires` ignore ce fichier, comme `module.json`).
+- **Textes dans les scripts** : `scripts/fetes.js` (nom, description, consigne des fêtes déclinées auprès du moteur, nom
+  des liens de la carte) porte un bloc `en` par fête, et `textesDeFete(f)` rend la fête dans la langue du module (`ANGLAIS`
+  de `scripts/identite.js`) : 40k, Warcraft et les Veillées enregistrent celle-là ; dans node (fabricant, essais) la fête
+  reste française. Fénoir lit ses fêtes dans le registre traduit (`assets/donnees.json`). Les noms anglais des liens sont
+  ceux des dictionnaires (`contenu/en/<pack>.json`, essais `fetes-40k.test.mjs`, `warcraft-fetes.test.mjs`).
 - **Classe CSS** `${MODULE}-illustration` dans les pages de journal : non récrite (pas de style associé).
 - **Warcraft** : `flags.lakour-warcraft.contrat` (contrats des joueurs, lus par le moteur) et les recettes : les champs
   textuels y sont extraits par l'heuristique (`type`, `faction` exclus par `CLES_EXCLUES`/minuscules) ; vérifier le squelette.
 - **Veillées** : `system.cle` des objets (lu par `outils.js` du moteur) est en minuscules : non extrait ; les noms de
-  villageois viennent du compendium `tables` de la variante active (compagnons-jeu.js, `packDeContenu`).
+  villageois viennent du compendium `tables` de la variante active (compagnons-jeu.js, `packDeContenu`). Les **repères de
+  la carte** (« Maison 1 » à « Maison 18 », les dix bâtiments : `system.maison`, `system.repere`, noms du plan) sont des
+  clés que le système et le MJ IA lisent par nom : ils restent français dans le module anglais (`CLES_NON_TRADUITES` du
+  fabricant) et seul leur **affichage** est traduit par le système `lakour-loups` (`logique/reperes.mjs`,
+  `libelleRepere` de `scripts/donnees.mjs`, clés `LAKOUR_LOUPS.Reperes.*` de `lang/<langue>.json` : « House 7 »,
+  « Chapel »…) dans la fiche du villageois, la fiche du bâtiment, l'infobulle du jeton, la Table, le vote, les choix de
+  cible et la carte de rôle ; essais `reperes-veillees.test.mjs`.
 - **Fénoir** : les compendiums `passes`, `savoirs`, `equipements` (`outils-survie.js`) et les drapeaux `appel` des tables
   sont lus sous l'identifiant de la variante active (`packDeContenu`, `drapeauxDuContenu`).
+- **Mondes vierges anglais** : `outils/empaqueter-monde.mjs --langue en` (voir `docs/empaqueter-monde.md`) engendre le
+  jumeau anglais du monde vierge (`<id>-en`, documents traduits par les mêmes dictionnaires, module `<id>-en` activé et
+  requis, `monde/world.en.json` pour le titre et la description) ; les releases publient `world-en.json` et `<id>-en.zip`.
 
 ### Le moteur ne nomme plus aucun module de contenu en dur
 

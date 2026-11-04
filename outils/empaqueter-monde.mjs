@@ -19,6 +19,16 @@
 //                                           structure (_id, _key) et signale les liens @UUID / chemins cassés ;
 //   sans option                             --construire puis --verifier (ce que fait la release GitHub).
 //   --version <x.y.z>                       version du monde (par défaut : celle du module de contenu, module.json).
+//   --langue en                             (avec --construire, --verifier ou sans option) le MONDE VIERGE ANGLAIS, jumeau du
+//                                           français : mêmes sources monde/src, documents traduits par les dictionnaires
+//                                           contenu/en/ du module de contenu (outils/traduction.mjs : mêmes _id, uuid, chemins
+//                                           et drapeaux récrits vers <module>-en, mémoire de traduction pour les textes repris),
+//                                           réglages basculés sur <module>-en (core.moduleConfiguration active <module>-en au
+//                                           lieu du module français, compendiums, <module>.installe), manifeste engendré de
+//                                           monde/world.json et de monde/world.en.json (id « <id>-en », title et description
+//                                           anglais, relationships vers le manifeste <module>-en.json ; Gamemaster identique).
+//                                           Produit monde/dist/<id>-en/, monde/dist/<id>-en.zip et monde/dist/world-en.json.
+//                                           Ce qui n'a pas de dictionnaire (guides et listes de lecture du MJ IA) reste tel quel.
 //
 // RÈGLE DE TRI (voir aussi docs/empaqueter-monde.md) — par collection :
 //   users           tous retirés ; un seul utilisateur « Gamemaster », rôle 4, sans mot de passe, est créé (les sources
@@ -50,16 +60,20 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, posix, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { crc32, deflateRawSync } from "node:zlib";
+import { appliquer, recrireIdentifiant, resumerRapport } from "./traduction.mjs";
 
 // ---------------------------------------------------------------- Les quatre mondes
 
+// traduction : les options d'extraction du fabricant du module (OPTIONS_TRADUCTION de outils/fabriquer-<monde>.mjs, hors
+// ignorerPacks), reprises à l'identique pour le monde anglais : les clés que le système lit telles quelles (Veillées : repères
+// de la carte « Maison 1 », « Chapelle », noms du plan) ne sont pas traduites, ni comptées comme restées en français.
 export const MONDES = {
   "lakour-40k": {
     id: "la-kour-40k", depot: "lakour-w40k", systeme: "impmal", typesJoueur: ["character"],
     requis: [{ id: "warhammer-lib", type: "module" }]
   },
-  "lakour-warcraft": { id: "la-kour-warcraft", depot: "lakour-warcraft", systeme: "dnd5e", typesJoueur: ["character"], requis: [] },
-  "lakour-veillees": { id: "la-kour-veillees", depot: "lakour-veillees", systeme: "lakour-loups", typesJoueur: ["villageois"], requis: [] },
+  "lakour-warcraft": { id: "la-kour-warcraft", depot: "lakour-warcraft", systeme: "dnd5e", typesJoueur: ["character"], requis: [], traduction: { exclure: ["max", "count", "license"] } },
+  "lakour-veillees": { id: "la-kour-veillees", depot: "lakour-veillees", systeme: "lakour-loups", typesJoueur: ["villageois"], requis: [], traduction: { exclure: ["repere", "maison", "nom", "texte"] } },
   "lakour-fenoir": { id: "la-kour-fenoir", depot: "lakour-fenoir", systeme: "lakour-survie", typesJoueur: ["survivant"], requis: [] }
 };
 export const MOTEUR = "lakour-mj-ia";
@@ -196,6 +210,7 @@ export function fuites(doc, { idsInterdits = [], nomsInterdits = [] } = {}) {
 // ---------------------------------------------------------------- Utilitaires
 
 const estId = v => typeof v === "string" && /^[A-Za-z0-9]{16}$/.test(v);
+const echapperRegex = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const lireJson = chemin => JSON.parse(readFileSync(chemin, "utf8"));
 const ecrireJson = (chemin, v) => { mkdirSync(dirname(chemin), { recursive: true }); writeFileSync(chemin, `${JSON.stringify(v, null, 2)}\n`); };
 const slug = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "sans-nom";
@@ -207,15 +222,21 @@ async function cliFoundry(racine) {
   return import(pathToFileURL(require.resolve("@foundryvtt/foundryvtt-cli")).href);
 }
 
-// Le dépôt du monde : module de contenu (modules/<id>/module.json dont l'id est dans MONDES), monde, chemins.
-export function contexteDuDepot(racine) {
+// Le dépôt du monde : module de contenu (modules/<id>/module.json dont l'id est dans MONDES), monde, chemins. Avec
+// langue « en », le monde ANGLAIS : moduleCible et idMonde portent « -en », et nos portées (scopes) sont celles du paquet
+// anglais (le module français n'y figure plus : une trace qui en resterait est une erreur, voir verifier).
+export function contexteDuDepot(racine, { langue = "fr" } = {}) {
+  if (!["fr", "en"].includes(langue)) throw new Error(`langue inconnue : ${langue} (fr ou en)`);
   const modules = existsSync(join(racine, "modules")) ? readdirSync(join(racine, "modules")) : [];
   const moduleContenu = modules.find(m => MONDES[m] && existsSync(join(racine, "modules", m, "module.json")));
   if (!moduleContenu) throw new Error(`aucun module de contenu connu (${Object.keys(MONDES).join(", ")}) dans ${join(racine, "modules")}`);
   const manifeste = lireJson(join(racine, "modules", moduleContenu, "module.json"));
   const monde = MONDES[moduleContenu];
   const moteur = existsSync(join(racine, "modules", MOTEUR, "module.json")) ? lireJson(join(racine, "modules", MOTEUR, "module.json")) : null;
-  return { racine, moduleContenu, manifeste, moteur, monde, scopes: new Set([moduleContenu, MOTEUR, monde.systeme]),
+  const anglais = langue === "en";
+  const moduleCible = anglais ? `${moduleContenu}-en` : moduleContenu;
+  return { racine, moduleContenu, manifeste, moteur, monde, langue, anglais, moduleCible, idMonde: anglais ? `${monde.id}-en` : monde.id,
+    fichierManifeste: anglais ? "world-en.json" : "world.json", scopes: new Set([moduleCible, MOTEUR, monde.systeme]),
     dossierMonde: join(racine, "monde"), src: join(racine, "monde", "src"), dist: join(racine, "monde", "dist") };
 }
 
@@ -428,6 +449,107 @@ export function manifesteDuMonde(ctx, worldServeur, version) {
   };
 }
 
+// Le manifeste du monde anglais, engendré du manifeste français et de monde/world.en.json ({ id: "<id>-en", title, description }) :
+// même version, mêmes auteurs et adresses ; fond d'écran du module anglais, manifeste world-en.json, archive <id>-en.zip, et le
+// module de contenu requis devient <module>-en (manifeste <module>-en.json). Le système, le moteur et les autres modules requis
+// ne changent pas. Pure : sans disque.
+export function manifesteDuMondeAnglais(manifeste, traductions, { moduleContenu, monde }) {
+  const moduleEn = `${moduleContenu}-en`;
+  for (const champ of ["id", "title", "description"]) {
+    if (typeof traductions?.[champ] !== "string" || !traductions[champ].trim()) throw new Error(`monde/world.en.json : champ ${champ} manquant`);
+  }
+  if (traductions.id !== `${monde.id}-en`) throw new Error(`monde/world.en.json : id ${traductions.id} au lieu de ${monde.id}-en`);
+  const depot = `${COMPTE_GITHUB}/${monde.depot}`;
+  const requis = (manifeste.relationships?.requires ?? []).map(r => (r.id === moduleContenu
+    ? { ...r, id: moduleEn, manifest: `${depot}/releases/latest/download/${moduleEn}.json` } : r));
+  return {
+    ...manifeste, id: traductions.id, title: traductions.title, description: traductions.description,
+    background: recrireIdentifiant(manifeste.background, moduleContenu, moduleEn),
+    manifest: `${depot}/releases/latest/download/world-en.json`,
+    download: `${depot}/releases/latest/download/${traductions.id}.zip`,
+    relationships: { ...manifeste.relationships, requires: requis }
+  };
+}
+
+// Le manifeste du paquet à produire : monde/world.json (version demandée, sinon celle du module), ou son jumeau anglais.
+function manifesteCible(ctx, version) {
+  const fichier = join(ctx.dossierMonde, "world.json");
+  if (!existsSync(fichier)) throw new Error(`${relative(ctx.racine, fichier)} absent : lancer d'abord --extraire <monde du serveur>`);
+  const fr = { ...lireJson(fichier), version: version ?? ctx.manifeste.version };
+  if (!ctx.anglais) return fr;
+  const en = join(ctx.dossierMonde, "world.en.json");
+  if (!existsSync(en)) throw new Error(`${relative(ctx.racine, en)} absent : il porte l'id, le titre et la description du monde anglais`);
+  return manifesteDuMondeAnglais(fr, lireJson(en), ctx);
+}
+
+// Les dictionnaires de traduction du module de contenu (modules/<module>/contenu/en/<pack>.json, union ; module.json et
+// figurants.json à part), plus une entrée de mémoire par étiquette du manifeste (dossiers de compendiums, packs) : les dossiers
+// du monde portent souvent ces noms. Rend { dictionnaire, traductionsManifeste }.
+export function dictionnairesDuModule(racine, moduleContenu) {
+  const dossier = join(racine, "modules", moduleContenu, "contenu", "en");
+  const dictionnaire = {};
+  let traductionsManifeste = {};
+  if (!existsSync(dossier)) return { dictionnaire, traductionsManifeste };
+  for (const f of readdirSync(dossier).filter(f => f.endsWith(".json")).sort()) {
+    const contenu = lireJson(join(dossier, f));
+    if (f === "module.json") traductionsManifeste = contenu;
+    else if (f !== "figurants.json") Object.assign(dictionnaire, contenu);
+  }
+  const manifeste = lireJson(join(racine, "modules", moduleContenu, "module.json"));
+  const etiquettes = {};
+  let i = 0;
+  for (const [fr, en] of Object.entries(traductionsManifeste.packFolders ?? {})) etiquettes[String(i++)] = { fr, en };
+  for (const p of manifeste.packs ?? []) if (p.label && traductionsManifeste.packs?.[p.name]) etiquettes[String(i++)] = { fr: p.label, en: traductionsManifeste.packs[p.name] };
+  if (i) dictionnaire["_manifeste/etiquettes"] = { _nom: "étiquettes du manifeste (mémoire pour les dossiers)", ...etiquettes };
+  return { dictionnaire, traductionsManifeste };
+}
+
+// Traduit les documents d'un monde (collections de COLLECTIONS, tels que monde/src les range) vers le module anglais :
+// - un document installé depuis un de nos compendiums (_stats.compendiumSource) prend l'entrée « <pack>/<_id du compendium> »
+//   de son dictionnaire (recopiée sous son propre _id, qui peut différer) ; ses pages re-créées par l'installation (autres
+//   identifiants) et tout autre texte repris passent par la mémoire (même français -> même anglais) ;
+// - un document du moteur (drapeaux lakour-mj-ia : guides, listes de lecture) n'est pas traduit (pack « moteur », ignoré) ;
+// - uuid, chemins modules/<module>/ et portée de drapeaux récrits vers <module>-en, à toute profondeur, documents du moteur compris ;
+// - réglages : la clé <module>.* devient <module>-en.* (installe), et dans les valeurs « "<module>. » (compendiums de
+//   core.compendiumConfiguration, packSourceConfiguration…) et « "<module>" » (core.moduleConfiguration) deviennent « -en » ;
+// - utilisateurs inchangés (le Gamemaster créé).
+// options : celles de l'extraction (MONDES[module].traduction : exclure…).
+// Rend { docs (copies, par collection), rapport (celui d'appliquer : traduits, parMemoire, manquants, obsoletes, erreurs) }.
+export function traduireMonde(docs, { moduleContenu, dictionnaire = {}, options = MONDES[moduleContenu]?.traduction ?? {} }) {
+  const moduleEn = `${moduleContenu}-en`;
+  const prefixe = `Compendium.${moduleContenu}.`;
+  const liste = [];
+  for (const coll of COLLECTIONS) {
+    if (["settings", "users"].includes(coll)) continue;
+    for (const doc of docs[coll] ?? []) {
+      const src = doc._stats?.compendiumSource;
+      let pack = doc.flags?.[MOTEUR] ? "moteur" : "monde", cle = null;
+      if (typeof src === "string" && src.startsWith(prefixe)) { const p = src.split("."); pack = p[2]; cle = `${pack}/${p[4]}`; }
+      liste.push({ coll, pack, cle, doc });
+    }
+  }
+  const dico = { ...dictionnaire };
+  for (const d of liste) if (d.cle && dictionnaire[d.cle] && d.cle !== `${d.pack}/${d.doc._id}`) dico[`${d.pack}/${d.doc._id}`] = dictionnaire[d.cle];
+  const { documents, rapport } = appliquer(liste, dico, { ...options, module: moduleContenu, deId: moduleContenu, versId: moduleEn, ignorerPacks: ["moteur"] });
+  const sortie = Object.fromEntries(COLLECTIONS.map(c => [c, []]));
+  for (const d of documents) sortie[d.coll].push(d.doc);
+  const motifs = [
+    [new RegExp(`"${echapperRegex(moduleContenu)}\\.`, "g"), `"${moduleEn}.`],
+    [new RegExp(`"${echapperRegex(moduleContenu)}"`, "g"), `"${moduleEn}"`]
+  ];
+  for (const s of docs.settings ?? []) {
+    const key = s.key.startsWith(`${moduleContenu}.`) ? `${moduleEn}.${s.key.slice(moduleContenu.length + 1)}` : s.key;
+    let value = s.value;
+    if (typeof value === "string") {
+      value = recrireIdentifiant(value, moduleContenu, moduleEn);
+      for (const [motif, remplacement] of motifs) value = value.replace(motif, remplacement);
+    }
+    sortie.settings.push({ ...structuredClone(s), key, value });
+  }
+  sortie.users = structuredClone(docs.users ?? []);
+  return { docs: sortie, rapport };
+}
+
 // ---------------------------------------------------------------- Modes
 
 function afficherInventaire(resultat, docs, ctx) {
@@ -516,34 +638,53 @@ function ecrireZip(dossier, cheminZip) {
 }
 
 export async function construire(ctx, { version } = {}) {
-  if (!existsSync(join(ctx.dossierMonde, "world.json"))) throw new Error(`${relative(ctx.racine, join(ctx.dossierMonde, "world.json"))} absent : lancer d'abord --extraire <monde du serveur>`);
+  const manifeste = manifesteCible(ctx, version);
   const { compilePack } = await cliFoundry(ctx.racine);
-  const manifeste = { ...lireJson(join(ctx.dossierMonde, "world.json")), version: version ?? ctx.manifeste.version };
   const sortie = join(ctx.dist, manifeste.id);
   rmSync(sortie, { recursive: true, force: true });
   mkdirSync(join(sortie, "data"), { recursive: true });
+  // Monde anglais : les sources traduites sont écrites dans un dossier temporaire, puis compilées comme les françaises.
+  let source = ctx.src, temporaire = null, rapport = null;
+  if (ctx.anglais) {
+    const docs = Object.fromEntries(COLLECTIONS.map(c => [c, lireDossierJson(join(ctx.src, c))]));
+    const { dictionnaire } = dictionnairesDuModule(ctx.racine, ctx.moduleContenu);
+    const traduction = traduireMonde(docs, { moduleContenu: ctx.moduleContenu, dictionnaire });
+    rapport = traduction.rapport;
+    if (rapport.erreurs.length) throw new Error(`${rapport.erreurs.length} traduction(s) en écart de balises ou de liens : ${rapport.erreurs.map(e => `${e.cle}:${e.chemin}`).join(", ")}`);
+    temporaire = mkdtempSync(join(tmpdir(), "monde-anglais-"));
+    for (const coll of COLLECTIONS) for (const d of traduction.docs[coll]) ecrireJson(join(temporaire, coll, `${d._id}.json`), d);
+    source = temporaire;
+  }
   let n = 0;
   for (const coll of COLLECTIONS) {
-    const src = join(ctx.src, coll);
+    const src = join(source, coll);
     mkdirSync(src, { recursive: true }); // une collection vide reste une base LevelDB (vide)
     await compilePack(src, join(sortie, "data", coll), { log: false, nedb: false, yaml: false });
     n += lireDossierJson(src).length;
   }
+  if (temporaire) rmSync(temporaire, { recursive: true, force: true });
   ecrireJson(join(sortie, "world.json"), manifeste);
-  ecrireJson(join(ctx.dist, "world.json"), manifeste);
+  ecrireJson(join(ctx.dist, ctx.fichierManifeste), manifeste);
   const zip = join(ctx.dist, `${manifeste.id}.zip`);
   const fichiers = ecrireZip(sortie, zip);
+  if (rapport) {
+    console.log(resumerRapport(rapport));
+    for (const o of rapport.obsoletes) console.warn(`avertissement : traduction obsolète (le français du monde diffère de celui du dictionnaire) : ${o}`);
+    console.log(`${rapport.traduits + rapport.parMemoire} texte(s) traduits (${rapport.parMemoire} par mémoire), ${rapport.manquants.length} resté(s) en français`);
+  }
   console.log(`${manifeste.id} ${manifeste.version} : ${n} documents compilés dans ${relative(ctx.racine, sortie)}, ${fichiers} fichiers dans ${relative(ctx.racine, zip)}`);
-  return { sortie, zip, n };
+  return { sortie, zip, n, rapport };
 }
 
 // Relit le paquet (LevelDB de monde/dist/<id>/data déballée dans un dossier temporaire, sinon monde/src) et contrôle.
 export async function verifier(ctx, { interdits = { ids: [], noms: [] }, source } = {}) {
-  const { monde, racine, scopes, moduleContenu } = ctx;
+  const { monde, racine, scopes, moduleCible, idMonde, anglais } = ctx;
+  const moduleContenu = moduleCible;
   const erreurs = [], avertissements = [];
   const manifestePath = join(ctx.dossierMonde, "world.json");
   let docs = {}, origine;
-  const distData = join(ctx.dist, monde.id, "data");
+  const distData = join(ctx.dist, idMonde, "data");
+  if (anglais && (source === "src" || !existsSync(distData))) throw new Error(`${relative(racine, distData)} absent : lancer d'abord --construire --langue en`);
   if (source !== "src" && existsSync(distData)) {
     const { extractPack } = await cliFoundry(racine);
     const temp = mkdtempSync(join(tmpdir(), "verifier-monde-"));
@@ -562,15 +703,45 @@ export async function verifier(ctx, { interdits = { ids: [], noms: [] }, source 
     origine = relative(racine, ctx.src);
   }
 
-  // Manifeste.
+  // Manifeste : monde/world.json, ou le manifeste anglais engendré avec monde/world.en.json (celui écrit dans dist/world-en.json).
   if (!existsSync(manifestePath)) erreurs.push("monde/world.json absent");
   else {
-    const m = lireJson(manifestePath);
-    for (const champ of ["id", "title", "description", "version", "system", "systemVersion", "coreVersion", "compatibility", "background", "manifest", "download", "url", "readme", "license", "bugs", "relationships"]) if (m[champ] == null) erreurs.push(`world.json : champ ${champ} absent`);
-    if (m.id !== monde.id) erreurs.push(`world.json : id ${m.id} au lieu de ${monde.id}`);
-    if ("nextSession" in m || "lastPlayed" in m || "playtime" in m) erreurs.push("world.json : nextSession, lastPlayed ou playtime présent");
-    if (m.background && !existsSync(join(racine, m.background))) avertissements.push(`world.json : fond ${m.background} introuvable dans le dépôt`);
-    for (const f of fuites(m, { idsInterdits: interdits.ids, nomsInterdits: interdits.noms })) erreurs.push(`world.json ${f.chemin} : ${f.motif}`);
+    let m = null;
+    try { m = manifesteCible(ctx); } catch (e) { erreurs.push(e.message); }
+    if (m) {
+      const nomManifeste = anglais ? "world-en.json" : "world.json";
+      for (const champ of ["id", "title", "description", "version", "system", "systemVersion", "coreVersion", "compatibility", "background", "manifest", "download", "url", "readme", "license", "bugs", "relationships"]) if (m[champ] == null) erreurs.push(`${nomManifeste} : champ ${champ} absent`);
+      if (m.id !== idMonde) erreurs.push(`${nomManifeste} : id ${m.id} au lieu de ${idMonde}`);
+      if ("nextSession" in m || "lastPlayed" in m || "playtime" in m) erreurs.push(`${nomManifeste} : nextSession, lastPlayed ou playtime présent`);
+      if (m.background && !existsSync(join(racine, m.background))) avertissements.push(`${nomManifeste} : fond ${m.background} introuvable dans le dépôt`);
+      for (const f of fuites(m, { idsInterdits: interdits.ids, nomsInterdits: interdits.noms })) erreurs.push(`${nomManifeste} ${f.chemin} : ${f.motif}`);
+      if (anglais) {
+        const requis = m.relationships?.requires ?? [];
+        if (!requis.some(r => r.id === moduleCible && /\/releases\/latest\/download\/[\w-]+-en\.json$/.test(r.manifest ?? ""))) erreurs.push(`${nomManifeste} : le module ${moduleCible} (manifeste ${moduleCible}.json) n'est pas requis`);
+        if (requis.some(r => r.id === ctx.moduleContenu)) erreurs.push(`${nomManifeste} : le module français ${ctx.moduleContenu} est encore requis`);
+        if (!/-en\.zip$/.test(m.download) || !/world-en\.json$/.test(m.manifest)) erreurs.push(`${nomManifeste} : download ou manifest ne sont pas ceux du monde anglais`);
+        const ecrit = join(ctx.dist, "world-en.json");
+        if (!existsSync(ecrit) || JSON.stringify(lireJson(ecrit)) !== JSON.stringify(m)) erreurs.push("monde/dist/world-en.json absent ou différent du manifeste engendré (relancer --construire --langue en)");
+      }
+    }
+  }
+  // Monde anglais : plus aucune trace du module français (uuid, chemins, drapeaux, réglages), et core.moduleConfiguration active
+  // le module anglais à sa place.
+  if (anglais) {
+    const fr = ctx.moduleContenu;
+    for (const coll of COLLECTIONS) for (const d of docs[coll]) {
+      const nom = d.name ?? d.key ?? d._id;
+      chaines(d, (chemin, s) => {
+        if (s.includes(`Compendium.${fr}.`) || s.includes(`modules/${fr}/`) || (coll === "settings" && (s.includes(`"${fr}.`) || s.includes(`"${fr}"`)))) erreurs.push(`${coll} ${nom} (${chemin}) : trace du module français ${fr}`);
+      });
+      if (d.flags && typeof d.flags === "object" && fr in d.flags) erreurs.push(`${coll} ${nom} : drapeaux sous la portée du module français ${fr}`);
+      if (coll === "settings" && d.key.startsWith(`${fr}.`)) erreurs.push(`settings ${d.key} : réglage du module français`);
+    }
+    const configuration = docs.settings.find(s => s.key === "core.moduleConfiguration");
+    let actifs = {};
+    try { actifs = JSON.parse(configuration?.value ?? "{}"); } catch { actifs = {}; }
+    if (actifs[moduleCible] !== true) erreurs.push(`settings core.moduleConfiguration : ${moduleCible} n'est pas activé`);
+    if (fr in actifs) erreurs.push(`settings core.moduleConfiguration : ${fr} encore présent`);
   }
 
   // Structure, interdits, secrets.
@@ -676,10 +847,11 @@ function lireArguments(argv) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const o = lireArguments(process.argv.slice(2));
-  const ctx = contexteDuDepot(resolve(o.depot ?? process.cwd()));
   const version = typeof o.version === "string" ? o.version.replace(/^v/, "") : undefined;
   const source = s => { if (typeof s !== "string") throw new Error("indiquer le dossier du monde du serveur (Data/worlds/<id>)"); if (!existsSync(join(s, "world.json"))) throw new Error(`${s} : pas de world.json`); return resolve(s); };
   try {
+    const ctx = contexteDuDepot(resolve(o.depot ?? process.cwd()), { langue: typeof o.langue === "string" ? o.langue : "fr" });
+    if (ctx.anglais && (o.inventaire || o.extraire)) throw new Error("--langue en : seulement avec --construire, --verifier ou sans option (les sources monde/src sont celles du monde français)");
     if (o.inventaire) await inventaire(ctx, source(o.inventaire));
     else if (o.extraire) { const { rapport } = await extraire(ctx, source(o.extraire), { version }); process.exitCode = rapport.erreurs.length ? 1 : 0; }
     else if (o.verifier) { const r = await verifier(ctx); process.exitCode = r.erreurs.length ? 1 : 0; }
