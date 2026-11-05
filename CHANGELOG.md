@@ -4,6 +4,14 @@ Versions du moteur MJ IA de La Kour (les modules de contenu des mondes tiennent 
 suivent `module.json` ; chaque release GitHub `v<version>` reprend la section correspondante. Avant la 0.26, le moteur
 vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici.
 
+## 0.42.0 — 2026-11-05
+
+- Fêtes lunaires calculées pour toute année (phases de la lune de Meeus, zodiaque sidéral de Lahiri) : la Dipavali, la
+  Cavadee et le Nouvel An chinois tombent après 2036, où s'arrêtait la table (`dateLunaire`, qui redonne les 33 relevés de
+  2026 – 2036 et le Nouvel An chinois jusqu'en 2050) ; `api.fetes.sourceDeDate(fn)` : un monde à calendrier (Fénoir) donne
+  sa date de jeu, branchée au crochet `pret` — sans elle, un monde de Fénoir au 4 décembre 2026 recevait au chargement la
+  carte de la Dipavali de la date réelle (5 novembre) avant que le système ait forcé la fête du jour de jeu (`docs/fetes.md`).
+
 ## 0.41.0 — 2026-11-05
 
 - Monde anglais : les répliques des compagnons IA en mode simple (sans modèle), leurs déclarations de combat et le mot confié au

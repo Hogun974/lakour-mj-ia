@@ -120,13 +120,16 @@ Hooks.once("ready", () => {
     },
     // Fêtes de saison (fetes.js, docs/fetes.md), dans les trois mondes. Contrat des modules des mondes, au crochet « lakour-mj-ia.pret » :
     // enregistrer({ id, fete, nom, description, consigne, decor, contenu }) rend la déclinaison (erreur si la fête est inconnue ou
-    // déjà déclinée) ; active() : la déclinaison de la fête en cours dans ce navigateur, ou null ; lister(). Crochet
-    // « lakour-mj-ia.fete » (ancienne, nouvelle) quand elle change.
+    // déjà déclinée) ; active() : la déclinaison de la fête en cours dans ce navigateur, ou null ; lister() ; sourceDeDate(fn) :
+    // la date d'un monde qui a son calendrier (Fénoir : la date de jeu), à brancher au crochet. Crochet « lakour-mj-ia.fete »
+    // (ancienne, nouvelle) quand elle change.
     fetes: {
       enregistrer: def => fetes.enregistrer(def),
       active: () => fetes.active(),
       lister: () => fetes.lister(),
-      calendrier: (date = new Date()) => fetes.calendrier(date),
+      calendrier: date => fetes.calendrier(date),
+      sourceDeDate: fn => fetes.sourceDeDate(fn),
+      dateDuMonde: () => fetes.dateDuMonde(),
       decors: () => fetes.decors(),
       verifier: () => fetes.verifier(),
       rafraichir: () => fetes.appliquerEffets()

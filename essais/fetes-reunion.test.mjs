@@ -1,5 +1,5 @@
 // Fêtes de La Réunion au calendrier du moteur (demande de Fénoir) : fête de la liberté, letchis, Dipavali, Cavadee, Nouvel An
-// chinois (dates lunaires par table, 2026 – 2036), 14 juillet, Toussaint dans le cœur d'Halloween ; les déclinaisons des autres
+// chinois (dates lunaires calculées, vérifiées sur les relevés 2026 – 2036), 14 juillet, Toussaint dans le cœur d'Halloween ; les déclinaisons des autres
 // mondes (40k, Warcraft, Veillées) ne voient pas les fêtes qu'elles ne déclinent pas.  Lancer : npm run essais
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -8,7 +8,7 @@ import * as L from "../scripts/fetes-logique.js";
 const jour = (a, m, j) => new Date(a, m - 1, j, 12);
 const ids = liste => liste.map(f => f.id);
 
-test("fêtes lunaires : une date par année de 2026 à 2036, cœur ce jour-là ; hors table, rien", () => {
+test("fêtes lunaires : les relevés de 2026 à 2036 retrouvés par le calcul, cœur ce jour-là ; et après 2036 aussi", () => {
   for (const id of ["dipavali", "cavadee", "nouvel-an-chinois"]) {
     for (let a = 2026; a <= 2036; a++) {
       const md = L.DATES_LUNAIRES[id][a];
@@ -18,7 +18,7 @@ test("fêtes lunaires : une date par année de 2026 à 2036, cœur ce jour-là ;
       assert.ok(ce?.coeur, `${id} ${a} : pas au cœur le ${md}`);
       assert.ok(L.fenetresDeLAnnee(a).some(f => f.id === id && f.coeurDebut === `${a}-${md}`));
     }
-    assert.ok(!L.fenetresDeLAnnee(2037).some(f => f.id === id), `${id} inventé en 2037`);
+    for (const a of [2037, 2050, 2100]) assert.ok(L.fenetresDeLAnnee(a).some(f => f.id === id && f.coeurDebut === `${a}-${L.dateLunaire(id, a)}`), `${id} ${a}`);
   }
   assert.deepEqual(ids(L.fetesDuJour(jour(2026, 11, 5))), ["dipavali"], "trois jours avant");
   assert.deepEqual(ids(L.fetesDuJour(jour(2026, 11, 12))), [], "quatre jours après");

@@ -16,6 +16,28 @@ const ids = liste => liste.map(f => f.id);
 
 // ------------------------------------------------------------------ batterie de la logique pure
 const BATTERIE_LOGIQUE = {
+  "fêtes lunaires calculées : les relevés de 2026 à 2036, le Nouvel An chinois jusqu'en 2050, toujours dans leur mois": L => {
+    for (const [id, dates] of Object.entries(L.DATES_LUNAIRES)) for (const [a, md] of Object.entries(dates)) assert.equal(L.dateLunaire(id, Number(a)), md, `${id} ${a}`);
+    const chinois = { 2037: "02-15", 2038: "02-04", 2039: "01-24", 2040: "02-12", 2041: "02-01", 2042: "01-22", 2043: "02-10", 2044: "01-30",
+      2045: "02-17", 2046: "02-06", 2047: "01-26", 2048: "02-14", 2049: "02-02", 2050: "01-23" };
+    for (const [a, md] of Object.entries(chinois)) assert.equal(L.dateLunaire("nouvel-an-chinois", Number(a)), md, `Nouvel An chinois ${a}`);
+    const bornes = { dipavali: ["10-15", "11-18"], cavadee: ["01-13", "02-14"], "nouvel-an-chinois": ["01-21", "02-20"] };
+    for (let a = 2026; a <= 2100; a++) for (const [id, [min, max]] of Object.entries(bornes)) {
+      const md = L.dateLunaire(id, a);
+      assert.ok(md && md >= min && md <= max, `${id} ${a} : ${md}`);
+    }
+    assert.equal(L.dateLunaire("noel", 2026), null);
+    assert.deepEqual(ids(L.fetesDuJour(jour(2026, 12, 4))), ["noel"], "le 4 décembre 2026 : pas de Dipavali (8 novembre)");
+    assert.deepEqual(ids(L.fetesDuJour(jour(2099, 11, 12))), ["dipavali"], "les fêtes lunaires tombent encore en 2099");
+  },
+  "lireDate : une Date, « AAAA-MM-JJ » (midi local), sinon null": L => {
+    const d = L.lireDate("2026-12-04");
+    assert.deepEqual([d.getFullYear(), d.getMonth(), d.getDate(), d.getHours()], [2026, 11, 4, 12]);
+    assert.equal(L.lireDate("2026-12-04T05:00").getDate(), 4);
+    for (const x of ["2026-02-30", "demain", null, undefined, 3, new Date(NaN)]) assert.equal(L.lireDate(x), null, String(x));
+    const maintenant = new Date();
+    assert.equal(L.lireDate(maintenant), maintenant);
+  },
   "Pâques grégorien sur plusieurs années (dont les bornes 22 mars et 25 avril)": L => {
     const attendu = { 1818: "3-22", 2000: "4-23", 2008: "3-23", 2011: "4-24", 2019: "4-21", 2024: "3-31", 2025: "4-20", 2026: "4-5",
       2027: "3-28", 2028: "4-16", 2030: "4-21", 2038: "4-25", 2285: "3-22" };
@@ -75,8 +97,9 @@ const BATTERIE_LOGIQUE = {
     assert.deepEqual(ids(L.fetesDuJour(jour(2026, 2, 14))), ["saint-valentin", "carnaval"]);
     // Le 13, aucune n'est à son cœur : la priorité tranche (Carnaval avant Saint-Valentin).
     assert.deepEqual(ids(L.fetesDuJour(jour(2026, 2, 13))), ["carnaval", "saint-valentin"]);
-    // 2024 : Mardi gras le 13 février, à son cœur, devant Saint-Valentin qui ne l'est pas.
-    assert.deepEqual(ids(L.fetesDuJour(jour(2024, 2, 13))), ["carnaval", "saint-valentin"]);
+    // 2024 : Mardi gras le 13 février, à son cœur, devant le Nouvel An chinois (10 février, encore dans sa fenêtre) et
+    // Saint-Valentin, qui ne le sont pas.
+    assert.deepEqual(ids(L.fetesDuJour(jour(2024, 2, 13))), ["carnaval", "nouvel-an-chinois", "saint-valentin"]);
   },
   "fuseau : le jour LOCAL du navigateur, pas celui de Greenwich": L => {
     const avant = process.env.TZ;
@@ -214,6 +237,11 @@ function echecsLogique(L) {
 }
 
 const MUTATIONS_LOGIQUE = {
+  "Dipavali sans la veille": ["return heureA(t, INDE) >= 15 ? jourA(t, INDE) : jourA(t, INDE) - 1;", "return jourA(t, INDE);"],
+  "Nouvel An chinois à l'heure universelle": [".map(t => jourA(t, PEKIN))", ".map(t => jourA(t, 0))"],
+  "Cavadee le jour de la pleine lune": ["return mieux.n;", "return pleine;"],
+  "Dipavali au mois d'avant": ["find(soleilEntre(180, 210))", "find(soleilEntre(150, 180))"],
+  "date du monde illisible acceptée": ["return d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3]) ? d : null;", "return d;"],
   "Pâques faux d'un jour": ["(h + l - 7 * m + 114) % 31) + 1", "(h + l - 7 * m + 114) % 31) + 2"],
   "Mardi gras à Pâques − 46": ["const mg = numeroPaques(a) - 47;", "const mg = numeroPaques(a) - 46;"],
   "Carnaval réduit au Mardi gras": ["return [mg - 5, mg, mg, mg];", "return [mg, mg, mg, mg];"],
@@ -479,6 +507,29 @@ const BATTERIE_API = {
       assert.equal(lu, 0, "ni n'est lu");
     } finally { delete game.lakourLoups; }
   },
+  "date du monde (sourceDeDate) : la fête suit le calendrier du monde ; la carte reste au jour local ; null ou illisible : le navigateur": async F => {
+    F._reinitialiser(); reinitialiser();
+    F.enregistrer(VIGILE); F.enregistrer(NUIT);
+    const loin = new Date(2026, 6, 14, 12);   // un 14 juillet : ni Noël ni Halloween
+    let date = "2026-12-24";
+    assert.equal(F.sourceDeDate(() => date), true);
+    await F.demarrer({ programmer: false });
+    assert.equal(F.active()?.id, "vigile-des-cierges", "Noël à la date du monde, quel que soit le jour du navigateur");
+    assert.ok(ids(F.calendrier()).includes("noel"));
+    assert.equal(etat.reglages.feteCarte, `${L.cleJour(new Date())}|noel`, "la carte : au jour local");
+    date = "2026-10-31";
+    await F.verifier();
+    assert.equal(F.active()?.id, "nuit-des-masques");
+    assert.deepEqual(crochetsFete(), [["vigile-des-cierges", "nuit-des-masques"]]);
+    date = "n'importe quoi";
+    assert.equal(L.cleJour(F.dateDuMonde()), L.cleJour(new Date()), "illisible : la date du navigateur");
+    date = null;
+    assert.equal(L.cleJour(F.dateDuMonde()), L.cleJour(new Date()));
+    date = loin;
+    assert.equal(F.dateDuMonde(), loin);
+    assert.equal(F.sourceDeDate(null), false);
+    assert.equal(L.cleJour(F.dateDuMonde()), L.cleJour(new Date()), "sans source : la date du navigateur");
+  },
   "cartes du MJ IA marquées pour le glyphe": async F => {
     const html = { classes: new Set(), classList: { add(c) { html.classes.add(c); } } };
     F.marquerMessage({ flags: { [ID]: { narration: true } } }, html);
@@ -490,6 +541,9 @@ const BATTERIE_API = {
 };
 
 const MUTATIONS_API = {
+  "date du monde ignorée": ["fetes.js", "const nouvelle = calculer(date ?? dateDuMonde());", "const nouvelle = calculer(date ?? new Date());"],
+  "carte au jour du monde": ["fetes.js", "await annoncer(nouvelle, date ?? new Date());", "await annoncer(nouvelle, date ?? dateDuMonde());"],
+  "source illisible prise telle quelle": ["fetes.js", "const d = L.lireDate(sourceDate()); if (d) return d;", "return sourceDate();"],
   "carte chez tout le monde": ["fetes.js", "mjActif: estMJActif()", "mjActif: true"],
   "carte en double (vérifications rapprochées)": ["fetes.js", " || carteEnCours === cle) return false;", ") return false;"],
   "carte oubliée du réglage monde": ["fetes.js", "    await game.settings.set(ID, \"feteCarte\", cle);\n", ""],

@@ -1,6 +1,6 @@
 // Fêtes de saison (docs/fetes.md) : le registre des déclinaisons que les modules des mondes enregistrent au crochet
 // « lakour-mj-ia.pret » (api.fetes.enregistrer), la fête du monde selon le réglage « fete » et la date LOCALE de chaque navigateur
-// (celle du MJ chez le MJ), et ses effets : classes du body et décor léger (réglage client « effetsDeFete », mouvement réduit
+// (celle du MJ chez le MJ ; ou la date du monde qu'il donne, api.fetes.sourceDeDate), et ses effets : classes du body et décor léger (réglage client « effetsDeFete », mouvement réduit
 // respecté), une carte publique au chat une fois par jour et par fête (MJ actif seul), une ligne dans l'état du jeu du narrateur
 // IA, le crochet « lakour-mj-ia.fete » (ancienne, nouvelle) quand elle change. La logique pure est dans fetes-logique.js.
 // Le registre vit en mémoire, dans chaque navigateur : les modules des mondes l'emplissent à chaque chargement.
@@ -17,6 +17,7 @@ let minuteur = null;
 let enAttente = null;    // un verifier() demandé par un enregistrement tardif
 let carteEnCours = "";   // la clé de la carte en train d'être écrite (deux vérifications rapprochées n'en font qu'une)
 let avertie = null;      // la fête forcée sans déclinaison dont le MJ a déjà été prévenu
+let sourceDate = null;   // la date du monde (sourceDeDate) : une fonction, ou null (la date locale du navigateur)
 const ID_COUCHE = "lakour-fete-decor";
 
 const copie = d => (d ? structuredClone(d) : null);
@@ -41,13 +42,29 @@ export function enregistrer(def) {
   return copie(d);
 }
 export const lister = () => declinaisons.map(copie);
+// Un monde qui a son propre calendrier (Fénoir : la date de JEU, dateDepart + jour) donne sa date : une fonction qui rend une
+// Date, « AAAA-MM-JJ », ou null (la date locale du navigateur, comme sans source). La fête du monde, son décor et la ligne du
+// narrateur la suivent ; la carte reste une par jour LOCAL et par fête. Le monde appelle verifier() quand sa date change.
+// fn : null pour revenir à la date du navigateur. -> true si une source est branchée.
+export function sourceDeDate(fn) {
+  sourceDate = typeof fn === "function" ? fn : null;
+  if (demarre) verifierBientot();
+  return Boolean(sourceDate);
+}
+// La date des fêtes de ce monde : celle de sa source si elle en rend une lisible, sinon maintenant.
+export function dateDuMonde() {
+  if (sourceDate) {
+    try { const d = L.lireDate(sourceDate()); if (d) return d; } catch (e) { console.warn(`${ID} | fêtes : date du monde`, e); }
+  }
+  return new Date();
+}
 // La déclinaison de la fête du monde dans ce navigateur (copie), ou null.
 // Avant le démarrage (pendant le crochet « pret », registre peut-être incomplet), elle est calculée sans être retenue.
 export function active() {
   return copie(declinaisonDe(courante === undefined ? calculer() : courante));
 }
 // Les fêtes du calendrier ce jour-là (déclinées ou non), de la plus prioritaire à la moins.
-export const calendrier = (date = new Date()) => L.fetesDuJour(date);
+export const calendrier = (date = dateDuMonde()) => L.fetesDuJour(date);
 export const decors = () => ({ palettes: Object.keys(L.PALETTES), ornements: Object.keys(L.ORNEMENTS), parDefaut: structuredClone(L.DECORS_PAR_DEFAUT) });
 
 // La veillée de fête EN JEU aux Veillées (système lakour-loups : game.lakourLoups.fete(), d'après l'état public), ou null.
@@ -66,18 +83,19 @@ export function lignePourIA() {
 
 // ------------------------------------------------------------------ calcul, effets, carte, crochet
 
-const calculer = (date = new Date()) => L.feteRetenue({ reglage: reglage("fete", L.REGLAGE_AUTO), date, declinees: declinaisons.map(d => d.fete) });
+const calculer = (date = dateDuMonde()) => L.feteRetenue({ reglage: reglage("fete", L.REGLAGE_AUTO), date, declinees: declinaisons.map(d => d.fete) });
 
-// Revoit la fête du monde (au démarrage, à minuit, quand un réglage change, après un enregistrement tardif) : effets, crochet si
-// elle a changé, carte du jour chez le MJ actif. date : pour les essais.
-export async function verifier({ date = new Date() } = {}) {
+// Revoit la fête du monde (au démarrage, à minuit, quand un réglage change, après un enregistrement tardif, quand la date du
+// monde change) : effets, crochet si elle a changé, carte du jour chez le MJ actif. date : pour les essais (elle sert alors aussi
+// de jour pour la carte) ; sans elle, la date du monde (dateDuMonde) pour la fête et le jour local pour la carte.
+export async function verifier({ date } = {}) {
   const ancienne = courante;
-  const nouvelle = calculer(date);
+  const nouvelle = calculer(date ?? dateDuMonde());
   courante = nouvelle;
   appliquerEffets();
   if (ancienne !== undefined && ancienne !== nouvelle) Hooks.callAll(`${ID}.fete`, copie(declinaisonDe(ancienne)), copie(declinaisonDe(nouvelle)));
   prevenirForcee();
-  await annoncer(nouvelle, date);
+  await annoncer(nouvelle, date ?? new Date());
   return copie(declinaisonDe(nouvelle));
 }
 function verifierBientot() {
@@ -176,6 +194,7 @@ export function _reinitialiser() {
   demarre = false;
   carteEnCours = "";
   avertie = null;
+  sourceDate = null;
   clearTimeout(minuteur);
   clearTimeout(enAttente);
   enAttente = null;

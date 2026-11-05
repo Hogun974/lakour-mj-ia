@@ -14,6 +14,15 @@ const versCle = n => {
   return `${String(d.getUTCFullYear()).padStart(4, "0")}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 };
 
+// Une date lisible -> Date (une Date valide telle quelle ; « AAAA-MM-JJ… » : ce jour-là à midi, heure locale), sinon null.
+export function lireDate(x) {
+  if (x instanceof Date) return Number.isNaN(x.getTime()) ? null : x;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(typeof x === "string" ? x : "");
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12);
+  return d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3]) ? d : null;
+}
+
 // Le jour LOCAL d'un instant (fuseau du navigateur, celui du MJ chez le MJ) : « 2026-12-24 ».
 export function cleJour(date = new Date()) {
   return versCle(numero(date.getFullYear(), date.getMonth() + 1, date.getDate()));
@@ -33,13 +42,19 @@ const numeroPaques = annee => { const p = paques(annee); return numero(p.annee, 
 // Mardi gras : Pâques moins 47 jours.
 export const mardiGras = annee => { const d = new Date((numeroPaques(annee) - 47) * JOUR_MS); return { annee, mois: d.getUTCMonth() + 1, jour: d.getUTCDate() }; };
 
-// Fêtes à date lunaire : une table de dates par année (« MM-JJ »), de 2026 à 2036 ; hors de la table, la fête n'a pas lieu (rien
-// n'est deviné). Relevés du 04/11/2026 (docs/fetes.md, sources) :
-// - Dipavali : la Dipavali (Deepavali, amavasya du mois d'Aippasi / Kartika) telle que fêtée à La Réunion (le défilé de
-//   Saint-André suit le week-end proche : la fenêtre va de 3 jours avant à 3 jours après) ;
-// - Nouvel An chinois : premier jour du premier mois lunaire (fête du Printemps) ;
-// - Cavadee : Thaipusam (Thaipoosam Cavadee), pleine lune du mois tamoul de Thai ; un temple réunionnais peut la décaler d'un
-//   jour (fenêtre de la veille au lendemain).
+// Fêtes à date lunaire : CALCULÉES pour toute année, d'après les phases de la lune (Jean Meeus, « Astronomical Algorithms »,
+// chap. 49 ; longitudes du Soleil et de la Lune, chap. 25 et 47, abrégés ; zodiaque sidéral de Lahiri pour les mois tamouls
+// et hindous). Jusqu'au 05/11/2026, une table s'arrêtait en 2036 : la Dipavali, la Cavadee et le Nouvel An chinois ne
+// tombaient plus ensuite. Le calcul redonne les relevés du 04/11/2026 (DATES_LUNAIRES, docs/fetes.md, sources) de 2026 à 2036,
+// et le Nouvel An chinois jusqu'en 2050 (essais/fetes-reunion.test.mjs) :
+// - Nouvel An chinois : la nouvelle lune qui tombe entre le 21 janvier et le 20 février, à l'heure de Pékin (UTC+8) ;
+// - Dipavali : la nouvelle lune (amavasya) du mois où le Soleil est dans la Balance sidérale (Tula), à l'heure de l'Inde ; la
+//   fête est le soir où l'amavasya a commencé : le jour même si la nouvelle lune tombe après 15 h, sinon la veille (telle que
+//   La Réunion la date ; le défilé de Saint-André suit le week-end proche : la fenêtre va de 3 jours avant à 3 jours après) ;
+// - Cavadee : Thaipusam, le jour du mois tamoul de Thai (Soleil dans le Capricorne sidéral) où la Lune passe le plus d'heures
+//   de jour (6 h 30 – 18 h 30, heure de l'Inde) dans la demeure de Pusam (93° 20' – 106° 40' sidéraux), près de la pleine
+//   lune ; un temple réunionnais peut la décaler d'un jour (fenêtre de la veille au lendemain).
+// DATES_LUNAIRES : les relevés (sources de docs/fetes.md), qui servent aux essais du calcul.
 export const DATES_LUNAIRES = Object.freeze({
   dipavali: { 2026: "11-08", 2027: "10-29", 2028: "10-17", 2029: "11-05", 2030: "10-26", 2031: "11-14", 2032: "11-02", 2033: "10-22",
     2034: "11-10", 2035: "10-30", 2036: "10-19" },
@@ -48,18 +63,109 @@ export const DATES_LUNAIRES = Object.freeze({
   cavadee: { 2026: "02-01", 2027: "01-22", 2028: "02-09", 2029: "01-30", 2030: "01-20", 2031: "02-06", 2032: "01-27", 2033: "01-16",
     2034: "02-02", 2035: "01-24", 2036: "02-10" }
 });
-// Le numéro du jour d'une fête lunaire l'année a, ou null (année hors de la table).
-const numeroLunaire = (id, a) => {
-  const md = DATES_LUNAIRES[id]?.[a];
-  if (!md) return null;
-  const [m, j] = md.split("-").map(Number);
-  return numero(a, m, j);
+
+const sinD = d => Math.sin((d * Math.PI) / 180);
+const angle = x => ((x % 360) + 360) % 360;
+const HEURE_MS = 3600000;
+const JULIEN_1970 = 2440587.5;
+// Instant (ms UTC) de la phase k (entier : nouvelle lune ; + 0,5 : pleine lune) ; Meeus chap. 49, ΔT ≈ 70 s.
+const PLANETES = [[299.77, 0.107408, 0.000325], [251.88, 0.016321, 0.000165], [251.83, 26.651886, 0.000164], [349.42, 36.412478, 0.000126],
+  [84.66, 18.206239, 0.00011], [141.74, 53.303771, 0.000062], [207.14, 2.453732, 0.00006], [154.84, 7.30686, 0.000056], [34.52, 27.261239, 0.000047],
+  [207.19, 0.121824, 0.000042], [291.34, 1.844379, 0.00004], [161.72, 24.198154, 0.000037], [239.56, 25.513099, 0.000035], [331.55, 3.592518, 0.000023]];
+function phaseLunaire(k) {
+  const pleine = k % 1 !== 0;
+  const T = k / 1236.85, T2 = T * T;
+  const E = 1 - 0.002516 * T - 0.0000074 * T2;
+  const M = 2.5534 + 29.1053567 * k - 0.0000014 * T2 - 0.00000011 * T2 * T;
+  const Mp = 201.5643 + 385.81693528 * k + 0.0107582 * T2 + 0.00001238 * T2 * T - 0.000000058 * T2 * T2;
+  const F = 160.7108 + 390.67050284 * k - 0.0016118 * T2 - 0.00000227 * T2 * T + 0.000000011 * T2 * T2;
+  const O = 124.7746 - 1.56375588 * k + 0.0020672 * T2 + 0.00000215 * T2 * T;
+  let jd = 2451550.09766 + 29.530588861 * k + 0.00015437 * T2 - 0.00000015 * T2 * T + 0.00000000073 * T2 * T2;
+  jd += pleine
+    ? -0.40614 * sinD(Mp) + 0.17302 * E * sinD(M) + 0.01614 * sinD(2 * Mp) + 0.01043 * sinD(2 * F) + 0.00734 * E * sinD(Mp - M)
+      - 0.00515 * E * sinD(Mp + M) + 0.00209 * E * E * sinD(2 * M)
+    : -0.4072 * sinD(Mp) + 0.17241 * E * sinD(M) + 0.01608 * sinD(2 * Mp) + 0.01039 * sinD(2 * F) + 0.00739 * E * sinD(Mp - M)
+      - 0.00514 * E * sinD(Mp + M) + 0.00208 * E * E * sinD(2 * M);
+  jd += -0.00111 * sinD(Mp - 2 * F) - 0.00057 * sinD(Mp + 2 * F) + 0.00056 * E * sinD(2 * Mp + M) - 0.00042 * sinD(3 * Mp)
+    + 0.00042 * E * sinD(M + 2 * F) + 0.00038 * E * sinD(M - 2 * F) - 0.00024 * E * sinD(2 * Mp - M) - 0.00017 * sinD(O)
+    - 0.00007 * sinD(Mp + 2 * M) + 0.00004 * sinD(2 * Mp - 2 * F) + 0.00004 * sinD(3 * M) + 0.00003 * sinD(Mp + M - 2 * F)
+    + 0.00003 * sinD(2 * Mp + 2 * F) - 0.00003 * sinD(Mp + M + 2 * F) + 0.00003 * sinD(Mp - M + 2 * F) - 0.00002 * sinD(Mp - M - 2 * F)
+    - 0.00002 * sinD(3 * Mp + M) + 0.00002 * sinD(4 * Mp);
+  PLANETES.forEach(([a, b, c], i) => { jd += c * sinD(a + b * k + (i === 0 ? -0.009173 * T2 : 0)); });
+  return (jd - 70 / 86400 - JULIEN_1970) * JOUR_MS;
+}
+// Longitudes sidérales (Lahiri, approchée) du Soleil et de la Lune à l'instant ms (degrés ; précision ≈ 0,05°).
+function longitudesSiderales(ms) {
+  const j = ms / JOUR_MS + JULIEN_1970 - 2451545, T = j / 36525;
+  const ayanamsa = 23.853 + 0.013969 * (j / 365.25);
+  const nutation = -0.00478 * sinD(125.04 - 1934.136 * T);
+  const Ms = 357.52911 + 35999.05029 * T;
+  const soleil = 280.46646 + 36000.76983 * T + (1.914602 - 0.004817 * T) * sinD(Ms) + 0.019993 * sinD(2 * Ms) + 0.000289 * sinD(3 * Ms) - 0.00569 + nutation;
+  const D = 297.8501921 + 445267.1114034 * T, M = 357.5291092 + 35999.0502909 * T, Mp = 134.9633964 + 477198.8675055 * T;
+  const F = 93.272095 + 483202.0175233 * T, E = 1 - 0.002516 * T;
+  const lune = 218.3164477 + 481267.88123421 * T + 6.288774 * sinD(Mp) + 1.274027 * sinD(2 * D - Mp) + 0.658314 * sinD(2 * D)
+    + 0.213618 * sinD(2 * Mp) - 0.185116 * E * sinD(M) - 0.114332 * sinD(2 * F) + 0.058793 * sinD(2 * D - 2 * Mp)
+    + 0.057066 * E * sinD(2 * D - M - Mp) + 0.053322 * sinD(2 * D + Mp) + 0.045758 * E * sinD(2 * D - M) - 0.040923 * E * sinD(M - Mp)
+    - 0.03472 * sinD(D) - 0.030383 * E * sinD(M + Mp) + 0.015327 * sinD(2 * D - 2 * F) - 0.012528 * sinD(Mp + 2 * F)
+    + 0.01098 * sinD(Mp - 2 * F) + 0.010675 * sinD(4 * D - Mp) + 0.010034 * sinD(3 * Mp) + 0.008548 * sinD(4 * D - 2 * Mp)
+    - 0.007888 * E * sinD(2 * D + M - Mp) - 0.006766 * E * sinD(2 * D + M) - 0.005163 * sinD(D - Mp) + 0.004987 * E * sinD(D + M)
+    + 0.004036 * E * sinD(2 * D - M + Mp) + 0.003994 * sinD(2 * D + 2 * Mp) + 0.003861 * sinD(4 * D) + 0.003665 * sinD(2 * D - 3 * Mp) + nutation;
+  return { soleil: angle(soleil - ayanamsa), lune: angle(lune - ayanamsa) };
+}
+// Les nouvelles (ou pleines) lunes qui tombent l'année a (UTC), en ms.
+function phasesDeLAnnee(a, pleine) {
+  const k0 = Math.floor((a - 2000) * 12.3685) - 2;
+  const l = [];
+  for (let k = k0; k < k0 + 16; k++) { const t = phaseLunaire(k + (pleine ? 0.5 : 0)); if (new Date(t).getUTCFullYear() === a) l.push(t); }
+  return l;
+}
+// Le numéro du jour civil d'un instant à un fuseau (heures) ; l'heure qu'il y est.
+const jourA = (ms, fuseau) => Math.floor((ms + fuseau * HEURE_MS) / JOUR_MS);
+const heureA = (ms, fuseau) => (((ms + fuseau * HEURE_MS) % JOUR_MS) + JOUR_MS) % JOUR_MS / HEURE_MS;
+const INDE = 5.5, PEKIN = 8, PUSAM = [93 + 1 / 3, 106 + 2 / 3];
+const soleilEntre = (min, max) => t => { const s = longitudesSiderales(t).soleil; return s >= min && s < max; };
+const CALCULS_LUNAIRES = {
+  "nouvel-an-chinois": a => {
+    const debut = numero(a, 1, 21), fin = numero(a, 2, 20);
+    return phasesDeLAnnee(a, false).map(t => jourA(t, PEKIN)).find(n => n >= debut && n <= fin) ?? null;
+  },
+  dipavali: a => {
+    const t = phasesDeLAnnee(a, false).find(soleilEntre(180, 210));
+    if (t === undefined) return null;
+    return heureA(t, INDE) >= 15 ? jourA(t, INDE) : jourA(t, INDE) - 1;
+  },
+  cavadee: a => {
+    const t = phasesDeLAnnee(a, true).find(soleilEntre(270, 300));
+    if (t === undefined) return null;
+    const pleine = jourA(t, INDE);
+    let mieux = { n: pleine, mesures: 0 };
+    for (let n = pleine - 3; n <= pleine + 3; n++) {
+      let mesures = 0;
+      // De 6 h 30 à 18 h 30, heure de l'Inde (1 h à 13 h UTC), toutes les dix minutes.
+      for (let m = 60; m <= 13 * 60; m += 10) {
+        const l = longitudesSiderales(n * JOUR_MS + m * 60000).lune;
+        if (l >= PUSAM[0] && l < PUSAM[1]) mesures++;
+      }
+      if (mesures > mieux.mesures) mieux = { n, mesures };
+    }
+    return mieux.n;
+  }
 };
-// Une fenêtre autour d'une date lunaire : [d - avant, d + apres], cœur le jour même ; null hors de la table.
+const cacheLunaire = new Map();
+// Le numéro du jour d'une fête lunaire l'année a, ou null (fête inconnue, année illisible).
+const numeroLunaire = (id, a) => {
+  if (!CALCULS_LUNAIRES[id] || !Number.isInteger(a)) return null;
+  const cle = `${id}|${a}`;
+  if (!cacheLunaire.has(cle)) cacheLunaire.set(cle, CALCULS_LUNAIRES[id](a));
+  return cacheLunaire.get(cle);
+};
+// La date calculée d'une fête lunaire l'année a, « MM-JJ », ou null.
+export const dateLunaire = (id, a) => { const n = numeroLunaire(id, a); return n === null ? null : versCle(n).slice(5); };
+// Une fenêtre autour d'une date lunaire : [d - avant, d + apres], cœur le jour même.
 const autourDe = (id, avant, apres) => a => { const d = numeroLunaire(id, a); return d === null ? null : [d - avant, d + apres, d, d]; };
 
 // Le calendrier. Pour une année a, fenetre(a) rend [début, fin, début du cœur, fin du cœur] en numéros de jour (bornes incluses),
-// ou null (une fête lunaire hors de sa table de dates).
+// ou null (une fête lunaire qu'on ne sait pas dater cette année-là).
 // priorite départage deux fêtes le même jour, APRÈS le cœur : une fête dans son cœur passe devant une fête qui ne l'est pas.
 // Nouvel An > Noël (le 31 décembre est dans les deux fenêtres, et au cœur du Nouvel An seulement).
 // La Toussaint n'a pas d'entrée à elle : elle est dans la fenêtre et le cœur d'Halloween (31 octobre – 1er novembre). Un monde
@@ -77,11 +183,11 @@ export const FETES = [
   // La fête des letchis : pas de date officielle ; la pleine saison des letchis à La Réunion (mi-décembre), fenêtre fixe choisie.
   { id: "letchis", nom: "Fête des letchis", periode: "12 – 15 décembre (cœur : 13 – 14)", priorite: 55,
     fenetre: a => [numero(a, 12, 12), numero(a, 12, 15), numero(a, 12, 13), numero(a, 12, 14)] },
-  { id: "dipavali", nom: "Dipavali", periode: "3 jours avant – 3 jours après la Dipavali (date lunaire, 2026 – 2036)", priorite: 45,
+  { id: "dipavali", nom: "Dipavali", periode: "3 jours avant – 3 jours après la Dipavali (date lunaire calculée)", priorite: 45,
     fenetre: autourDe("dipavali", 3, 3) },
-  { id: "cavadee", nom: "Cavadee (Thaipoosam)", periode: "veille – lendemain de Thaipoosam (date lunaire, 2026 – 2036)", priorite: 44,
+  { id: "cavadee", nom: "Cavadee (Thaipoosam)", periode: "veille – lendemain de Thaipoosam (date lunaire calculée)", priorite: 44,
     fenetre: autourDe("cavadee", 1, 1) },
-  { id: "nouvel-an-chinois", nom: "Nouvel An chinois", periode: "veille – 3 jours après la fête du Printemps (date lunaire, 2026 – 2036)", priorite: 42,
+  { id: "nouvel-an-chinois", nom: "Nouvel An chinois", periode: "veille – 3 jours après la fête du Printemps (date lunaire calculée)", priorite: 42,
     fenetre: autourDe("nouvel-an-chinois", 1, 3) },
   { id: "paques", nom: "Pâques", periode: "Vendredi saint – lundi de Pâques (mobile)", priorite: 50,
     fenetre: a => { const p = numeroPaques(a); return [p - 2, p + 1, p, p + 1]; } },

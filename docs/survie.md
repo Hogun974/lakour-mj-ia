@@ -40,7 +40,7 @@ abri, réserves, état du groupe, alertes, renseignement de leur région). `api.
   publics (sauf pendant son propre tour).
 - **Fêtes** : la ligne du narrateur dit ce que la fête du calendrier des joueurs devient dans le monde d'après, sans règle
   cachée ; `survie_feter` si les joueurs la fêtent au camp. Calendrier du moteur : 20 décembre (fête de la liberté), fête des
-  letchis (mi-décembre), Dipavali, Cavadee et Nouvel An chinois (dates lunaires 2026 – 2036), 14 juillet ; la Toussaint se décline
+  letchis (mi-décembre), Dipavali, Cavadee et Nouvel An chinois (dates lunaires calculées), 14 juillet ; la Toussaint se décline
   avec Halloween (même fenêtre, cœur du 31 octobre au 1er novembre ; `docs/fetes.md`).
 - **Création guidée** (`CREATION_GUIDEE`, §10.2) : `creer_survivant` « tirer » fait tirer au générateur du système deux ou trois
   survivants (enfance, passé, compétences, passions, traits, incapacités, graine d'histoire ; verrous pour relancer en gardant ce

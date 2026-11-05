@@ -10,7 +10,8 @@ Code : `scripts/fetes-logique.js` (logique pure, testée), `scripts/fetes.js` (b
 ## 1. Le calendrier
 
 Fenêtres en **heure locale du navigateur** (celle du MJ chez le MJ : c'est son navigateur qui pose la carte du jour et parle
-à l'IA). Bornes incluses.
+à l'IA), ou à la **date du monde** quand le monde en donne une (`api.fetes.sourceDeDate`, §3 : Fénoir et sa date de jeu).
+Bornes incluses.
 
 | id | Fête | Fenêtre | Cœur | Priorité |
 |---|---|---|---|---|
@@ -19,9 +20,9 @@ Fenêtres en **heure locale du navigateur** (celle du MJ chez le MJ : c'est son 
 | `noel` | Noël | 1er – 31 déc. | 24 – 26 déc. | 60 |
 | `letchis` | Fête des letchis (La Réunion, fenêtre fixe choisie) | 12 – 15 déc. | 13 – 14 déc. | 55 |
 | `paques` | Pâques | Vendredi saint – lundi de Pâques (mobile) | dimanche et lundi | 50 |
-| `dipavali` | Dipavali (La Réunion) | 3 j avant – 3 j après (table 2026 – 2036) | le jour | 45 |
-| `cavadee` | Cavadee (Thaipoosam) | veille – lendemain (table 2026 – 2036) | le jour | 44 |
-| `nouvel-an-chinois` | Nouvel An chinois | veille – 3 j après (table 2026 – 2036) | le jour | 42 |
+| `dipavali` | Dipavali (La Réunion) | 3 j avant – 3 j après (date lunaire calculée) | le jour | 45 |
+| `cavadee` | Cavadee (Thaipoosam) | veille – lendemain (date lunaire calculée) | le jour | 44 |
+| `nouvel-an-chinois` | Nouvel An chinois | veille – 3 j après (date lunaire calculée) | le jour | 42 |
 | `carnaval` | Carnaval | Jeudi gras – Mardi gras (mobile, Mardi gras = Pâques − 47 j) | Mardi gras | 40 |
 | `halloween` | Halloween (et la Toussaint) | 25 oct. – 2 nov. | 31 oct. – 1er nov. | 30 |
 | `saint-valentin` | Saint-Valentin | 12 – 15 févr. | 14 févr. | 20 |
@@ -32,8 +33,18 @@ Pâques : calcul grégorien (algorithme de Meeus, Jones et Butcher). Deux fêtes
 passe devant, puis la **priorité** (le 31 décembre, Nouvel An avant Noël ; le 14 février, Saint-Valentin avant un Carnaval
 qui n'est pas à son Mardi gras ; le 20 décembre, la fête de la liberté avant Noël).
 
-**Fêtes à date lunaire** (`DATES_LUNAIRES` de `scripts/fetes-logique.js`) : une date par année de 2026 à 2036 ; hors de la
-table, la fête n'a pas lieu (à prolonger avant 2037). Relevés du 4 novembre 2026, sources concordantes :
+**Fêtes à date lunaire** (`dateLunaire(id, annee)` de `scripts/fetes-logique.js`) : **calculées pour toute année** depuis
+le 5 novembre 2026 (avant, une table s'arrêtait en 2036), d'après les phases de la lune (Jean Meeus, *Astronomical Algorithms*,
+chap. 49 ; longitudes abrégées du Soleil et de la Lune ; zodiaque sidéral de Lahiri pour les mois tamouls et hindous) :
+- Nouvel An chinois : la nouvelle lune qui tombe entre le 21 janvier et le 20 février, à l'heure de Pékin ;
+- Dipavali : la nouvelle lune du mois où le Soleil est dans la Balance sidérale, à l'heure de l'Inde ; le jour même si elle
+  tombe après 15 h, sinon la veille (le soir où l'amavasya a commencé) ;
+- Cavadee : le jour du mois tamoul de Thai (Soleil dans le Capricorne sidéral) où la Lune passe le plus d'heures de jour
+  (6 h 30 – 18 h 30, heure de l'Inde) dans la demeure de Pusam, près de la pleine lune.
+
+Le calcul redonne les **relevés** (`DATES_LUNAIRES`) des 33 dates de 2026 à 2036, et le Nouvel An chinois connu jusqu'en 2050 ;
+les essais vérifient aussi que chaque fête reste dans son mois jusqu'en 2100 (`essais/fetes.test.mjs`,
+`essais/fetes-reunion.test.mjs`). Relevés du 4 novembre 2026, sources concordantes :
 - Dipavali : la Deepavali (amavasya), telle que La Réunion la date (reunion.fr donne le 8 novembre 2026) ; le défilé de
   Saint-André se tient sur le week-end proche, d'où la fenêtre de 3 jours de part et d'autre
   (https://testbook.com/articles/diwali-dates-for-next-20-years, https://en.reunion.fr/organize/local-events/cultural-events-you-must-not-miss/dipavali) ;
@@ -116,6 +127,16 @@ liens.
   `[{ id, nom, debut: "AAAA-MM-JJ", fin, coeur }]`, de la plus prioritaire à la moins.
 - `api.fetes.decors()` → `{ palettes: [...], ornements: [...], parDefaut: { <fête>: { palette, ornements } } }`.
 - `api.fetes.verifier()` → revoit la fête maintenant (rend la déclinaison active) ; `api.fetes.rafraichir()` redessine le décor.
+- `api.fetes.sourceDeDate(fn)` → pour un monde qui a **son propre calendrier** : `fn()` rend une `Date`, `"AAAA-MM-JJ"`, ou
+  `null` (la date du navigateur). La fête du monde, son décor, la ligne du narrateur et `calendrier()` sans argument suivent
+  alors cette date ; la carte du chat reste **une par jour local** et par fête. Branchez-la **au crochet `pret`** (avant le
+  premier calcul : sinon la fête de la date réelle s'affiche un instant, et sa carte part), dans chaque navigateur, et appelez
+  `api.fetes.verifier()` quand la date du monde change. `sourceDeDate(null)` revient à la date du navigateur ;
+  `api.fetes.dateDuMonde()` rend la date utilisée.
+
+Pourquoi : le 5 novembre 2026 (date réelle), un monde de Fénoir au 4 décembre 2026 (date de jeu) recevait la carte de la
+Dipavali (fenêtre réelle du 5 au 11 novembre) : au chargement, le moteur calculait sa fête à la date réelle avant que le
+système, qui force le réglage `fete` à la fête du jour de jeu, ait pu l'écrire (écriture asynchrone, après le crochet `pret`).
 
 ### Crochet
 
