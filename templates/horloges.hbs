@@ -20,8 +20,8 @@
         <div class="lakour-mjia-horloge-barre {{#if reputation}}centree{{/if}}" {{#if @root.mj}}data-action="avancer" data-id="{{id}}" data-tooltip="{{localize 'LAKOUR_MJIA.Horloges.AideClic'}}"{{/if}}
           role="meter" aria-valuenow="{{valeur}}" aria-valuemax="{{max}}">
           {{#if reputation}}<span class="zero" style="left: {{zero}}%"></span>{{/if}}
-          <span class="remplissage" style="width: {{pct}}%"></span>
-          {{#each reperes}}<span class="repere" style="left: {{pct}}%" data-tooltip="{{nom}} ({{min}})"></span>{{/each}}
+          <span class="remplissage" style="width: {{this.pct}}%"></span>
+          {{#each reperes}}<span class="repere" style="left: {{this.pct}}%" data-tooltip="{{nom}} ({{min}})"></span>{{/each}}
         </div>
         <p class="lakour-mjia-horloge-valeur">
           {{#if reputation}}<strong>{{palier}}</strong> ({{affiche}}){{else}}{{valeur}} / {{max}}{{#if palier}} — <strong>{{palier}}</strong>{{/if}}{{/if}}
