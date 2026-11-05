@@ -321,8 +321,8 @@ Tant qu'elle n'est pas téléchargée, le module vous le rappelle à chaque char
 
 ![La fenêtre du coffre](docs/captures/coffre.png)
 
-Ce que le coffre ne protège pas : la mémoire de campagne, les journaux du MJ (scénarios, notes), les pages « ce qu'il garde
-pour lui » des histoires. Ils restent protégés seulement par les droits de Foundry.
+Ce que le coffre ne protège pas : la mémoire de campagne, les journaux du MJ (scénarios, notes), les pages « Ses secrets »
+des histoires. Ils restent protégés seulement par les droits de Foundry.
 
 ## 15. Mettre à jour
 

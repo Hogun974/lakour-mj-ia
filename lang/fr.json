@@ -290,7 +290,14 @@
       "Arretee": "Séance du MJ IA terminée, mémoire de campagne mise à jour."
     },
     "Validation": {
-      "Titre": "Action du MJ IA"
+      "Titre": "Action du MJ IA",
+      "Intro": "Le MJ IA veut utiliser {outil} :",
+      "SansArguments": "Sans arguments.",
+      "UnElement": "1 élément",
+      "Elements": "{n} éléments",
+      "EtAutres": "et {n} autres",
+      "Oui": "oui",
+      "Non": "non"
     },
     "Erreurs": {
       "PasDeCle": "Aucune clé API pour ce fournisseur : ouvre la configuration du MJ IA.",

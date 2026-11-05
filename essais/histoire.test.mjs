@@ -57,7 +57,7 @@ const VERIFICATIONS = {
     const d = M.H.donneesJournalHistoire({ nom: "Lucie", proprietaires: ["u1"], dossier: "F1", acteurUuid: "Actor.s1", systeme: "lakour-survie" });
     assert.equal(d.name, "Histoire de Lucie");
     assert.deepEqual(d.ownership, { default: 2, u1: 3 });
-    assert.deepEqual(d.pages.map(p => p.name), ["Qui il est", "Son histoire", "Ce qu'il garde pour lui", "Chapitres"]);
+    assert.deepEqual(d.pages.map(p => p.name), ["Portrait", "Son histoire", "Ses secrets", "Chapitres"]);
     assert.deepEqual(d.pages.map(p => p.ownership), [{ default: -1 }, { default: -1 }, { default: 0, u1: 3 }, { default: -1 }]);
     assert.ok(d.pages.every(p => M.H.estAide(p.text.content)), "pages d'aide");
     assert.match(d.pages[1].text.content, /Qui as-tu perdu/);
@@ -101,9 +101,37 @@ const VERIFICATIONS = {
     const resume = M.a.adaptateurDe("impmal").resumer(game.actors.get("s1"));
     assert.match(resume, /histoire : Née dans la ruche basse\./);
     assert.ok(!resume.includes("SECRET-DE-LUCIE"), "secret dans le résumé");
-    assert.match(M.H.ligneHistoireActeur(game.actors.get("s1"), { publique: false, secret: true }), /^garde pour lui \(secret de son joueur\) : SECRET-DE-LUCIE$/);
+    assert.match(M.H.ligneHistoireActeur(game.actors.get("s1"), { publique: false, secret: true }), /^ses secrets \(connus de son joueur seul\) : SECRET-DE-LUCIE$/);
     game.system.id = "lakour-loups";
     assert.equal(M.H.ligneHistoireActeur(game.actors.get("s1")), "", "pas aux Veillées");
+  },
+  "titres, questions d'aide et consigne neutres : rien ne suppose un personnage masculin"(M) {
+    const masculin = /(^|[^\p{L}'])(il|lui|qu'il|s'il|amené|seul)(?![\p{L}])/iu;
+    for (const p of M.H.PAGES_HISTOIRE) assert.doesNotMatch(p.nom, masculin, p.nom);
+    for (const s of ["impmal", "dnd5e", "lakour-survie"]) {
+      for (const q of Object.values(M.H.questionsAide(s)).flat()) assert.doesNotMatch(q, masculin, q);
+      assert.doesNotMatch(M.H.etapeHistoire(s, "Jordan").split("Puis histoire_personnage")[0], masculin);
+    }
+  },
+  async "journal d'avant les titres neutres (« Qui il est », « Ce qu'il garde pour lui ») : pages retrouvées et écrites, titres gardés"(M) {
+    const { journaux } = monde();
+    const anciens = ["Qui il est", "Son histoire", "Ce qu'il garde pour lui", "Chapitres"];
+    const pages = new Collection(anciens.map((name, i) => [`V${i}`, { id: `V${i}`, name, text: { content: "" }, flags: {} }]));
+    const j = { id: "JV", uuid: "JournalEntry.JV", name: "Histoire de Lucie", pages,
+      async updateEmbeddedDocuments(_t, maj) { for (const m of maj) pages.get(m._id).text.content = m["text.content"]; } };
+    journaux.set("JV", j);
+    game.actors.get("s1").flags["lakour-mj-ia"] = { histoire: j.uuid };
+    const r = await outil(M, "histoire_personnage").executer({ personnage: "Lucie", action: "ecrire", ...ARGS, qui_il_est: "Infirmière.", ce_qu_il_garde: "SECRET-ANCIEN" });
+    assert.ok(!r.erreur && !/introuvables/.test(r.contenu), r.contenu);
+    assert.equal(journaux.size, 1, "pas de nouveau journal");
+    assert.equal(pages.get("V0").text.content, "<p>Infirmière.</p>");
+    assert.equal(pages.get("V2").text.content, "<p>SECRET-ANCIEN</p>");
+    assert.deepEqual(pages.contents.map(p => p.name), anciens, "titres d'origine gardés");
+    assert.match(M.H.ligneHistoireActeur(game.actors.get("s1"), { publique: false, secret: true }), /SECRET-ANCIEN/);
+    // Le drapeau prime sur le titre : une page renommée par le MJ reste reconnue.
+    pages.get("V2").name = "Mes secrets à moi";
+    pages.get("V2").flags = { "lakour-mj-ia": { page: "secret" } };
+    assert.equal(M.H.pageDe(j, "secret").id, "V2");
   },
   async "compagnon IA : le résumé de son histoire entre dans sa personnalité ; sa vue a sa propre page secrète, jamais celle d'un autre"(M) {
     monde();
@@ -173,6 +201,8 @@ const VERIFICATIONS = {
 
 const MUTATIONS = [
   ["histoire-logique.js", "ownership: p.prive ? { default: NONE, ...proprio } : { default: INHERIT },", "ownership: { default: INHERIT },", "page secrète réservée"],
+  ["histoire-logique.js", "?? [def.nom, ...def.anciens].map(", "?? [def.nom].map(", "anciens titres reconnus"],
+  ["histoire-logique.js", "\"Comment as-tu rejoint le groupe ?\"", "\"Qu'est-ce qui t'a amené jusqu'au groupe ?\"", "questions neutres"],
   ["histoire-logique.js", "export function ligneHistoire(journal, { secret = false,", "export function ligneHistoire(journal, { secret = true,", "secret dans le résumé"],
   ["histoire-logique.js", "  if (mode === \"ecrire\" || estAide(ancien)) return html;", "  if (mode === \"ecrire\") return html;", "aide remplacée"],
   ["histoire.js", "  if (deja) return { journal: deja, cree: false };", "", "un seul journal"],

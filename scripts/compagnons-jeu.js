@@ -289,7 +289,7 @@ export function vueAventure(acteur, { messages, scene = game.scenes?.active } = 
   const autres = visibles.filter(t => t.actor && t.actor.id !== acteur.id).map(t => ({ id: t.actor.id, nom: t.name, vivant: true }));
   return {
     id: acteur.id, nom: acteur.name, monde: game.world?.title ?? game.system?.title ?? "", jeu: "aventure",
-    // Sa fiche, et ce qu'il garde pour lui (sa propre page secrète : c'est la sienne) ; jamais celle d'un autre.
+    // Sa fiche, et ses secrets (sa propre page secrète : c'est la sienne) ; jamais celle d'un autre.
     personnalite: personnaliteDe(acteur), fiche: [sys.resumer(acteur), ligneHistoireActeur(acteur, { publique: false, secret: true })].filter(Boolean).join(" — "), prive: privesDe(acteur.id), public: chatPublic({ messages, paroles: parolesPour(acteur.id) }),
     scene: lignes.filter(Boolean).join("\n"), autres, allies: [], suspects: [], vivant: true, peutParler: true, tour: combat?.round ?? 0
   };

@@ -35,17 +35,18 @@ export const OUTIL_HISTOIRE = {
   nom: "histoire_personnage",
   systemes: H.SYSTEMES_HISTOIRE,
   description: "L'histoire d'un personnage (joueur, compagnon IA, recrue ou PNJ important), dans son journal « Histoire de <nom> » (quatre "
-    + "pages : « Qui il est » et « Son histoire » lisibles de tous, « Ce qu'il garde pour lui » pour son joueur et toi seuls, « Chapitres »). "
-    + "preparer : crée le journal s'il manque et te rend ce que le contenu du monde dit de lui (origine, faction, rôle ; peuple, "
+    + "pages : « Portrait » et « Son histoire » lisibles de tous, « Ses secrets » pour son joueur et toi seuls, « Chapitres » ; un journal "
+    + "plus ancien peut porter « Qui il est » et « Ce qu'il garde pour lui » : ce sont les mêmes pages). "
+    + "preparer : crée le journal s'il manque et te rend ce que le contenu du monde dit du personnage (origine, faction, rôle ; peuple, "
     + "historique, classe ; enfance, passé, traits) et les questions à poser. ecrire : remplace les pages données (après deux ou trois "
     + "questions courtes au joueur, ou en inventant s'il le demande). completer : ajoute aux pages données. chapitre : un paragraphe "
     + "daté après un événement marquant de la campagne. Pour un compagnon IA, le résumé entre dans sa personnalité.",
   schema: objet({
     personnage: chaine("Nom du personnage."),
     action: { type: "string", enum: ["preparer", "ecrire", "completer", "chapitre"], description: "Ce qu'il faut faire." },
-    qui_il_est: chaine("Page « Qui il est » : origine, famille, ce qu'il faisait, apparence, manières (vide = inchangée)."),
-    son_histoire: chaine("Page « Son histoire » : le passé raconté, ce qui l'a amené là (vide = inchangée)."),
-    ce_qu_il_garde: chaine("Page « Ce qu'il garde pour lui » : un secret, une peur, ce qu'il cherche (vide = inchangée)."),
+    qui_il_est: chaine("Page « Portrait » : origine, famille, ancien métier, apparence, manières (vide = inchangée)."),
+    son_histoire: chaine("Page « Son histoire » : le passé raconté, le chemin jusqu'ici (vide = inchangée)."),
+    ce_qu_il_garde: chaine("Page « Ses secrets » : un secret, une peur, une quête cachée (vide = inchangée)."),
     chapitre: chaine("action chapitre : le paragraphe à ajouter ; vide sinon."),
     resume_compagnon: chaine("Compagnon IA : le résumé de son histoire pour sa personnalité, deux ou trois phrases à la deuxième personne "
       + "(« Tu as grandi… ») ; vide = tiré des pages écrites.")
@@ -64,7 +65,7 @@ export const OUTIL_HISTOIRE = {
         const q = H.questionsAide(systeme);
         return { contenu: [
           `Journal « ${journal.name} » ${cree ? "créé (pages d'aide)" : "déjà là"} ; pages écrites : ${ecrites.join(", ") || "aucune"}.`,
-          materiau.length ? `Ce que le monde dit de lui :\n${materiau.map(l => `- ${l}`).join("\n")}` : "Sa fiche ne dit rien de son origine : demande au joueur.",
+          materiau.length ? `Ce que le monde dit de ce personnage :\n${materiau.map(l => `- ${l}`).join("\n")}` : "Sa fiche ne dit rien de son origine : demande au joueur.",
           `Questions possibles (deux ou trois, courtes) : ${[...q.qui.slice(0, 1), ...q.histoire, q.secret[0]].join(" ; ")}`,
           "Ensuite : histoire_personnage, action ecrire."
         ].join("\n") };

@@ -166,4 +166,4 @@ de ce dépôt ; dans lakour-veillees, `essais/pilote-automatique.test.mjs` et `e
 
 À sa création (`compagnon_ajouter`), son journal « Histoire de <nom> » est créé (`scripts/histoire.js`) ; le MJ IA l'écrit avec
 `histoire_personnage`, et le résumé entre dans le champ `histoire` de sa personnalité, que son cerveau lit à chaque réplique. Sa
-vue contient aussi sa propre page « Ce qu'il garde pour lui », jamais celle d'un autre personnage.
+vue contient aussi sa propre page « Ses secrets », jamais celle d'un autre personnage.

@@ -163,11 +163,12 @@ When an AI must hear (an AI GM session is running, or a living AI companion is a
 
 #### One journal per character
 Each player character and each AI companion (and, if you wish, a recruit or an important NPC) has its journal **"Histoire de <name>"** (the story of <name>), filed in the **Histoires des personnages** folder, with four pages (their names are in French):
-- **Qui il est** (who they are, readable by everyone): origin, family, what they used to do, looks, manners;
-- **Son histoire** (their story, readable by everyone): the past told, what brought them here;
-- **Ce qu'il garde pour lui** (what they keep to themselves; their player and the GM only): a secret, a fear, what they are looking for. Beware: this is a **page permission**, not a vault; Foundry sends documents to every browser, and a curious player can read it in the console;
+- **Portrait** (readable by everyone): origin, family, former trade, looks, manners;
+- **Son histoire** (their story, readable by everyone): the past told, the road to the group;
+- **Ses secrets** (their secrets; their player and the GM only): a secret, a fear, a hidden quest. Beware: this is a **page permission**, not a vault; Foundry sends documents to every browser, and a curious player can read it in the console;
 - **Chapitres** (chapters): the AI GM adds a dated paragraph after each notable event.
-- **With the AI GM**: during guided creation, it asks the player two or three short questions (or makes things up if asked), then writes the backstory from the world's content (40k: origin, faction, role; Warcraft: people, background, class; Fénoir: childhood, past, traits, region, lost loved one). The *histoire_personnage* tool: prepare, write, complete, add a chapter. An AI companion gets the summary of its backstory in its personality: it talks about it and acts accordingly. The AI GM reads one line of each backstory in the characters' summary, and what each one keeps to themselves.
+- **Older journals**: a journal created before the current titles keeps its pages "Qui il est" and "Ce qu'il garde pour lui"; they are the same pages (portrait, secrets), and the AI GM recognizes and writes them.
+- **With the AI GM**: during guided creation, it asks the player two or three short questions (or makes things up if asked), then writes the backstory from the world's content (40k: origin, faction, role; Warcraft: people, background, class; Fénoir: childhood, past, traits, region, lost loved one). The *histoire_personnage* tool: prepare, write, complete, add a chapter. An AI companion gets the summary of its backstory in its personality: it talks about it and acts accordingly. The AI GM reads one line of each backstory in the characters' summary, and each one's secrets.
 - **Without AI**: the **Story** button in the sheet header opens the journal, or creates it with its four empty pages and questions to help the player write it themselves. A player who clicks their character's button asks the connected GM, who creates it at once.
 
 ### Seasonal festivals
@@ -204,7 +205,7 @@ When a popular festival comes near, the world can celebrate it in its own way: t
 ### Your character's backstory (40k, Warcraft, Fénoir)
 
 - The **Story** button at the top of your sheet opens your character's journal (if it does not exist yet, the GM creates it for you).
-- **Qui il est** (who they are) and **Son histoire** (their story) are readable by everyone; **Ce qu'il garde pour lui** (what they keep to themselves), only by you and the GM; the **Chapitres** (chapters) tell the campaign.
+- **Portrait** and **Son histoire** (their story) are readable by everyone; **Ses secrets** (their secrets), only by you and the GM (in an older journal: "Qui il est" and "Ce qu'il garde pour lui"); the **Chapitres** (chapters) tell the campaign.
 - At creation, the AI GM asks you two or three questions and writes it with you; you can add to it yourself at any time (the help questions say what to put in it).
 
 ### Turn by turn (40k and Warcraft)

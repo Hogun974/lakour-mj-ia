@@ -146,11 +146,12 @@ Quand une IA doit entendre (une séance du MJ IA est lancée, ou un compagnon IA
   { cle: "histoire", titre: "Histoire des personnages (40k, Warcraft, Fénoir)", texte: `
 # Un journal par personnage
 Chaque personnage joueur et chaque compagnon IA (et, si tu veux, une recrue ou un PNJ important) a son journal **« Histoire de <nom> »**, rangé dans le dossier **Histoires des personnages**, avec quatre pages :
-- **Qui il est** (lisible de tous) : origine, famille, ce qu'il faisait, apparence, manières ;
-- **Son histoire** (lisible de tous) : le passé raconté, ce qui l'a amené là ;
-- **Ce qu'il garde pour lui** (son joueur et le MJ seulement) : un secret, une peur, ce qu'il cherche. Attention : c'est une **propriété de page**, pas un coffre ; Foundry envoie les documents à tous les navigateurs, un joueur curieux peut le lire dans la console ;
+- **Portrait** (lisible de tous) : origine, famille, ancien métier, apparence, manières ;
+- **Son histoire** (lisible de tous) : le passé raconté, le chemin jusqu'au groupe ;
+- **Ses secrets** (son joueur et le MJ seulement) : un secret, une peur, une quête cachée. Attention : c'est une **propriété de page**, pas un coffre ; Foundry envoie les documents à tous les navigateurs, un joueur curieux peut le lire dans la console ;
 - **Chapitres** : le MJ IA y ajoute un paragraphe daté après chaque événement marquant.
-- **Avec le MJ IA** : à la création guidée, il pose deux ou trois questions courtes au joueur (ou invente s'il le demande), puis écrit l'histoire à partir du contenu du monde (40k : origine, faction, rôle ; Warcraft : peuple, historique, classe ; Fénoir : enfance, passé, traits, région, proche perdu). Outil *histoire_personnage* : préparer, écrire, compléter, ajouter un chapitre. Un compagnon IA reçoit le résumé de son histoire dans sa personnalité : il en parle et agit selon elle. Le MJ IA lit une ligne de chaque histoire dans le résumé des personnages, et ce que chacun garde pour lui.
+- **Anciens journaux** : un journal créé avant les titres actuels garde ses pages « Qui il est » et « Ce qu'il garde pour lui » ; ce sont les mêmes pages (portrait, secrets), le MJ IA les reconnaît et y écrit.
+- **Avec le MJ IA** : à la création guidée, il pose deux ou trois questions courtes au joueur (ou invente s'il le demande), puis écrit l'histoire à partir du contenu du monde (40k : origine, faction, rôle ; Warcraft : peuple, historique, classe ; Fénoir : enfance, passé, traits, région, proche perdu). Outil *histoire_personnage* : préparer, écrire, compléter, ajouter un chapitre. Un compagnon IA reçoit le résumé de son histoire dans sa personnalité : il en parle et agit selon elle. Le MJ IA lit une ligne de chaque histoire dans le résumé des personnages, et les secrets de chacun.
 - **Sans IA** : le bouton **Histoire** de l'en-tête de la fiche ouvre le journal, ou le crée avec ses quatre pages vides et des questions pour aider le joueur à l'écrire lui-même. Un joueur qui clique sur le bouton de son personnage le demande au MJ connecté, qui le crée aussitôt.` },
   { cle: "fetes", titre: "Fêtes de saison", texte: `
 # Noël, Halloween et les autres, à la mode de chaque monde
@@ -180,7 +181,7 @@ export const GUIDE_JOUEURS = [
 - **Les fêtes** : à Noël, Halloween et quelques autres fêtes, le monde peut se décorer un peu (guirlande, flocons…). Réglages › MJ IA › « Effets visuels des fêtes » pour les couper chez toi.` },
   { cle: "histoire", titre: "Histoire de ton personnage (40k, Warcraft, Fénoir)", texte: `
 - Le bouton **Histoire** en haut de ta fiche ouvre le journal de ton personnage (s'il n'existe pas encore, le MJ le crée pour toi).
-- **Qui il est** et **Son histoire** sont lisibles de tous ; **Ce qu'il garde pour lui**, seulement de toi et du MJ ; les **Chapitres** racontent la campagne.
+- **Portrait** et **Son histoire** sont lisibles de tous ; **Ses secrets**, seulement de toi et du MJ (dans un journal plus ancien : « Qui il est » et « Ce qu'il garde pour lui ») ; les **Chapitres** racontent la campagne.
 - À la création, le MJ IA te pose deux ou trois questions et l'écrit avec toi ; tu peux la compléter toi-même à tout moment (les questions d'aide disent quoi y mettre).` },
   { cle: "tour", titre: "Tour par tour (40k et Warcraft)", texte: `
 - **En combat**, un bandeau en haut de l'écran te dit où on en est : « ⚔️ Round 3 — À toi de jouer ! », ou « Au tour de X, puis toi ».

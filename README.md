@@ -214,7 +214,7 @@ MJ IA (`scripts/coffre.js`, `coffre-logique.js`) protège ce qui doit rester sec
   fois : la nouvelle, confiée à personne, entre en vigueur quand le MJ télécharge sa clé de secours, et les anciennes parts
   n'ouvrent plus rien de ce qui est scellé ensuite. Les autres mondes gardent le partage entre joueurs ;
 - ce qu'il **ne protège pas** : la mémoire de campagne et les journaux du MJ (scénarios, notes), protégés seulement par les
-  droits de Foundry ; la page « ce qu'il garde pour lui » des histoires de personnages, qui est une simple propriété de
+  droits de Foundry ; la page « Ses secrets » des histoires de personnages, qui est une simple propriété de
   page ; et rien du tout si les comptes joueurs n'ont **pas de mot de passe** (une part sans mot de passe est une part que
   n'importe qui peut prendre).
 
@@ -248,8 +248,8 @@ index des pièces qui permet de poser un jeton « près de la forge ». Style pl
 
 ### Histoires des personnages (D&D 5e, Fénoir, Imperium Maledictum)
 
-Un journal « Histoire de <nom> » en quatre pages par personnage et par compagnon (qui il est, son histoire, ce qu'il garde
-pour lui, chapitres datés), écrit par le MJ IA après deux ou trois questions au joueur, ou créé vide avec des questions
+Un journal « Histoire de <nom> » en quatre pages par personnage et par compagnon (portrait, son histoire, ses secrets,
+chapitres datés), écrit par le MJ IA après deux ou trois questions au joueur, ou créé vide avec des questions
 pour l'écrire soi-même (bouton **Histoire** de la fiche, sans IA).
 
 ### Fêtes de saison
@@ -294,8 +294,8 @@ reprenne où il en était ; il est chiffré avec la clé du coffre. La **mémoir
   chez le fournisseur (le budget par séance du module n'est qu'une estimation), et révoquez-la au moindre doute.
 - **Le coffre protège** les éléments cachés du Carnet, le fil de l'IA et ses archives, les répliques vocales privées et,
   aux Veillées, les secrets de la partie. **Il ne protège pas** les documents que l'IA crée ou complète : la **mémoire de
-  campagne**, les journaux (scénarios préparés, chronique, aides de jeu, histoires des personnages et leur page « ce qu'il
-  garde pour lui »), les PNJ créés. Ce sont des documents Foundry **en clair**, livrés à chaque navigateur et protégés
+  campagne**, les journaux (scénarios préparés, chronique, aides de jeu, histoires des personnages et leur page « Ses
+  secrets »), les PNJ créés. Ce sont des documents Foundry **en clair**, livrés à chaque navigateur et protégés
   seulement par les droits de vue : un joueur qui fouille la console peut les lire. De même, un **chuchotement** du chat
   (message privé hors Veillées, avis au MJ) est livré à tous les navigateurs, qui ne font que le masquer.
 - **Un MJ-assistant** (rôle *Assistant GM*) est un MJ pour Foundry comme pour le module : il voit tout ce que voit le MJ

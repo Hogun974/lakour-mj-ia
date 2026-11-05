@@ -675,7 +675,7 @@ const TOUR_DND5E = {
 };
 
 // Histoire de chaque personnage (histoire-logique.js ; 40k, Warcraft, Fénoir) : le résumé d'un personnage cite une ligne de son
-// journal d'histoire, tirée des pages PUBLIQUES seulement (jamais « Ce qu'il garde pour lui »).
+// journal d'histoire, tirée des pages PUBLIQUES seulement (jamais « Ses secrets »).
 for (const sys of [impmal, dnd5e, survie]) {
   const resumer = sys.resumer;
   sys.resumer = function (acteur) {

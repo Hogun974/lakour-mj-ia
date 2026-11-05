@@ -209,7 +209,7 @@ therefore read in their browser console what the interface hides from them. The 
   the GM downloads its recovery key, and the old shares open nothing sealed afterwards. Other worlds keep sharing the key
   among players;
 - what it **does not protect**: the campaign memory and the GM journals (scenarios, notes), protected only by Foundry's
-  ownership rights; the "what they keep to themselves" page of character backstories, which is a plain page property;
+  ownership rights; the "Ses secrets" (their secrets) page of character backstories, which is a plain page property;
   and nothing at all if player accounts have **no password** (a share without a password is a share anyone can take).
 
 ### Campaign notebook: clocks, investigations, contacts (D&D 5e, Imperium Maledictum)
@@ -242,8 +242,8 @@ placed "near the forge". Flat or relief style (3D Canvas).
 
 ### Character backstories (D&D 5e, Fénoir, Imperium Maledictum)
 
-A journal "Histoire de <name>" with four pages per character and per companion (who they are, their story, what they
-keep to themselves, dated chapters), written by the AI GM after two or three questions to the player, or created empty
+A journal "Histoire de <name>" with four pages per character and per companion (portrait, their story, their secrets,
+dated chapters), written by the AI GM after two or three questions to the player, or created empty
 with prompts to write it yourself (**Histoire** button on the sheet, no AI).
 
 ### Seasonal festivals
@@ -287,7 +287,7 @@ places, open threads, notes) that the AI rereads at the start of each session an
   per-session budget is only an estimate), and revoke it at the slightest doubt.
 - **The vault protects** the hidden Notebook entries, the AI thread and its archives, private voice lines and, in the
   Veillées, the game's secrets. **It does not protect** the documents the AI creates or fills in: the **campaign memory**,
-  journals (prepared scenarios, chronicle, handouts, character backstories and their "what they keep to themselves"
+  journals (prepared scenarios, chronicle, handouts, character backstories and their "Ses secrets" (their secrets)
   page), the NPCs it creates. These are **plain** Foundry documents, delivered to every browser and protected only by
   viewing rights: a player who digs in the console can read them. Likewise, a chat **whisper** (private message outside
   the Veillées, notice to the GM) is delivered to every browser, which merely hides it.

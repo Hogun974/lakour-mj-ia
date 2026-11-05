@@ -6,6 +6,10 @@ vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici
 
 ## Non publié
 
+- Fenêtre « Action du MJ IA » (Validation) lisible : arguments résumés (« 4 éléments (Salle commune, Cuisine, …) », clés
+  d'un objet, champs vides omis) au lieu du JSON brut, libellés traduits, tout échappé (`essais/validation-resume.test.mjs`).
+  Histoire des personnages : titres neutres « Portrait », « Son histoire », « Ses secrets », « Chapitres » (questions d'aide
+  et consignes aussi) ; les journaux existants (« Qui il est », « Ce qu'il garde pour lui ») restent reconnus, sans renommage.
 - Sécurité : aux Veillées, plus aucune part de la clé du coffre chez les joueurs (clé renouvelée une fois si des joueurs en
   gardaient, en vigueur par la clé de secours) ; boutons, drapeaux et classes du MJ IA honorés seulement sur un message
   d'un MJ (raison des dés échappée) ; parole des joueurs encadrée comme une donnée pour le narrateur ; canal du module

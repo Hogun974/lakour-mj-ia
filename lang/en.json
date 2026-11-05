@@ -290,7 +290,14 @@
       "Arretee": "AI GM session ended, campaign memory updated."
     },
     "Validation": {
-      "Titre": "AI GM action"
+      "Titre": "AI GM action",
+      "Intro": "The AI GM wants to use {outil}:",
+      "SansArguments": "No arguments.",
+      "UnElement": "1 item",
+      "Elements": "{n} items",
+      "EtAutres": "and {n} more",
+      "Oui": "yes",
+      "Non": "no"
     },
     "Erreurs": {
       "PasDeCle": "No API key for this provider: open the AI GM configuration.",

@@ -17,7 +17,7 @@ import { contexteSurvie } from "./survie-logique.js";
 import { ligneHistoireActeur } from "./histoire-logique.js";
 import { langueDuMonde } from "./contenus.js";
 
-// Pour le narrateur seul : ce que le personnage garde pour lui (page secrète de son journal d'histoire), "" sinon.
+// Pour le narrateur seul : les secrets du personnage (page secrète de son journal d'histoire), "" sinon.
 const secretHistoire = a => { const l = ligneHistoireActeur(a, { publique: false, secret: true }); return l ? ` — ${l}` : ""; };
 
 // La langue dans laquelle le narrateur parle aux joueurs : celle du monde (contenus.js, langueDuMonde ; module de contenu

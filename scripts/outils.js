@@ -3796,11 +3796,44 @@ export function partieLoupsEnCoursIci() {
   } catch { return false; }
 }
 
-// Résumé lisible d'un appel, pour la demande de validation au MJ humain.
+// Résumé lisible d'un appel, pour la demande de validation au MJ humain (fenêtre « Action du MJ IA »). Pas de JSON brut :
+// un tableau d'objets devient « 4 éléments (Salle commune, Cuisine, …) » (le nombre seul pour des objets sans nom), un objet
+// ses clés principales ; les champs vides (texte vide, tableau ou objet vide, null) sont omis. Tout ce qui vient de l'IA
+// (nom de l'outil, clés, valeurs) est échappé : aucune balise ne passe.
+const echapperHTML = t => (foundry.utils?.escapeHTML ?? (x => x.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)))(String(t));
+const NOMS_LISTES = 6;
+const abreger = (t, max) => (t.length > max ? `${t.slice(0, max)}…` : t);
+const vide = v => v === null || v === undefined || v === "" || (Array.isArray(v) && !v.length)
+  || (typeof v === "object" && !Array.isArray(v) && !Object.keys(v).length);
+const nombreElements = n => game.i18n.format(n === 1 ? "LAKOUR_MJIA.Validation.UnElement" : "LAKOUR_MJIA.Validation.Elements", { n });
+const nomDe = o => [o.nom, o.name, o.titre, o.label].find(x => typeof x === "string" && x.trim())?.trim() ?? null;
+function scalaire(v) {
+  if (typeof v === "boolean") return game.i18n.localize(v ? "LAKOUR_MJIA.Validation.Oui" : "LAKOUR_MJIA.Validation.Non");
+  return String(v).replace(/\s+/g, " ").trim();
+}
+function enListe(valeurs) {
+  const vus = valeurs.slice(0, NOMS_LISTES).join(", ");
+  return valeurs.length > NOMS_LISTES ? `${vus}, ${game.i18n.format("LAKOUR_MJIA.Validation.EtAutres", { n: valeurs.length - NOMS_LISTES })}` : vus;
+}
+// Une valeur en texte court (pas encore échappé) ; profondeur : 0 à la racine, les objets imbriqués sont résumés plus court.
+function resumerValeur(v, profondeur = 0) {
+  if (vide(v)) return "—";
+  if (Array.isArray(v)) {
+    if (v.every(x => x === null || typeof x !== "object")) return enListe(v.filter(x => !vide(x)).map(scalaire));
+    const noms = v.map(x => (x && typeof x === "object" && !Array.isArray(x) ? nomDe(x) : null)).filter(Boolean);
+    return noms.length ? `${nombreElements(v.length)} (${enListe(noms)})` : nombreElements(v.length);
+  }
+  if (typeof v === "object") {
+    const nom = nomDe(v);
+    if (profondeur > 0) return nom ?? nombreElements(Object.keys(v).length);
+    const parties = Object.entries(v).filter(([, x]) => !vide(x)).map(([k, x]) => `${k.replace(/_/g, " ")} : ${resumerValeur(x, profondeur + 1)}`);
+    return enListe(parties);
+  }
+  return scalaire(v);
+}
 export function resumerAppel(appel) {
-  const args = Object.entries(appel.args ?? {}).map(([k, v]) => {
-    const valeur = typeof v === "string" ? v : JSON.stringify(v);
-    return `<li><strong>${k}</strong> : ${foundry.utils.escapeHTML(tronquer(valeur, 600))}</li>`;
-  }).join("");
-  return `<p>Le MJ IA veut utiliser <strong>${appel.nom}</strong> :</p><ul>${args}</ul>`;
+  const args = Object.entries(appel.args ?? {}).filter(([, v]) => !vide(v)).map(([k, v]) =>
+    `<li><strong>${echapperHTML(k.replace(/_/g, " "))}</strong> : ${echapperHTML(abreger(resumerValeur(v), 600))}</li>`).join("");
+  const intro = game.i18n.format("LAKOUR_MJIA.Validation.Intro", { outil: `<strong>${echapperHTML(appel.nom)}</strong>` });
+  return `<p>${intro}</p>${args ? `<ul>${args}</ul>` : `<p>${game.i18n.localize("LAKOUR_MJIA.Validation.SansArguments")}</p>`}`;
 }

@@ -22,7 +22,7 @@
   ],
   "compatibility": {
     "minimum": "14",
-    "verified": "14.369"
+    "verified": "14.370"
   },
   "esmodules": ["scripts/main.js"],
   "socket": true,
