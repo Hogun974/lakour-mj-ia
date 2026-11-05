@@ -18,7 +18,8 @@ import { versHTML, roleLoups, campLoups, secretsVeilleesEnAttente } from "./util
 import { vuePubliqueDepuisApi } from "./survie-logique.js";
 import { ligneHistoireActeur } from "./histoire-logique.js";
 import {
-  CerveauxCompagnons, BAVARDAGE, normaliserPersonnalite, texteBrut, choisirOrateurs, repliReplique, criePeste, declarationAuRegistre, accusationDans
+  CerveauxCompagnons, BAVARDAGE, normaliserPersonnalite, texteBrut, choisirOrateurs, repliReplique, criePeste, declarationAuRegistre, accusationDans,
+  formulesReplique
 } from "./compagnons.js";
 
 // Réglage du MJ IA, sans erreur s'il n'est pas enregistré (essais, système sans MJ IA).
@@ -220,9 +221,10 @@ function bancEtDeuil(api, acteur) {
   const banc = typeof api?.banc === "function" ? essayer(() => api.banc()) : null;
   if (banc?.actif) {
     const acc = banc.accusations ?? [];
+    // La formule d'accusation dans la langue du monde (compagnons.js, formulesReplique ; reconnue dans les deux langues).
     lignes.push(`Banc des accusés : ${acc.length ? acc.map(a => `${a.parNom} accuse ${a.contreNom}${a.juge ? " (jugé)" : ""}`).join(" ; ") : "personne n'est accusé aujourd'hui"}`
       + `${banc.prochain ? ` ; prochain jugé : ${banc.prochainNom}` : ""}. Sans accusé, pas de vote d'exécution. `
-      + (acteur.system.vivant !== false ? "Pour accuser quelqu'un (une fois par jour), écris dans ta réplique « J'accuse <son nom> »." : ""));
+      + (acteur.system.vivant !== false ? `Pour accuser quelqu'un (une fois par jour), écris dans ta réplique « ${formulesReplique(langueDuMonde()).accuser} <son nom> ».` : ""));
   }
   const deuil = typeof api?.deuil === "function" ? essayer(() => api.deuil()) : null;
   if (deuil?.actif && deuil.compte > 0) lignes.push(`Le glas du deuil a sonné ${deuil.compte} fois : un innocent pendu à chaque fois.`);

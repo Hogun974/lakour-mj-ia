@@ -8,19 +8,29 @@
 
 export const SYSTEMES_HISTOIRE = ["impmal", "dnd5e", "lakour-survie"];
 export const DOSSIER_HISTOIRES = "Histoires des personnages";
+// Ce que voient les joueurs (dossier, titre du journal, titres des pages, questions d'aide) suit la langue du monde (« en » :
+// anglais ; histoire.js passe contenus.js, langueDuMonde). Un journal se retrouve par son drapeau, une page par le sien : les
+// titres français et anglais sont reconnus tous deux (pageDe), rien n'est renommé dans les mondes.
+export const DOSSIERS_HISTOIRES = { fr: DOSSIER_HISTOIRES, en: "Character stories" };
+const enAnglais = langue => langue === "en";
+export const dossierHistoires = langue => DOSSIERS_HISTOIRES[enAnglais(langue) ? "en" : "fr"];
 export const CLASSE_AIDE = "lakour-histoire-aide";
 const ID_MJIA = "lakour-mj-ia";
 
 // Les quatre pages, dans l'ordre. prive : réservée au propriétaire de l'acteur et au MJ. anciens : titres des journaux créés
 // avant les titres neutres (0.40.1 et avant), reconnus par pageDe quand une page n'a pas son drapeau ; ces pages gardent leur
 // titre, rien n'est renommé dans les mondes.
+// en : le titre de la page dans un monde anglais.
 export const PAGES_HISTOIRE = [
-  { cle: "qui", nom: "Portrait", prive: false, anciens: ["Qui il est"] },
-  { cle: "histoire", nom: "Son histoire", prive: false, anciens: [] },
-  { cle: "secret", nom: "Ses secrets", prive: true, anciens: ["Ce qu'il garde pour lui"] },
-  { cle: "chapitres", nom: "Chapitres", prive: false, anciens: [] }
+  { cle: "qui", nom: "Portrait", en: "Portrait", prive: false, anciens: ["Qui il est"] },
+  { cle: "histoire", nom: "Son histoire", en: "Story", prive: false, anciens: [] },
+  { cle: "secret", nom: "Ses secrets", en: "Secrets", prive: true, anciens: ["Ce qu'il garde pour lui"] },
+  { cle: "chapitres", nom: "Chapitres", en: "Chapters", prive: false, anciens: [] }
 ];
-export const nomJournalHistoire = nom => `Histoire de ${String(nom ?? "").trim() || "?"}`;
+export const nomJournalHistoire = (nom, langue = "fr") => {
+  const qui = String(nom ?? "").trim() || "?";
+  return enAnglais(langue) ? `Story of ${qui}` : `Histoire de ${qui}`;
+};
 
 // Questions d'aide (journal créé sans IA, ou en attente de l'IA), par page et par monde.
 const ORIGINE = {
@@ -28,7 +38,19 @@ const ORIGINE = {
   dnd5e: "De quel peuple, de quelle ville ou de quel clan viens-tu ? Qu'as-tu fait avant l'aventure (ton historique) ?",
   "lakour-survie": "Où as-tu grandi, à La Réunion ou ailleurs ? Que faisais-tu la veille du jour zéro ?"
 };
-export function questionsAide(systeme) {
+const ORIGINE_EN = {
+  impmal: "What world do you come from (hive, forge, agri-world, feudal, shrine, feral)? Whom does your faction serve, and why you?",
+  dnd5e: "What people, what city or what clan do you come from? What did you do before the adventure (your background)?",
+  "lakour-survie": "Where did you grow up, on Réunion or elsewhere? What were you doing the day before day zero?"
+};
+export function questionsAide(systeme, langue = "fr") {
+  if (enAnglais(langue)) return {
+    qui: [ORIGINE_EN[systeme] ?? ORIGINE_EN.dnd5e, "What do you look like? A habit, a way of speaking, an object that never leaves you?"],
+    histoire: [systeme === "lakour-survie" ? "Whom have you lost, or are you still looking for, since day zero?" : "What made you leave your old life?",
+      "How did you join the group?"],
+    secret: ["What secret do you keep, even from the others?", "What are you truly afraid of? What are you looking for?"],
+    chapitres: ["The GM (or the AI GM) adds a paragraph here after each memorable event."]
+  };
   return {
     qui: [ORIGINE[systeme] ?? ORIGINE.dnd5e, "À quoi ressembles-tu ? Une manie, une façon de parler, un objet qui ne te quitte pas ?"],
     histoire: [systeme === "lakour-survie" ? "Qui as-tu perdu, ou cherches-tu encore, depuis le jour zéro ?" : "Qu'est-ce qui t'a fait quitter ta vie d'avant ?",
@@ -40,36 +62,36 @@ export function questionsAide(systeme) {
 
 // Le contenu HTML d'une page d'aide : les questions, marquées pour être remplacées à la première écriture.
 const echapper = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-export const aideHTML = questions => `<div class="${CLASSE_AIDE}"><p><em>À écrire (questions pour t'aider) :</em></p>`
+export const aideHTML = (questions, langue = "fr") => `<div class="${CLASSE_AIDE}"><p><em>${enAnglais(langue) ? "To write (questions to help you):" : "À écrire (questions pour t'aider) :"}</em></p>`
   + `<ul>${questions.map(q => `<li>${echapper(q)}</li>`).join("")}</ul></div>`;
 export const estAide = html => !String(html ?? "").trim() || String(html).includes(CLASSE_AIDE);
 
 // Les données Foundry du journal (JournalEntry.create) : le journal visible de tous (OBSERVER) et propriété des joueurs de l'acteur ;
 // la page secrète réservée à ceux-ci (et au MJ, qui voit tout). niveaux : CONST.DOCUMENT_OWNERSHIP_LEVELS.
-export function donneesJournalHistoire({ nom, proprietaires = [], dossier = null, acteurUuid = "", systeme = "dnd5e", niveaux = {} } = {}) {
+export function donneesJournalHistoire({ nom, proprietaires = [], dossier = null, acteurUuid = "", systeme = "dnd5e", niveaux = {}, langue = "fr" } = {}) {
   const { NONE = 0, OBSERVER = 2, OWNER = 3, INHERIT = -1 } = niveaux;
   const proprio = Object.fromEntries(proprietaires.map(id => [id, OWNER]));
-  const aides = questionsAide(systeme);
+  const aides = questionsAide(systeme, langue);
   return {
-    name: nomJournalHistoire(nom), folder: dossier,
+    name: nomJournalHistoire(nom, langue), folder: dossier,
     ownership: { default: OBSERVER, ...proprio },
     flags: { [ID_MJIA]: { histoire: { acteur: acteurUuid } } },
     pages: PAGES_HISTOIRE.map((p, i) => ({
-      name: p.nom, type: "text", sort: (i + 1) * 100,
-      text: { content: aideHTML(aides[p.cle]), format: 1 },
+      name: enAnglais(langue) ? p.en : p.nom, type: "text", sort: (i + 1) * 100,
+      text: { content: aideHTML(aides[p.cle], langue), format: 1 },
       ownership: p.prive ? { default: NONE, ...proprio } : { default: INHERIT },
       flags: { [ID_MJIA]: { page: p.cle } }
     }))
   };
 }
 
-// La page d'un journal par sa clé (drapeau, sinon titre actuel, sinon ancien titre).
+// La page d'un journal par sa clé (drapeau, sinon titre actuel, français ou anglais, sinon ancien titre).
 export function pageDe(journal, cle) {
   const pages = [...(journal?.pages?.contents ?? journal?.pages ?? [])];
   const def = PAGES_HISTOIRE.find(p => p.cle === cle);
   if (!def) return null;
   return pages.find(p => p?.flags?.[ID_MJIA]?.page === cle)
-    ?? [def.nom, ...def.anciens].map(nom => pages.find(p => p?.name === nom)).find(Boolean) ?? null;
+    ?? [def.nom, def.en, ...def.anciens].map(nom => pages.find(p => p?.name === nom)).find(Boolean) ?? null;
 }
 const contenuDe = page => page?.text?.content ?? "";
 const texteBrut = html => String(html ?? "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/&#39;/g, "'").replace(/&quot;/g, "\"")

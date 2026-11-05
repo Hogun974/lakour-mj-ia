@@ -357,7 +357,7 @@ export function etatPartieLoups(api) {
     lignes.push(`PESTE NOIRE — secret absolu, ne la nomme jamais et n'y fais aucune allusion : aucun loup dans cette partie, la peste `
       + `frappe chaque nuit (racontée comme une victime de la meute). ${e.peste.porteur ? `Porteur : ${nom(e.peste.porteur)} (il désigne la `
       + "prochaine victime en secret)." : "Pas encore de porteur : c'est TOI qui choisis la victime de la nuit (loups_nuit, peste_victime)."} `
-      + "Si un joueur crie « C'est la peste noire ! », loups_peste (le système tranche).");
+      + `Si un joueur crie « C'est la peste noire ! »${langueDuMonde() === "en" ? " (en anglais : « It's the black plague! »)" : ""}, loups_peste (le système tranche).`);
   }
   lignes.push(`Vivants (${tous.filter(a => a.system.vivant).length}) : ${tous.filter(a => a.system.vivant).map(a => a.name).join(", ") || "aucun"}.`);
   if (e.morts?.length) lignes.push(`Morts : ${e.morts.map(m => `${nom(m.acteurId)} (${m.cause}, tour ${m.tour})`).join(", ")}.`);

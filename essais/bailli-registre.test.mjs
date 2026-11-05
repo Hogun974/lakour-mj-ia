@@ -238,6 +238,17 @@ const VERIFICATIONS = {
     assert.equal(M.compagnons.declarationAuRegistre("*Il se lève.* — Au registre :  j'ai lu  Berthe."), "j'ai lu Berthe.");
     assert.equal(M.compagnons.declarationAuRegistre("Je dirai au Registre : rien."), null);
     assert.match(M.compagnons.CONSIGNE_PARLER_LOUPS, /« Au Registre : »/);
+    // Monde anglais : « For the Register: », « On the Register: », « On the record: » (pas « For the record »).
+    assert.equal(M.compagnons.declarationAuRegistre("For the Register: I am the Ash Reader."), "I am the Ash Reader.");
+    assert.equal(M.compagnons.declarationAuRegistre("*He stands.* — on the record:  I read  Berthe."), "I read Berthe.");
+    assert.equal(M.compagnons.declarationAuRegistre("ON THE REGISTER: Colin was out."), "Colin was out.");
+    assert.equal(M.compagnons.declarationAuRegistre("For the record: I saw nothing."), null);
+    assert.equal(M.compagnons.declarationAuRegistre("I'll say it for the Register: nothing."), null);
+    const consigneEn = M.compagnons.consigneParlerLoups("en");
+    assert.match(consigneEn, /« For the Register: » \(en anglais, mot pour mot\)/);
+    assert.match(consigneEn, /« For the Register: last night, I saw a lantern go out at Berthe's\. »/);
+    assert.doesNotMatch(consigneEn, /Au Registre/);
+    assert.equal(M.compagnons.consigneParlerLoups("fr"), M.compagnons.CONSIGNE_PARLER_LOUPS);
     const api = veillees();
     const C = new M.jeu.Compagnons({ graine: "registre" });
     const repliques = ["*Elle lève la main.* — Au Registre : je suis l'Herboriste.", "Je n'ai rien vu cette nuit."];
@@ -350,7 +361,7 @@ const MUTATIONS = [
   ["compagnons-jeu.js", "return demande.objet === \"bailli\" ? \"bailli\" :", "return false ? \"bailli\" :", "résolveur : le vote du Bailli"],
   ["compagnons-jeu.js", "invite: inviteLoups(demande, sujet)", "invite: demande.invite", "résolveur : la précision du Bailli"],
   ["compagnons-jeu.js", "    case \"succession\": return `Mort, tu as remis", "    case \"succession_\": return `Mort, tu as remis", "note privée de la succession"],
-  ["compagnons.js", "au registre\\s*:\\s*(.+)$/is", "au greffe\\s*:\\s*(.+)$/is", "« Au Registre » reconnu"],
+  ["compagnons.js", "(?:au registre|for the register|on the register|on the record)\\s*:\\s*(.+)$/is", "(?:au greffe)\\s*:\\s*(.+)$/is", "« Au Registre » reconnu"],
   ["compagnons.js", "(?:\\*[^*]*\\*\\s*(?:[—–-]\\s*)?)?", "", "« Au Registre » après une didascalie"],
   ["compagnons.js", "  if (demande.objet === \"bailli\" || demande.objet === \"succession\") {", "  if (false) {", "repli : confier le sceau"],
   ["compagnons.js", "commence ta réplique par « Au Registre : »", "dis-le", "compagnons : savoir déclarer"],

@@ -1,4 +1,4 @@
-import { DOSSIER_DONNEES } from "./constantes.js";
+import { DOSSIER_DONNEES, MODELES_ANTHROPIC } from "./constantes.js";
 
 // HTML -> texte brut (contenu des messages, des journaux, des descriptions).
 export function versTexte(html) {
@@ -30,6 +30,9 @@ export function texteJoueurs(cle, francais, donnees = {}) {
   } catch { /* hors Foundry : le français */ }
   return String(modele).replace(/\{(\w+)\}/g, (m, k) => (Object.hasOwn(donnees, k) ? String(donnees[k]) : m));
 }
+
+// Le libellé d'un modèle Claude, vu du MJ (configuration, console) : LAKOUR_MJIA.Modeles.<id>, sinon le libellé de constantes.js.
+export const libelleModele = id => texteJoueurs(`LAKOUR_MJIA.Modeles.${id}`, MODELES_ANTHROPIC[id]?.libelle ?? id);
 
 // Un message du chat écrit par un MJ (le navigateur du MJ actif, qui poste les cartes, narrations, répliques de compagnons et
 // annonces du système) ? Foundry v14 (common/documents/chat-message.mjs) refuse qu'un joueur crée un message au nom d'un autre

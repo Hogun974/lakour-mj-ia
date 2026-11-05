@@ -240,6 +240,11 @@ const VERIFICATIONS = {
   async "un compagnon qui crie « C'est la peste noire ! » crie pour de bon (et le tour de parole s'arrête)"(M) {
     assert.ok(M.compagnons.criePeste("*Il pâlit.* — C'est la peste noire !"));
     assert.ok(!M.compagnons.criePeste("Je crois que c'est un loup."));
+    // Monde anglais : le cri en anglais (apostrophe droite ou courbe, casse ignorée), et la consigne l'annonce mot pour mot.
+    for (const cri of ["*He goes pale.* — It's the black plague!", "IT’S THE BLACK PLAGUE!", "It is the Black Death, I tell you!"]) assert.ok(M.compagnons.criePeste(cri), cri);
+    assert.ok(!M.compagnons.criePeste("The black plague? No, it's a wolf."));
+    assert.match(M.compagnons.consigneParlerLoups("en"), /« It's the black plague! »/);
+    assert.doesNotMatch(M.compagnons.consigneParlerLoups("en"), /C'est la peste noire/);
     assert.match(M.compagnons.CONSIGNE_PARLER_LOUPS, /C'est la peste noire !/);
     assert.match(M.compagnons.CONSIGNE_PARLER_LOUPS, /CONVAINCU/);
     const api = veillees({ peste: { active: true, porteur: "v3" } });
@@ -294,7 +299,8 @@ const MUTATIONS = [
   ["pilote.js", "const premiere = e.peste?.active && !e.peste.porteur;", "const premiere = e.peste?.active;", "pilote : victime demandée malgré le porteur"],
   ["pilote.js", "const premiere = e.peste?.active && !e.peste.porteur;", "const premiere = false;", "pilote : victime jamais demandée"],
   ["compagnons-jeu.js", "      if (c.vue.jeu === \"loups\" && criePeste(r.texte) && await crierALaPeste(c.id)) break;\n", "", "le cri d'un compagnon"],
-  ["compagnons.js", "export const CRI_PESTE = /c['’]est la peste noire/i;", "export const CRI_PESTE = /jamais-crie/;", "le cri reconnu"],
+  ["compagnons.js", "export const CRI_PESTE = /c['’]est la peste noire|\\bit(?:['’]s|\\s+is)\\s+the\\s+black\\s+(?:plague|death)/i;", "export const CRI_PESTE = /jamais-crie/;", "le cri reconnu"],
+  ["compagnons.js", "|\\bit(?:['’]s|\\s+is)\\s+the\\s+black\\s+(?:plague|death)/i;", "/i;", "le cri reconnu en anglais"],
   ["compagnons.js", "+ \"exactement « C'est la peste noire ! ». Si", "+ \"une phrase. Si", "les compagnons savent crier"]
 ];
 

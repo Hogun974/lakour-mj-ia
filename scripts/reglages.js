@@ -1,5 +1,6 @@
 import { ID, MODELES_ANTHROPIC, MODELE_OPENAI_DEFAUT, MODELE_IMAGE_DEFAUT, MODELE_VOIX, EFFORTS, ANCIENS_DEFAUTS } from "./constantes.js";
-import { PERSONNALITES_DE_BASE } from "./personnalites.js";
+import { PERSONNALITES_DE_BASE, nomAfficheDe } from "./personnalites.js";
+import { texteJoueurs } from "./utilitaires.js";
 import { BAVARDAGE } from "./compagnons.js";
 import { voixRealtime } from "./voix-texte.js";
 import { ConfigIA } from "./apps/config-ia.js";
@@ -312,13 +313,13 @@ export async function migrerReglages() {
   const personnalites = lire("personnalites");
   if (personnalites.some(p => p.voixOpenAI && voixRealtime(p.voixOpenAI) !== p.voixOpenAI)) {
     await ecrire("personnalites", personnalites.map(p => (p.voixOpenAI ? { ...p, voixOpenAI: voixRealtime(p.voixOpenAI) } : p)));
-    faits.push("voix des personnalités");
+    faits.push(texteJoueurs("LAKOUR_MJIA.MigrationFaits.Voix", "voix des personnalités"));
   }
   // Personnalités livrées après la création du monde : ajoutées une fois (celles déjà vues, même supprimées depuis, ne reviennent pas).
   const { nouvelles, vues } = personnalitesAAjouter(lire("personnalites"), lire("reparations").personnalitesVues);
   if (nouvelles.length) {
     await ecrire("personnalites", [...lire("personnalites"), ...nouvelles]);
-    faits.push(`personnalités : ${nouvelles.map(p => p.nom).join(", ")}`);
+    faits.push(texteJoueurs("LAKOUR_MJIA.MigrationFaits.Personnalites", "personnalités : {noms}", { noms: nouvelles.map(p => nomAfficheDe(p, texteJoueurs)).join(", ") }));
   }
   await ecrire("reparations", { ...lire("reparations"), personnalitesVues: vues });
   if (faits.length) ui.notifications.info(game.i18n.format("LAKOUR_MJIA.Migration", { faits: faits.join(", ") }));

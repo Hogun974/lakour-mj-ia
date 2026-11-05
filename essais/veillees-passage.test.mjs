@@ -157,6 +157,21 @@ const VERIFICATIONS = {
     assert.match(berthe.scene, /Firmin — parti/);
     assert.match(berthe.scene, /Gaspard — vivant, de passage : Rémouleur/);
     assert.match(berthe.scene, /Banc des accusés : Berthe accuse Colin ; prochain jugé : Colin\. Sans accusé, pas de vote d'exécution\. Pour accuser quelqu'un/);
+    assert.match(berthe.scene, /écris dans ta réplique « J'accuse <son nom> »/);
+    // Monde anglais (langue du monde « en ») : la formule annoncée est l'anglaise, et la consigne de parole aussi.
+    game.i18n.lang = "en";
+    try {
+      const vueEn = C.vue(game.actors.get("v1"));
+      assert.equal(vueEn.langue, "en");
+      assert.match(vueEn.scene, /écris dans ta réplique « I accuse <son nom> »/);
+      const { systeme, texte: contexte } = M.compagnons.contexteCompagnon(vueEn);
+      assert.match(systeme, /« It's the black plague! »/);
+      assert.doesNotMatch(systeme, /« C'est la peste noire ! »/);
+      assert.match(contexte, /« It's the black plague! »/);
+      assert.match(contexte, /« For the Register: »/);
+      assert.doesNotMatch(contexte, /« C'est la peste noire ! »|« Au Registre : »|« J'accuse/);
+    } finally { delete game.i18n.lang; }
+    assert.match(M.compagnons.contexteCompagnon(C.vue(game.actors.get("v1"))).systeme, /« C'est la peste noire ! »/, "monde français : inchangé");
     assert.match(berthe.scene, /Le glas du deuil a sonné 1 fois/);
     assert.doesNotMatch(berthe.scene, /Loup de Brumecombe/, "jamais un rôle caché");
     assert.doesNotMatch(C.vue(game.actors.get("v3")).scene, /Pour accuser/, "un mort n'accuse pas");
@@ -195,11 +210,27 @@ const VERIFICATIONS = {
     assert.equal(M.compagnons.accusationDans("j’accuse berthe de mentir", noms), "v1");
     assert.equal(M.compagnons.accusationDans("J'accuse le vent.", noms), null);
     assert.equal(M.compagnons.accusationDans("Je n'accuse personne.", noms), null);
+    // Monde anglais : les mêmes accusations en anglais (apostrophe droite ou courbe, casse ignorée).
+    assert.equal(M.compagnons.accusationDans("*She stands up.* — I accuse Colin! He has lied since dawn.", noms), "v2");
+    assert.equal(M.compagnons.accusationDans("i’m accusing berthe of lying", noms), "v1");
+    assert.equal(M.compagnons.accusationDans("I'm accusing Colin.", noms), "v2");
+    assert.equal(M.compagnons.accusationDans("I am accusing Berthe, and I won't take it back.", noms), "v1");
+    assert.equal(M.compagnons.accusationDans("I accuse the wind.", noms), null);
+    assert.equal(M.compagnons.accusationDans("I'm not accusing anyone yet.", noms), null);
+    assert.equal(M.compagnons.formulesReplique("en").accuser, "I accuse");
+    assert.equal(M.compagnons.formulesReplique("fr").accuser, "J'accuse");
     let api = veillees({ banc: BANC });
     const C = new M.jeu.Compagnons({ graine: "accuse" });
     const repliques = ["J'accuse Colin !", "—"];
     C.cerveaux.parler = async () => ({ texte: repliques.shift() ?? "—", source: "ia" });
     await C.reagir({ max: 1 });
+    assert.equal(api.appels.accuser.length, 1);
+    assert.equal(api.appels.accuser[0][1], "v2");
+    // La même chose en anglais, de bout en bout.
+    api = veillees({ banc: BANC });
+    const E = new M.jeu.Compagnons({ graine: "accuse" });
+    E.cerveaux.parler = async () => ({ texte: "*She points.* — I accuse Colin!", source: "ia" });
+    await E.reagir({ max: 1 });
     assert.equal(api.appels.accuser.length, 1);
     assert.equal(api.appels.accuser[0][1], "v2");
     api = veillees();

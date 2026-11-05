@@ -10,6 +10,7 @@ import { lireFil, ecrireFil } from "./fils.js";
 import { validerSchema } from "./schema.js";
 import { VoixEnDirect, direReplique } from "./voix.js";
 import { estSilence } from "./voix-texte.js";
+import { langueDuMonde } from "./contenus.js";
 import { Compagnons, effacerPrive } from "./compagnons-jeu.js";
 import { peuventReagir, estAnnonceDuSysteme } from "./compagnons.js";
 import { PiloteAutomatique, attendreFinVoix } from "./pilote.js";
@@ -81,7 +82,8 @@ export function distributionSecrete(api = game.lakourLoups) {
   const peste = api?.etat?.()?.peste?.active
     ? "\nPESTE NOIRE (secret absolu, ne la nomme jamais) : aucun loup. Chaque nuit, la peste emporte un villageois, raconté comme une "
       + "victime de la meute ; la première nuit, c'est toi qui choisis sa victime (loups_nuit, peste_victime), ensuite sa dernière "
-      + "victime la désigne. Le village gagne s'il crie « C'est la peste noire ! » (loups_peste) ; un cri à tort pend le crieur."
+      + `victime la désigne. Le village gagne s'il crie « C'est la peste noire ! »${langueDuMonde() === "en" ? " (en anglais : « It's the black plague! »)" : ""} `
+      + "(loups_peste) ; un cri à tort pend le crieur."
     : "";
   return lignes.length ? `[Distribution — secret, pour toi seul]\n${lignes.join("\n")}${peste}` : "";
 }

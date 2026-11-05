@@ -5,6 +5,7 @@ import { EditeurPersonnalites } from "./personnalites.js";
 import { reinitialiserCampagne } from "../reinitialiser.js";
 import { voixDuMonde, activerAudio, donnerMicro } from "../voix-monde.js";
 import { horlogesDisponibles } from "../horloges-logique.js";
+import { libelleModele } from "../utilitaires.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -53,7 +54,7 @@ export class ConsoleMJ extends HandlebarsApplicationMixin(ApplicationV2) {
   async _prepareContext() {
     const seance = lire("seance");
     const fournisseur = lire("fournisseur");
-    const modele = fournisseur === "anthropic" ? MODELES_ANTHROPIC[lire("modeleAnthropic")]?.libelle
+    const modele = fournisseur === "anthropic" ? (MODELES_ANTHROPIC[lire("modeleAnthropic")] ? libelleModele(lire("modeleAnthropic")) : undefined)
       : fournisseur === "openai" ? lire("modeleOpenAI") : "factice";
     const personnalites = lire("personnalites");
     // Pilote automatique : en marche, en pause (relançable si la situation s'y prête), ou rien à montrer.

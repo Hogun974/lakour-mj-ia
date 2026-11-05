@@ -6,27 +6,32 @@
 import { ID } from "./constantes.js";
 import * as H from "./histoire-logique.js";
 import { versMJ, envoyer, recevoir } from "./canal.js";
+import { langueDuMonde } from "./contenus.js";
+import { texteJoueurs } from "./utilitaires.js";
 
 export const journalDe = acteur => H.journalHistoireDe(acteur);
 const niveaux = () => ({ NONE: 0, OBSERVER: 2, OWNER: 3, INHERIT: -1, ...(globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS ?? {}) });
 const proprietaires = acteur => game.users.filter(u => !u.isGM && acteur.testUserPermission?.(u, "OWNER")).map(u => u.id);
 const traduire = cle => { try { return game.i18n.localize(cle); } catch { return cle; } };
 
-async function dossierDesHistoires() {
-  const existant = game.folders?.find?.(f => f.type === "JournalEntry" && f.name === H.DOSSIER_HISTOIRES);
+// Le dossier des histoires : celui qui existe déjà (titre français ou anglais), sinon créé dans la langue du monde.
+async function dossierDesHistoires(langue = langueDuMonde()) {
+  const noms = Object.values(H.DOSSIERS_HISTOIRES);
+  const existant = game.folders?.find?.(f => f.type === "JournalEntry" && noms.includes(f.name));
   if (existant) return existant;
-  return globalThis.Folder?.implementation?.create?.({ name: H.DOSSIER_HISTOIRES, type: "JournalEntry" }) ?? null;
+  return globalThis.Folder?.implementation?.create?.({ name: H.dossierHistoires(langue), type: "JournalEntry" }) ?? null;
 }
 
 // Le journal d'un acteur, créé s'il n'existe pas (MJ seulement). -> { journal, cree }
 export async function assurerJournal(acteur) {
   const deja = journalDe(acteur);
   if (deja) return { journal: deja, cree: false };
-  if (!game.user?.isGM) throw new Error("Seul un MJ crée le journal d'histoire.");
-  const dossier = await dossierDesHistoires();
+  if (!game.user?.isGM) throw new Error(texteJoueurs("LAKOUR_MJIA.Histoire.SeulMJ", "Seul un MJ crée le journal d'histoire."));
+  const langue = langueDuMonde();
+  const dossier = await dossierDesHistoires(langue);
   const journal = await JournalEntry.implementation.create(H.donneesJournalHistoire({
     nom: acteur.name, proprietaires: proprietaires(acteur), dossier: dossier?.id ?? null, acteurUuid: acteur.uuid ?? "",
-    systeme: game.system?.id, niveaux: niveaux()
+    systeme: game.system?.id, niveaux: niveaux(), langue
   }));
   // Fénoir : le système range aussi l'uuid dans system.histoire.journal (§10.1) ; un champ inconnu du modèle est ignoré.
   await acteur.update({ [`flags.${ID}.histoire`]: journal.uuid, ...(acteur.type === "survivant" ? { "system.histoire.journal": journal.uuid } : {}) });

@@ -130,7 +130,8 @@ export function consigneSysteme(vue) {
       + "un joueur autour de la table, tenu par une IA, avec les mêmes droits et les mêmes limites qu'un joueur humain.",
     "Tu ne sais que ce qui est écrit ici : ta fiche, ce qu'on t'a dit en privé, ce qui s'est dit en public et ce que tu vois. "
       + "Ne prétends jamais savoir ce que tu ignores et n'invente aucun secret.",
-    REGLES[vue.jeu] ?? REGLES.aventure,
+    // Le cri de la peste dans la langue du monde (FORMULES_REPLIQUE), comme dans la consigne de parole.
+    (REGLES[vue.jeu] ?? REGLES.aventure).replace(`« ${FORMULES_REPLIQUE.fr.peste} »`, `« ${formulesReplique(vue.langue).peste} »`),
     `Personnalité : ${TEMPERAMENTS[p.temperament].consigne} Façon de parler : ${p.parler}.${p.histoire ? ` Ton histoire : ${p.histoire}` : ""}`,
     consigneLangueCompagnon(vue.langue),
     "",
@@ -197,20 +198,43 @@ export const CONSIGNE_PARLER_LOUPS = " Tu peux accuser, te défendre, poser une 
   + "(public, une phrase, trois par jour au plus), commence ta réplique par « Au Registre : » suivi de ce que tu déclares (« Au "
   + "Registre : cette nuit, j'ai vu une lanterne s'éteindre chez Berthe. »). Le greffier ne vérifie rien : on peut y mentir.";
 
+// Les formules qui déclenchent quelque chose dans une réplique (accusation au Banc, cri de la peste noire, déclaration au Registre),
+// dans la langue du monde (vue.langue ; « en » : anglais). La consigne les annonce telles quelles au modèle ; la reconnaissance
+// (accusationDans, criePeste, declarationAuRegistre) accepte les deux langues, quelle que soit celle du monde.
+export const FORMULES_REPLIQUE = {
+  fr: { accuser: "J'accuse", peste: "C'est la peste noire !", registre: "Au Registre :", exempleRegistre: "cette nuit, j'ai vu une lanterne s'éteindre chez Berthe." },
+  en: { accuser: "I accuse", peste: "It's the black plague!", registre: "For the Register:", exempleRegistre: "last night, I saw a lantern go out at Berthe's." }
+};
+export const formulesReplique = langue => FORMULES_REPLIQUE[langue === "en" ? "en" : "fr"];
+// La consigne des Veillées, formules dans la langue du monde (le reste de la consigne, pour le modèle, reste en français).
+export function consigneParlerLoups(langue) {
+  if (langue !== "en") return CONSIGNE_PARLER_LOUPS;
+  const { fr, en } = FORMULES_REPLIQUE;
+  return CONSIGNE_PARLER_LOUPS
+    .replace(`« ${fr.peste} »`, `« ${en.peste} » (en anglais, mot pour mot)`)
+    .replace(`« ${fr.registre} » suivi de ce que tu déclares (« Au `, `« ${en.registre} » (en anglais, mot pour mot) suivi de ce que tu déclares (« `)
+    .replace(`Registre : ${fr.exempleRegistre} »)`, `${en.registre} ${en.exempleRegistre} »)`);
+}
+
 // La déclaration au Registre en tête d'une réplique de compagnon (« Au Registre : … », après une éventuelle didascalie) : le
 // texte à inscrire, ou null. compagnons-jeu.js la transmet au système des Veillées (api.declarer).
 // L'accusation au Banc dans une réplique (« J'accuse Berthe ! ») : le villageois visé (parmi candidats : [{ id, nom }], nom exact,
 // casse et accents ignorés, ou le premier dont le nom commence par le texte), ou null. compagnons-jeu.js la porte au système.
 const plierNom = t => String(t ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+// Français ou anglais : « J'accuse Berthe », « I accuse Berthe », « I'm accusing Berthe », « I am accusing Berthe » (casse ignorée,
+// apostrophe droite ou courbe ; « Je n'accuse personne », « I'm not accusing anyone » ne visent personne).
+export const ACCUSATION = /(?:\bj['’]\s*accuse|\bi\s+accuse|\bi['’]m\s+accusing|\bi\s+am\s+accusing)\s+([^.!?,;:—–\n]+)/i;
 export function accusationDans(texte, candidats = []) {
-  const m = /j['’]accuse\s+([^.!?,;:—–\n]+)/i.exec(String(texte ?? ""));
+  const m = ACCUSATION.exec(String(texte ?? ""));
   if (!m) return null;
   const vise = plierNom(m[1]);
   const c = candidats.find(x => plierNom(x.nom) === vise) ?? candidats.find(x => vise.startsWith(plierNom(x.nom)));
   return c?.id ?? null;
 }
 
-export const DECLARATION_REGISTRE = /^\s*(?:\*[^*]*\*\s*(?:[—–-]\s*)?)?au registre\s*:\s*(.+)$/is;
+// Français ou anglais : « Au Registre : … », « For the Register: … », « On the Register: … », « On the record: … » (pas « For the
+// record », trop courant en anglais pour valoir déclaration).
+export const DECLARATION_REGISTRE = /^\s*(?:\*[^*]*\*\s*(?:[—–-]\s*)?)?(?:au registre|for the register|on the register|on the record)\s*:\s*(.+)$/is;
 export function declarationAuRegistre(texte) {
   const m = DECLARATION_REGISTRE.exec(String(texte ?? ""));
   const dit = m ? m[1].replace(/\s+/g, " ").trim() : "";
@@ -218,7 +242,8 @@ export function declarationAuRegistre(texte) {
 }
 
 // Le cri de la peste noire dans une réplique de compagnon (compagnons-jeu.js le transmet au système des Veillées).
-export const CRI_PESTE = /c['’]est la peste noire/i;
+// Français ou anglais : « C'est la peste noire ! », « It's the black plague! », « It is the black plague! » (et « the Black Death »).
+export const CRI_PESTE = /c['’]est la peste noire|\bit(?:['’]s|\s+is)\s+the\s+black\s+(?:plague|death)/i;
 export const criePeste = texte => CRI_PESTE.test(String(texte ?? ""));
 // La Petite tablée (système lakour-loups 0.11.0, publique) : les compagnons s'adressent d'abord aux joueurs humains. Un biais de
 // parole seulement : jamais de vote ni de choix de nuit orienté vers les humains (repliDecision ne lit pas cette liste, et la
@@ -236,7 +261,7 @@ export const CONSIGNE_COMBAT = "C'est ton tour de combat. Déclare en une ou deu
 export function contexteCompagnon(vue, { demande = null, consigne = "" } = {}) {
   const humains = vue.jeu === "loups" && vue.petiteTablee ? nomsDesHumains(vue) : [];
   const attendu = consigneDemande(vue, demande) ?? (consigne || (CONSIGNE_PARLER + (vue.jeu === "loups"
-    ? CONSIGNE_PARLER_LOUPS + (humains.length ? CONSIGNE_PETITE_TABLEE(humains) : "") : CONSIGNE_PARLER_AVENTURE)));
+    ? consigneParlerLoups(vue.langue) + (humains.length ? CONSIGNE_PETITE_TABLEE(humains) : "") : CONSIGNE_PARLER_AVENTURE)));
   return { systeme: consigneSysteme(vue), texte: [...blocs(vue), "[Ce qu'on attend de toi]", attendu].join("\n") };
 }
 
@@ -297,7 +322,7 @@ export function nettoyerReplique(texte, nom = "") {
   // Une seule didascalie : les suivantes, au milieu de la parole, disparaissent.
   const parole = t.replace(/\*{1,2}[^*]*\*{1,2}|(^|\s)_[^_]+_(?=\s|$)/g, "$1").replace(/\s+/g, " ").replace(/\s+([.,])/g, "$1").replace(/([.,]),+/g, "$1").trim()
     .replace(/^[—–-]+\s*/, "").replace(/^[«"“]\s*/, "").replace(/\s*[»"”]$/, "").trim();
-  const vide = x => !x || /^[—–-]+$/.test(x) || /^\(?rien\)?\.?$/i.test(x);
+  const vide = x => !x || /^[—–-]+$/.test(x) || /^\(?(?:rien|nothing)\)?\.?$/i.test(x);
   if (vide(didascalie)) didascalie = "";
   const dit = vide(parole) ? "" : couper(parole, PAROLE_MAX);
   if (didascalie) didascalie = couper(/[.!?…]$/.test(didascalie) ? didascalie : `${didascalie}.`, DIDASCALIE_MAX);
@@ -306,52 +331,91 @@ export function nettoyerReplique(texte, nom = "") {
 }
 
 // ------------------------------------------------------------------ repli sans IA (déterministe)
-const REPLIQUES = {
-  loups: [
-    n => `Je n'ai rien vu cette nuit, mais ${n} était bien silencieux ce matin.`,
-    n => `Et toi, ${n}, tu étais où quand la brume est tombée ?`,
-    () => "Gardons la tête froide : un vote trop vite fait, c'est un innocent de moins.",
-    n => `Je garde un œil sur ${n}. Ses réponses ne tiennent pas debout.`,
-    () => "Je n'accuse personne pour l'instant. Écoutons d'abord.",
-    n => `${n}, ça fait deux fois que tu changes d'avis. Pourquoi ?`
-  ],
-  aventure: [
-    () => "Je reste sur mes gardes. Quelque chose ne colle pas.",
-    () => "Je vous suis. Dites-moi où frapper.",
-    () => "On devrait souffler un instant et réfléchir avant d'avancer.",
-    () => "Je couvre nos arrières.",
-    () => "Ça ne me plaît pas. Mais allons-y.",
-    () => "Quelqu'un a une meilleure idée ? Sinon, j'y vais."
-  ],
-  combat: [
-    () => "J'attaque l'ennemi le plus proche.",
-    () => "Je me mets à couvert et je vise le plus dangereux.",
-    () => "Je me place devant les plus fragiles et je frappe.",
-    () => "Je recule d'un pas et je tire."
-  ]
+// Dans la langue du monde (vue.langue, posée par compagnons-jeu.js depuis contenus.js, langueDuMonde ; « en » : anglais, sinon
+// français), comme les répliques du modèle (consigneLangueCompagnon). Les deux langues ont les mêmes listes, dans le même ordre
+// et de même longueur : l'aléa tire le même rang, quelle que soit la langue. Tournures neutres : rien ne s'accorde au nom cité
+// (homme, femme ou ni l'un ni l'autre ; ni « il/elle » ni « he/she »), ni au genre du compagnon qui parle.
+const REPLIQUES_LANGUES = {
+  fr: {
+    loups: [
+      n => `Je n'ai rien vu cette nuit, mais on n'a presque pas entendu ${n} ce matin.`,
+      n => `Et toi, ${n}, tu étais où quand la brume est tombée ?`,
+      () => "Gardons la tête froide : un vote trop vite fait, c'est un innocent de moins.",
+      n => `Je garde un œil sur ${n}. Ses réponses ne tiennent pas debout.`,
+      () => "Je n'accuse personne pour l'instant. Écoutons d'abord.",
+      n => `${n}, ça fait deux fois que tu changes d'avis. Pourquoi ?`
+    ],
+    aventure: [
+      () => "Je reste sur mes gardes. Quelque chose ne colle pas.",
+      () => "Je vous suis. Dites-moi où frapper.",
+      () => "On devrait souffler un instant et réfléchir avant d'avancer.",
+      () => "Je couvre nos arrières.",
+      () => "Ça ne me plaît pas. Mais allons-y.",
+      () => "Quelqu'un a une meilleure idée ? Sinon, j'y vais."
+    ],
+    combat: [
+      () => "J'attaque l'ennemi le plus proche.",
+      () => "Je me mets à couvert et je vise le plus dangereux.",
+      () => "Je me place devant les plus fragiles et je frappe.",
+      () => "Je recule d'un pas et je tire."
+    ],
+    // Le mot confié la nuit (le Messager des Veillées) : une phrase, lue par son destinataire.
+    mots: ["Méfie-toi de ceux qui parlent trop.", "Je veille sur toi cette nuit.", "J'étais dehors cette nuit, mais je n'y suis pour rien.",
+      "Regarde qui se tait au moment du vote."],
+    quelquun: "quelqu'un"
+  },
+  en: {
+    loups: [
+      n => `I saw nothing last night, but ${n} kept very quiet this morning.`,
+      n => `And you, ${n}, where were you when the mist came down?`,
+      () => "Let's keep a cool head: a vote cast too quickly is one more innocent lost.",
+      n => `I'm keeping an eye on ${n}. Those answers don't add up.`,
+      () => "I'm not accusing anyone yet. Let's listen first.",
+      n => `${n}, that's twice you've changed your mind. Why?`
+    ],
+    aventure: [
+      () => "I'm staying on my guard. Something doesn't feel right.",
+      () => "I'm with you. Tell me where to strike.",
+      () => "We should catch our breath and think before we go on.",
+      () => "I'll cover our backs.",
+      () => "I don't like this. But let's go.",
+      () => "Anyone have a better idea? If not, I'm going in."
+    ],
+    combat: [
+      () => "I attack the nearest enemy.",
+      () => "I take cover and aim at the most dangerous one.",
+      () => "I step in front of the weakest and strike.",
+      () => "I step back and shoot."
+    ],
+    mots: ["Beware of those who talk too much.", "I'm watching over you tonight.", "I was out last night, but I had nothing to do with it.",
+      "Watch who goes quiet when the vote comes."],
+    quelquun: "someone"
+  }
 };
+// Les répliques sans IA dans une langue (« en » : anglais ; toute autre valeur : français).
+export const repliquesDansLaLangue = langue => REPLIQUES_LANGUES[langue === "en" ? "en" : "fr"];
 
 // Une réplique sans IA. "" = le compagnon se tait (selon son tempérament). Petite tablée : la réplique nomme un humain
 // (PART_HUMAINS des fois, s'il en reste un en vie), un suspect humain d'abord.
 export const PART_HUMAINS = 0.8;
 export function repliReplique(vue, graine, { combat = false, n = 0 } = {}) {
   const h = hasard(`parler|${graine}|${vue.id}|${vue.tour ?? 0}|${n}`);
-  if (combat) return choisir(REPLIQUES.combat, h)();
+  const R = repliquesDansLaLangue(vue.langue);
+  if (combat) return choisir(R.combat, h)();
   const p = normaliserPersonnalite(vue.personnalite, vue.id);
   if (h() < TEMPERAMENTS[p.temperament].silence) return "";
   let autres = (vue.autres ?? []).filter(a => a.vivant !== false && a.id !== vue.id && !(vue.allies ?? []).includes(a.id));
   const humains = vue.jeu === "loups" && vue.petiteTablee ? autres.filter(a => (vue.humains ?? []).includes(a.id)) : [];
   if (humains.length && h() < PART_HUMAINS) autres = humains;
   const suspects = autres.filter(a => (vue.suspects ?? []).includes(a.id));
-  const cible = choisir(suspects.length ? suspects : autres, h)?.nom ?? "quelqu'un";
-  return choisir(REPLIQUES[vue.jeu] ?? REPLIQUES.aventure, h)(cible);
+  const cible = choisir(suspects.length ? suspects : autres, h)?.nom ?? R.quelquun;
+  return choisir(R[vue.jeu] ?? R.aventure, h)(cible);
 }
 
 // Une décision sans IA. Un loup ne vise pas les siens ; un villageois vise d'abord un suspect connu ; parfois on passe.
 export function repliDecision(vue, demande, graine) {
   const h = hasard(`decider|${graine}|${vue.id}|${demande.cle ?? demande.invite ?? demande.question ?? ""}`);
-  if (demande.type === "texte") return { texte: couper(choisir(["Méfie-toi de ceux qui parlent trop.", "Je veille sur toi cette nuit.",
-    "On m'a vu sortir, mais je n'y suis pour rien.", "Regarde qui se tait au moment du vote."], h), demande.max ?? 120) };
+  if (demande.type === "texte") return { texte: couper(choisir(repliquesDansLaLangue(vue.langue).mots, h), demande.max ?? 120) };
   if (demande.type === "option") return { choix: demande.options.length ? Math.floor(h() * demande.options.length) : null };
   const allies = new Set(vue.allies ?? []);
   const suspects = new Set(vue.suspects ?? []);

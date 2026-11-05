@@ -3,6 +3,7 @@ import { lire, ecrire } from "../reglages.js";
 import { FournisseurAnthropic } from "../fournisseurs/anthropic.js";
 import { FournisseurOpenAI } from "../fournisseurs/openai.js";
 import { expliquerErreur } from "../fournisseurs/index.js";
+import { texteJoueurs, libelleModele } from "../utilitaires.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -24,9 +25,9 @@ export class ConfigIA extends HandlebarsApplicationMixin(ApplicationV2) {
   async _prepareContext() {
     return {
       fournisseur: lire("fournisseur"),
-      fournisseurs: { anthropic: "Claude (Anthropic)", openai: "ChatGPT (OpenAI)", factice: "Factice (essais, gratuit)" },
+      fournisseurs: { anthropic: "Claude (Anthropic)", openai: "ChatGPT (OpenAI)", factice: texteJoueurs("LAKOUR_MJIA.ConfigIA.Factice", "Factice (essais, gratuit)") },
       modeleAnthropic: lire("modeleAnthropic"),
-      modelesAnthropic: Object.fromEntries(Object.entries(MODELES_ANTHROPIC).map(([k, v]) => [k, v.libelle])),
+      modelesAnthropic: Object.fromEntries(Object.keys(MODELES_ANTHROPIC).map(k => [k, libelleModele(k)])),
       modeleOpenAI: lire("modeleOpenAI"),
       modeleImage: lire("modeleImage"),
       effort: lire("effort"),

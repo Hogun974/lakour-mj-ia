@@ -6,6 +6,17 @@ vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici
 
 ## Non publié
 
+- Monde anglais : les répliques des compagnons IA en mode simple (sans modèle), leurs déclarations de combat et le mot confié au
+  Messager suivent la langue du monde (`vue.langue`, tables fr/en de `compagnons.js`, même tirage dans les deux langues), en
+  tournures neutres qui n'accordent rien au genre de la personne citée (« …mais on n'a presque pas entendu Jacquette Vignal ce
+  matin. »). Aussi traduits : le journal d'histoire d'un personnage (dossier, titre, pages, questions d'aide ; titres fr et en
+  reconnus), les erreurs Anthropic/OpenAI montrées au MJ, les libellés des modèles Claude (configuration, console) et l'avis de
+  migration des réglages (`essais/langue-du-monde.test.mjs`).
+- Monde anglais, Veillées : les déclencheurs des compagnons IA sont reconnus en anglais comme en français (casse ignorée,
+  apostrophe droite ou courbe) — accusation (« I accuse X », « I'm accusing X », « I am accusing X »), cri de la peste noire
+  (« It's the black plague! », « It is the Black Death »), déclaration au Registre (« For the Register: », « On the Register: »,
+  « On the record: » ; pas « For the record »), silence « (nothing) ». Les consignes du modèle annoncent les formules dans la langue
+  du monde (`formulesReplique`, `consigneParlerLoups`), et le narrateur sait qu'un joueur peut crier la peste en anglais.
 - Fenêtre « Action du MJ IA » (Validation) lisible : arguments résumés (« 4 éléments (Salle commune, Cuisine, …) », clés
   d'un objet, champs vides omis) au lieu du JSON brut, libellés traduits, tout échappé (`essais/validation-resume.test.mjs`).
   Histoire des personnages : titres neutres « Portrait », « Son histoire », « Ses secrets », « Chapitres » (questions d'aide

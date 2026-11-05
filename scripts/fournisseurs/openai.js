@@ -2,6 +2,7 @@ import { OpenAI } from "../../vendor/openai.mjs";
 import { voixRealtime, consignesLecture, wavDepuisPcm, lectureFidele } from "../voix-texte.js";
 import { langueDuMonde } from "../contenus.js";
 import { GardeLecture } from "../voix-flux.js";
+import { texteJoueurs } from "../utilitaires.js";
 
 // Fournisseur ChatGPT (API Responses), appelé depuis le navigateur du MJ avec SA clé.
 // Le fil garde les éléments de sortie tels que l'API les rend (raisonnement, appels de fonction)
@@ -80,7 +81,7 @@ export class FournisseurOpenAI {
   async genererImage({ description, taille }) {
     const r = await this.client.images.generate({ model: this.modeleImage, prompt: description, size: taille, n: 1 });
     const b64 = r.data?.[0]?.b64_json;
-    if (!b64) throw new Error("OpenAI n'a renvoyé aucune image.");
+    if (!b64) throw new Error(texteJoueurs("LAKOUR_MJIA.Erreurs.Fournisseur.SansImage", "OpenAI n'a renvoyé aucune image."));
     const octets = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
     return new Blob([octets], { type: "image/png" });
   }
@@ -172,12 +173,14 @@ export class FournisseurOpenAI {
   }
 
   static expliquer(erreur) {
-    if (erreur instanceof OpenAI.AuthenticationError) return "Clé OpenAI refusée : vérifie-la dans la configuration du MJ IA.";
-    if (erreur instanceof OpenAI.PermissionDeniedError) return "Ta clé OpenAI n'a pas accès à ce modèle.";
-    if (erreur instanceof OpenAI.RateLimitError) return "Trop de requêtes ou crédit épuisé chez OpenAI : réessaie dans un moment.";
-    if (erreur instanceof OpenAI.BadRequestError) return `Requête refusée par OpenAI : ${erreur.message}`;
-    if (erreur instanceof OpenAI.APIConnectionError) return "Impossible de joindre l'API OpenAI (réseau).";
-    if (erreur instanceof OpenAI.APIError) return `Erreur OpenAI ${erreur.status ?? ""} : ${erreur.message}`;
+    // Vu du MJ (avis, chat) : dans la langue de l'interface (lang/*.json, LAKOUR_MJIA.Erreurs.Fournisseur.*).
+    const d = { fournisseur: "OpenAI", message: erreur?.message ?? "", statut: erreur?.status ?? "" };
+    if (erreur instanceof OpenAI.AuthenticationError) return texteJoueurs("LAKOUR_MJIA.Erreurs.Fournisseur.CleRefusee", "Clé {fournisseur} refusée : vérifie-la dans la configuration du MJ IA.", d);
+    if (erreur instanceof OpenAI.PermissionDeniedError) return texteJoueurs("LAKOUR_MJIA.Erreurs.Fournisseur.SansAcces", "Ta clé {fournisseur} n'a pas accès à ce modèle.", d);
+    if (erreur instanceof OpenAI.RateLimitError) return texteJoueurs("LAKOUR_MJIA.Erreurs.Fournisseur.TropDeRequetes", "Trop de requêtes ou crédit épuisé chez {fournisseur} : réessaie dans un moment.", d);
+    if (erreur instanceof OpenAI.BadRequestError) return texteJoueurs("LAKOUR_MJIA.Erreurs.Fournisseur.Refusee", "Requête refusée par {fournisseur} : {message}", d);
+    if (erreur instanceof OpenAI.APIConnectionError) return texteJoueurs("LAKOUR_MJIA.Erreurs.Fournisseur.Reseau", "Impossible de joindre l'API {fournisseur} (réseau).", d);
+    if (erreur instanceof OpenAI.APIError) return texteJoueurs("LAKOUR_MJIA.Erreurs.Fournisseur.Autre", "Erreur {fournisseur} {statut} : {message}", d);
     return null;
   }
 }

@@ -6,7 +6,8 @@
       "Bouton": "Story",
       "Demandee": "Request sent to the GM: the story journal will open as soon as it is created.",
       "SansMJ": "No GM connected to create the story journal.",
-      "Seance": "Session of {date}"
+      "Seance": "Session of {date}",
+      "SeulMJ": "Only a GM can create the story journal."
     },
     "Efforts": {
       "low": "Low (fast, cheap)",
@@ -30,7 +31,8 @@
       "AideImages": "Images (maps, portraits, illustrations) always go through OpenAI: without an OpenAI key the AI GM does not generate images.",
       "Effort": "Reasoning effort",
       "AideCles": "Keys are stored in this browser only, never in the world nor on players' machines. The AI GM therefore runs in the GM's browser: keep it open during the game.",
-      "Enregistre": "AI GM configuration saved."
+      "Enregistre": "AI GM configuration saved.",
+      "Factice": "Dummy (tests, free)"
     },
     "Personnalites": {
       "Titre": "AI GM personalities",
@@ -307,7 +309,17 @@
       "PasTonPersonnage": "Not your character: only its player can roll this test.",
       "PasTonJet": "This roll is requested from another player.",
       "CreationImpmal": "Guided creation is only available for Imperium Maledictum and D&D 5e.",
-      "PasDeCleVoix": "OpenAI voice selected, but no OpenAI key is saved: open the AI GM configuration."
+      "PasDeCleVoix": "OpenAI voice selected, but no OpenAI key is saved: open the AI GM configuration.",
+      "Fournisseur": {
+        "CleRefusee": "{fournisseur} key rejected: check it in the AI GM configuration.",
+        "SansAcces": "Your {fournisseur} key does not have access to this model.",
+        "TropDeRequetes": "Too many requests, or no credit left at {fournisseur}: try again in a moment.",
+        "Refusee": "Request rejected by {fournisseur}: {message}",
+        "Reseau": "Cannot reach the {fournisseur} API (network).",
+        "Autre": "{fournisseur} error {statut}: {message}",
+        "Coupee": "Response cut off (length limit) in the middle of a tool call.",
+        "SansImage": "OpenAI returned no image."
+      }
     },
     "Voix": {
       "Reecouter": "Listen again",
@@ -682,6 +694,16 @@
     },
     "Reparations": {
       "Munitions": "AI GM — ammunition added: {liste}"
+    },
+    "MigrationFaits": {
+      "Voix": "personality voices",
+      "Personnalites": "personalities: {noms}"
+    },
+    "Modeles": {
+      "claude-opus-5-5": "Claude Opus 5.5 (recommended)",
+      "claude-sonnet-5-5": "Claude Sonnet 5.5 (cheaper)",
+      "claude-haiku-5-5": "Claude Haiku 5.5 (very cheap)",
+      "claude-fable-5-1": "Claude Fable 5.1 (most powerful, most expensive)"
     }
   }
 }

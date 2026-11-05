@@ -201,7 +201,7 @@ const VERIFICATIONS = {
 
 const MUTATIONS = [
   ["histoire-logique.js", "ownership: p.prive ? { default: NONE, ...proprio } : { default: INHERIT },", "ownership: { default: INHERIT },", "page secrète réservée"],
-  ["histoire-logique.js", "?? [def.nom, ...def.anciens].map(", "?? [def.nom].map(", "anciens titres reconnus"],
+  ["histoire-logique.js", "?? [def.nom, def.en, ...def.anciens].map(", "?? [def.nom, def.en].map(", "anciens titres reconnus"],
   ["histoire-logique.js", "\"Comment as-tu rejoint le groupe ?\"", "\"Qu'est-ce qui t'a amené jusqu'au groupe ?\"", "questions neutres"],
   ["histoire-logique.js", "export function ligneHistoire(journal, { secret = false,", "export function ligneHistoire(journal, { secret = true,", "secret dans le résumé"],
   ["histoire-logique.js", "  if (mode === \"ecrire\" || estAide(ancien)) return html;", "  if (mode === \"ecrire\") return html;", "aide remplacée"],

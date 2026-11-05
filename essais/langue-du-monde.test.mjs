@@ -157,3 +157,133 @@ test("texteJoueurs : clés présentes en fr et en, français identique, mêmes p
   for (const p of PERSONNALITES_DE_BASE) assert.equal(LANGUES.fr[`LAKOUR_MJIA.Personnalites.Noms.${p.id}`], p.nomAffiche, p.id);
   assert.match(readFileSync(join(racine, "scripts/adaptateurs.js"), "utf8"), /export const DIFFICULTES = \["aucune", "tres-facile", "facile", "routiniere", "exigeante", "difficile", "ardue", "tres-ardue"\];/);
 });
+
+// ------------------------------------------------------------------ compagnons sans IA, histoire, erreurs des fournisseurs
+const C = await import("../scripts/compagnons.js");
+const HL = await import("../scripts/histoire-logique.js");
+const { FournisseurAnthropic } = await import("../scripts/fournisseurs/anthropic.js");
+const { FournisseurOpenAI } = await import("../scripts/fournisseurs/openai.js");
+const { Anthropic } = await import("../vendor/anthropic.mjs");
+const { OpenAI } = await import("../vendor/openai.mjs");
+const { libelleModele } = await import("../scripts/utilitaires.js");
+const { MODELES_ANTHROPIC } = await import("../scripts/constantes.js");
+
+// Lettres et mots qui trahissent du français (les noms propres « Odile », « Bastien », « Réunion » mis à part).
+const FRANCAIS = /[éèàçêîôûœ]|\b(?:je|tu|nous|vous|les|des|une|est|pas|pour|avec|personne|quelqu'un|toi)\b/i;
+const sansNomsPropres = t => String(t).replace(/Odile Basquin|Bastien Grenier|Réunion/g, "");
+
+test("compagnons sans IA : leurs répliques et leurs mots suivent la langue du monde (vue.langue), au même rang", () => {
+  const autres = [{ id: "a", nom: "Odile Basquin" }, { id: "b", nom: "Bastien Grenier" }];
+  const vue = (jeu, langue) => ({ id: "c1", nom: "Valentin", jeu, langue, tour: 2, autres, suspects: ["b"], allies: [],
+    personnalite: { temperament: "bavard" } });
+  let dites = 0;
+  for (const jeu of ["loups", "aventure"]) {
+    for (let n = 0; n < 60; n++) {
+      const fr = C.repliReplique(vue(jeu), "g", { n });
+      const en = C.repliReplique(vue(jeu, "en"), "g", { n });
+      assert.equal(Boolean(fr), Boolean(en), "même silence dans les deux langues");
+      if (!en) continue;
+      dites++;
+      assert.doesNotMatch(sansNomsPropres(en), FRANCAIS, `reste du français : ${en}`);
+      const rang = l => C.repliquesDansLaLangue(l)[jeu].findIndex(f => [f("Odile Basquin"), f("Bastien Grenier")].includes(l === "en" ? en : fr));
+      assert.ok(rang("fr") >= 0 && rang("fr") === rang("en"), `même réplique, traduite : ${fr} / ${en}`);
+    }
+    assert.equal(C.repliReplique(vue(jeu, "fr"), "g", { n: 3 }), C.repliReplique(vue(jeu), "g", { n: 3 }), "sans langue : français");
+  }
+  assert.ok(dites > 20, `répliques dites : ${dites}`);
+  for (let n = 0; n < 12; n++) {
+    const en = C.repliReplique(vue("aventure", "en"), "g", { combat: true, n });
+    assert.ok(C.repliquesDansLaLangue("en").combat.some(f => f() === en), en);
+    assert.doesNotMatch(en, FRANCAIS, en);
+  }
+  // Personne à nommer : « someone », pas « quelqu'un ».
+  const seul = { ...vue("loups", "en"), autres: [] };
+  const lignes = Array.from({ length: 40 }, (_, n) => C.repliReplique(seul, "g", { n })).filter(Boolean).join("\n");
+  assert.doesNotMatch(lignes, /quelqu'un/);
+  // Le mot du Messager (décision « texte »).
+  for (let i = 0; i < 10; i++) {
+    const { texte } = C.repliDecision(vue("loups", "en"), { type: "texte", max: 120, cle: `m${i}` }, "g");
+    assert.ok(C.repliquesDansLaLangue("en").mots.includes(texte), texte);
+    assert.doesNotMatch(texte, FRANCAIS, texte);
+  }
+  // Les deux langues ont les mêmes listes, de même longueur (l'aléa tire le même rang).
+  const [fr, en] = ["fr", "en"].map(C.repliquesDansLaLangue);
+  for (const k of Object.keys(fr)) assert.equal(typeof fr[k] === "string" ? 1 : fr[k].length, typeof en[k] === "string" ? 1 : en[k].length, k);
+  assert.ok(fr.loups.some(f => f() === "Je n'accuse personne pour l'instant. Écoutons d'abord."), "le français reste celui d'avant");
+});
+
+test("histoire d'un personnage : dossier, journal, pages et questions d'aide dans la langue du monde", () => {
+  const fr = HL.donneesJournalHistoire({ nom: "Lucie", systeme: "lakour-survie" });
+  assert.equal(fr.name, "Histoire de Lucie");
+  assert.deepEqual(fr.pages.map(p => p.name), ["Portrait", "Son histoire", "Ses secrets", "Chapitres"]);
+  const en = HL.donneesJournalHistoire({ nom: "Lucie", systeme: "lakour-survie", langue: "en" });
+  assert.equal(en.name, "Story of Lucie");
+  assert.deepEqual(en.pages.map(p => p.name), ["Portrait", "Story", "Secrets", "Chapters"]);
+  assert.ok(en.pages.every(p => HL.estAide(p.text.content)), "pages d'aide reconnues");
+  for (const s of HL.SYSTEMES_HISTOIRE) {
+    const texte = HL.donneesJournalHistoire({ nom: "X", systeme: s, langue: "en" }).pages.map(p => p.text.content).join(" ");
+    assert.doesNotMatch(sansNomsPropres(texte.replace(/&#39;/g, "'")), FRANCAIS, `${s} : ${texte}`);
+  }
+  assert.equal(HL.dossierHistoires("en"), "Character stories");
+  assert.equal(HL.dossierHistoires("fr"), "Histoires des personnages");
+  // Une page anglaise sans drapeau est retrouvée par son titre (et une française aussi).
+  assert.equal(HL.pageDe({ pages: [{ name: "Story", id: "p1" }] }, "histoire")?.id, "p1");
+  assert.equal(HL.pageDe({ pages: [{ name: "Son histoire", id: "p2" }] }, "histoire")?.id, "p2");
+  const source = readFileSync(join(racine, "scripts/histoire.js"), "utf8");
+  assert.match(source, /const langue = langueDuMonde\(\);/);
+  assert.match(source, /niveaux: niveaux\(\), langue/);
+});
+
+test("erreurs des fournisseurs et libellés des modèles : dans la langue de l'interface du MJ", () => {
+  const erreur = (Classe, extra = {}) => Object.assign(Object.create(Classe.prototype), { message: "boom", status: 400 }, extra);
+  const cas = [
+    [FournisseurAnthropic, Anthropic, "Anthropic"], [FournisseurOpenAI, OpenAI, "OpenAI"]
+  ];
+  for (const [F, SDK, nom] of cas) {
+    sousInterface(null);
+    assert.equal(F.expliquer(erreur(SDK.AuthenticationError)), `Clé ${nom} refusée : vérifie-la dans la configuration du MJ IA.`);
+    assert.equal(F.expliquer(erreur(SDK.BadRequestError)), `Requête refusée par ${nom} : boom`);
+    sousInterface("fr");
+    assert.equal(F.expliquer(erreur(SDK.RateLimitError)), `Trop de requêtes ou crédit épuisé chez ${nom} : réessaie dans un moment.`);
+    sousInterface("en");
+    const textes = ["AuthenticationError", "PermissionDeniedError", "RateLimitError", "BadRequestError", "APIConnectionError", "InternalServerError"]
+      .map(c => F.expliquer(erreur(SDK[c])));
+    assert.equal(textes[0], `${nom} key rejected: check it in the AI GM configuration.`);
+    assert.equal(textes[3], `Request rejected by ${nom}: boom`);
+    assert.equal(textes[5], `${nom} error 400: boom`);
+    for (const t of textes) assert.doesNotMatch(t, FRANCAIS, t);
+  }
+  sousInterface("en");
+  assert.equal(libelleModele("claude-opus-5-5"), "Claude Opus 5.5 (recommended)");
+  for (const id of Object.keys(MODELES_ANTHROPIC)) assert.doesNotMatch(libelleModele(id), FRANCAIS, id);
+  sousInterface(null);
+  for (const [id, m] of Object.entries(MODELES_ANTHROPIC)) {
+    assert.equal(libelleModele(id), m.libelle, id);
+    assert.equal(LANGUES.fr[`LAKOUR_MJIA.Modeles.${id}`], m.libelle, id);
+    assert.ok(LANGUES.en[`LAKOUR_MJIA.Modeles.${id}`], `${id} absent de lang/en.json`);
+  }
+});
+
+test("compagnons sans IA : rien ne s'accorde au genre de la personne citée (ni du compagnon), en français comme en anglais", () => {
+  // Accords et pronoms genrés qu'une réplique à trou ne doit pas porter (vu en vrai : « Jacquette Vignal était bien silencieux »).
+  const GENRE = /(?<!\p{L})(?:silencieux|silencieuse|il|elle|lui|seul|seule|sûr|sûre|sorti|sortie|he|she|him|her|his|hers|himself|herself)(?!\p{L})/iu;
+  for (const langue of ["fr", "en"]) {
+    const R = C.repliquesDansLaLangue(langue);
+    for (const [k, liste] of Object.entries(R)) {
+      for (const f of typeof liste === "string" ? [liste] : liste) {
+        for (const nom of ["Jacquette Vignal", "Bastien Grenier"]) {
+          const texte = typeof f === "function" ? f(nom) : f;
+          assert.doesNotMatch(texte.replace(nom, ""), GENRE, `${langue}.${k} : ${texte}`);
+        }
+      }
+    }
+  }
+  const dit = C.repliquesDansLaLangue("fr").loups[0]("Jacquette Vignal");
+  assert.equal(dit, "Je n'ai rien vu cette nuit, mais on n'a presque pas entendu Jacquette Vignal ce matin.");
+  assert.equal(C.repliquesDansLaLangue("en").loups[0]("Jacquette Vignal"), "I saw nothing last night, but Jacquette Vignal kept very quiet this morning.");
+});
+
+test("compagnons : « (nothing) » vaut silence, comme « (rien) » et « — »", () => {
+  for (const t of ["(nothing)", "Nothing.", "(rien)", "—"]) assert.equal(C.nettoyerReplique(t), "", t);
+  assert.equal(C.nettoyerReplique("Nothing to add, I'm watching Colin."), "Nothing to add, I'm watching Colin.");
+});

@@ -1,5 +1,6 @@
 import { Anthropic } from "../../vendor/anthropic.mjs";
 import { MODELES_ANTHROPIC } from "../constantes.js";
+import { texteJoueurs } from "../utilitaires.js";
 
 // Fournisseur Claude, appelé directement depuis le navigateur du MJ avec SA clé
 // (dangerouslyAllowBrowser ajoute l'en-tête d'accès direct ; la clé ne quitte que vers api.anthropic.com).
@@ -79,7 +80,7 @@ export class FournisseurAnthropic {
     }
     // Arguments d'outil tronqués : ils peuvent sembler valides, on ne les exécute pas.
     if (arret === "max_tokens" && appels.length) {
-      throw new Error("Réponse coupée (limite de longueur) au milieu d'un appel d'outil.");
+      throw new Error(texteJoueurs("LAKOUR_MJIA.Erreurs.Fournisseur.Coupee", "Réponse coupée (limite de longueur) au milieu d'un appel d'outil."));
     }
 
     fil.messages.push({ role: "assistant", content: message.content });
@@ -106,12 +107,14 @@ export class FournisseurAnthropic {
 
   // Message d'erreur lisible pour le MJ, d'après les classes d'erreur du SDK.
   static expliquer(erreur) {
-    if (erreur instanceof Anthropic.AuthenticationError) return "Clé Anthropic refusée : vérifie-la dans la configuration du MJ IA.";
-    if (erreur instanceof Anthropic.PermissionDeniedError) return "Ta clé Anthropic n'a pas accès à ce modèle.";
-    if (erreur instanceof Anthropic.RateLimitError) return "Trop de requêtes ou crédit épuisé chez Anthropic : réessaie dans un moment.";
-    if (erreur instanceof Anthropic.BadRequestError) return `Requête refusée par Anthropic : ${erreur.message}`;
-    if (erreur instanceof Anthropic.APIConnectionError) return "Impossible de joindre l'API Anthropic (réseau).";
-    if (erreur instanceof Anthropic.APIError) return `Erreur Anthropic ${erreur.status ?? ""} : ${erreur.message}`;
+    // Vu du MJ (avis, chat) : dans la langue de l'interface (lang/*.json, LAKOUR_MJIA.Erreurs.Fournisseur.*).
+    const d = { fournisseur: "Anthropic", message: erreur?.message ?? "", statut: erreur?.status ?? "" };
+    if (erreur instanceof Anthropic.AuthenticationError) return texteJoueurs("LAKOUR_MJIA.Erreurs.Fournisseur.CleRefusee", "Clé {fournisseur} refusée : vérifie-la dans la configuration du MJ IA.", d);
+    if (erreur instanceof Anthropic.PermissionDeniedError) return texteJoueurs("LAKOUR_MJIA.Erreurs.Fournisseur.SansAcces", "Ta clé {fournisseur} n'a pas accès à ce modèle.", d);
+    if (erreur instanceof Anthropic.RateLimitError) return texteJoueurs("LAKOUR_MJIA.Erreurs.Fournisseur.TropDeRequetes", "Trop de requêtes ou crédit épuisé chez {fournisseur} : réessaie dans un moment.", d);
+    if (erreur instanceof Anthropic.BadRequestError) return texteJoueurs("LAKOUR_MJIA.Erreurs.Fournisseur.Refusee", "Requête refusée par {fournisseur} : {message}", d);
+    if (erreur instanceof Anthropic.APIConnectionError) return texteJoueurs("LAKOUR_MJIA.Erreurs.Fournisseur.Reseau", "Impossible de joindre l'API {fournisseur} (réseau).", d);
+    if (erreur instanceof Anthropic.APIError) return texteJoueurs("LAKOUR_MJIA.Erreurs.Fournisseur.Autre", "Erreur {fournisseur} {statut} : {message}", d);
     return null;
   }
 }

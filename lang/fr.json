@@ -6,7 +6,8 @@
       "Bouton": "Histoire",
       "Demandee": "Demande envoyée au MJ : son journal d'histoire s'ouvrira dès qu'il sera créé.",
       "SansMJ": "Aucun MJ connecté pour créer le journal d'histoire.",
-      "Seance": "Séance du {date}"
+      "Seance": "Séance du {date}",
+      "SeulMJ": "Seul un MJ crée le journal d'histoire."
     },
     "Efforts": {
       "low": "Faible (rapide, économique)",
@@ -30,7 +31,8 @@
       "AideImages": "Les images (cartes, portraits, illustrations) passent toujours par OpenAI : sans clé OpenAI, le MJ IA ne génère pas d'images.",
       "Effort": "Effort de réflexion",
       "AideCles": "Les clés sont stockées uniquement dans ce navigateur, jamais dans le monde ni chez les joueurs. Le MJ IA tourne donc dans le navigateur du MJ : garde-le ouvert pendant la partie.",
-      "Enregistre": "Configuration du MJ IA enregistrée."
+      "Enregistre": "Configuration du MJ IA enregistrée.",
+      "Factice": "Factice (essais, gratuit)"
     },
     "Personnalites": {
       "Titre": "Personnalités du MJ IA",
@@ -307,7 +309,17 @@
       "PasTonPersonnage": "Ce n'est pas ton personnage : seul son joueur peut lancer ce test.",
       "PasTonJet": "Ce jet est demandé à un autre joueur.",
       "CreationImpmal": "La création guidée n'est disponible que pour Imperium Maledictum et D&D 5e.",
-      "PasDeCleVoix": "Voix OpenAI choisie, mais aucune clé OpenAI n'est enregistrée : ouvre la configuration du MJ IA."
+      "PasDeCleVoix": "Voix OpenAI choisie, mais aucune clé OpenAI n'est enregistrée : ouvre la configuration du MJ IA.",
+      "Fournisseur": {
+        "CleRefusee": "Clé {fournisseur} refusée : vérifie-la dans la configuration du MJ IA.",
+        "SansAcces": "Ta clé {fournisseur} n'a pas accès à ce modèle.",
+        "TropDeRequetes": "Trop de requêtes ou crédit épuisé chez {fournisseur} : réessaie dans un moment.",
+        "Refusee": "Requête refusée par {fournisseur} : {message}",
+        "Reseau": "Impossible de joindre l'API {fournisseur} (réseau).",
+        "Autre": "Erreur {fournisseur} {statut} : {message}",
+        "Coupee": "Réponse coupée (limite de longueur) au milieu d'un appel d'outil.",
+        "SansImage": "OpenAI n'a renvoyé aucune image."
+      }
     },
     "Voix": {
       "Reecouter": "Réécouter",
@@ -682,6 +694,16 @@
     },
     "Reparations": {
       "Munitions": "MJ IA — munitions ajoutées : {liste}"
+    },
+    "MigrationFaits": {
+      "Voix": "voix des personnalités",
+      "Personnalites": "personnalités : {noms}"
+    },
+    "Modeles": {
+      "claude-opus-5-5": "Claude Opus 5.5 (recommandé)",
+      "claude-sonnet-5-5": "Claude Sonnet 5.5 (moins cher)",
+      "claude-haiku-5-5": "Claude Haiku 5.5 (très économique)",
+      "claude-fable-5-1": "Claude Fable 5.1 (le plus puissant, le plus cher)"
     }
   }
 }
