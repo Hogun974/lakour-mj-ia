@@ -4,7 +4,10 @@ Les trois mondes de La Kour (40k, Warcraft, Veillées) sont joués sur le serveu
 le chat, les clés d'API, le coffre… Pour qu'un tiers puisse installer le monde **vierge** — le contenu de nos modules
 déjà installé, les réglages qui font le monde, et rien de personnel — l'outil commun `outils/empaqueter-monde.mjs`
 trie une copie du monde du serveur, en écrit les sources versionnées dans le dépôt du monde (`monde/`), puis compile
-le paquet (`world.json` + base LevelDB + archive zip) que la release GitHub publie.
+le paquet (`world.json` + base LevelDB + archive zip) que la release GitHub publie. `--construire` pose aussi à la
+racine du monde, donc de l'archive, les licences du dépôt du monde : `LICENSE` (MIT, le code ; `world.json` déclare
+`"license": "LICENSE"`) et `LICENCE-CONTENU.md` (CC BY-NC-SA 4.0, les textes et les images), avec un avertissement si
+l'un manque.
 
 Chaque dépôt de monde l'appelle depuis le sous-module : `npm run empaqueter-monde` dans `lakour-w40k`,
 `lakour-warcraft`, `lakour-veillees` (script `node modules/lakour-mj-ia/outils/empaqueter-monde.mjs`). Le CLI

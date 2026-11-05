@@ -377,9 +377,18 @@ Feedback and contributions are welcome, preferably in French (English is read to
 
 ## Licence
 
-> **TODO (Jordan)**: choose and add a `LICENSE` file at the root before the first release; the manifest already points
-> to it (`"license": "LICENSE"`) and the packager copies it into the archive when it exists.
+This module is free software under the **MIT** licence: see [`LICENSE`](LICENSE) (© 2026 Hogun974). The licence covers
+**the whole repository**: the code (`scripts/`, `outils/`, `essais/`, `templates/`, `styles/`, `lang/`), the AI GM's
+guides and texts, the documentation (`docs/`, READMEs) and the synthesised sounds in `assets/sons/`, which are part of the
+software. You may use, modify and redistribute it, including in another project, as long as the copyright notice and
+the licence text are kept.
 
-Proposed licence: **MIT** for all the code in this repository, free to use, modify and redistribute as long as the
-author's notice is kept. The SDKs in `vendor/` remain under Apache-2.0 and the icons in `outils/game-icons/` under
-CC BY 3.0.
+The following keep their own licence, detailed in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) (shipped in the
+archive alongside `LICENSE`):
+
+- the SDKs bundled in `vendor/` (`@anthropic-ai/sdk` and `openai`): **Apache-2.0**;
+- the icons in `outils/game-icons/` (game-icons.net, not in the module archive): **CC BY 3.0**.
+
+The La Kour worlds (`lakour-w40k`, `lakour-warcraft`, `lakour-veillees`, `lakour-fenoir`) have their own repositories
+and their own licence (MIT for the code, CC BY-NC-SA 4.0 for texts and images). Foundry VTT is a trademark of Foundry
+Gaming, LLC; this module is neither affiliated with nor endorsed by Foundry Gaming.

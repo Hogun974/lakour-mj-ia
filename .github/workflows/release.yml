@@ -58,6 +58,14 @@ jobs:
       - name: Archive du module et manifeste publié
         run: node outils/empaqueter-module.mjs --version "$VERSION" --sortie dist
 
+      # L'empaqueteur ne fait qu'avertir si un fichier manque : ici, une archive sans sa licence (MIT) ou sans les licences
+      # des SDK embarqués (Apache-2.0, article 4) n'est pas publiée.
+      - name: Licences dans l'archive (LICENSE, THIRD-PARTY-NOTICES.md)
+        run: |
+          for f in LICENSE THIRD-PARTY-NOTICES.md; do
+            unzip -Z1 dist/lakour-mj-ia.zip | grep -qx "$f" || { echo "$f absent de dist/lakour-mj-ia.zip"; exit 1; }
+          done
+
       - name: Notes de version (section du CHANGELOG)
         run: |
           awk -v v="$VERSION" '/^## /{p = ($2 == v)} p' CHANGELOG.md > dist/notes.md

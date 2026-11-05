@@ -1,7 +1,9 @@
 # Notices des composants tiers — module `lakour-mj-ia`
 
 Ce fichier accompagne le module et son archive installable. Il reprend les licences des composants redistribués tels
-quels, et les crédits de ce qui est fabriqué à partir d'œuvres de tiers.
+quels, et les crédits de ce qui est fabriqué à partir d'œuvres de tiers. Tout le reste du module (code, guides,
+documentation, sons synthétisés) est sous licence MIT, © 2026 Hogun974 : voir [`LICENSE`](LICENSE), livré dans l'archive
+avec ce fichier.
 
 ## 1. SDK embarqués dans `vendor/` (Apache License 2.0)
 

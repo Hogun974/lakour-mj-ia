@@ -9,7 +9,8 @@
 //                                           document par document et réglage par réglage, sans rien écrire ;
 //   --extraire   <Data/worlds/<id serveur>>  même tri, puis écrit les sources versionnées monde/src/<collection>/*.json
 //                                           et monde/world.json, et vérifie le résultat ;
-//   --construire                            compile monde/src en LevelDB dans monde/dist/<id>/data, y pose world.json,
+//   --construire                            compile monde/src en LevelDB dans monde/dist/<id>/data, y pose world.json et
+//                                           les licences du dépôt (LICENSE, LICENCE-CONTENU.md : LICENCES_DU_MONDE),
 //                                           écrit l'archive monde/dist/<id>.zip et monde/dist/world.json (lus par
 //                                           outils/empaqueter-module.mjs et le workflow de release) ;
 //   --verifier                              relit le paquet produit (monde/dist/<id>, sinon monde/src) et ÉCHOUE s'il
@@ -985,6 +986,19 @@ export async function extraire(ctx, dossierMondeServeur, { version } = {}) {
   return { resultat, rapport };
 }
 
+// Licences du dépôt du monde, posées à la racine du monde vierge et donc de son archive (world.json déclare
+// « license »: "LICENSE") : LICENSE (MIT, le code) et LICENCE-CONTENU.md (CC BY-NC-SA 4.0, les textes et les images).
+// Rend la liste des fichiers absents de la racine du dépôt (l'archive part alors sans eux, avec un avertissement).
+export const LICENCES_DU_MONDE = ["LICENSE", "LICENCE-CONTENU.md"];
+export function copierLicences(racine, sortie) {
+  const absents = [];
+  for (const f of LICENCES_DU_MONDE) {
+    if (existsSync(join(racine, f))) cpSync(join(racine, f), join(sortie, f));
+    else absents.push(f);
+  }
+  return absents;
+}
+
 // Archive zip « deflate » sans dépendance : entrées en chemins POSIX, à la racine.
 function ecrireZip(dossier, cheminZip) {
   const fichiers = [];
@@ -1053,6 +1067,7 @@ export async function construire(ctx, { version } = {}) {
   }
   if (temporaire) rmSync(temporaire, { recursive: true, force: true });
   ecrireJson(join(sortie, "world.json"), manifeste);
+  for (const f of copierLicences(ctx.racine, sortie)) console.warn(`avertissement : ${f} absent de la racine du dépôt : l'archive du monde part sans`);
   ecrireJson(join(ctx.dist, ctx.fichierManifeste), manifeste);
   const zip = join(ctx.dist, `${manifeste.id}.zip`);
   const fichiers = ecrireZip(sortie, zip);

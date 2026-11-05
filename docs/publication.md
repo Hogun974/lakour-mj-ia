@@ -25,16 +25,22 @@ son manifeste.
 
 ## 1. La licence
 
-- [ ] Choisir : **MIT** pour le code (proposition des README, avec un `TODO`), ou une autre licence.
-- [ ] Déposer `LICENSE` à la racine (texte complet, nom de l'auteur, année). `module.json` déclare déjà
-      `"license": "LICENSE"` et `outils/empaqueter-module.mjs` copie ce fichier dans l'archive ; sans lui, l'empaqueteur
-      avertit et le champ pointe dans le vide.
-- [ ] Remplacer le `TODO` de la section « Licence » des deux README par la décision.
-- [ ] `THIRD-PARTY-NOTICES.md` (écrit) : les deux SDK de `vendor/` sont sous **Apache-2.0** (vérifié dans leurs
+- [x] Choisir : **MIT** pour tout le dépôt (code, guides, documentation, sons synthétisés), décidé par Jordan le
+      5 novembre 2026 ; les tiers gardent leur licence (`THIRD-PARTY-NOTICES.md`). Les mondes : MIT pour le code,
+      CC BY-NC-SA 4.0 pour les textes et les images (leur `LICENCE-CONTENU.md`).
+- [x] Déposer `LICENSE` à la racine (texte MIT complet, « Copyright (c) 2026 Hogun974 »). `module.json` déclare déjà
+      `"license": "LICENSE"` et `outils/empaqueter-module.mjs` copie ce fichier dans l'archive, avec
+      `THIRD-PARTY-NOTICES.md` ; le workflow de release refuse désormais une archive sans l'un ou l'autre.
+- [x] Remplacer le `TODO` de la section « Licence » des deux README par la décision (MIT, tiers rappelés, Foundry VTT
+      marque de Foundry Gaming, sans affiliation).
+- [x] Archives des mondes vierges : `outils/empaqueter-monde.mjs --construire` y pose `LICENSE` et `LICENCE-CONTENU.md`
+      du dépôt du monde. Les mondes ne l'auront qu'une fois leur sous-module `modules/lakour-mj-ia` mis à jour
+      (leur workflow de release vérifie la présence des deux fichiers dans chaque archive).
+- [x] `THIRD-PARTY-NOTICES.md` (écrit) : les deux SDK de `vendor/` sont sous **Apache-2.0** (vérifié dans leurs
       `package.json` et `LICENSE` ; aucun `NOTICE`), minifiés sans commentaire de licence. L'article 4 d'Apache 2.0 exige
       de livrer le texte de la licence avec toute redistribution : le fichier est dans l'archive. Le relire à chaque
       `npm run embarquer` qui change une version (mettre à jour le tableau).
-- [ ] Les icônes de `outils/game-icons/` (CC BY 3.0, `license.txt`) ne sont pas dans l'archive du module, seulement dans
+- [x] Les icônes de `outils/game-icons/` (CC BY 3.0, `license.txt`) ne sont pas dans l'archive du module, seulement dans
       le dépôt : le crédit est dans les README et `THIRD-PARTY-NOTICES.md`.
 
 ## 2. Les captures d'écran
@@ -129,7 +135,7 @@ sons originaux, aucune image.
 | Système | Aucun (le module marche dans tous les systèmes ; adaptateurs dédiés pour `impmal`, `dnd5e`, `lakour-loups`, `lakour-survie`) |
 | Tags / catégories | **AI Tools** (obligatoire), Game master tools, Automation, Audio, Chat & messaging (choisir dans la liste du formulaire) |
 | Média | Couverture et captures : adresses publiques (celles du `media` du manifeste, dès que les captures sont posées) |
-| Licence | Celle choisie à l'étape 1 |
+| Licence | MIT (étape 1) |
 
 Ensuite, à chaque version, ajouter la nouvelle version depuis la page d'administration du paquet avec son manifeste daté.
 
@@ -177,6 +183,7 @@ Node 20, en fin de vie sur les runners GitHub).
 - [ ] Reste : le dépôt doit être **public** (ou les mondes doivent avoir un PAT de lecture dans le secret
       `SOUS_MODULE_TOKEN`) avant la première release d'un monde : leur `.gitmodules` pointe sur `../lakour-mj-ia`, soit
       `https://github.com/Hogun974/lakour-mj-ia`.
-- [ ] Reste : `module.json` annonce `"license": "LICENSE"` mais aucun fichier `LICENSE` n'existe (voir § 1).
+- [x] Reste : `module.json` annonce `"license": "LICENSE"` mais aucun fichier `LICENSE` n'existe (voir § 1) : `LICENSE`
+      (MIT) déposé le 5 novembre 2026.
 - [ ] Même garde cassée (voir les mondes) dans `outils/ecrire-guide.mjs` et `outils/fabriquer-sons.mjs` : sans effet sur
       la release, mais ces commandes ne font rien sous Linux.
