@@ -430,3 +430,19 @@ test("cheminSelonStyle, versionDuContenu, manifesteAJour", () => {
   assert.equal(m.version, "0.14.0");
   assert.deepEqual(m.relationships.requires.map(r => r.compatibility.minimum), ["4.1.0", "0.14.0", "0.40.0"]);
 });
+
+test("réglages d'un module désactivé dans le monde : écartés (item-piles réglé pour dnd5e dans un monde impmal)", async () => {
+  const { trierReglage, modulesActifs } = await import("../outils/empaqueter-monde.mjs");
+  const settings = [{ key: "core.moduleConfiguration", value: JSON.stringify({ "lakour-40k": true, "dice-so-nice": true, "item-piles": false }) }];
+  const actifs = modulesActifs(settings);
+  assert.deepEqual([...actifs].sort(), ["dice-so-nice", "lakour-40k"]);
+  const ctx = { moduleContenu: "lakour-40k", systeme: "impmal", actifs };
+  assert.equal(trierReglage("item-piles.currencies", "[]", ctx).garde, false);
+  assert.equal(trierReglage("autoanimations.debug", "false", ctx).garde, false, "module absent de la configuration");
+  assert.equal(trierReglage("dice-so-nice.maxDiceNumber", "20", ctx).garde, true);
+  assert.equal(trierReglage("impmal.unReglage", "1", ctx).garde, true, "le système n'est pas un module");
+  assert.equal(trierReglage("core.moduleConfiguration", "{}", ctx).garde, true);
+  assert.equal(trierReglage("item-piles.currencies", "[]", { moduleContenu: "lakour-40k", systeme: "impmal" }).garde, true, "sans configuration lisible, rien n'est écarté");
+  assert.equal(modulesActifs([{ key: "core.moduleConfiguration", value: "illisible" }]), null);
+  assert.equal(modulesActifs([]), null);
+});

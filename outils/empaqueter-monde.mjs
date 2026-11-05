@@ -201,12 +201,25 @@ export const REGLAGES = {
   }
 };
 
-// Verdict d'un réglage : { garde: bool, raison }.
-export function trierReglage(cle, valeurJson, { moduleContenu, systeme }) {
+// Modules activés par core.moduleConfiguration (Set), ou null si le réglage est absent ou illisible (rien n'est alors écarté).
+export function modulesActifs(settings) {
+  const conf = (settings ?? []).find(s => s.key === "core.moduleConfiguration");
+  if (!conf) return null;
+  try {
+    let v = typeof conf.value === "string" ? JSON.parse(conf.value) : conf.value;
+    if (typeof v === "string") v = JSON.parse(v);
+    return v && typeof v === "object" ? new Set(Object.entries(v).filter(([, on]) => on === true).map(([id]) => id)) : null;
+  } catch { return null; }
+}
+
+// Verdict d'un réglage : { garde: bool, raison }. `actifs` (modulesActifs) : le réglage d'un module désactivé dans ce monde
+// (item-piles réglé pour dnd5e dans un monde impmal, par exemple) ne sert à rien et n'est pas gardé.
+export function trierReglage(cle, valeurJson, { moduleContenu, systeme, actifs = null }) {
   const [espace, ...reste] = cle.split(".");
   const nom = reste.join(".");
   if (espace === moduleContenu) return nom === "installe" ? { garde: true, raison: "marqueur d'installation du contenu (évite une réinstallation)" }
     : { garde: false, raison: "réglage du module de contenu hors « installe »" };
+  if (actifs && espace !== "core" && espace !== systeme && !actifs.has(espace)) return { garde: false, raison: "réglage d'un module désactivé dans ce monde" };
   const regle = REGLAGES[espace] ?? (espace === systeme && REGLAGES[systeme] ? REGLAGES[systeme] : null);
   const generique = REGLAGES["*"];
   for (const [motif, raison] of generique.motifsRetires) if (motif.test(espace === "core" ? nom : cle)) return { garde: false, raison };
@@ -426,8 +439,9 @@ export function trier(docs, ctx) {
     if (deja) verdicts.push({ collection: "settings", id: deja._id, nom: deja.key, garde: false, raison: "doublon plus ancien de la même clé" });
     parCle.set(d.key, d);
   }
+  const actifs = modulesActifs([...parCle.values()]);
   for (const d of parCle.values()) {
-    const v = trierReglage(d.key, d.value, { moduleContenu, systeme: monde.systeme });
+    const v = trierReglage(d.key, d.value, { moduleContenu, systeme: monde.systeme, actifs });
     verdicts.push({ collection: "settings", id: d._id, nom: d.key, garde: v.garde, raison: v.raison });
     if (v.garde) gardes.settings.push(d);
   }
@@ -602,6 +616,8 @@ export function traduireMonde(docs, { moduleContenu, dictionnaire = {}, options 
     [new RegExp(`"${echapperRegex(moduleContenu)}"`, "g"), `"${moduleEn}"`]
   ];
   for (const s of docs.settings ?? []) {
+    // Les modules de traduction française sont désactivés dans le monde anglais : leurs réglages n'ont plus lieu d'être.
+    if (MODULES_FRANCAIS.includes(s.key.split(".")[0])) continue;
     const key = s.key.startsWith(`${moduleContenu}.`) ? `${moduleEn}.${s.key.slice(moduleContenu.length + 1)}` : s.key;
     let value = s.value;
     if (typeof value === "string") {
@@ -1150,8 +1166,9 @@ export async function verifier(ctx, { interdits = { ids: [], noms: [] }, source 
     if (Object.keys(d.ownership ?? {}).some(k => k !== "default")) erreurs.push(`${d.name} : propriétaire nommé dans ownership`);
     if (d._stats?.lastModifiedBy) erreurs.push(`${d.name} : _stats.lastModifiedBy renseigné`);
   }
+  const actifs = modulesActifs(docs.settings);
   for (const s of docs.settings) {
-    const v = trierReglage(s.key, s.value, { moduleContenu, systeme: monde.systeme });
+    const v = trierReglage(s.key, s.value, { moduleContenu, systeme: monde.systeme, actifs });
     if (!v.garde) erreurs.push(`settings ${s.key} : réglage interdit (${v.raison})`);
     if (s.user) erreurs.push(`settings ${s.key} : lié à un utilisateur`);
   }
