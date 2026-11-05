@@ -23,6 +23,7 @@ npm run empaqueter-monde -- --inventaire <Data/worlds/<id serveur>>   # affiche 
 npm run empaqueter-monde -- --extraire   <Data/worlds/<id serveur>>   # écrit monde/src/** et monde/world.json, puis vérifie
 npm run empaqueter-monde -- --construire                               # monde/src -> monde/dist/<id>/data (LevelDB), world.json, <id>.zip
 npm run empaqueter-monde -- --verifier                                 # relit monde/dist/<id> (sinon monde/src) : échec si fuite
+npm run empaqueter-monde -- --rafraichir                               # monde/src remis au niveau du contenu actuel, sans serveur
 npm run empaqueter-monde                                               # --construire puis --verifier (la release GitHub)
 ```
 
@@ -87,7 +88,7 @@ est effacé des chaînes.
 
 Le paquet produit est relu (la LevelDB de `monde/dist/<id>/data` déballée, sinon `monde/src`) et l'outil ÉCHOUE
 (code 1) s'il reste : un utilisateur autre que le `Gamemaster` créé, un mot de passe, un message, un combat, un
-brouillard, un acteur de type joueur, un propriétaire nommé dans `ownership`, un `_stats.lastModifiedBy`, un réglage
+brouillard, un acteur de type joueur, un dessin sans auteur, un propriétaire nommé dans `ownership`, un `_stats.lastModifiedBy`, un réglage
 que la règle retire, un `Setting.user`, un jeton sans acteur, deux scènes actives, ou une chaîne qui ressemble à un
 secret : clé d'API (`sk-…`, `sk_live_…`, AWS), hash bcrypt, adresse IP privée, `Hogun974` hors des adresses GitHub
 publiques, adresse mail, paire `password:`/`token:`/`secret:` avec valeur, chaîne longue de 40 caractères et plus avec
@@ -107,6 +108,28 @@ Les sources du serveur Foundry v14 ne sont pas disponibles (seuls `client/` et `
 vérifier que Foundry crée un Gamemaster quand la collection `users` est vide. L'outil en crée donc un, `Gamemaster`,
 rôle 4, sans mot de passe, `_id` `LaKourGamemaster`. Si Foundry en crée un aussi, la collection n'est plus vide et il
 n'en crée pas de second. Le tiers met un mot de passe depuis la configuration des utilisateurs.
+
+## Remettre le monde au niveau du contenu (`--rafraichir`)
+
+Le cas courant : le contenu des modules a évolué (nouveau journal, guide du MJ IA plus récent, scène retouchée) mais le
+monde n'a rien de neuf à reprendre du serveur. `npm run empaqueter-monde -- --rafraichir` refait alors `monde/src` comme
+une installation neuve du module de contenu et du guide du MJ IA, sans copie du monde du serveur :
+
+- journaux, scènes et tables relus dans les sources des compendiums (`modules/<module>/src/`), avec leur `_id`, leur
+  dossier et leur ordre ; ce qui manque est ajouté, ce qui a disparu des sources est retiré ;
+- guides du MJ IA réécrits à la version courante (`scripts/guide.js`, et `scripts/guide-en.js` pour le monde anglais) ;
+- marqueurs de version (réglage `<module>.installe`) et versions minimales de `monde/world.json` mis à jour ;
+- restes de partie retirés des scènes (lumière et obscurité laissées en jeu, réglages internes de fxmaster) ; une scène
+  active par monde (sans elle, Foundry masque la barre d'outils et donc la console du MJ IA), réglable dans
+  `MONDES[…].installation.scenes.active` ;
+- dessins attribués au `Gamemaster` créé (Foundry refuse un dessin sans auteur) ;
+- liste de lecture « Ambiances (MJ IA) » retirée : le MJ IA la recrée au premier usage ;
+- Fénoir : la partie, le coffre et le monde réel scellé (`lakour-survie.partie`, `.coffre`, `.mondeClair`) ne sont jamais
+  gardés.
+
+Un second passage ne change plus rien. Relire le `git diff` de `monde/`, puis `npm run empaqueter-monde` (et
+`-- --langue en`). Dans le monde anglais, `fr-core`, `dnd5e_fr-FR` et `babele` sont désactivés, et `--verifier` le
+contrôle.
 
 ## Reconstruire après une évolution du monde sur le serveur
 
