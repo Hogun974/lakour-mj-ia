@@ -5,7 +5,8 @@
     "Histoire": {
       "Bouton": "Histoire",
       "Demandee": "Demande envoyée au MJ : son journal d'histoire s'ouvrira dès qu'il sera créé.",
-      "SansMJ": "Aucun MJ connecté pour créer le journal d'histoire."
+      "SansMJ": "Aucun MJ connecté pour créer le journal d'histoire.",
+      "Seance": "Séance du {date}"
     },
     "Efforts": {
       "low": "Faible (rapide, économique)",
@@ -48,7 +49,39 @@
       "VoixOpenAI": "Voix (OpenAI)",
       "TonVoix": "Ton de la voix (OpenAI)",
       "ExempleTon": "Ex. : voix grave et lente, ton menaçant, longues pauses.",
-      "Improvisation": "Liberté avec le scénario"
+      "Improvisation": "Liberté avec le scénario",
+      "MJ": "MJ",
+      "Noms": {
+        "inquisiteur": "L'Inquisiteur",
+        "conteur": "Le Conteur",
+        "arbitre": "L'Arbitre",
+        "chroniqueuse": "La Chroniqueuse",
+        "bouffon": "Le Bouffon",
+        "voix-de-la-brume": "La Voix de la brume",
+        "gramoune": "La Gramoune"
+      },
+      "Nouvelle": "Nouvelle personnalité",
+      "NouvelleNomAffiche": "Le MJ",
+      "Violences": {
+        "1": "1 — suggérée",
+        "2": "2 — franche",
+        "3": "3 — crue (grimdark)"
+      },
+      "Longueurs": {
+        "courte": "Courte",
+        "moyenne": "Moyenne",
+        "longue": "Longue"
+      },
+      "Rigueurs": {
+        "souple": "Souple (le récit prime)",
+        "normale": "Normale",
+        "stricte": "Stricte (règles à la lettre)"
+      },
+      "Improvisations": {
+        "fidele": "Fidèle (suit le scénario écrit)",
+        "adaptative": "Adaptative (l'ajuste pour les joueurs)",
+        "libre": "Libre (le réécrit volontiers)"
+      }
     },
     "Reglages": {
       "Autonomie": {
@@ -223,7 +256,10 @@
       "Vision": "Vision des joueurs",
       "AideVision": "Active la vision des personnages des joueurs (et de leurs jetons déjà posés). Sans elle, un joueur ne voit rien sur une carte à vision par jeton.",
       "HorsSeance": "Compagnons hors séance",
-      "VisionFaite": "Vision vérifiée pour {persos} personnage(s) : {modeles} modèle(s) de jeton et {jetons} jeton(s) corrigé(s)."
+      "VisionFaite": "Vision vérifiée pour {persos} personnage(s) : {modeles} modèle(s) de jeton et {jetons} jeton(s) corrigé(s).",
+      "Entree": "entrée",
+      "Cache": "cache",
+      "Sortie": "sortie"
     },
     "Pilote": {
       "Titre": "Pilote automatique",
@@ -282,7 +318,16 @@
       "Garder": "Personnages à garder (ils reçoivent le jeton de leur rôle) :",
       "Conserve": "Restent intacts : utilisateurs, réglages (clés API comprises), macros, musiques et compendiums. Cette action ne peut pas être annulée depuis Foundry.",
       "Confirmer": "Tout effacer et recommencer",
-      "Fait": "Campagne remise à zéro. Personnages gardés : {gardes}."
+      "Fait": "Campagne remise à zéro. Personnages gardés : {gardes}.",
+      "Compte": {
+        "Messages": "{n} messages",
+        "Scenes": "{n} scènes",
+        "Journaux": "{n} journaux",
+        "Acteurs": "{n} acteurs (moins ceux gardés)",
+        "Objets": "{n} objets",
+        "Tables": "{n} tables",
+        "Combats": "{n} combats"
+      }
     },
     "Decisions": {
       "VoteTitre": "Vote du groupe",
@@ -296,7 +341,19 @@
       "Abstenir": "S'abstenir",
       "Secret": "Toi seul vois cette question : les autres joueurs ne sauront pas ce que tu choisis.",
       "Passer": "Passer",
-      "Valider": "Valider"
+      "Valider": "Valider",
+      "Resultat": {
+        "Titre": "Vote du groupe",
+        "Voix": "{n} voix",
+        "Abstentions": "Abstentions : {n}",
+        "Abstention": "Abstention : {noms}",
+        "SansReponse": "Sans réponse : {noms}",
+        "Egalite": "Égalité",
+        "Entre": "entre {options}.",
+        "Option": "« {libelle} »",
+        "Decision": "Décision : {option}.",
+        "Aucune": "Aucune voix exprimée."
+      }
     },
     "Migration": "Réglages du MJ IA mis à jour : {faits}.",
     "Ecoute": {
@@ -511,7 +568,16 @@
       "Vide": "Aucun contact à montrer pour l'instant.",
       "VideMJ": "Aucun contact. Le MJ IA en note avec son outil « contact », les modules des mondes avec api.contacts.assurer.",
       "Plus": "Attitude +1",
-      "Moins": "Attitude -1"
+      "Moins": "Attitude -1",
+      "Attitudes": {
+        "0": "Neutre",
+        "1": "Bienveillant",
+        "2": "Amical",
+        "3": "Allié",
+        "-3": "Hostile",
+        "-2": "Méfiant",
+        "-1": "Réservé"
+      }
     },
     "Horloges": {
       "Titre": "Horloges",
@@ -524,13 +590,81 @@
       "Montrer": "Cachée aux joueurs : la leur montrer",
       "Cacher": "Visible des joueurs : la cacher",
       "AideMJ": "Les joueurs ne voient que les éléments montrés (œil ouvert). Une horloge qui sonne, un seuil franchi ou un palier changé paraît au chat et part au MJ IA.",
-      "AideConsole": "Horloges, jauges et réputations de la campagne"
+      "AideConsole": "Horloges, jauges et réputations de la campagne",
+      "Evenements": {
+        "Sonne": "L'horloge « {nom} »{faction} est pleine ({max}/{max}) : elle sonne !",
+        "Pleine": "La jauge « {nom} »{faction} est au maximum ({max}/{max}).",
+        "SeuilMonte": "La jauge « {nom} »{faction} franchit le seuil « {seuil} » ({valeur}/{max}).",
+        "SeuilDescend": "La jauge « {nom} »{faction} redescend sous le seuil « {seuil} » ({valeur}/{max}).",
+        "Palier": "Réputation auprès de {qui} : {avant} → {apres} ({points})."
+      },
+      "Lignes": {
+        "Horloge": "Horloge : {valeur}/{max}",
+        "Jauge": "Jauge : {valeur}/{max}{palier}",
+        "Reputation": "Réputation : {palier} ({points})"
+      },
+      "Montree": "{ligne} — désormais visible de tous (Carnet de campagne, onglet Horloges, barre de gauche).",
+      "Paliers": {
+        "Hai": "Haï",
+        "Hostile": "Hostile",
+        "Inamical": "Inamical",
+        "Neutre": "Neutre",
+        "Amical": "Amical",
+        "Honore": "Honoré",
+        "Revere": "Révéré",
+        "Exalte": "Exalté"
+      }
     },
     "Appel": {
       "Vote": "Vote du groupe",
       "Choix": "Un choix t'attend",
       "Combat": "À toi de jouer",
       "Parole": "À toi de parler"
+    },
+    "Nom": "MJ IA",
+    "Jet": {
+      "Reussite": "réussite",
+      "Echec": "échec",
+      "Resultat": "{titre} : {total} pour {cible} — {issue} ({dr} DR)",
+      "Defense": "Défense contre {nom} : {total} pour {cible} — {issue} ({dr} DR)",
+      "Difficulte": "Difficulté : {difficulte}",
+      "Difficultes": {
+        "aucune": "Aucune",
+        "tres-facile": "Très facile",
+        "facile": "Facile",
+        "routiniere": "Routinière",
+        "exigeante": "Exigeante",
+        "difficile": "Difficile",
+        "ardue": "Ardue",
+        "tres-ardue": "Très ardue"
+      },
+      "Modificateur": "modificateur {valeur}",
+      "DR": "{valeur} DR",
+      "Avantages": "{n} avantage(s)",
+      "Desavantages": "{n} désavantage(s)",
+      "Superiorite": "Supériorité",
+      "Formule": "Formule :"
+    },
+    "Fetes": {
+      "Noms": {
+        "nouvel-an": "Nouvel An",
+        "liberte": "Fête de la liberté (20 décembre)",
+        "noel": "Noël",
+        "letchis": "Fête des letchis",
+        "dipavali": "Dipavali",
+        "cavadee": "Cavadee (Thaipoosam)",
+        "nouvel-an-chinois": "Nouvel An chinois",
+        "paques": "Pâques",
+        "carnaval": "Carnaval",
+        "halloween": "Halloween",
+        "saint-valentin": "Saint-Valentin",
+        "fete-nationale": "Fête nationale (14 juillet)",
+        "musique": "Fête de la musique"
+      },
+      "Forcee": "MJ IA — {nom} est forcée, mais ce monde ne la décline pas : aucune fête en cours."
+    },
+    "Reparations": {
+      "Munitions": "MJ IA — munitions ajoutées : {liste}"
     }
   }
 }

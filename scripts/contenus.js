@@ -18,6 +18,14 @@ export function moduleDeContenu(systeme = globalThis.game?.system?.id) {
   return variantes(CONTENUS[systeme]).find(id => globalThis.game?.modules?.get?.(id)?.active) ?? null;
 }
 
+// Langue du monde, « fr » ou « en » : celle du module de contenu actif (« lakour-40k-en » : anglais ; « lakour-40k » : français),
+// car c'est lui qui fait la langue des documents ; sans module de contenu (système générique), la langue de l'interface.
+// Le guide (guide.js), le narrateur et les compagnons IA (contexte.js, compagnons.js), les voix et la transcription la suivent.
+export function langueDuMonde({ module = moduleDeContenu(), lang = globalThis.game?.i18n?.lang } = {}) {
+  if (module) return module.endsWith(SUFFIXE_ANGLAIS) ? "en" : "fr";
+  return String(lang ?? "").toLowerCase().startsWith("en") ? "en" : "fr";
+}
+
 // Identifiant à nommer quand le moteur cherche un compendium, un asset ou l'API du module de contenu : la variante active, sinon
 // l'identifiant français (le monde n'a pas le module : la recherche échoue proprement, comme avant). null : système sans contenu.
 export const contenuNomme = (systeme = globalThis.game?.system?.id) => moduleDeContenu(systeme) ?? CONTENUS[systeme] ?? null;

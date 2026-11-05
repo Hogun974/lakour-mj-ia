@@ -177,3 +177,27 @@ passés, savoirs et équipements de Fénoir), `scripts/placement.js` (module des
 `scripts/tirages.js` (lecture des drapeaux `contrat` / `appel`, quel que soit le module qui les a posés). L'essai
 `essais/contenu-variantes.test.mjs` rejoue chaque endroit avec la variante `-en` active et refuse tout nouvel identifiant de
 module de contenu écrit en dur dans `scripts/` (hors `contenus.js` et le guide).
+
+## Le moteur dans un monde anglais
+
+La **langue du monde** est celle du module de contenu actif (`langueDuMonde()` de `scripts/contenus.js` : `<id>-en` actif →
+`"en"` ; sans module de contenu, la langue de l'interface). Le guide (`langueDuGuide`), le narrateur et les compagnons la suivent :
+
+- **Narrateur** : le prompt système reste en français (les modèles le comprennent), mais sa ligne de langue
+  (`consigneLangue()` de `scripts/contexte.js`) lui demande, dans un monde anglais, d'écrire **tout** ce que voient les joueurs en
+  anglais (narration, PNJ, messages privés, votes, raisons des jets, chroniques), de traduire ce qu'il reprend de l'état du jeu et
+  des résultats d'outils, et de garder les noms exacts quand il appelle un outil.
+- **Compagnons IA** : `vueDe` (`scripts/compagnons-jeu.js`) pose `vue.langue` ; `consigneLangueCompagnon` (`scripts/compagnons.js`).
+- **Voix** : voix du navigateur choisie dans la langue du monde (`choisirVoix`), consigne de la voix OpenAI (`consignesLecture`) ;
+  **transcription** : langue et consigne du modèle (`scripts/transcription.js`).
+- **Textes automatiques vus des joueurs** : `texteJoueurs(cle, francais, donnees)` (`scripts/utilitaires.js`) lit
+  `lang/<langue>.json` et retombe sur le français du code hors de Foundry (essais). Passent par là : la carte de jet demandé
+  (`LAKOUR_MJIA.Jet.*`), les légendes des jets d'Imperium Maledictum, la carte du vote de groupe
+  (`LAKOUR_MJIA.Decisions.Resultat.*`), les cartes d'horloge, de jauge et de réputation et les paliers de réputation livrés
+  (`LAKOUR_MJIA.Horloges.*`), les attitudes des contacts, le nom générique d'une fête sur sa carte (`LAKOUR_MJIA.Fetes.Noms.*`), le
+  nom du narrateur au chat pour une personnalité livrée dont le MJ n'a pas changé le nom (`nomAfficheDe`,
+  `LAKOUR_MJIA.Personnalites.Noms.*`), l'alias « MJ IA » (`LAKOUR_MJIA.Nom`). Ces textes suivent la langue de l'interface du
+  navigateur qui les écrit (le MJ actif). `essais/langue-du-monde.test.mjs` vérifie que le français du code est celui de
+  `lang/fr.json` et qu'il ne reste plus de français dans les rendus anglais.
+- Restent en français (lus par le modèle seulement) : descriptions des outils, consignes des adaptateurs, résultats d'outils,
+  état du jeu, mémoire de campagne.

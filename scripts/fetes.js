@@ -7,6 +7,8 @@
 import { ID } from "./constantes.js";
 import { estMJActif } from "./canal.js";
 import * as L from "./fetes-logique.js";
+import { texteJoueurs } from "./utilitaires.js";
+import { nomAfficheDe } from "./personnalites.js";
 
 const declinaisons = [];
 let courante;            // id de la fête du monde dans ce navigateur (undefined : pas encore calculée ; null : aucune)
@@ -24,8 +26,8 @@ const mouvementReduit = () => Boolean(globalThis.matchMedia?.("(prefers-reduced-
 
 const aliasMJ = () => {
   try {
-    return game.settings.get(ID, "personnalites").find(p => p.id === game.settings.get(ID, "personnaliteActive"))?.nomAffiche ?? "MJ";
-  } catch { return "MJ"; }
+    return nomAfficheDe(game.settings.get(ID, "personnalites").find(p => p.id === game.settings.get(ID, "personnaliteActive")), texteJoueurs);
+  } catch { return texteJoueurs("LAKOUR_MJIA.Personnalites.MJ", "MJ"); }
 };
 
 // ------------------------------------------------------------------ API (contrat des modules des mondes)
@@ -88,7 +90,8 @@ function prevenirForcee() {
   const f = L.forceeSansDeclinaison(reglage("fete", L.REGLAGE_AUTO), declinaisons.map(d => d.fete));
   if (!f || f === avertie || !estMJActif()) return;
   avertie = f;
-  globalThis.ui?.notifications?.warn?.(`MJ IA — ${L.nomDeFete(f)} est forcée, mais ce monde ne la décline pas : aucune fête en cours.`);
+  globalThis.ui?.notifications?.warn?.(texteJoueurs("LAKOUR_MJIA.Fetes.Forcee", "MJ IA — {nom} est forcée, mais ce monde ne la décline pas : aucune fête en cours.",
+    { nom: texteJoueurs(`LAKOUR_MJIA.Fetes.Noms.${f}`, L.nomDeFete(f)) }));
 }
 
 // La carte publique du jour, chez le MJ actif seul, une fois par jour (local) et par fête dans ce monde (réglage « feteCarte »).
@@ -101,7 +104,7 @@ async function annoncer(idFete, date) {
     await game.settings.set(ID, "feteCarte", cle);
     // Drapeau « ia » : la carte ne revient pas au MJ IA comme un message de joueur (il a la fête dans son état du jeu).
     await ChatMessage.implementation.create({
-      content: L.carteHTML(declinaisonDe(idFete)),
+      content: L.carteHTML(declinaisonDe(idFete), texteJoueurs),
       speaker: { alias: aliasMJ() },
       flags: { [ID]: { ia: true, fete: idFete } }
     });

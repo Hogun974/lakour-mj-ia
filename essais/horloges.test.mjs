@@ -324,7 +324,7 @@ async function echecsApi(H) {
 }
 
 const FICHIERS_API = ["horloges.js", "horloges-logique.js", "recherche-nom.js", "canal.js", "constantes.js", "registre-monde.js", "coffre.js", "fils.js", "utilitaires.js",
-  "coffre-logique.js", "secrets-logique.js"];
+  "coffre-logique.js", "secrets-logique.js", "personnalites.js"];
 test("API : assurer, avancer, lister, palier ; seul le MJ actif écrit (la batterie passe sur le vrai code)", async () => {
   assert.deepEqual(await echecsApi(H), []);
 });

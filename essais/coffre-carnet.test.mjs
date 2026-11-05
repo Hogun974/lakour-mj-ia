@@ -118,7 +118,8 @@ const filAvecSecrets = () => ({ fournisseur: "essai", messages: [{ role: "user",
 // ------------------------------------------------------------------ chargement (vrais scripts ou copie mutée)
 const SCRIPTS = fileURLToPath(new URL("../scripts/", import.meta.url));
 const FICHIERS = ["canal.js", "constantes.js", "coffre.js", "coffre-logique.js", "secrets-logique.js", "registre-monde.js", "horloges.js",
-  "horloges-logique.js", "recherche-nom.js", "carnet.js", "enquetes-logique.js", "contacts-logique.js", "apps/carnet.js", "fils.js", "utilitaires.js"];
+  "horloges-logique.js", "recherche-nom.js", "carnet.js", "enquetes-logique.js", "contacts-logique.js", "apps/carnet.js", "fils.js", "utilitaires.js",
+  "personnalites.js"];
 async function charger(racine) {
   const m = f => import(pathToFileURL(join(racine, f)).href);
   const [canal, coffre, C, S, H, K, E, Ct, app, F] = await Promise.all(["canal.js", "coffre.js", "coffre-logique.js", "secrets-logique.js", "horloges.js",

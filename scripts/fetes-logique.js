@@ -289,11 +289,14 @@ export const doitAnnoncer = ({ derniere = "", jour, fete: idFete, mjActif }) => 
 
 const echapper = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 // La carte au chat : sobre, publique, le nom et la description de la déclinaison et ses liens (@UUID, enrichis par Foundry).
-export function carteHTML(d) {
+// t(cle, francais) : traduit le nom de la fête du calendrier, vu des joueurs (fetes.js passe texteJoueurs,
+// LAKOUR_MJIA.Fetes.Noms.<id>) ; français par défaut.
+export function carteHTML(d, t = (cle, francais) => francais) {
   const liens = d.contenu.map(l => `@UUID[${l.uuid}]${l.nom ? `{${echapper(l.nom)}}` : ""}`);
+  const generique = t(`LAKOUR_MJIA.Fetes.Noms.${d.fete}`, nomDeFete(d.fete));
   return `<div class="lakour-mjia-fete-carte lakour-fete-carte-${d.fete}">`
     + `<p class="lakour-mjia-fete-titre"><strong>${echapper(d.nom)}</strong>`
-    + `${d.nom !== nomDeFete(d.fete) ? ` <small>(${echapper(nomDeFete(d.fete))})</small>` : ""}</p>`
+    + `${d.nom !== nomDeFete(d.fete) && d.nom !== generique ? ` <small>(${echapper(generique)})</small>` : ""}</p>`
     + `${d.description ? `<p>${echapper(d.description)}</p>` : ""}`
     + `${liens.length ? `<p class="lakour-mjia-fete-liens">${liens.join(" · ")}</p>` : ""}</div>`;
 }

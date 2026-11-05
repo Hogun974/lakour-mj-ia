@@ -3,7 +3,8 @@
 // Pour un compagnon IA, le résumé de son histoire entre dans sa personnalité (champ « histoire ») : il en parle, s'en souvient,
 // agit selon elle. Ajouté à OUTILS par outils.js.
 import { ID } from "./constantes.js";
-import { versHTML } from "./utilitaires.js";
+import { versHTML, texteJoueurs } from "./utilitaires.js";
+import { langueDuMonde } from "./contenus.js";
 import * as H from "./histoire-logique.js";
 import { assurerJournal, ecrireHistoire } from "./histoire.js";
 import { estCompagnon } from "./compagnons-jeu.js";
@@ -24,7 +25,9 @@ function quandChapitre() {
   if (game.system?.id === "lakour-survie") {
     try { const q = game.lakourSurvie?.quand?.(); if (q) return texteQuand(q).replace(/^jour/, "Jour"); } catch { /* sans système */ }
   }
-  return `Séance du ${new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`;
+  // Titre lu des joueurs (journal d'histoire) : dans la langue du monde.
+  const date = new Date().toLocaleDateString(langueDuMonde() === "en" ? "en-GB" : "fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  return texteJoueurs("LAKOUR_MJIA.Histoire.Seance", "Séance du {date}", { date });
 }
 const nomContenu = (collection, cle, genre = "") => { try { return nomDe(game.lakourSurvie?.contenu?.()?.[collection], cle, genre); } catch { return cle; } };
 

@@ -1,5 +1,6 @@
 import { OpenAI } from "../../vendor/openai.mjs";
 import { voixRealtime, consignesLecture, wavDepuisPcm, lectureFidele } from "../voix-texte.js";
+import { langueDuMonde } from "../contenus.js";
 import { GardeLecture } from "../voix-flux.js";
 
 // Fournisseur ChatGPT (API Responses), appelé depuis le navigateur du MJ avec SA clé.
@@ -105,7 +106,7 @@ export class FournisseurOpenAI {
       const secret = await this.client.realtime.clientSecrets.create({
         expires_after: { anchor: "created_at", seconds: 60 },
         session: {
-          type: "realtime", model: modele, output_modalities: ["audio"], instructions: consignesLecture(ton, { strict }),
+          type: "realtime", model: modele, output_modalities: ["audio"], instructions: consignesLecture(ton, { strict, langue: langueDuMonde() }),
           audio: { output: { voice: voix, format: { type: "audio/pcm", rate: 24000 } } }
         }
       });
@@ -131,7 +132,7 @@ export class FournisseurOpenAI {
       const secret = await this.client.realtime.clientSecrets.create({
         expires_after: { anchor: "created_at", seconds: 60 },
         session: {
-          type: "realtime", model: modele, output_modalities: ["audio"], instructions: consignesLecture(ton, { strict }),
+          type: "realtime", model: modele, output_modalities: ["audio"], instructions: consignesLecture(ton, { strict, langue: langueDuMonde() }),
           audio: { output: { voice: voixRealtime(voix), format: { type: "audio/pcm", rate: 24000 } } }
         }
       });

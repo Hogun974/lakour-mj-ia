@@ -3,6 +3,8 @@ import { lire, ecrire } from "../reglages.js";
 import { PERSONNALITES_DE_BASE, voixDe } from "../personnalites.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+// Les choix d'un menu déroulant (valeur -> libellé traduit, LAKOUR_MJIA.Personnalites.<groupe>.<valeur>).
+const choix = (groupe, valeurs) => Object.fromEntries(valeurs.map(v => [v, game.i18n.localize(`LAKOUR_MJIA.Personnalites.${groupe}.${v}`)]));
 
 // Édition des personnalités du MJ IA : ton, violence, longueur, rigueur et consignes libres.
 export class EditeurPersonnalites extends HandlebarsApplicationMixin(ApplicationV2) {
@@ -27,10 +29,10 @@ export class EditeurPersonnalites extends HandlebarsApplicationMixin(Application
       active: lire("personnaliteActive"),
       // Les personnalités enregistrées avant l'ajout de la voix affichent la voix par défaut.
       personnalites: lire("personnalites").map(p => { const { voix, ton } = voixDe(p); return { ...p, voixOpenAI: voix, tonVoix: ton }; }),
-      violences: { 1: "1 — suggérée", 2: "2 — franche", 3: "3 — crue (grimdark)" },
-      longueurs: { courte: "Courte", moyenne: "Moyenne", longue: "Longue" },
-      rigueurs: { souple: "Souple (le récit prime)", normale: "Normale", stricte: "Stricte (règles à la lettre)" },
-      improvisations: { fidele: "Fidèle (suit le scénario écrit)", adaptative: "Adaptative (l'ajuste pour les joueurs)", libre: "Libre (le réécrit volontiers)" },
+      violences: choix("Violences", [1, 2, 3]),
+      longueurs: choix("Longueurs", ["courte", "moyenne", "longue"]),
+      rigueurs: choix("Rigueurs", ["souple", "normale", "stricte"]),
+      improvisations: choix("Improvisations", ["fidele", "adaptative", "libre"]),
       voixOpenAI: Object.fromEntries(VOIX_OPENAI.map(v => [v, v]))
     };
   }
@@ -54,7 +56,8 @@ export class EditeurPersonnalites extends HandlebarsApplicationMixin(Application
   static async #ajouter() {
     await this.submit();
     const liste = lire("personnalites");
-    liste.push({ id: foundry.utils.randomID(), nom: "Nouvelle personnalité", nomAffiche: "Le MJ", violence: 2, longueur: "moyenne", rigueur: "normale", consignes: "" });
+    liste.push({ id: foundry.utils.randomID(), nom: game.i18n.localize("LAKOUR_MJIA.Personnalites.Nouvelle"),
+      nomAffiche: game.i18n.localize("LAKOUR_MJIA.Personnalites.NouvelleNomAffiche"), violence: 2, longueur: "moyenne", rigueur: "normale", consignes: "" });
     await ecrire("personnalites", liste);
     this.render();
   }

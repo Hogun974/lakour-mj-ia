@@ -84,7 +84,7 @@ The panel's **Start a round of the table** button: the floor passes to each in t
 The **Campaign notebook** (the **open book** button in the left toolbar, token layer, or the console's **Campaign notebook** button), **Clocks** tab, shows three kinds of items, which the AI GM creates and keeps alive with its **horloge** tool:
 - **Clock**: 4 to 12 segments, in the manner of *Blades in the Dark*. A threat or a project that ripens ("the cult completes its ritual", "reinforcements arrive"): it advances when time passes or a failure feeds it, and when it is full, **it strikes**: the event happens.
 - **Gauge**: a counter from 0 to its maximum, with named **thresholds**. In 40k, **Exposure** (id *exposition*): the higher it climbs, the more the team has drawn attention (a stunt, a noisy fight, a witness left behind).
-- **Reputation**: a faction's points, from -100 to +100, read as **tiers** (shown in French): **Haï** (hated, -100 to -51), **Hostile** (-50 to -21), **Inamical** (unfriendly, -20 to -6), **Neutre** (neutral, -5 to +5), **Amical** (friendly, +6 to +20), **Honoré** (honoured, +21 to +50), **Révéré** (revered, +51 to +80), **Exalté** (exalted, +81 and above). A service is worth +3 to +5, a great service +10 to +15, an affront -5, a betrayal -20 to -30.
+- **Reputation**: a faction's points, from -100 to +100, read as **tiers**: **Hated** (-100 to -51), **Hostile** (-50 to -21), **Unfriendly** (-20 to -6), **Neutral** (-5 to +5), **Friendly** (+6 to +20), **Honored** (+21 to +50), **Revered** (+51 to +80), **Exalted** (+81 and above). A service is worth +3 to +5, a great service +10 to +15, an affront -5, a betrayal -20 to -30.
 
 # At the table
 - **Click** a pie or a bar: advance one step; **right-click** (or **−**): go back. The **eye** shows the item to the players or hides it from them: they only see what you have shown.
@@ -186,7 +186,7 @@ export const GUIDE_JOUEURS_EN = [
 - **Out of combat**, the GM can run a **round of the table**: when your turn comes, the banner says "Describe what your character does". Write it in the chat (or press **I'm done**), or **I pass**.` },
   { cle: "carnet", titre: "Campaign notebook (40k and Warcraft)", texte: `
 - The **open book** button in the left toolbar opens the **Campaign notebook**: what the GM has chosen to show you, in three tabs (Clocks, Investigations, Contacts).
-- A **clock** fills segment by segment: when it is full, something happens. A **gauge** rises with your actions (Exposure, in 40k: the higher it is, the more you are noticed). A **reputation** tells what a faction thinks of you, from **Haï** (hated) to **Exalté** (exalted).
+- A **clock** fills segment by segment: when it is full, something happens. A **gauge** rises with your actions (Exposure, in 40k: the higher it is, the more you are noticed). A **reputation** tells what a faction thinks of you, from **Hated** to **Exalted**.
 - When a clock strikes or a reputation changes, the chat tells you.
 - **Investigations**: the clues you have found and the conclusions you have worked out. **Contacts**: the people you know, what they think of you, what you owe them (or they owe you).` },
   { cle: "veillees", titre: "The Vigils of Brumecombe", texte: `

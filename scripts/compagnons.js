@@ -115,6 +115,14 @@ const REGLES = {
     + "Tu dis ce que fait et dit ton personnage, jamais ce que font les autres ni ce qui leur arrive."
 };
 
+// La langue de ses répliques : vue.langue, la langue du monde (« en » : module de contenu anglais ; compagnons-jeu.js la pose
+// depuis contenus.js, langueDuMonde), comme pour le narrateur (contexte.js, consigneLangue). Sans langue : français.
+export function consigneLangueCompagnon(langue) {
+  if (langue !== "en") return "Tu t'exprimes en français.";
+  return "LANGUE : les autres joueurs sont anglophones. Tes répliques, tes gestes et tout ce que tu écris sont en ANGLAIS, même si ce "
+    + "qu'on te donne ici est en français (garde les noms exacts quand tu choisis un nom dans une liste). Always speak English.";
+}
+
 export function consigneSysteme(vue) {
   const p = normaliserPersonnalite(vue.personnalite, vue.id);
   return [
@@ -124,7 +132,7 @@ export function consigneSysteme(vue) {
       + "Ne prétends jamais savoir ce que tu ignores et n'invente aucun secret.",
     REGLES[vue.jeu] ?? REGLES.aventure,
     `Personnalité : ${TEMPERAMENTS[p.temperament].consigne} Façon de parler : ${p.parler}.${p.histoire ? ` Ton histoire : ${p.histoire}` : ""}`,
-    "Tu t'exprimes en français.",
+    consigneLangueCompagnon(vue.langue),
     "",
     "Ta fiche :",
     vue.fiche || "(rien de particulier)"

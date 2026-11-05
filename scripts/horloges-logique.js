@@ -139,16 +139,29 @@ const LIBELLES = { horloge: "Horloge", jauge: "Jauge", reputation: "Réputation"
 const deFaction = el => (el.faction ? ` (${el.faction})` : "");
 const signe = n => (n > 0 ? `+${n}` : String(n));
 
+// Textes vus des joueurs (carte au chat, Carnet) : « t(cle, francais, donnees) » les traduit (horloges.js passe texteJoueurs,
+// lang/*.json, LAKOUR_MJIA.Horloges.*) ; par défaut, le français rempli de ses {paramètres} (essais, texte pour l'IA).
+export const enFrancais = (cle, francais, donnees = {}) => String(francais).replace(/\{(\w+)\}/g, (m, k) => (Object.hasOwn(donnees, k) ? String(donnees[k]) : m));
+// Les paliers de réputation livrés (PALIERS_REPUTATION, et ceux de même nom des modules des mondes) ont un nom traduit ; un
+// palier nommé autrement (par le MJ, l'IA ou un module) garde son nom.
+const CLES_PALIERS = { "Haï": "Hai", Hostile: "Hostile", Inamical: "Inamical", Neutre: "Neutre", Amical: "Amical", "Honoré": "Honore", "Révéré": "Revere", "Exalté": "Exalte" };
+export const nomPalier = (nom, t = enFrancais) => (CLES_PALIERS[nom] ? t(`LAKOUR_MJIA.Horloges.Paliers.${CLES_PALIERS[nom]}`, nom) : nom);
+
 // Phrase d'un événement, telle qu'elle paraît dans le chat (sans les notes du MJ, qui peuvent être secrètes).
-export function texteEvenement(el, ev) {
-  if (ev.type === "sonne") return `L'horloge « ${el.nom} »${deFaction(el)} est pleine (${el.max}/${el.max}) : elle sonne !`;
-  if (ev.type === "pleine") return `La jauge « ${el.nom} »${deFaction(el)} est au maximum (${el.max}/${el.max}).`;
+export function texteEvenement(el, ev, t = enFrancais) {
+  const d = { nom: el.nom, faction: deFaction(el), max: el.max, valeur: el.valeur, seuil: ev.nom ?? "" };
+  const T = (cle, francais, plus = {}) => t(`LAKOUR_MJIA.Horloges.Evenements.${cle}`, francais, { ...d, ...plus });
+  if (ev.type === "sonne") return T("Sonne", "L'horloge « {nom} »{faction} est pleine ({max}/{max}) : elle sonne !");
+  if (ev.type === "pleine") return T("Pleine", "La jauge « {nom} »{faction} est au maximum ({max}/{max}).");
   if (ev.type === "seuil") {
     return ev.sens === "monte"
-      ? `La jauge « ${el.nom} »${deFaction(el)} franchit le seuil « ${ev.nom} » (${el.valeur}/${el.max}).`
-      : `La jauge « ${el.nom} »${deFaction(el)} redescend sous le seuil « ${ev.nom} » (${el.valeur}/${el.max}).`;
+      ? T("SeuilMonte", "La jauge « {nom} »{faction} franchit le seuil « {seuil} » ({valeur}/{max}).")
+      : T("SeuilDescend", "La jauge « {nom} »{faction} redescend sous le seuil « {seuil} » ({valeur}/{max}).");
   }
-  if (ev.type === "palier") return `Réputation auprès de ${el.faction || el.nom} : ${ev.avant} → ${ev.apres} (${signe(el.valeur)}).`;
+  if (ev.type === "palier") {
+    return T("Palier", "Réputation auprès de {qui} : {avant} → {apres} ({points}).",
+      { qui: el.faction || el.nom, avant: nomPalier(ev.avant, t), apres: nomPalier(ev.apres, t), points: signe(el.valeur) });
+  }
   return "";
 }
 
@@ -175,10 +188,13 @@ export function ligneResume(el) {
 }
 
 // Une ligne pour les joueurs (carte au chat) : ni identifiant, ni notes.
-export function ligneJoueurs(el) {
-  if (el.type === "horloge") return `${LIBELLES.horloge} : ${el.valeur}/${el.max}`;
-  if (el.type === "jauge") return `${LIBELLES.jauge} : ${el.valeur}/${el.max}${palierDe(el) ? ` (${palierDe(el).nom})` : ""}`;
-  return `${LIBELLES.reputation} : ${palierDe(el)?.nom ?? "?"} (${signe(el.valeur)})`;
+export function ligneJoueurs(el, t = enFrancais) {
+  const T = (cle, francais, d) => t(`LAKOUR_MJIA.Horloges.Lignes.${cle}`, francais, d);
+  if (el.type === "horloge") return T("Horloge", "Horloge : {valeur}/{max}", { valeur: el.valeur, max: el.max });
+  if (el.type === "jauge") {
+    return T("Jauge", "Jauge : {valeur}/{max}{palier}", { valeur: el.valeur, max: el.max, palier: palierDe(el) ? ` (${nomPalier(palierDe(el).nom, t)})` : "" });
+  }
+  return T("Reputation", "Réputation : {palier} ({points})", { palier: nomPalier(palierDe(el)?.nom ?? "?", t), points: signe(el.valeur) });
 }
 
 // Résumé borné (MAX_RESUME lignes) : les horloges d'abord (ce qui menace), puis les jauges, puis les réputations.
@@ -211,16 +227,16 @@ export function camembertSVG(valeur, max, taille = 72) {
 const pourcent = (v, min, max) => (max > min ? arrondi(((v - min) / (max - min)) * 100) : 0);
 
 // Ce que montre la fenêtre : les joueurs ne voient que les éléments visibles ; le MJ voit tout.
-export function vuePourFenetre(liste, { mj = false } = {}) {
+export function vuePourFenetre(liste, { mj = false, t = enFrancais } = {}) {
   return (liste ?? []).filter(el => mj || el.visible).map(el => {
     const b = bornes(el);
     const vue = { id: el.id, nom: el.nom, type: el.type, faction: el.faction, valeur: el.valeur, max: el.max, visible: el.visible,
       notes: mj ? el.notes : "", [el.type]: true };
     if (el.type === "horloge") return { ...vue, svg: camembertSVG(el.valeur, el.max), plein: el.valeur >= el.max };
     const p = palierDe(el);
-    vue.palier = p?.nom ?? "";
+    vue.palier = p ? nomPalier(p.nom, t) : "";
     vue.pct = pourcent(el.valeur, b.min, b.max);
-    vue.reperes = (el.paliers ?? []).filter(s => s.min > b.min && s.min <= b.max).map(s => ({ nom: s.nom, min: s.min, pct: pourcent(s.min, b.min, b.max) }));
+    vue.reperes = (el.paliers ?? []).filter(s => s.min > b.min && s.min <= b.max).map(s => ({ nom: nomPalier(s.nom, t), min: s.min, pct: pourcent(s.min, b.min, b.max) }));
     if (el.type === "reputation") { vue.affiche = signe(el.valeur); vue.zero = pourcent(0, b.min, b.max); }
     return vue;
   });

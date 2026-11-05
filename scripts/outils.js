@@ -3,10 +3,11 @@ import { MODULE_3D } from "./vue3d.js";
 import { adaptateur, DIFFICULTES } from "./adaptateurs.js";
 import { SECTIONS, noterMemoire } from "./memoire.js";
 import { fournisseurImages } from "./fournisseurs/index.js";
-import { versTexte, versHTML, tronquer, trouverActeur, deposerFichier, roleLoups } from "./utilitaires.js";
+import { versTexte, versHTML, tronquer, trouverActeur, deposerFichier, roleLoups, texteJoueurs } from "./utilitaires.js";
 import { CARACS, calculerCaracteristiques, objetsDeDepart, munitionPour } from "./creation-impmal.js";
 import { OUTILS_SURVIE } from "./outils-survie.js";
 import { OUTIL_HISTOIRE } from "./outils-histoire.js";
+import { nomAfficheDe } from "./personnalites.js";
 import { ecrireHistoire } from "./histoire.js";
 import { ajouterAvecAvancements, donnerEquipement, monterNiveau } from "./creation-dnd5e.js";
 import { jetonJoueur, moduleDeContenu, contenuNomme, packDeContenu, drapeauxDuContenu } from "./contenus.js";
@@ -163,20 +164,24 @@ export const OUTILS = [
       const joueurs = game.users.filter(u => !u.isGM && acteur.testUserPermission(u, "OWNER"));
       const esc = foundry.utils.escapeHTML;
       const reglages = { difficulte, modificateur, dr: dr_bonus, avantage: avantages, desavantage: desavantages, superiorite: Boolean(superiorite), titre: raison };
+      // Vu des joueurs : dans la langue de l'interface (lang/*.json, LAKOUR_MJIA.Jet.*).
+      const signe = n => `${n > 0 ? "+" : ""}${n}`;
       const details = [
-        difficulte !== "aucune" ? `Difficulté : ${esc(difficulte)}` : "",
-        modificateur ? `modificateur ${modificateur > 0 ? "+" : ""}${modificateur}` : "",
-        dr_bonus ? `${dr_bonus > 0 ? "+" : ""}${dr_bonus} DR` : "",
-        avantages ? `${avantages} avantage(s)` : "", desavantages ? `${desavantages} désavantage(s)` : "",
-        superiorite && sys.id === "impmal" ? "Supériorité" : ""
+        difficulte !== "aucune" ? texteJoueurs("LAKOUR_MJIA.Jet.Difficulte", "Difficulté : {difficulte}",
+          { difficulte: esc(texteJoueurs(`LAKOUR_MJIA.Jet.Difficultes.${difficulte}`, difficulte)) }) : "",
+        modificateur ? texteJoueurs("LAKOUR_MJIA.Jet.Modificateur", "modificateur {valeur}", { valeur: signe(modificateur) }) : "",
+        dr_bonus ? texteJoueurs("LAKOUR_MJIA.Jet.DR", "{valeur} DR", { valeur: signe(dr_bonus) }) : "",
+        avantages ? texteJoueurs("LAKOUR_MJIA.Jet.Avantages", "{n} avantage(s)", { n: avantages }) : "",
+        desavantages ? texteJoueurs("LAKOUR_MJIA.Jet.Desavantages", "{n} désavantage(s)", { n: desavantages }) : "",
+        superiorite && sys.id === "impmal" ? texteJoueurs("LAKOUR_MJIA.Jet.Superiorite", "Supériorité") : ""
       ].filter(Boolean).join(", ");
-      const bouton = sys.id === "generique" ? `<p>Formule : <strong>${esc(competence)}</strong></p>`
+      const bouton = sys.id === "generique" ? `<p>${texteJoueurs("LAKOUR_MJIA.Jet.Formule", "Formule :")} <strong>${esc(competence)}</strong></p>`
         : `<button type="button" data-lakour-jet data-acteur="${acteur.uuid}" data-competence="${esc(competence)}" data-reglages="${esc(JSON.stringify(reglages))}">`
           + `<i class="fa-solid fa-dice-d20"></i> ${esc(libelle)}</button>`;
       await ChatMessage.implementation.create({
         content: `<div class="lakour-mjia-jet"><p><strong>${esc(acteur.name)}</strong> : ${versHTML(raison)}</p>`
           + (details ? `<p>${details}</p>` : "") + bouton + "</div>",
-        speaker: { alias: game.settings.get(ID, "personnalites").find(p => p.id === game.settings.get(ID, "personnaliteActive"))?.nomAffiche ?? "MJ" },
+        speaker: { alias: nomAfficheDe(game.settings.get(ID, "personnalites").find(p => p.id === game.settings.get(ID, "personnaliteActive")), texteJoueurs) },
         flags: { [ID]: { ia: true } }
       });
       const qui = joueurs.map(u => u.name).join(", ") || "aucun joueur connecté ne possède ce personnage";
@@ -196,7 +201,7 @@ export const OUTILS = [
     async executer({ formule, raison, secret }) {
       const jet = await new Roll(formule).evaluate();
       await jet.toMessage(
-        { flavor: raison, speaker: { alias: "MJ IA" }, flags: { [ID]: { ia: true } } },
+        { flavor: raison, speaker: { alias: texteJoueurs("LAKOUR_MJIA.Nom", "MJ IA") }, flags: { [ID]: { ia: true } } },
         { rollMode: secret ? CONST.DICE_ROLL_MODES.PRIVATE : CONST.DICE_ROLL_MODES.PUBLIC }
       );
       return { contenu: `${formule} = ${jet.total} (${jet.result})` };
@@ -530,7 +535,7 @@ export const OUTILS = [
       const chemin = await deposerFichier(`images/${game.world.id}`, nom, new File([blob], nom, { type: "image/png" }));
       await ChatMessage.implementation.create({
         content: `<figure class="lakour-mjia-image"><img src="${chemin}" alt=""><figcaption>${foundry.utils.escapeHTML(titre)}</figcaption></figure>`,
-        speaker: { alias: "MJ IA" },
+        speaker: { alias: texteJoueurs("LAKOUR_MJIA.Nom", "MJ IA") },
         flags: { [ID]: { ia: true } }
       });
       const acteur = portrait_de.trim() ? await trouverActeur(portrait_de) : null;
@@ -543,7 +548,7 @@ export const OUTILS = [
 // ---------------------------------------------------------------- Création de personnage
 
 const COMPETENCES_IMPMAL = ["athletics", "awareness", "dexterity", "discipline", "fortitude", "intuition", "linguistics", "logic", "lore", "medicae", "melee", "navigation", "presence", "piloting", "psychic", "ranged", "rapport", "reflexes", "stealth", "tech"];
-const aliasMJ = () => game.settings.get(ID, "personnalites").find(p => p.id === game.settings.get(ID, "personnaliteActive"))?.nomAffiche ?? "MJ";
+const aliasMJ = () => nomAfficheDe(game.settings.get(ID, "personnalites").find(p => p.id === game.settings.get(ID, "personnaliteActive")), texteJoueurs);
 const trouverJoueur = nom => {
   const n = (nom ?? "").trim().toLowerCase();
   return game.users.find(u => u.name.toLowerCase() === n) ?? game.users.find(u => u.character?.name.toLowerCase() === n) ?? null;

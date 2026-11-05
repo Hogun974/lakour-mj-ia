@@ -80,9 +80,11 @@ export function resumeContacts(liste = [], ou = {}) {
 }
 
 // Ce que montre l'onglet Contacts : les joueurs, les contacts visibles sans notes ni historique ; le MJ tout.
-export function vueContacts(liste = [], { mj = false } = {}) {
+// t(cle, francais) : traduit le nom de l'attitude (apps/carnet.js passe texteJoueurs, LAKOUR_MJIA.Contacts.Attitudes.<n>).
+export function vueContacts(liste = [], { mj = false, t = (cle, francais) => francais } = {}) {
+  const attitudeTexte = n => `${t(`LAKOUR_MJIA.Contacts.Attitudes.${borner(n)}`, ATTITUDES[borner(n)])} (${signe(borner(n))})`;
   return liste.filter(c => mj || c.visible).map(c => ({
-    id: c.id, nom: c.nom, faction: c.faction, lieu: c.lieu, attitude: borner(c.attitude), attitudeTexte: libelleAttitude(c.attitude),
+    id: c.id, nom: c.nom, faction: c.faction, lieu: c.lieu, attitude: borner(c.attitude), attitudeTexte: attitudeTexte(c.attitude),
     classe: c.attitude > 0 ? "favorable" : c.attitude < 0 ? "hostile" : "neutre", dette: c.dette, demande: c.demande, visible: c.visible,
     notes: mj ? c.notes : "", historique: mj ? (c.historique ?? []).slice(-3) : []
   }));

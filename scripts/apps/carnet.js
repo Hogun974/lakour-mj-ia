@@ -5,6 +5,7 @@ import { enquetes, contacts, gesteCarnet } from "../carnet.js";
 import { vueEnquetes } from "../enquetes-logique.js";
 import { vueContacts } from "../contacts-logique.js";
 import { etatCoffre } from "../coffre.js";
+import { texteJoueurs } from "../utilitaires.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -52,9 +53,9 @@ export class FenetreCarnet extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _prepareContext() {
     const mj = game.user.isGM;
-    const elements = vuePourFenetre(lireHorloges(), { mj });
+    const elements = vuePourFenetre(lireHorloges(), { mj, t: texteJoueurs });
     const listeEnquetes = vueEnquetes(enquetes.lire(), { mj });
-    const listeContacts = vueContacts(contacts.lire(), { mj });
+    const listeContacts = vueContacts(contacts.lire(), { mj, t: texteJoueurs });
     return {
       mj, elements, vide: !elements.length, enquetes: listeEnquetes, contacts: listeContacts, coffre: bandeauCoffre(),
       onglet: this.onglet, onglets: Object.fromEntries(ONGLETS.map(o => [o, o === this.onglet])),

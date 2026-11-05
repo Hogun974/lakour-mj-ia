@@ -278,7 +278,7 @@ const MUTATIONS = {
 
 async function charger(mutation) {
   const dossier = mkdtempSync(join(tmpdir(), "lakour-decisions-"));
-  const sources = Object.fromEntries(["decisions.js", "canal.js", "constantes.js", "appel.js"].map(f => [f, readFileSync(join(SOURCE, f), "utf8")]));
+  const sources = Object.fromEntries(["decisions.js", "canal.js", "constantes.js", "appel.js", "utilitaires.js", "personnalites.js"].map(f => [f, readFileSync(join(SOURCE, f), "utf8")]));
   if (mutation) {
     const [fichier, ...remplacements] = mutation;
     for (let i = 0; i < remplacements.length; i += 2) {

@@ -4,7 +4,8 @@ import { fournisseurTexte, fournisseurCompagnons, modeleCompagnons, expliquerErr
 import { OUTILS, outil, resumerAppel, outilsDuSysteme, partieLoupsEnCoursIci } from "./outils.js";
 import { etapeHistoire } from "./histoire-logique.js";
 import { promptSysteme, etatDuJeu, decrireMessage, messagePourIA } from "./contexte.js";
-import { versHTML, roleLoups, campLoups, secretsVeilleesEnAttente } from "./utilitaires.js";
+import { versHTML, roleLoups, campLoups, secretsVeilleesEnAttente, texteJoueurs } from "./utilitaires.js";
+import { nomAfficheDe } from "./personnalites.js";
 import { lireFil, ecrireFil } from "./fils.js";
 import { validerSchema } from "./schema.js";
 import { VoixEnDirect, direReplique } from "./voix.js";
@@ -464,7 +465,7 @@ export class MoteurMJ {
   async #tourDirect(entree, fil, systeme, outils, chuchoter) {
     this.fournisseur.ajouterUtilisateur(fil, entree);
     for (let i = 0; i < MAX_TOURS_OUTILS; i++) {
-      const bulle = new BulleChat(this.personnalite.nomAffiche, chuchoter);
+      const bulle = new BulleChat(nomAfficheDe(this.personnalite, texteJoueurs), chuchoter);
       // Voix OpenAI en direct : les phrases partent à la synthèse pendant que le texte s'écrit.
       const voix = !chuchoter && lire("voix") === "openai" ? new VoixEnDirect(this.personnalite) : null;
       const reponse = await this.#envoyer(fil, systeme, outils, morceau => { bulle.ajouter(morceau); voix?.suivre(bulle.texte); });
@@ -534,7 +535,7 @@ export class MoteurMJ {
 
     // Publication, puis les demandes adressées aux joueurs.
     try {
-      const bulle = new BulleChat(this.personnalite.nomAffiche, chuchoter);
+      const bulle = new BulleChat(nomAfficheDe(this.personnalite, texteJoueurs), chuchoter);
       await bulle.terminer(recit);
       voix?.terminer(bulle.message).catch(e => console.error(`${ID} | voix`, e));
     } finally {
@@ -658,7 +659,7 @@ export class MoteurMJ {
   async prevenirMJ(texte) {
     ui.notifications.error(texte);
     await ChatMessage.implementation.create({
-      content: `<p><strong>MJ IA</strong> — ${foundry.utils.escapeHTML(texte)}</p>`,
+      content: `<p><strong>${texteJoueurs("LAKOUR_MJIA.Nom", "MJ IA")}</strong> — ${foundry.utils.escapeHTML(texte)}</p>`,
       whisper: game.users.filter(u => u.isGM).map(u => u.id),
       flags: { [ID]: { ia: true } }
     });

@@ -19,6 +19,18 @@ export function sansEnrichers(texte) {
     .replace(/\[\[\/([^\]]*)\]\]/g, "($1)");
 }
 
+// Texte montré aux joueurs (chat, cartes, avis), dans la langue de l'interface : la clé de lang/<langue>.json, remplie de
+// ses {paramètres} ; le français donné en repli (clé absente, ou hors de Foundry : essais). Le français du code et celui de
+// lang/fr.json doivent rester identiques (essais/langue-du-monde.test.mjs).
+export function texteJoueurs(cle, francais, donnees = {}) {
+  let modele = francais;
+  try {
+    const i18n = globalThis.game?.i18n;
+    if (i18n?.has?.(cle)) modele = i18n.localize(cle);
+  } catch { /* hors Foundry : le français */ }
+  return String(modele).replace(/\{(\w+)\}/g, (m, k) => (Object.hasOwn(donnees, k) ? String(donnees[k]) : m));
+}
+
 export function tronquer(texte, max) {
   return texte.length <= max ? texte : `${texte.slice(0, max)}\n[… tronqué, ${texte.length - max} caractères de plus]`;
 }

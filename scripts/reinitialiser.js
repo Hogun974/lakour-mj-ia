@@ -38,8 +38,10 @@ async function choisirPersonnagesGardes() {
   }).join("");
   const compte = c => game.collections.get(c)?.size ?? 0;
   const resume = [
-    `${compte("ChatMessage")} messages`, `${compte("Scene")} scènes`, `${compte("JournalEntry")} journaux`,
-    `${game.actors.size} acteurs (moins ceux gardés)`, `${compte("Item")} objets`, `${compte("RollTable")} tables`, `${compte("Combat")} combats`
+    game.i18n.format("LAKOUR_MJIA.Reinit.Compte.Messages", { n: compte("ChatMessage") }), game.i18n.format("LAKOUR_MJIA.Reinit.Compte.Scenes", { n: compte("Scene") }),
+    game.i18n.format("LAKOUR_MJIA.Reinit.Compte.Journaux", { n: compte("JournalEntry") }), game.i18n.format("LAKOUR_MJIA.Reinit.Compte.Acteurs", { n: game.actors.size }),
+    game.i18n.format("LAKOUR_MJIA.Reinit.Compte.Objets", { n: compte("Item") }), game.i18n.format("LAKOUR_MJIA.Reinit.Compte.Tables", { n: compte("RollTable") }),
+    game.i18n.format("LAKOUR_MJIA.Reinit.Compte.Combats", { n: compte("Combat") })
   ].join(", ");
   return foundry.applications.api.DialogV2.input({
     window: { title: game.i18n.localize("LAKOUR_MJIA.Reinit.Titre"), icon: "fa-solid fa-rotate-left" },

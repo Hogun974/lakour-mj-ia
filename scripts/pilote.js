@@ -25,6 +25,7 @@
 import { ID } from "./constantes.js";
 import { estCompagnon, compagnonsPresents } from "./compagnons-jeu.js";
 import { voixAuRepos } from "./voix.js";
+import { texteJoueurs } from "./utilitaires.js";
 
 export const ETAPES_MAX = 60;
 export const DEBAT_TOURS = 2;
@@ -488,7 +489,7 @@ function avisAuMJ(texte) {
   try { ui.notifications?.info(texte); } catch { /* sans interface */ }
   try {
     return ChatMessage.implementation.create({
-      content: `<p><strong>MJ IA</strong> — ${foundry.utils.escapeHTML(texte)}</p>`,
+      content: `<p><strong>${texteJoueurs("LAKOUR_MJIA.Nom", "MJ IA")}</strong> — ${foundry.utils.escapeHTML(texte)}</p>`,
       whisper: game.users.filter(u => u.isGM).map(u => u.id),
       flags: { [ID]: { ia: true, pilote: true } }
     }).catch(e => console.error(`${ID} | avis du pilote`, e));

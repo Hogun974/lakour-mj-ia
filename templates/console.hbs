@@ -13,7 +13,7 @@
     <p>
       <strong>{{localize "LAKOUR_MJIA.Console.Cout"}}</strong> :
       {{#if prixConnus}}≈ {{cout}} $ / {{budget}} ${{else}}{{localize "LAKOUR_MJIA.Console.PrixInconnus"}}{{/if}}
-      <br><small>{{jetons.entree}} entrée · {{jetons.cacheLecture}} cache · {{jetons.sortie}} sortie</small>
+      <br><small>{{jetons.entree}} {{localize "LAKOUR_MJIA.Console.Entree"}} · {{jetons.cacheLecture}} {{localize "LAKOUR_MJIA.Console.Cache"}} · {{jetons.sortie}} {{localize "LAKOUR_MJIA.Console.Sortie"}}</small>
       {{#if horsSeance}}<br><small>{{localize "LAKOUR_MJIA.Console.HorsSeance"}} : ≈ {{horsSeance}} $</small>{{/if}}
     </p>
     {{#if voix}}

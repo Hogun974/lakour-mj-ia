@@ -3,7 +3,7 @@
 // Les règles elles-mêmes ne sont PAS recopiées ici : l'IA les lit dans les compendiums des livres achetés.
 
 import { versMetres, moyenneFormule } from "./tour-logique.js";
-import { roleLoups, campLoups } from "./utilitaires.js";
+import { roleLoups, campLoups, texteJoueurs } from "./utilitaires.js";
 import { ligneHistoireActeur } from "./histoire-logique.js";
 import {
   COMPETENCES_SURVIE, CLES_COMPETENCES, libelleCompetence, reglagesVersTest, fonctionSurvie, resumerSurvivant, nomDe,
@@ -88,7 +88,7 @@ const impmal = {
     const cible = base + (IMPMAL_BONUS[reglages.difficulte] ?? 0) + Number(reglages.modificateur ?? 0);
     const jet = await new Roll("1d100").evaluate();
     const r = testD100(cible, jet.total);
-    const texte = `${reglages.titre || cle} : ${jet.total} pour ${cible} — ${r.reussite ? "réussite" : "échec"} (${r.dr >= 0 ? "+" : ""}${r.dr} DR)`;
+    const texte = texteJetD100(reglages.titre || cle, jet.total, cible, r);
     await jet.toMessage({ speaker: { alias: acteur.name }, flavor: texte });
     return { total: jet.total, cible, ...r, texte: `${acteur.name}, ${texte}.` };
   },
@@ -375,8 +375,15 @@ const nomCondition = id => {
   const s = (globalThis.CONFIG?.statusEffects ?? []).find(e => e.id === id);
   return s ? game.i18n.localize(s.name ?? s.label ?? id) : id;
 };
-const signe = n => `${n >= 0 ? "+" : ""}${n}`;
 const totalDesJets = jets => (jets ?? []).reduce((t, r) => t + Number(r?.total ?? 0), 0);
+// Légende d'un test au d100 d'Imperium Maledictum, postée au chat (vue des joueurs) : dans la langue de l'interface
+// (« réussite (+2 DR) », « success (+2 SL) ») ; en français hors de Foundry.
+function texteJetD100(titre, total, cible, r, { defense = false } = {}) {
+  const donnees = { titre, nom: titre, total, cible, dr: `${r.dr >= 0 ? "+" : ""}${r.dr}`,
+    issue: r.reussite ? texteJoueurs("LAKOUR_MJIA.Jet.Reussite", "réussite") : texteJoueurs("LAKOUR_MJIA.Jet.Echec", "échec") };
+  return defense ? texteJoueurs("LAKOUR_MJIA.Jet.Defense", "Défense contre {nom} : {total} pour {cible} — {issue} ({dr} DR)", donnees)
+    : texteJoueurs("LAKOUR_MJIA.Jet.Resultat", "{titre} : {total} pour {cible} — {issue} ({dr} DR)", donnees);
+}
 const posterJet = (jet, acteur, texte) => jet.toMessage({ speaker: { alias: acteur?.name ?? "?" }, flavor: texte });
 // Effets à durée (v14 : duration.remaining en rounds, duration.expired) ; la concentration a son propre rappel.
 function effetsADuree(acteur) {
@@ -475,12 +482,12 @@ const TOUR_IMPMAL = {
   async resoudre(acteur, attaque, cible) {
     const jetA = await new Roll("1d100").evaluate();
     const a = testD100(attaque.cible, jetA.total);
-    await posterJet(jetA, acteur, `${attaque.nom} : ${jetA.total} pour ${attaque.cible} — ${a.reussite ? "réussite" : "échec"} (${signe(a.dr)} DR)`);
+    await posterJet(jetA, acteur, texteJetD100(attaque.nom, jetA.total, attaque.cible, a));
     const sd = cible?.system?.skills ?? {};
     const defense = attaque.type === "melee" ? Math.max(Number(sd.melee?.total ?? 0), Number(sd.reflexes?.total ?? 0)) : Number(sd.reflexes?.total ?? 0);
     const jetD = await new Roll("1d100").evaluate();
     const d = testD100(defense, jetD.total);
-    await posterJet(jetD, cible, `Défense contre ${attaque.nom} : ${jetD.total} pour ${defense} — ${d.reussite ? "réussite" : "échec"} (${signe(d.dr)} DR)`);
+    await posterJet(jetD, cible, texteJetD100(attaque.nom, jetD.total, defense, d, { defense: true }));
     const touche = gagneOpposition(a, d, attaque.cible, defense);
     const degats = touche ? Math.max(0, Number(attaque.degatsBase ?? 0) + Math.max(0, a.dr - d.dr)) : 0;
     return { touche, degats, texte: `${acteur.name} ${touche ? `touche ${cible?.name ?? "?"} (${degats} dégâts avant armure)` : `manque ${cible?.name ?? "?"}`}.` };

@@ -517,7 +517,7 @@ async function echecsApi(F) {
 }
 
 const F = await import("../scripts/fetes.js");
-const FICHIERS_API = ["fetes.js", "fetes-logique.js", "canal.js", "constantes.js"];
+const FICHIERS_API = ["fetes.js", "fetes-logique.js", "canal.js", "constantes.js", "utilitaires.js", "personnalites.js"];
 
 test("API des fêtes : registre, réglage, carte du jour, effets, crochet, ligne de l'IA (la batterie passe sur le vrai code)", async () => {
   assert.deepEqual(await echecsApi(F), []);

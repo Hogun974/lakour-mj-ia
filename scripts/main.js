@@ -15,7 +15,7 @@ import { CompagnonsSansNarrateur } from "./compagnons-veillees.js";
 import { ecouteActive } from "./ecoute.js";
 import { EcouteJoueurs, afficherEcoute, brancherTranscription } from "./transcription.js";
 import { compagnonsPresents } from "./compagnons-jeu.js";
-import { versHTML } from "./utilitaires.js";
+import { versHTML, texteJoueurs } from "./utilitaires.js";
 import { consignerComposition } from "./historique-loups.js";
 import { texteAvanceSurvie, textePalierSurvie } from "./survie-logique.js";
 import { brancherHistoire, ouvrirHistoire, journalDe, assurerJournal } from "./histoire.js";
@@ -388,7 +388,7 @@ async function reparerMonde() {
       const lots = await donnerMunitions(acteur);
       if (lots.length) rapport.push(`${acteur.name} : ${lots.join(", ")}`);
     }
-    if (rapport.length) ui.notifications.info(`MJ IA — munitions ajoutées : ${rapport.join(" ; ")}`);
+    if (rapport.length) ui.notifications.info(texteJoueurs("LAKOUR_MJIA.Reparations.Munitions", "MJ IA — munitions ajoutées : {liste}", { liste: rapport.join(" ; ") }));
     faites.munitions = true;
   }
   // Voix privées déposées dans Data par les versions d'avant 0.34.0 (Data/ est servi à tous) : écrasées par un silence, une fois

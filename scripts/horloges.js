@@ -10,6 +10,8 @@ import { registreMonde } from "./registre-monde.js";
 import * as L from "./horloges-logique.js";
 import { plier } from "./recherche-nom.js";
 import { idNeuf, idApresRenommage } from "./secrets-logique.js";
+import { texteJoueurs } from "./utilitaires.js";
+import { nomAfficheDe } from "./personnalites.js";
 
 const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
 const copie = el => (el ? structuredClone(el) : null);
@@ -27,8 +29,8 @@ const ecrireHorloges = liste => registre.ecrire(liste);
 
 const aliasMJ = () => {
   try {
-    return game.settings.get(ID, "personnalites").find(p => p.id === game.settings.get(ID, "personnaliteActive"))?.nomAffiche ?? "MJ";
-  } catch { return "MJ"; }
+    return nomAfficheDe(game.settings.get(ID, "personnalites").find(p => p.id === game.settings.get(ID, "personnaliteActive")), texteJoueurs);
+  } catch { return texteJoueurs("LAKOUR_MJIA.Personnalites.MJ", "MJ"); }
 };
 
 // Carte sobre au chat, pour un élément visible des joueurs. Jamais lue par l'IA (drapeau « ia ») : elle reçoit les événements
@@ -60,7 +62,7 @@ async function carte(el, phrases) {
 // elle reçoit alors les événements dans la réponse de l'outil).
 async function annoncer(el, evenements, source) {
   if (!evenements.length) return "";
-  await carte(el, evenements.map(ev => L.texteEvenement(el, ev)));
+  await carte(el, evenements.map(ev => L.texteEvenement(el, ev, texteJoueurs)));
   Hooks.callAll(`${ID}.horloge`, { element: copie(el), evenements: structuredClone(evenements), source });
   const texte = L.texteEvenementsPourIA(el, evenements);
   if (source !== "outil") game.modules.get(ID)?.api?.moteur?.signaler(texte);
@@ -129,7 +131,10 @@ export async function montrer(id, visible = true, { source = "api" } = {}) {
     apparait = Boolean(visible) && !el.visible;
     return { element: { ...el, visible: Boolean(visible) }, evenements: [] };
   }, source);
-  if (r && apparait) await carte(r.element, [`${L.ligneJoueurs(r.element)} — désormais visible de tous (Carnet de campagne, onglet Horloges, barre de gauche).`]);
+  if (r && apparait) {
+    await carte(r.element, [texteJoueurs("LAKOUR_MJIA.Horloges.Montree", "{ligne} — désormais visible de tous (Carnet de campagne, onglet Horloges, barre de gauche).",
+      { ligne: L.ligneJoueurs(r.element, texteJoueurs) })]);
+  }
   return r;
 }
 

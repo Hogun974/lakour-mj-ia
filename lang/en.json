@@ -5,7 +5,8 @@
     "Histoire": {
       "Bouton": "Story",
       "Demandee": "Request sent to the GM: the story journal will open as soon as it is created.",
-      "SansMJ": "No GM connected to create the story journal."
+      "SansMJ": "No GM connected to create the story journal.",
+      "Seance": "Session of {date}"
     },
     "Efforts": {
       "low": "Low (fast, cheap)",
@@ -48,7 +49,39 @@
       "VoixOpenAI": "Voice (OpenAI)",
       "TonVoix": "Voice tone (OpenAI)",
       "ExempleTon": "E.g.: deep, slow voice, menacing tone, long pauses.",
-      "Improvisation": "Freedom with the scenario"
+      "Improvisation": "Freedom with the scenario",
+      "MJ": "GM",
+      "Noms": {
+        "inquisiteur": "The Inquisitor",
+        "conteur": "The Storyteller",
+        "arbitre": "The Arbiter",
+        "chroniqueuse": "The Chronicler",
+        "bouffon": "The Jester",
+        "voix-de-la-brume": "The Voice of the Mist",
+        "gramoune": "Gramoune"
+      },
+      "Nouvelle": "New personality",
+      "NouvelleNomAffiche": "The GM",
+      "Violences": {
+        "1": "1 — suggested",
+        "2": "2 — frank",
+        "3": "3 — graphic (grimdark)"
+      },
+      "Longueurs": {
+        "courte": "Short",
+        "moyenne": "Medium",
+        "longue": "Long"
+      },
+      "Rigueurs": {
+        "souple": "Loose (story first)",
+        "normale": "Normal",
+        "stricte": "Strict (rules as written)"
+      },
+      "Improvisations": {
+        "fidele": "Faithful (follows the written scenario)",
+        "adaptative": "Adaptive (adjusts it for the players)",
+        "libre": "Free (gladly rewrites it)"
+      }
     },
     "Reglages": {
       "Autonomie": {
@@ -223,7 +256,10 @@
       "Vision": "Player vision",
       "AideVision": "Enables vision on player characters (and their tokens already placed). Without it, a player sees nothing on a token-vision map.",
       "HorsSeance": "Companions outside a session",
-      "VisionFaite": "Vision checked for {persos} character(s): {modeles} prototype token(s) and {jetons} token(s) fixed."
+      "VisionFaite": "Vision checked for {persos} character(s): {modeles} prototype token(s) and {jetons} token(s) fixed.",
+      "Entree": "input",
+      "Cache": "cache",
+      "Sortie": "output"
     },
     "Pilote": {
       "Titre": "Autopilot",
@@ -282,7 +318,16 @@
       "Garder": "Characters to keep (they get their role token):",
       "Conserve": "Untouched: users, settings (API keys included), macros, playlists and compendiums. This cannot be undone from Foundry.",
       "Confirmer": "Erase everything and start over",
-      "Fait": "Campaign reset. Characters kept: {gardes}."
+      "Fait": "Campaign reset. Characters kept: {gardes}.",
+      "Compte": {
+        "Messages": "{n} messages",
+        "Scenes": "{n} scenes",
+        "Journaux": "{n} journals",
+        "Acteurs": "{n} actors (minus those kept)",
+        "Objets": "{n} items",
+        "Tables": "{n} tables",
+        "Combats": "{n} combats"
+      }
     },
     "Decisions": {
       "VoteTitre": "Group vote",
@@ -296,7 +341,19 @@
       "Abstenir": "Abstain",
       "Secret": "Only you can see this question: the other players will not know what you choose.",
       "Passer": "Pass",
-      "Valider": "Confirm"
+      "Valider": "Confirm",
+      "Resultat": {
+        "Titre": "Group vote",
+        "Voix": "{n} vote(s)",
+        "Abstentions": "Abstentions: {n}",
+        "Abstention": "Abstained: {noms}",
+        "SansReponse": "No answer: {noms}",
+        "Egalite": "Tie",
+        "Entre": "between {options}.",
+        "Option": "“{libelle}”",
+        "Decision": "Decision: {option}.",
+        "Aucune": "No votes cast."
+      }
     },
     "Migration": "AI GM settings updated: {faits}.",
     "Ecoute": {
@@ -511,7 +568,16 @@
       "Vide": "No contact to show yet.",
       "VideMJ": "No contacts. The AI GM records them with its \"contact\" tool, world modules with api.contacts.assurer.",
       "Plus": "Attitude +1",
-      "Moins": "Attitude -1"
+      "Moins": "Attitude -1",
+      "Attitudes": {
+        "0": "Neutral",
+        "1": "Well-disposed",
+        "2": "Friendly",
+        "3": "Ally",
+        "-3": "Hostile",
+        "-2": "Wary",
+        "-1": "Reserved"
+      }
     },
     "Horloges": {
       "Titre": "Clocks",
@@ -524,13 +590,81 @@
       "Montrer": "Hidden from players: show it",
       "Cacher": "Visible to players: hide it",
       "AideMJ": "Players only see shown items (open eye). A clock that strikes, a threshold crossed or a tier changed is posted in chat and sent to the AI GM.",
-      "AideConsole": "Campaign clocks, gauges and reputations"
+      "AideConsole": "Campaign clocks, gauges and reputations",
+      "Evenements": {
+        "Sonne": "The clock “{nom}”{faction} is full ({max}/{max}): it strikes!",
+        "Pleine": "The gauge “{nom}”{faction} is at its maximum ({max}/{max}).",
+        "SeuilMonte": "The gauge “{nom}”{faction} crosses the “{seuil}” threshold ({valeur}/{max}).",
+        "SeuilDescend": "The gauge “{nom}”{faction} drops back below the “{seuil}” threshold ({valeur}/{max}).",
+        "Palier": "Reputation with {qui}: {avant} → {apres} ({points})."
+      },
+      "Lignes": {
+        "Horloge": "Clock: {valeur}/{max}",
+        "Jauge": "Gauge: {valeur}/{max}{palier}",
+        "Reputation": "Reputation: {palier} ({points})"
+      },
+      "Montree": "{ligne} — now visible to everyone (Campaign notebook, Clocks tab, left toolbar).",
+      "Paliers": {
+        "Hai": "Hated",
+        "Hostile": "Hostile",
+        "Inamical": "Unfriendly",
+        "Neutre": "Neutral",
+        "Amical": "Friendly",
+        "Honore": "Honored",
+        "Revere": "Revered",
+        "Exalte": "Exalted"
+      }
     },
     "Appel": {
       "Vote": "Group vote",
       "Choix": "A choice is waiting",
       "Combat": "Your turn",
       "Parole": "Your turn to speak"
+    },
+    "Nom": "AI GM",
+    "Jet": {
+      "Reussite": "success",
+      "Echec": "failure",
+      "Resultat": "{titre}: {total} vs {cible} — {issue} ({dr} SL)",
+      "Defense": "Defense against {nom}: {total} vs {cible} — {issue} ({dr} SL)",
+      "Difficulte": "Difficulty: {difficulte}",
+      "Difficultes": {
+        "aucune": "None",
+        "tres-facile": "Very Easy",
+        "facile": "Easy",
+        "routiniere": "Routine",
+        "exigeante": "Challenging",
+        "difficile": "Difficult",
+        "ardue": "Hard",
+        "tres-ardue": "Very Hard"
+      },
+      "Modificateur": "modifier {valeur}",
+      "DR": "{valeur} SL",
+      "Avantages": "{n} advantage(s)",
+      "Desavantages": "{n} disadvantage(s)",
+      "Superiorite": "Superiority",
+      "Formule": "Formula:"
+    },
+    "Fetes": {
+      "Noms": {
+        "nouvel-an": "New Year",
+        "liberte": "Freedom Day (20 December)",
+        "noel": "Christmas",
+        "letchis": "Lychee Festival",
+        "dipavali": "Deepavali",
+        "cavadee": "Cavadee (Thaipusam)",
+        "nouvel-an-chinois": "Chinese New Year",
+        "paques": "Easter",
+        "carnaval": "Carnival",
+        "halloween": "Halloween",
+        "saint-valentin": "Valentine's Day",
+        "fete-nationale": "National Day (14 July)",
+        "musique": "Music Day"
+      },
+      "Forcee": "AI GM — {nom} is forced, but this world has no version of it: no holiday in progress."
+    },
+    "Reparations": {
+      "Munitions": "AI GM — ammunition added: {liste}"
     }
   }
 }

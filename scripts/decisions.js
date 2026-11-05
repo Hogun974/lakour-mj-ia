@@ -9,12 +9,14 @@
 import { ID } from "./constantes.js";
 import { envoyer, versMJ, recevoir, ecouterCanal, estMJActif } from "./canal.js";
 import { appeler } from "./appel.js";
+import { texteJoueurs as tj } from "./utilitaires.js";
+import { nomAfficheDe } from "./personnalites.js";
 
 export const DELAI_VOTE = 120;    // secondes, quand l'IA n'en donne pas
 export const DELAI_CHOIX = 90;
 export const MAX_OPTIONS = 8;
 
-const aliasMJ = () => game.settings.get(ID, "personnalites")?.find(p => p.id === game.settings.get(ID, "personnaliteActive"))?.nomAffiche ?? "MJ";
+const aliasMJ = () => nomAfficheDe(game.settings.get(ID, "personnalites")?.find(p => p.id === game.settings.get(ID, "personnaliteActive")), tj);
 const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
 const guillemets = liste => liste.map(l => `« ${l} »`).join(", ");
 
@@ -153,19 +155,22 @@ export function texteResultat(v, r, cause = "outil") {
   return lignes.join("\n");
 }
 
-// Carte du résultat dans le chat (publique).
+// Carte du résultat dans le chat (publique), dans la langue de l'interface (LAKOUR_MJIA.Decisions.Resultat.*).
 export function htmlResultat(v, r) {
   const nom = id => esc(nomVotantPublic(id));
-  const options = r.comptes.map(c => `<li${r.gagnants.includes(c.index) ? ' class="gagnant"' : ""}><strong>${esc(c.libelle)}</strong> : ${c.voix} voix`
+  const T = (cle, francais, donnees) => tj(`LAKOUR_MJIA.Decisions.Resultat.${cle}`, francais, donnees);
+  const options = r.comptes.map(c => `<li${r.gagnants.includes(c.index) ? ' class="gagnant"' : ""}><strong>${esc(c.libelle)}</strong> : ${T("Voix", "{n} voix", { n: c.voix })}`
     + `${c.voix && !v.anonyme ? ` <small>(${c.votants.map(nom).join(", ")})</small>` : ""}</li>`).join("");
   const autres = [
-    r.abstentions.length ? (v.anonyme ? `Abstentions : ${r.abstentions.length}` : `Abstention : ${r.abstentions.map(nom).join(", ")}`) : "",
-    r.absents.length ? (v.anonyme ? `Sans réponse : ${r.absents.length}` : `Sans réponse : ${r.absents.map(nom).join(", ")}`) : ""
+    r.abstentions.length ? (v.anonyme ? T("Abstentions", "Abstentions : {n}", { n: r.abstentions.length })
+      : T("Abstention", "Abstention : {noms}", { noms: r.abstentions.map(nom).join(", ") })) : "",
+    r.absents.length ? (v.anonyme ? T("SansReponse", "Sans réponse : {noms}", { noms: r.absents.length })
+      : T("SansReponse", "Sans réponse : {noms}", { noms: r.absents.map(nom).join(", ") })) : ""
   ].filter(Boolean).join(" · ");
   const libelles = r.gagnants.map(i => esc(v.options[i].libelle));
-  const verdict = r.egalite ? `<strong>Égalité</strong> entre ${libelles.map(l => `« ${l} »`).join(", ")}.`
-    : libelles.length ? `<strong>Décision : ${libelles[0]}.</strong>` : "Aucune voix exprimée.";
-  return `<div class="lakour-mjia-vote"><p><i class="fa-solid fa-check-to-slot"></i> <strong>Vote du groupe</strong> — ${esc(v.question)}</p>`
+  const verdict = r.egalite ? `<strong>${T("Egalite", "Égalité")}</strong> ${T("Entre", "entre {options}.", { options: libelles.map(l => T("Option", "« {libelle} »", { libelle: l })).join(", ") })}`
+    : libelles.length ? `<strong>${T("Decision", "Décision : {option}.", { option: libelles[0] })}</strong>` : T("Aucune", "Aucune voix exprimée.");
+  return `<div class="lakour-mjia-vote"><p><i class="fa-solid fa-check-to-slot"></i> <strong>${T("Titre", "Vote du groupe")}</strong> — ${esc(v.question)}</p>`
     + `<ul>${options}</ul>${autres ? `<p>${autres}</p>` : ""}<p>${verdict}</p></div>`;
 }
 

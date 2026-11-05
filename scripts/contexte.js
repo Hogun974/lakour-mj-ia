@@ -15,9 +15,21 @@ import { etatCoffre } from "./coffre.js";
 import { lignePourIA as ligneFete } from "./fetes.js";
 import { contexteSurvie } from "./survie-logique.js";
 import { ligneHistoireActeur } from "./histoire-logique.js";
+import { langueDuMonde } from "./contenus.js";
 
 // Pour le narrateur seul : ce que le personnage garde pour lui (page secrète de son journal d'histoire), "" sinon.
 const secretHistoire = a => { const l = ligneHistoireActeur(a, { publique: false, secret: true }); return l ? ` — ${l}` : ""; };
+
+// La langue dans laquelle le narrateur parle aux joueurs : celle du monde (contenus.js, langueDuMonde ; module de contenu
+// « -en » actif : anglais). Les consignes, l'état du jeu et les résultats d'outils restent en français (le modèle les comprend) :
+// en anglais, il doit traduire ce qu'il en reprend pour les joueurs, mais garder les noms exacts qu'il passe aux outils.
+export function consigneLangue(langue = langueDuMonde()) {
+  if (langue !== "en") return "Tu t'exprimes en français.";
+  return "LANGUE : les joueurs sont anglophones, le monde est en anglais. Tout ce que tu écris pour eux est en ANGLAIS : narration, "
+    + "répliques des PNJ, questions, messages privés, votes et choix secrets, raisons des jets, aides de jeu, chroniques. Ces consignes, "
+    + "l'état du jeu et les résultats des outils sont en français : traduis ce que tu en reprends devant les joueurs, mais garde les noms "
+    + "exacts (personnages, scènes, documents, compétences, clés) quand tu appelles un outil. Always answer the players in English.";
+}
 
 // Consigne au MJ sur les compagnons IA (docs/compagnons.md) : des joueurs comme les autres, à qui il ne souffle rien.
 export const CONSIGNE_COMPAGNONS = [
@@ -117,7 +129,7 @@ export async function promptSysteme(personnalite, { mission } = {}) {
 
   return [
     `Tu es le meneur de jeu (MJ) d'une partie de jeu de rôle sur Foundry VTT.`,
-    `Système : ${game.system.title} ${game.system.version}. Monde : ${game.world.title}. Tu t'exprimes en français.`,
+    `Système : ${game.system.title} ${game.system.version}. Monde : ${game.world.title}. ${consigneLangue()}`,
     "",
     decrirePersonnalite(personnalite),
     "",

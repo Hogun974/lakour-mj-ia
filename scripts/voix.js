@@ -4,6 +4,7 @@ import { fournisseurImages, expliquerErreur } from "./fournisseurs/index.js";
 import { versTexte, deposerFichier } from "./utilitaires.js";
 import { decouperPourVoix, choisirVoix, morceauxPrets, planAttenuation, wavDepuisPcm, AbregeVocal, LONGUEURS_VOIX } from "./voix-texte.js";
 import { voixDe } from "./personnalites.js";
+import { langueDuMonde } from "./contenus.js";
 import {
   Calendrier, RecepteurFlux, FileDesVoix, destinatairesVoix, dureePcm, voixPourCompagnon, tonPourCompagnon, paroleSeule,
   FREQUENCE_VOIX, FLUX_MUET_S
@@ -34,7 +35,9 @@ export const estNarrationAudible = message => {
 
 export function lireNavigateur(message) {
   if (!("speechSynthesis" in window) || !lire("entendreNarration")) return;
-  const voix = choisirVoix(speechSynthesis.getVoices(), lire("voixNavigateur"));
+  // Une voix de la langue du monde (module de contenu anglais : voix anglaise), quelle que soit la langue de l'interface.
+  const langue = langueDuMonde();
+  const voix = choisirVoix(speechSynthesis.getVoices(), lire("voixNavigateur"), langue);
   // Même abrégé vocal que la voix OpenAI : l'essentiel, puis la question finale ; le chat garde tout.
   const texte = versTexte(message.content);
   const abrege = new AbregeVocal(LONGUEURS_VOIX[lire("longueurVoix")] ?? LONGUEURS_VOIX.courte);
@@ -43,7 +46,7 @@ export function lireNavigateur(message) {
   for (const morceau of [...morceaux, ...(question ? [question] : [])]) {
     const enonce = new SpeechSynthesisUtterance(morceau);
     if (voix) enonce.voice = voix;
-    enonce.lang = voix?.lang ?? "fr-FR";
+    enonce.lang = voix?.lang ?? (langue === "en" ? "en-US" : "fr-FR");
     enonce.rate = lire("vitesseVoix");
     enonce.volume = lire("volumeVoix");
     speechSynthesis.speak(enonce);

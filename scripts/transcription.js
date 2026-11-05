@@ -16,6 +16,7 @@ import { ID } from "./constantes.js";
 import { fournisseurImages, expliquerErreur } from "./fournisseurs/index.js";
 import { estMJActif, envoyer, recevoir, ecouterCanal } from "./canal.js";
 import { campLoups } from "./utilitaires.js";
+import { langueDuMonde } from "./contenus.js";
 import {
   ecouteActive, DecoupeurSilences, niveauDb, sousEchantillonner, wavMono16, coutTranscription, transcriptionUtile, estEcho,
   routerParole, ligneParole, MODELE_TRANSCRIPTION_DEFAUT
@@ -204,7 +205,10 @@ export class EcouteJoueurs {
     const noms = new Set([...game.users.map(u => u.name), ...compagnonsDuMonde().map(a => a.name)]);
     for (const a of game.lakourLoups?.villageois?.() ?? []) noms.add(a.name);
     for (const u of game.users) if (u.character) noms.add(u.character.name);
-    return `Partie de jeu de rôle autour d'une table, en français. Noms : ${[...noms].filter(Boolean).slice(0, 40).join(", ")}.`;
+    const liste = [...noms].filter(Boolean).slice(0, 40).join(", ");
+    // Le modèle de transcription prend la consigne pour un début de texte : elle est dans la langue parlée (celle du monde).
+    return langueDuMonde() === "en" ? `Tabletop role-playing game around a table, in English. Names: ${liste}.`
+      : `Partie de jeu de rôle autour d'une table, en français. Noms : ${liste}.`;
   }
 
   // Un segment de parole d'un joueur : transcrit seulement si une IA doit l'entendre et si le budget le permet.
@@ -224,7 +228,7 @@ export class EcouteJoueurs {
     let r;
     try {
       const fichier = new File([wavMono16(segment.echantillons, 16000)], "parole.wav", { type: "audio/wav" });
-      r = await fournisseur.transcrire({ fichier, modele, langue: "fr", consigne: this.consigne() });
+      r = await fournisseur.transcrire({ fichier, modele, langue: langueDuMonde(), consigne: this.consigne() });
     } catch (erreur) {
       console.error(`${ID} | transcription`, erreur);
       if (!this.erreurVue) ui.notifications.error(expliquerErreur(erreur));

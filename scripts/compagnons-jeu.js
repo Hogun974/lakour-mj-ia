@@ -13,7 +13,7 @@
 // (api.monde()) ni les jetons cachés.
 import { ID } from "./constantes.js";
 import { adaptateur } from "./adaptateurs.js";
-import { contenuNomme, packDeContenu, drapeauxDuContenu } from "./contenus.js";
+import { contenuNomme, packDeContenu, drapeauxDuContenu, langueDuMonde } from "./contenus.js";
 import { versHTML, roleLoups, campLoups, secretsVeilleesEnAttente } from "./utilitaires.js";
 import { vuePubliqueDepuisApi } from "./survie-logique.js";
 import { ligneHistoireActeur } from "./histoire-logique.js";
@@ -296,7 +296,9 @@ export function vueAventure(acteur, { messages, scene = game.scenes?.active } = 
 }
 
 export function vueDe(acteur, options = {}) {
-  return acteur?.type === "villageois" && (options.api ?? game.lakourLoups) ? vueVeillees(acteur, options) : vueAventure(acteur, options);
+  const vue = acteur?.type === "villageois" && (options.api ?? game.lakourLoups) ? vueVeillees(acteur, options) : vueAventure(acteur, options);
+  // La langue du monde : un compagnon d'un monde anglais parle anglais (compagnons.js, consigneLangueCompagnon).
+  return { ...vue, langue: langueDuMonde() };
 }
 
 // ------------------------------------------------------------------ noms des compagnons des Veillées

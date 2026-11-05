@@ -103,6 +103,15 @@ export const IMPROVISATION = {
     + "nouvelles scènes, rebondissements, PNJ et intrigues secondaires, quitte à changer la suite prévue — en gardant la cohérence."
 };
 
+// Nom affiché au chat (alias du narrateur). Une personnalité livrée dont le MJ n'a pas changé le nom prend son nom traduit
+// (t : texteJoueurs, LAKOUR_MJIA.Personnalites.Noms.<id> : « The Inquisitor » dans une interface anglaise) ; un nom donné par
+// le MJ reste tel quel ; sans personnalité, « MJ » (« GM »).
+export function nomAfficheDe(p, t = (cle, francais) => francais) {
+  if (p?.nomAffiche === undefined || p?.nomAffiche === null) return t("LAKOUR_MJIA.Personnalites.MJ", "MJ");
+  const base = PERSONNALITES_DE_BASE.find(b => b.id === p.id);
+  return base && p.nomAffiche === base.nomAffiche ? t(`LAKOUR_MJIA.Personnalites.Noms.${base.id}`, base.nomAffiche) : p.nomAffiche;
+}
+
 // Voix d'une personnalité, avec repli sur les valeurs livrées (mondes créés avant l'ajout de la voix).
 export function voixDe(p) {
   const base = PERSONNALITES_DE_BASE.find(b => b.id === p.id);

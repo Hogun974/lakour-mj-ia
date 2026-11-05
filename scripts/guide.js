@@ -4,10 +4,10 @@
 // Sa traduction anglaise est dans guide-en.js, section par section (même clé « cle ») : toute modification d'ici s'y reporte
 // (essais/guide.test.mjs vérifie que les deux langues ont les mêmes sections, titres, listes, outils et libellés d'interface).
 import { GUIDE_MJ_EN, GUIDE_JOUEURS_EN } from "./guide-en.js";
-import { moduleDeContenu, SUFFIXE_ANGLAIS } from "./contenus.js";
+import { langueDuMonde } from "./contenus.js";
 
 // À incrémenter à chaque modification du texte (dans l'une ou l'autre langue) : les mondes réinstallent alors le guide.
-export const VERSION_GUIDE = 17;
+export const VERSION_GUIDE = 18;
 
 export const GUIDE_MJ = [
   { cle: "demarrer", titre: "Démarrer", texte: `
@@ -209,12 +209,9 @@ export const GUIDES = {
   en: { mj: GUIDE_MJ_EN, joueurs: GUIDE_JOUEURS_EN, noms: { "guide-mj": "MJ IA — GM's Guide", "guide-joueurs": "MJ IA — Players' Guide" } }
 };
 
-// Langue du guide pour ce monde. Le module de contenu actif décide (« lakour-40k-en » : anglais ; « lakour-40k » : français),
-// car c'est lui qui fait la langue du monde ; sans module de contenu (système générique), la langue de l'interface du MJ.
-export function langueDuGuide({ module = moduleDeContenu(), lang = globalThis.game?.i18n?.lang } = {}) {
-  if (module) return module.endsWith(SUFFIXE_ANGLAIS) ? "en" : "fr";
-  return String(lang ?? "").toLowerCase().startsWith("en") ? "en" : "fr";
-}
+// Langue du guide pour ce monde : la langue du monde (contenus.js, langueDuMonde). Le module de contenu actif décide
+// (« lakour-40k-en » : anglais ; « lakour-40k » : français) ; sans module de contenu, la langue de l'interface du MJ.
+export const langueDuGuide = (options = {}) => langueDuMonde(options);
 
 // Installe ou met à jour les deux journaux du guide dans le monde (MJ actif seulement), une fois par version du guide et par
 // langue. Un seul journal par rôle (drapeau « guide »), quelle que soit la langue : quand la langue du monde change (variante

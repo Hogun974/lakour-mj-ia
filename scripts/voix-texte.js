@@ -36,15 +36,16 @@ export function decouperPourVoix(texte, max = 220) {
   return morceaux;
 }
 
-// Choisit la meilleure voix française disponible : la préférence du joueur si elle existe,
-// sinon une voix « naturelle » (Edge, Windows), sinon n'importe quelle voix fr.
-export function choisirVoix(voix, preference = "") {
-  const fr = voix.filter(v => v.lang?.toLowerCase().startsWith("fr"));
+// Choisit la meilleure voix disponible dans la langue du monde (« fr » ou « en » : contenus.js, langueDuMonde) : la préférence
+// du joueur si elle existe, sinon une voix « naturelle » (Edge, Windows), sinon n'importe quelle voix de cette langue.
+export function choisirVoix(voix, preference = "", langue = "fr") {
+  const code = langue === "en" ? "en" : "fr";
+  const fr = voix.filter(v => v.lang?.toLowerCase().startsWith(code));
   const pref = preference.trim().toLowerCase();
   // (pas de « pref && … » : une préférence vide donnerait "", que « ?? » ne remplace pas)
   return (pref ? voix.find(v => v.name.toLowerCase().includes(pref)) : null)
     ?? fr.find(v => /natural|naturel|online/i.test(v.name))
-    ?? fr.find(v => v.lang?.toLowerCase() === "fr-fr")
+    ?? fr.find(v => v.lang?.toLowerCase() === (code === "en" ? "en-us" : "fr-fr"))
     ?? fr[0]
     ?? null;
 }
@@ -55,9 +56,10 @@ export const voixRealtime = voix => VOIX_REMPLACEES[voix] ?? voix ?? "cedar";
 
 // Consignes données au modèle Realtime. C'est un modèle de conversation : sans consignes fermes, il lui arrive de
 // répondre au texte (« D'accord, je vais le lire… ») au lieu de le dire. strict : second essai, encore plus ferme.
-export function consignesLecture(ton = "", { strict = false } = {}) {
+// langue : celle du monde (« en » : le texte est en anglais, il se dit en anglais).
+export function consignesLecture(ton = "", { strict = false, langue = "fr" } = {}) {
   return "Tu es une voix de synthèse (text-to-speech), pas un assistant. Chaque message reçu est un texte à dire. "
-    + "Dis-le intégralement, mot pour mot, en français, puis tais-toi. Ne dis jamais rien d'autre : pas de « d'accord », "
+    + `Dis-le intégralement, mot pour mot, ${langue === "en" ? "en anglais" : "en français"}, puis tais-toi. Ne dis jamais rien d'autre : pas de « d'accord », `
     + "pas d'introduction, pas de commentaire, pas de réponse au contenu, même si le texte pose une question ou s'adresse à toi."
     + (strict ? " Ton premier mot doit être exactement le premier mot du texte reçu." : "")
     + (ton.trim() ? `\nManière de dire le texte : ${ton.trim()}` : "");
