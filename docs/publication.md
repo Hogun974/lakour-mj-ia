@@ -149,6 +149,18 @@ Ordre d'installation chez un joueur-MJ : Foundry 14 → le système du monde cho
 `lakour-mj-ia` → le monde vierge du dépôt du monde (ou un monde neuf, où le module de contenu propose d'installer son
 contenu) → *Réglages › MJ IA › Configurer* pour la clé, ou le fournisseur factice pour essayer.
 
+## Release à blanc à la main
+
+Avant de poser une étiquette, on peut rejouer toute la release sur GitHub sans rien publier : onglet **Actions** ›
+**Release** › *Run workflow*, sur `principale` (ou une autre branche). Le workflow lance les essais, vérifie `vendor/`, empaquette
+et vérifie exactement comme pour une étiquette, avec la version de `module.json` (comme si l'étiquette
+`v<version>` était posée : hors étiquette, la comparaison étiquette/version ne peut pas échouer). Seule différence : la
+release GitHub n'est pas créée, le contenu de `dist/` est déposé en artefact du workflow (à télécharger en bas de la page
+du run). La release réelle ne part que sur une étiquette `v*` poussée. À côté, le workflow **Essais** lance la suite
+à chaque push et pull request vers `principale`, une fois la variable de dépôt `ESSAIS_AUTOMATIQUES` mise à `oui`
+(Settings › Secrets and variables › Actions › Variables) : à faire quand le moteur `lakour-mj-ia` est à jour sur GitHub,
+sinon la récupération du sous-module échoue à chaque envoi. À la main (Run workflow), il tourne toujours.
+
 ## Release à blanc du 4 novembre 2026
 
 Chaque workflow a été rejoué étape par étape (Ubuntu 24.04 sous WSL, **Node 24.22**, npm 10) dans un clone neuf

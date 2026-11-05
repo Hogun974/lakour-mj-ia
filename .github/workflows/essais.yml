@@ -1,0 +1,37 @@
+# Essais à chaque envoi : à chaque push et à chaque pull request vers « principale » (et à la main, onglet Actions ›
+# Essais › Run workflow), installe les dépendances épinglées de package-lock.json et lance la suite complète
+# (`npm run essais`, aucun réseau, aucune clé). La publication reste l'affaire de release.yml (tags « v* »).
+name: Essais
+
+on:
+  push:
+    branches: [principale]
+  pull_request:
+    branches: [principale]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  essais:
+    # Automatique (push, pull request) seulement quand la variable de dépôt ESSAIS_AUTOMATIQUES vaut « oui » (Settings ›
+    # Secrets and variables › Actions › Variables) : tant que le moteur lakour-mj-ia n'est pas à jour sur GitHub, la
+    # récupération du sous-module échouerait à chaque envoi. À la main (Run workflow), toujours.
+    if: github.event_name == 'workflow_dispatch' || vars.ESSAIS_AUTOMATIQUES == 'oui'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dépôt
+        uses: actions/checkout@v5
+
+      - name: Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Dépendances (versions épinglées de package-lock.json)
+        run: npm ci
+
+      - name: Essais (aucun réseau, aucune clé)
+        run: npm run essais

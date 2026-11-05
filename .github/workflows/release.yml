@@ -8,6 +8,10 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  # Release à blanc, à la main (Actions › Release › Run workflow, sur principale ou une autre branche) :
+  # tout est fabriqué et vérifié comme pour une vraie release, avec la version du manifeste (comme si l'étiquette
+  # v<version> était posée) ; le contenu de dist/ est déposé en artefact du workflow, rien n'est publié.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -28,8 +32,17 @@ jobs:
       - name: Dépendances (versions épinglées de package-lock.json)
         run: npm ci
 
+      # Sur une étiquette, sa version (l'empaqueteur refuse si module.json ne la porte pas). Release à blanc hors étiquette :
+      # la version de module.json, comme si l'étiquette v<version> était posée (rien à comparer, aucun échec).
       - name: Version du tag
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            VERSION=$(node -p "require('./module.json').version")
+            echo "Release à blanc sur « $GITHUB_REF_NAME » (pas d'étiquette) : empaquetage comme v$VERSION"
+            echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          fi
 
       - name: Essais (aucun réseau, aucune clé)
         run: npm run essais
@@ -51,6 +64,7 @@ jobs:
           if [ ! -s dist/notes.md ]; then echo "Version $VERSION du module La Kour – MJ IA." > dist/notes.md; fi
 
       - name: Publication
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
           name: La Kour – MJ IA ${{ env.VERSION }}
@@ -59,3 +73,12 @@ jobs:
             dist/module.json
             dist/lakour-mj-ia.zip
           fail_on_unmatched_files: true
+
+      # Release à blanc (lancement à la main) : pas de release GitHub, dist/ est déposé en artefact à télécharger.
+      - name: Release à blanc (dist/ déposé en artefact, rien n'est publié)
+        if: github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.repository.name }}-a-blanc-${{ env.VERSION }}
+          path: dist/
+          if-no-files-found: error
