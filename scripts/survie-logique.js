@@ -252,17 +252,25 @@ export function ageRenseignement(r, jour) {
   return Number.isFinite(Number(r?.vu)) && r?.vu !== null && r?.vu !== "" ? Math.max(0, entier(jour) - entier(r.vu)) : null;
 }
 // Ce que le groupe croit d'une région : « Le Port (radio, il y a 2 j) : infestation dense, pillage entamé, électricité coupée ».
+// Le pillage et les routes ne se lisent que de visu (système lakour-survie, `vuDirect`) : une nouvelle par radio rajeunit le
+// renseignement, pas eux. Un ancien renseignement sans `vuDirect` dont la source est « vu » est daté par son `vu`.
+export function ageDirect(r, jour) {
+  const d = r?.vuDirect !== undefined && r?.vuDirect !== null ? r.vuDirect : r?.source === "vu" ? r?.vu : null;
+  return d !== null && d !== undefined && d !== "" && Number.isFinite(Number(d)) ? Math.max(0, entier(jour) - entier(d)) : null;
+}
 export function ligneRenseignement(nom, r, jour, nomRegion = c => c) {
   if (!r) return `${nom} : rien de connu.`;
   const age = ageRenseignement(r, jour);
   const source = r.source === "radio" ? "par radio" : r.source === "rumeur" ? "rumeur" : "vu";
   const quand = age === null ? "jamais vu" : age === 0 ? `${source}, aujourd'hui` : `${source}, il y a ${age} j`;
+  const direct = ageDirect(r, jour);
+  const deVisu = direct !== null && direct !== age ? ` (vu il y a ${direct} j)` : "";
   const routes = Object.entries(r.routes ?? {}).filter(([, e]) => e && e !== "ouverte").map(([v, e]) => `${nomRegion(v)} ${e}`);
   const morceaux = [
     r.infestation && r.infestation !== "inconnue" ? `infestation ${r.infestation}` : "",
-    r.pillage && r.pillage !== "inconnu" ? `pillage ${r.pillage}` : "",
+    r.pillage && r.pillage !== "inconnu" ? `pillage ${r.pillage}${deVisu}` : "",
     BOOL(r.electricite, "électricité là", "électricité coupée"), BOOL(r.eau, "eau courante là", "eau courante coupée"),
-    routes.length ? `routes : ${routes.join(", ")}` : "",
+    routes.length ? `routes : ${routes.join(", ")}${deVisu}` : "",
     (r.factions ?? []).length ? `factions vues : ${r.factions.join(", ")}` : "",
     r.notes ? couper(texteBrut(r.notes), 120) : ""
   ].filter(Boolean);

@@ -98,3 +98,17 @@ test("texte d'un test : échec forcé avec complication et marque", () => {
   // monte (api.test) : la marque a fait monter la compétence ; le narrateur le dit.
   assert.match(L.texteTest("Lucie", "soins", { succes: 0, requis: 1, reussite: false, marge: -1, marque: true, monte: true }), /une marque gagnée ; la compétence MONTE d'un niveau/);
 });
+
+test("renseignement : une nouvelle par radio ne rajeunit pas le pillage ni les routes (vuDirect, ou vu d'une source « vu »)", async () => {
+  const { ligneRenseignement, ageDirect } = await import("../scripts/survie-logique.js");
+  const r = { vu: 20, vuDirect: 8, source: "radio", infestation: "dense", pillage: "entamé", routes: { cilaos: "coupée" } };
+  assert.equal(ageDirect(r, 22), 14);
+  const ligne = ligneRenseignement("Le Port", r, 22);
+  assert.match(ligne, /par radio, il y a 2 j/);
+  assert.match(ligne, /pillage entamé \(vu il y a 14 j\)/);
+  assert.match(ligne, /routes : cilaos coupée \(vu il y a 14 j\)/);
+  // Vu de ses yeux : pas de seconde date ; ancien renseignement sans vuDirect, daté par son vu.
+  assert.doesNotMatch(ligneRenseignement("Le Port", { vu: 20, source: "vu", pillage: "vidé" }, 22), /\(vu il y a/);
+  assert.equal(ageDirect({ vu: 5, source: "vu" }, 9), 4);
+  assert.equal(ageDirect({ vu: 5, source: "rumeur" }, 9), null);
+});
