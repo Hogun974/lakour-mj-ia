@@ -4,6 +4,17 @@ Versions du moteur MJ IA de La Kour (les modules de contenu des mondes tiennent 
 suivent `module.json` ; chaque release GitHub `v<version>` reprend la section correspondante. Avant la 0.26, le moteur
 vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici.
 
+## 0.40.1 — 2026-11-05
+
+- Guide d'utilisation en anglais (`scripts/guide-en.js`, `docs/guide-utilisation.en.md`), installé selon la langue du
+  monde ; libellé « Listen to players' speech ».
+- Fénoir : création de survivant par l'API du système, véhicules du contenu acceptés en voyage (clé ou nom), l'artisan
+  compte parmi les bras ; un compagnon ajouté rejoint le groupe par défaut.
+- Coffre : la clé de secours note la même heure que son fichier ; à heure égale, la part reçue par un joueur n'est
+  jamais celle qu'il écarte.
+- Outils (fabricants, guide, sons) utilisables sous Linux ; release à blanc rejouée en Node 24.
+- Essais rendus déterministes (aucun délai fixe dans les essais du coffre).
+
 ## 0.40.0 — 2026-11-04
 
 - Fénoir (système `lakour-survie`) branché : adaptateur, outils `survie_*`, état du jeu en deux blocs (connu des

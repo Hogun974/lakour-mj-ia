@@ -58,14 +58,14 @@ son manifeste.
 
 - [ ] `package-lock.json` à jour après les changements de `package.json` (`npm install`, puis `npm ci` doit passer :
       c'est ce que fait le workflow, avec Node 24).
-- [ ] `npm run essais` vert (438 essais au moment d'écrire ces lignes).
+- [ ] `npm run essais` vert (466 essais au moment d'écrire ces lignes).
 - [ ] La version du tag doit être **celle de `module.json`** et avoir sa section dans `CHANGELOG.md` (le workflow en fait
       le texte de la release). La section « Non publié » du CHANGELOG doit être renommée en version datée au moment de
-      publier (par exemple `0.40.0`, puisque Fénoir et les histoires ne sont pas dans la 0.39.0 ; mettre alors
-      `"version": "0.40.0"` dans `module.json`). Pour publier :
+      publier (par exemple `0.40.1`, la version servie sur LaKour au 2026-11-05 ; mettre alors
+      `"version": "0.40.1"` dans `module.json`). Pour publier :
 
   ```bash
-  git tag v0.40.0
+  git tag v0.40.1
   git push github principale --tags
   ```
 
