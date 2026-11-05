@@ -4,7 +4,7 @@ Versions du moteur MJ IA de La Kour (les modules de contenu des mondes tiennent 
 suivent `module.json` ; chaque release GitHub `v<version>` reprend la section correspondante. Avant la 0.26, le moteur
 vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici.
 
-## Non publié
+## 0.41.0 — 2026-11-05
 
 - Monde anglais : les répliques des compagnons IA en mode simple (sans modèle), leurs déclarations de combat et le mot confié au
   Messager suivent la langue du monde (`vue.langue`, tables fr/en de `compagnons.js`, même tirage dans les deux langues), en
