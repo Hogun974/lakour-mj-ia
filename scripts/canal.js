@@ -7,7 +7,9 @@
 //   ne quitte le serveur que vers son destinataire, une réponse que vers le MJ actif.
 // - le récepteur reçoit (message, idDeLEmetteur) : l'identifiant est ajouté par le serveur d'après la session, un
 //   joueur ne peut pas le falsifier. C'est lui qui fait foi ; message.userId n'est qu'une déclaration, rejetée si elle
-//   le contredit. (Sans cet identifiant, sur un serveur plus ancien, on se rabat sur message.userId.)
+//   le contredit. Vérifié dans le serveur 14.370 : le canal d'un module n'est ouvert qu'aux sockets d'une session reconnue
+//   (packages/world.mjs, registerCustomSocket, appelé seulement quand la session a un utilisateur) et handleCustomSocket
+//   émet TOUJOURS (message, this.user.id). Un message sans émetteur ne vient donc pas du serveur : il est refusé.
 import { ID } from "./constantes.js";
 
 export const CANAL = `module.${ID}`;
@@ -45,9 +47,9 @@ export function traiter(message, emetteur) {
   const r = recepteurs.get(message.type);
   if (!r) return false;
   if (emetteur && message.userId && message.userId !== emetteur) return false;   // se fait passer pour un autre
-  // Le coffre (coffre.js : parts de la clé) ne se fie qu'à l'émetteur donné par le serveur, jamais à une déclaration.
-  if (!emetteur && message.type.startsWith("coffre.")) return false;
-  const qui = emetteur || message.userId || null;
+  // Seul l'émetteur donné par le serveur (ou ce navigateur même, envoyer) fait foi, jamais une déclaration (message.userId).
+  if (!emetteur) return false;
+  const qui = emetteur;
   if (r.pourMJ) {
     if (!estMJActif()) return false;
   } else if (!game.users.get(qui)?.isGM) return false;

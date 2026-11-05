@@ -1,7 +1,7 @@
 import { ID, MODELE_VOIX, DOSSIER_DONNEES } from "./constantes.js";
 import { lire } from "./reglages.js";
 import { fournisseurImages, expliquerErreur } from "./fournisseurs/index.js";
-import { versTexte, deposerFichier } from "./utilitaires.js";
+import { versTexte, deposerFichier, ecritParUnMJ } from "./utilitaires.js";
 import { decouperPourVoix, choisirVoix, morceauxPrets, planAttenuation, wavDepuisPcm, AbregeVocal, LONGUEURS_VOIX } from "./voix-texte.js";
 import { voixDe } from "./personnalites.js";
 import { langueDuMonde } from "./contenus.js";
@@ -25,10 +25,11 @@ import { envoyer, recevoir, estMJActif, ecouterCanal } from "./canal.js";
 // Une seule voix à la fois, dans l'ordre où les textes paraissent dans le chat (file des voix). Chaque joueur peut couper la voix chez lui
 // (réglage client « entendreNarration ») et régler son volume (« volumeVoix »).
 
-// Message de narration finale, public, du MJ IA ?
+// Message de narration finale, public, du MJ IA ? Écrit par un MJ (ecritParUnMJ) : un joueur qui pose les drapeaux « narration »
+// et « final » sur son propre message ne le fait pas lire à voix haute chez tout le monde.
 export const estNarrationAudible = message => {
   const f = message.flags?.[ID];
-  return Boolean(f?.narration && f?.final && !message.whisper?.length);
+  return Boolean(f?.narration && f?.final && !message.whisper?.length && ecritParUnMJ(message));
 };
 
 // ---------- Mode navigateur (chaque client)

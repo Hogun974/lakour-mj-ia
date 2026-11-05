@@ -729,6 +729,108 @@ const VERIFICATIONS = {
     etat.emissions.length = 0;
     await comme("u1", () => M.coffre.brancherCoffre());
     assert.deepEqual(etat.emissions.map(e => [e.message.type, e.recipients]), [["coffre.bonjour", ["mj"]]]);
+  },
+
+  async "aux Veillées (rôles secrets) : aucune part aux joueurs, aucun porteur, même forgé ; la clé de secours rappelée en fenêtre à chaque chargement"(M) {
+    installer({ systeme: "lakour-loups" });
+    M.coffre.oublierCoffre();
+    M.F.oublierFils();
+    M.coffre.ecouterCoffre();
+    const rappels = [];
+    M.coffre.brancherRappel(async () => { rappels.push(reglage("trousseau").empreinte); });
+    try {
+      await M.coffre.demarrerCoffre();
+      await pomper(M);
+      await M.F.ecrireFil("monde-a.json", filAvecSecrets());
+      const t = reglage("trousseau");
+      assert.ok(t.id);
+      assert.deepEqual(emis("coffre.part"), [], "deux loups alliés ne réuniront jamais deux parts : il n'y en a aucune");
+      for (const u of ["u1", "u2", "u3", "u4"]) assert.deepEqual(partsDe(u), {}, `aucune part chez ${u}`);
+      assert.deepEqual(reglage("trousseau").porteurs, []);
+      assert.equal(M.coffre.secoursConseille(), true);
+      assert.equal(M.coffre.etatCoffre().sansParts, true);
+      // Un joueur qui arrive ne reçoit rien ; un « accusé » forgé ne fait pas de lui un porteur.
+      U.u4.active = true;
+      envoyerDe("u4", { type: "coffre.bonjour", userId: "u4" }, ["mj"]);
+      envoyerDe("u1", { type: "coffre.accuse", id: t.id }, ["mj"]);
+      envoyerDe("u2", { type: "coffre.accuse", id: t.id }, ["mj"]);
+      await pomper(M);
+      assert.deepEqual(emis("coffre.part"), []);
+      assert.deepEqual(reglage("trousseau").porteurs, [], "un accusé forgé ne compte pas");
+      // Chaque chargement, tant qu'elle n'est pas téléchargée : la fenêtre (pas une simple notification).
+      rappels.length = 0;
+      etat.avis.length = 0;
+      M.coffre.oublierCoffre();
+      await M.coffre.demarrerCoffre();
+      await new Promise(r => setTimeout(r, 0));
+      assert.deepEqual(rappels, [t.empreinte], "rappel en fenêtre au chargement");
+      // Sans fenêtre branchée : la notification permanente dit que c'est le seul recours.
+      M.coffre.brancherRappel(null);
+      M.coffre.oublierCoffre();
+      etat.avis.length = 0;
+      await M.coffre.demarrerCoffre();
+      assert.equal(etat.avis.filter(a => a.includes("SecoursRappelSeul") && a.endsWith("[permanente]")).length, 1);
+      assert.ok(!etat.avis.some(a => a.includes("SecoursConseille")));
+      // Un autre navigateur sans la clé : rien à attendre des joueurs ; la clé de secours rouvre tout.
+      const { texte } = await M.coffre.exporterSecours();
+      autreNavigateur(M);
+      etat.avis.length = 0;
+      assert.equal(await M.coffre.demarrerCoffre(), "attente");
+      await pomper(M);
+      assert.ok(etat.avis.some(a => a.includes("AttenteSansParts")));
+      assert.equal(M.coffre.cleCourante(), null, "les joueurs n'ont rien pu rendre");
+      assert.equal(await M.coffre.importerSecours(texte), 1);
+      assert.match((await M.F.lireFil("monde-a.json")).fil.messages[0].content, /Le Héraut/);
+    } finally { M.coffre.brancherRappel(null); }
+  },
+
+  async "aux Veillées, des parts distribuées avant : clé renouvelée une fois, en vigueur par sa clé de secours ; les anciennes parts n'ouvrent plus rien"(M) {
+    // Un monde qui avait distribué ses parts (comme avant ce changement) : trois porteurs, puis le système devient lakour-loups.
+    await table(M);
+    await M.F.ecrireFil("monde-a.json", filAvecSecrets());
+    const t1 = reglage("trousseau");
+    assert.equal(t1.porteurs.length, 3);
+    game.system.id = "lakour-loups";
+    assert.equal(M.coffre.secoursConseille(), true, "des parts encore chez les joueurs ne dispensent pas de la clé de secours");
+    M.coffre.oublierCoffre();
+    etat.emissions.length = 0;
+    etat.avis.length = 0;
+    await M.coffre.demarrerCoffre();
+    await pomper(M);
+    let t = reglage("trousseau");
+    assert.equal(t.id, t1.id, "l'ancienne clé reste en vigueur tant que la nouvelle n'a pas sa clé de secours");
+    assert.ok(t.enCours?.id && t.enCours.sansParts && !t.enCours.porteurs.length, "une nouvelle clé, née sans parts");
+    assert.deepEqual(emis("coffre.part"), [], "la nouvelle clé n'est confiée à aucun joueur");
+    assert.ok(etat.avis.some(a => a.includes("RenouvellementSecours") && a.endsWith("[permanente]")), "rappel : sa clé de secours");
+    const nouvelle = t.enCours.id;
+    // Rechargé avant le téléchargement : la même clé en cours (une seule fois), pas une de plus.
+    M.coffre.oublierCoffre();
+    await M.coffre.demarrerCoffre();
+    await pomper(M);
+    assert.equal(reglage("trousseau").enCours?.id, nouvelle, "renouvelée une seule fois");
+    // Des accusés (forgés) ne la font pas entrer en vigueur.
+    envoyerDe("u1", { type: "coffre.accuse", id: nouvelle }, ["mj"]);
+    envoyerDe("u2", { type: "coffre.accuse", id: nouvelle }, ["mj"]);
+    envoyerDe("u3", { type: "coffre.accuse", id: nouvelle }, ["mj"]);
+    await pomper(M);
+    assert.equal(reglage("trousseau").id, t1.id);
+    // La clé de secours téléchargée : la nouvelle clé entre en vigueur, le fil est rescellé avec elle.
+    await M.coffre.exporterSecours();
+    await pomper(M);
+    t = reglage("trousseau");
+    assert.deepEqual([t.id, t.porteurs, t.enCours], [nouvelle, [], null]);
+    assert.equal(etat.data.get(FIL).id, nouvelle, "fil rescellé");
+    for (const u of ["u1", "u2", "u3"]) assert.equal(partsDe(u)[nouvelle], undefined, `${u} n'a aucune part de la nouvelle clé`);
+    // Toutes les anciennes parts réunies rendent l'ancienne clé, qui n'ouvre plus le fil.
+    const ancienne = M.C.reconstituer(["u1", "u2", "u3"].map(u => partsDe(u)[t1.id]));
+    assert.equal(ancienne?.id, t1.id);
+    assert.equal(await M.C.ouvrir(etat.data.get(FIL), ancienne), null, "les parts réunies n'ouvrent plus rien");
+    assert.match((await M.F.lireFil("monde-a.json")).fil.messages[0].content, /Le Héraut/, "le MJ lit tout");
+    // Stable : plus de porteur, plus de renouvellement.
+    M.coffre.oublierCoffre();
+    await M.coffre.demarrerCoffre();
+    await pomper(M);
+    assert.deepEqual([reglage("trousseau").id, reglage("trousseau").enCours], [nouvelle, null]);
   }
 };
 
@@ -775,9 +877,9 @@ const MUTATIONS = [
   ["coffre.js", "    if (C.abscisse(userId).toString(16) !== String(x)) return false;", "", "part d'un autre refusée"],
   ["coffre.js", "    if (l.enAttente?.cle) await ecrireLocal({ ...l, enAttente: { ...l.enAttente, secours: true } });", "", "secours exporté valide le renouvellement"],
   ["coffre.js", "  if (donnees.monde !== monde()) throw new Error", "  if (false) throw new Error", "secours d'un autre monde"],
-  ["coffre.js", "  if (probables < (t.seuil ?? 2) || comptesJoueurs().length <= 2) {", "  if (false) {", "secours conseillé"],
+  ["coffre.js", "  if (!sansParts() && (probables < (t.seuil ?? 2) || comptesJoueurs().length <= 2)) {", "  if (false) {", "secours conseillé"],
   ["coffre.js", "  for (const u of joueursConnectes()) envoyerParts(u);\n  rappelerSecours(true);\n  return cle;", "  for (const u of joueursConnectes()) envoyerParts(u);\n  return cle;", "rappel à la création"],
-  ["coffre.js", "  avertir(\"info\", \"Renouvelee\", { seuil: cle.seuil });\n  rappelerSecours(true);", "  avertir(\"info\", \"Renouvelee\", { seuil: cle.seuil });", "rappel au renouvellement"],
+  ["coffre.js", "  rappelerSecours(true);\n  rafraichir();\n  return { etat: \"fait\"", "  rafraichir();\n  return { etat: \"fait\"", "rappel au renouvellement"],
   ["coffre.js", "  rappelerSecours(false);\n}", "}", "rappel au chargement (plus tard)"],
   ["coffre.js", " || rappeles.has(t.empreinte) || secoursExportee()) return false;", " || rappeles.has(t.empreinte)) return false;", "pas de rappel si déjà exportée"],
   ["coffre.js", " || rappeles.has(t.empreinte) || secoursExportee()) return false;", " || secoursExportee()) return false;", "jamais deux rappels par chargement"],
@@ -789,7 +891,18 @@ const MUTATIONS = [
   ["coffre.js", "    await ouvrirDansFile();\n    return fn();", "    return fn();", "coffre ouvert avant de lire"],
   ["coffre.js", "await game.settings.set(ID, \"cleCarnet\", { ...tout, [monde()]:", "await game.settings.set(ID, \"cleCarnet\", { [monde()]:", "une clé par monde"],
   ["coffre.js", "  return enFile(async () => {\n    for (const r of S.REGISTRES) await game.settings.set(ID, r, []);", "  return (async () => {\n    await null;\n    for (const r of S.REGISTRES) await game.settings.set(ID, r, []);", "remise à zéro dans la file"],
-  ["canal.js", "  if (!emetteur && message.type.startsWith(\"coffre.\")) return false;\n", "", "coffre.* sans émetteur serveur"],
+  ["coffre-logique.js", "export const partsAuxJoueurs = systeme => !SYSTEMES_SANS_PARTS.includes(String(systeme ?? \"\"));", "export const partsAuxJoueurs = systeme => true;",
+    "Veillées : aucune part"],
+  ["coffre.js", "  if (!u || u.isGM || !estMJActif() || sansParts()) return 0;", "  if (!u || u.isGM || !estMJActif()) return 0;", "aucune part aux joueurs (rôles secrets)"],
+  ["coffre.js", "  if (sansParts()) return;\n  const t = lireTrousseau();", "  const t = lireTrousseau();", "aucun porteur (rôles secrets)"],
+  ["coffre.js", "  await (sansParts() ? sevrerParts() : reprendreRenouvellement());", "  await reprendreRenouvellement();", "anciennes parts sevrées"],
+  ["coffre.js", "  const enCoursDistribuee = Boolean(t.enCours) && !t.enCours.sansParts;", "  const enCoursDistribuee = Boolean(t.enCours);", "sevrées une seule fois"],
+  ["coffre.js", "  if (sansParts()) {\n    if (p.secours) return validerRenouvellement();", "  if (false) {\n    if (p.secours) return validerRenouvellement();",
+    "rôles secrets : en vigueur par la clé de secours"],
+  ["coffre.js", "    rappelerRenouvellement();\n", "", "rappel de la clé de secours en cours"],
+  ["coffre.js", "  fenetre ||= sansParts();\n", "", "rôles secrets : la fenêtre à chaque chargement"],
+  ["coffre.js", "(sansParts() || (t.porteurs ?? []).length < (t.seuil ?? 2)", "((t.porteurs ?? []).length < (t.seuil ?? 2)", "rôles secrets : secours conseillé"],
+  ["canal.js", "  if (!emetteur) return false;\n  const qui = emetteur;", "  const qui = emetteur || message.userId || null;", "coffre.* sans émetteur serveur"],
   ["fils.js", "    if (deja[nom] === courante.id) continue;\n", "", "rien relu pour rien"],
   ["fils.js", "    if (estScelle(brut) && brut.id === courante.id) { faits[nom] = brut.id; continue; }\n    const contenu", "    if (estScelle(brut)) continue;\n    const contenu", "ancienne clé rescellée au démarrage"],
   ["fils.js", "  if (!idConnu(brut.id) && cleCourante()) {", "  if (cleCourante()) {", "verrouillé tant que la clé est connue"],

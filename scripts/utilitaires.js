@@ -31,6 +31,14 @@ export function texteJoueurs(cle, francais, donnees = {}) {
   return String(modele).replace(/\{(\w+)\}/g, (m, k) => (Object.hasOwn(donnees, k) ? String(donnees[k]) : m));
 }
 
+// Un message du chat écrit par un MJ (le navigateur du MJ actif, qui poste les cartes, narrations, répliques de compagnons et
+// annonces du système) ? Foundry v14 (common/documents/chat-message.mjs) refuse qu'un joueur crée un message au nom d'un autre
+// (#canCreate : author === lui) et le serveur interdit de changer l'auteur ensuite ; mais un joueur peut créer, puis modifier,
+// SON message avec n'importe quel contenu, classe CSS ou drapeau (il en est propriétaire). Un bouton, un drapeau ou une classe
+// du MJ IA n'est donc honoré que sur un message dont l'auteur est un MJ. message.author : le document User (champ
+// DocumentAuthorField, résolu dans le client) ; isGM vaut aussi pour un MJ-assistant.
+export const ecritParUnMJ = message => message?.author?.isGM === true;
+
 export function tronquer(texte, max) {
   return texte.length <= max ? texte : `${texte.slice(0, max)}\n[… tronqué, ${texte.length - max} caractères de plus]`;
 }

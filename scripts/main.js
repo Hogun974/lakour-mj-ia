@@ -15,7 +15,7 @@ import { CompagnonsSansNarrateur } from "./compagnons-veillees.js";
 import { ecouteActive } from "./ecoute.js";
 import { EcouteJoueurs, afficherEcoute, brancherTranscription } from "./transcription.js";
 import { compagnonsPresents } from "./compagnons-jeu.js";
-import { versHTML, texteJoueurs } from "./utilitaires.js";
+import { versHTML, texteJoueurs, ecritParUnMJ } from "./utilitaires.js";
 import { consignerComposition } from "./historique-loups.js";
 import { texteAvanceSurvie, textePalierSurvie } from "./survie-logique.js";
 import { brancherHistoire, ouvrirHistoire, journalDe, assurerJournal } from "./histoire.js";
@@ -58,7 +58,10 @@ Hooks.once("ready", () => {
     afficherEcoute,
     // Horloges, jauges et réputations (horloges.js ; 40k, Warcraft). Contrat des modules des mondes : assurer(def) crée
     // l'élément s'il n'existe pas (par id) et le rend ; avancer(id, n = 1) ; lister() ; palier(id). Seul le MJ actif écrit.
+    // libelles({ "Exposition": "LAKOUR40K.Jauges.Exposition", … }) : nom français d'un élément, d'un seuil ou d'une faction ->
+    // clé i18n du module, pour l'affichage des joueurs seulement (dans chaque navigateur, au « ready » du module de contenu).
     horloges: {
+      libelles: table => horloges.libelles(table),
       assurer: def => horloges.assurer(def),
       avancer: (id, n = 1) => horloges.avancer(id, n),
       lister: () => horloges.lister(),
@@ -247,8 +250,10 @@ Hooks.on("createChatMessage", message => {
 // Les cartes du MJ IA reçoivent la classe lakour-mjia-message (le glyphe d'une fête en cours s'y pose en CSS).
 Hooks.on("renderChatMessageHTML", (message, html) => fetes.marquerMessage(message, html));
 
-// Bouton « lancer le test » des cartes de jet demandées par l'IA.
+// Bouton « lancer le test » des cartes de jet demandées par l'IA. Seulement sur une carte écrite par un MJ (utilitaires.js,
+// ecritParUnMJ) : un joueur ne fabrique pas un bouton dans son propre message.
 Hooks.on("renderChatMessageHTML", (message, html) => {
+  if (!ecritParUnMJ(message)) return;
   for (const bouton of html.querySelectorAll("[data-lakour-jet]")) {
     bouton.addEventListener("click", async event => {
       event.preventDefault();
@@ -267,8 +272,9 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 });
 
 // Bouton « lancer les dés » demandé par l'IA : le joueur lance lui-même, le résultat part dans le chat
-// et revient à l'IA comme n'importe quel message.
+// et revient à l'IA comme n'importe quel message. Seulement sur une carte écrite par un MJ (ecritParUnMJ).
 Hooks.on("renderChatMessageHTML", (message, html) => {
+  if (!ecritParUnMJ(message)) return;
   for (const bouton of html.querySelectorAll("[data-lakour-des]")) {
     const { formule, nombre, raison, joueur } = bouton.dataset;
     if (joueur && joueur !== game.user.id && !game.user.isGM) bouton.disabled = true;
@@ -280,7 +286,8 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
       await ChatMessage.implementation.create({
         author: game.user.id,
         speaker: ChatMessage.implementation.getSpeaker({ actor: game.user.character }),
-        flavor: raison,
+        // La raison lue dans l'attribut est du texte brut (déchiffré par le navigateur) : échappée avant d'en faire du HTML.
+        flavor: foundry.utils.escapeHTML(String(raison ?? "")),
         content: `<p>${jets.map(j => `<strong>${j.total}</strong>`).join(" · ")}</p>`,
         rolls: jets,
         sound: CONFIG.sounds.dice
@@ -300,8 +307,10 @@ Hooks.on("updateChatMessage", (message, changements) => {
 });
 
 // Bouton 🔊 sur chaque narration (et chaque réplique de compagnon dite à voix haute) : réécouter (fichier OpenAI pour soi seul,
-// ou voix du navigateur).
+// ou voix du navigateur). Seulement sur un message écrit par un MJ : le drapeau « audio » d'un message de joueur ferait jouer
+// l'adresse de son choix, « narration » lire son texte à voix haute.
 Hooks.on("renderChatMessageHTML", (message, html) => {
+  if (!ecritParUnMJ(message)) return;
   const audio = message.getFlag(ID, "audio");
   if (!(message.getFlag(ID, "narration") || audio?.length) || lire("voix") === "aucune") return;
   const bouton = document.createElement("a");

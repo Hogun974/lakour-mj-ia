@@ -1,6 +1,6 @@
 import { ID } from "../constantes.js";
 import { etatCoffre, secoursConseille, secoursExportee, brancherRappel, exporterSecours, importerSecours, chercherCoffre, renouveler,
-  abandonnerCoffre, cleCourante } from "../coffre.js";
+  abandonnerCoffre, cleCourante, partsDistribuees } from "../coffre.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -30,7 +30,7 @@ export class FenetreCoffre extends HandlebarsApplicationMixin(ApplicationV2) {
     const exportee = secoursExportee();
     return {
       mj: game.user.isGM, etat: e.etat, texteEtat: game.i18n.localize(`LAKOUR_MJIA.Coffre.Etats.${e.etat}`),
-      porteurs: e.porteurs ?? 0, seuil: e.seuil ?? 2, comptes: e.comptes ?? 0, renouvellement: e.renouvellement,
+      porteurs: e.porteurs ?? 0, seuil: e.seuil ?? 2, comptes: e.comptes ?? 0, renouvellement: e.renouvellement, sansParts: Boolean(e.sansParts),
       secours: secoursConseille(), attente: e.etat === "attente",
       // La clé en vigueur est dans ce navigateur : sa clé de secours a-t-elle été téléchargée d'ici, et quand (date locale) ?
       cleIci: Boolean(cleCourante()), secoursDate: exportee ? dateLocale(exportee) : ""
@@ -49,7 +49,10 @@ function dateLocale(iso) {
 async function rappelSecours() {
   const choix = await foundry.applications.api.DialogV2.wait({
     window: { title: "LAKOUR_MJIA.Coffre.Rappel.Titre", icon: "fa-solid fa-key" },
-    content: `<p>${game.i18n.localize("LAKOUR_MJIA.Coffre.Rappel.Texte")}</p><p class="hint">${game.i18n.localize("LAKOUR_MJIA.Coffre.Fenetre.Aide")}</p>`,
+    // Monde à rôles secrets (aucune part chez les joueurs) : la clé de secours est le seul recours, on le dit.
+    content: `<p>${game.i18n.localize("LAKOUR_MJIA.Coffre.Rappel.Texte")}</p>`
+      + (partsDistribuees() ? "" : `<p><strong>${game.i18n.localize("LAKOUR_MJIA.Coffre.Rappel.TexteSansParts")}</strong></p>`)
+      + `<p class="hint">${game.i18n.localize("LAKOUR_MJIA.Coffre.Fenetre.Aide")}</p>`,
     buttons: [
       { action: "exporter", label: "LAKOUR_MJIA.Coffre.Fenetre.Exporter", icon: "fa-solid fa-download", default: true },
       { action: "plusTard", label: "LAKOUR_MJIA.Coffre.Rappel.PlusTard", icon: "fa-solid fa-clock" }

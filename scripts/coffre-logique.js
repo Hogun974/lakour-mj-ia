@@ -10,6 +10,9 @@
 // (x, y), x tiré de son identifiant. t - 1 points ne disent rien de k ; t points donnent le polynôme, donc k. Le seuil est la
 // majorité des comptes joueurs (seuilPour) : une poignée de joueurs, ou un ancien joueur et un complice, ne lisent rien.
 // ATTENTION : un compte sans mot de passe est une part que n'importe qui peut prendre ; la protection suppose des mots de passe.
+// EXCEPTION : dans un jeu à rôles secrets (les Veillées, système lakour-loups), des joueurs alliés en secret (deux loups) peuvent
+// mettre leurs parts en commun et atteindre le seuil (tous les rôles en clair) : là, AUCUNE part n'est confiée aux joueurs
+// (partsAuxJoueurs) ; la clé ne se retrouve que par la clé de secours et les autres MJ.
 //
 // Une clé, ses parts et ce qu'elle scelle portent le même identifiant (id, tiré au hasard) : une part d'une autre clé ne se
 // mélange pas aux autres. Son empreinte (SHA-256, publiée dans le réglage monde « trousseau ») dit si une clé reconstituée est
@@ -47,6 +50,10 @@ const deHex = h => {
   try { return BigInt(`0x${String(h || "0")}`); } catch { return 0n; }   // une part abîmée ne fait pas tomber le MJ
 };
 const coefs = cle => (Array.isArray(cle?.a) ? cle.a : [cle?.a]).map(deHex);
+
+// Les systèmes où aucune part n'est confiée aux joueurs (jeux à rôles secrets : des complices réuniraient leurs parts).
+export const SYSTEMES_SANS_PARTS = Object.freeze(["lakour-loups"]);
+export const partsAuxJoueurs = systeme => !SYSTEMES_SANS_PARTS.includes(String(systeme ?? ""));
 
 // Le seuil pour n comptes joueurs : la majorité, et jamais moins de 2.
 export const seuilPour = n => Math.max(2, Math.floor((Number(n) || 0) / 2) + 1);

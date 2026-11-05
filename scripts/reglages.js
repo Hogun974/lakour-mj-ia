@@ -59,6 +59,13 @@ export function enregistrerReglages() {
     scope: "world", config: true, type: Number, default: 6,
     range: { min: 0, max: 30, step: 1 }
   });
+  // Rythme par joueur (moteur.js, attenteRythme) : au plus une réponse automatique déclenchée par un même joueur par période.
+  game.settings.register(ID, "rythmeJoueur", {
+    name: "LAKOUR_MJIA.Reglages.Rythme.Nom",
+    hint: "LAKOUR_MJIA.Reglages.Rythme.Aide",
+    scope: "world", config: true, type: Number, default: 10,
+    range: { min: 0, max: 120, step: 5 }
+  });
   game.settings.register(ID, "budgetSeance", {
     name: "LAKOUR_MJIA.Reglages.Budget.Nom",
     hint: "LAKOUR_MJIA.Reglages.Budget.Aide",

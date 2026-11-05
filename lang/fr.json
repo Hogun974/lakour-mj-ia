@@ -94,6 +94,10 @@
         "Nom": "Délai avant réponse (secondes)",
         "Aide": "Le MJ IA attend ce délai après le dernier message, pour répondre à tout le groupe d'un coup."
       },
+      "Rythme": {
+        "Nom": "Rythme par joueur (secondes)",
+        "Aide": "Les messages d'un même joueur ne déclenchent pas plus d'une réponse automatique du MJ IA par période (ils partent avec la suivante, jamais perdus) : un joueur qui écrit en rafale ne fait pas tourner l'IA en continu. 0 : aucune limite. S'ajoute au budget par séance."
+      },
       "Budget": {
         "Nom": "Budget par séance (dollars)",
         "Aide": "Le MJ IA s'arrête quand l'estimation du coût de la séance atteint ce montant (0 = sans limite). Estimation pour Claude uniquement."
@@ -518,6 +522,7 @@
         "Titre": "Coffre du MJ IA",
         "Ouvrir": "Ouvrir le coffre",
         "AideMenu": "Clé qui chiffre le Carnet caché et le fil de l'IA : porteurs de parts, renouvellement, clé de secours.",
+        "SansParts": "Monde à rôles secrets : aucune part de la clé n'est confiée aux joueurs (deux complices pourraient réunir les leurs et lire tous les rôles). Seules la clé de secours et les autres MJ connectés la rendent.",
         "Porteurs": "Joueurs qui gardent une part de la clé",
         "Comptes": "comptes joueurs",
         "Renouvellement": "Nouvelle clé en attente : parts accusées",
@@ -535,10 +540,15 @@
       },
       "RenouvellementAttente": "Renouvellement de la clé du coffre en attente : parts distribuées {porteurs} / seuil {seuil}. L'ancienne clé reste en vigueur jusqu'à ce que {seuil} joueurs aient reçu la nouvelle (ou que tu exportes la clé de secours).",
       "SecoursConseille": "Trop peu de porteurs de parts pour retrouver la clé du coffre ({porteurs} / seuil {seuil}) : exporte la clé de secours (Réglages › MJ IA › Coffre) et garde-la hors du monde.",
+      "AttenteSansParts": "Coffre fermé dans ce navigateur : une clé manque (fil de l'IA, secrets de la partie). Monde à rôles secrets : les joueurs n'ont aucune part de la clé en vigueur. Réimporte la clé de secours (Réglages › MJ IA › Coffre), ou connecte un autre MJ qui l'a (elle lui est demandée). Rien de chiffré n'est écrasé.",
+      "SecoursRappelSeul": "Monde à rôles secrets : aucune part de la clé du coffre n'est confiée aux joueurs (des complices pourraient réunir les leurs). La clé de secours est le SEUL moyen de la retrouver si ce navigateur la perd : télécharge-la maintenant (Réglages › MJ IA › Coffre) et garde-la hors du monde.",
+      "RenouvellementSecours": "Monde à rôles secrets : les parts que des joueurs gardaient cessent de servir. Une nouvelle clé du coffre attend : elle n'entre en vigueur que quand tu télécharges la clé de secours (Réglages › MJ IA › Coffre). D'ici là, l'ancienne clé reste en vigueur.",
+      "RenouveleeSansParts": "Clé du coffre renouvelée : tout est rescellé. Monde à rôles secrets : aucune part n'est confiée aux joueurs ; garde bien la clé de secours.",
       "SecoursRappel": "Clé de secours jamais téléchargée pour la clé du coffre en vigueur : télécharge-la (Réglages › MJ IA › Coffre) et garde-la hors du monde. Sans elle, si ce navigateur perd la clé et que les parts des joueurs ne suffisent pas, le Carnet caché et les fils de l'IA sont perdus.",
       "Rappel": {
         "Titre": "Télécharge ta clé de secours maintenant",
         "Texte": "Une nouvelle clé du coffre vient d'entrer en vigueur dans ce navigateur, et sa clé de secours n'a pas été téléchargée. Fais-le tout de suite et garde le fichier hors du monde : si ce navigateur perd la clé et que les parts des joueurs ne suffisent pas, le Carnet caché et les fils de l'IA sont perdus. Un fichier de secours plus ancien ne contient pas cette clé.",
+        "TexteSansParts": "Monde à rôles secrets : aucune part de la clé n'est confiée aux joueurs. Sans ce fichier, si ce navigateur perd la clé et qu'aucun autre MJ ne l'a, la partie en cours et les fils de l'IA sont perdus.",
         "PlusTard": "Plus tard"
       },
       "Abandonne": "Nouvelle clé créée dans ce navigateur. Exporte maintenant la clé de secours (bouton « Télécharger la clé de secours »).",

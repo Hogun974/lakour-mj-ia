@@ -127,6 +127,28 @@ function batterieLogique(L) {
     assert.equal(L.vuePourFenetre(liste, { mj: true }).length, 2);
     assert.equal(L.vuePourFenetre(liste, { mj: true })[0].notes, "Le Héraut se manifeste.");
   });
+  verifier("libellés d'un module de contenu : fenêtre et chat dans la langue de l'interface ; l'IA et les données en français", () => {
+    // t : la traduction de l'interface (texteJoueurs) ; une clé inconnue garde le français.
+    const dico = { "X.Exposition": "Exposure", "X.Remarques": "Noticed", "X.Recherches": "Wanted", "X.Culte": "Cult" };
+    const t = (cle, francais, d) => L.enFrancais(cle, dico[cle] ?? francais, d);
+    L.oublierLibelles();
+    assert.equal(L.enregistrerLibelles({ Exposition: "X.Exposition", "Remarqués": "X.Remarques", "Recherchés": "X.Recherches", Culte: "X.Culte",
+      "": "X.Vide", Rien: 3 }), 4, "les entrées sans nom ou sans clé sont écartées");
+    try {
+      const el = { ...j(5), faction: "Culte", visible: true };
+      const [v] = L.vuePourFenetre([el], { t });
+      assert.deepEqual([v.nom, v.faction, v.palier], ["Exposure", "Cult", "Noticed"]);
+      assert.deepEqual(v.reperes.map(x => x.nom), ["Noticed", "Wanted", "Traqués"], "un seuil sans libellé garde son nom");
+      const { element, evenements } = L.avancer(el, 2);
+      assert.equal(L.texteEvenement(element, evenements[0], t), "La jauge « Exposure » (Cult) franchit le seuil « Wanted » (7/10).");
+      assert.equal(L.texteEvenement(element, evenements[0]), "La jauge « Exposition » (Culte) franchit le seuil « Recherchés » (7/10).");
+      assert.match(L.texteEvenementsPourIA(element, evenements), /« Exposition » \(Culte\) franchit le seuil « Recherchés »/);
+      assert.match(L.ligneJoueurs(element, t), /Wanted/);
+      assert.equal(L.vuePourFenetre([el])[0].nom, "Exposition", "sans traduction : le nom français");
+      assert.equal(element.nom, "Exposition", "les données gardent le nom français");
+      assert.equal(L.nomPalier("Amical", t), "Amical", "palier de réputation livré : sa clé du moteur");
+    } finally { L.oublierLibelles(); }
+  });
   verifier("camembert : autant de secteurs pleins que la valeur", () => {
     const svg = L.camembertSVG(2, 6);
     assert.equal(svg.match(/class="plein"/g).length, 2);
@@ -162,6 +184,12 @@ test("textes : chat sans notes, résumé lisible pour l'IA", () => {
 });
 
 const MUTATIONS_LOGIQUE = {
+  "libellé ignoré": ["export const libelle = (nom, t = enFrancais) => (LIBELLES_MONDE.has(nom) ? t(LIBELLES_MONDE.get(nom), nom) : nom);",
+    "export const libelle = (nom, t = enFrancais) => nom;"],
+  "nom de la fenêtre brut": ["const vue = { id: el.id, nom: nomElement(el, t),", "const vue = { id: el.id, nom: el.nom,"],
+  "seuil du chat brut": ["seuil: ev.nom ? nomPalier(ev.nom, t) : \"\" };", "seuil: ev.nom ?? \"\" };"],
+  "seuil de la fenêtre brut": [" : libelle(nom, t));", " : nom);"],
+  "libellé sans nom accepté": ["    if (!nom || typeof cle !== \"string\" || !cle.trim()) continue;", "    if (typeof cle !== \"string\") continue;"],
   "segments sans bornes": ["borner(entierOu(max, SEGMENTS_DEFAUT) || SEGMENTS_DEFAUT, SEGMENTS_MIN, SEGMENTS_MAX)", "(entierOu(max, SEGMENTS_DEFAUT) || SEGMENTS_DEFAUT)"],
   "valeur de départ non bornée": ["el.valeur = borner(entierOu(def.valeur, 0), b.min, b.max);", "el.valeur = entierOu(def.valeur, 0);"],
   "avancée non bornée": ["const apres = borner(entierOu(nouvelle, avant), b.min, b.max);", "const apres = entierOu(nouvelle, avant);"],
@@ -227,6 +255,24 @@ const BATTERIE_API = {
     await H.assurer({ nom: "Rituel", type: "horloge" });
     await H.assurer({ nom: "rituel", type: "horloge", max: 8 });
     assert.equal(H.lister().length, 2, "sans id : retrouvé par son nom, jamais doublé");
+  },
+  "libellés d'un module de contenu : carte et avis du MJ traduits ; l'IA et les données en français": async H => {
+    reinitialiser();
+    const dico = { "X.Exposition": "Exposure", "X.Remarques": "Noticed", "X.Culte": "Cult" };
+    game.i18n = { has: k => k in dico, localize: k => dico[k] };
+    assert.equal(H.libelles({ Exposition: "X.Exposition", "Remarqués": "X.Remarques", Culte: "X.Culte" }), 3);
+    await H.assurer({ id: "exposition", nom: "Exposition", type: "jauge", max: 10, visible: true, faction: "Culte", paliers: [{ nom: "Remarqués", min: 4 }] });
+    await H.avancer("exposition", 4);
+    const carte = etat.messages.at(-1).content;
+    assert.match(carte, /<strong>Exposure<\/strong> <small>Cult<\/small>/);
+    assert.match(carte, /« Exposure » \(Cult\) franchit le seuil « Noticed »/);
+    assert.ok(!/Exposition|Remarqués|Culte/.test(carte), carte);
+    assert.match(etat.signaux.at(-1), /« Exposition » \(Culte\) franchit le seuil « Remarqués »/, "l'IA lit le français");
+    assert.equal(H.trouver("exposition").nom, "Exposition");
+    // Caché : l'avis du MJ, traduit aussi.
+    await H.montrer("exposition", false);
+    await H.avancer("exposition", 6);
+    assert.match(etat.avis.at(-1), /^Exposure : /);
   },
   "seul le MJ actif écrit": async H => {
     reinitialiser({ moi: MJ2, actif: MJ });
@@ -312,7 +358,10 @@ const MUTATIONS_API = {
   "les autres MJ jamais prévenus": ["horloges.js", "    if (autres.length) envoyer({ type: \"horloges.avis\", texte }, autres);\n", ""],
   "l'IA prévenue en double par l'outil": ["horloges.js", "if (source !== \"outil\") game.modules", "if (true) game.modules"],
   "l'IA jamais prévenue": ["horloges.js", "if (source !== \"outil\") game.modules", "if (false) game.modules"],
-  "geste d'un autre MJ perdu": ["horloges.js", "return versMJ({ type: \"horloges.geste\", ...message });", "return null;"]
+  "geste d'un autre MJ perdu": ["horloges.js", "return versMJ({ type: \"horloges.geste\", ...message });", "return null;"],
+  "carte au chat : nom brut": ["horloges.js", "  const nom = L.nomElement(el, texteJoueurs);", "  const nom = el.nom;"],
+  "carte au chat : faction brute": ["horloges.js", "  const faction = L.factionElement(el, texteJoueurs);", "  const faction = el.faction;"],
+  "libellés jamais enregistrés": ["horloges.js", "  const n = L.enregistrerLibelles(table);", "  const n = 0;"]
 };
 
 async function echecsApi(H) {

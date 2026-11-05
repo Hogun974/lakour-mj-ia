@@ -398,6 +398,9 @@ export const peuventReagir = lot => (lot ?? []).some(e => !SANS_REACTION.include
 
 // Une annonce publique du système des Veillées (lakour-loups), postée au chat par le navigateur du MJ actif.
 export const estAnnonceSysteme = html => /class="lakour-loups annonce"/.test(String(html ?? ""));
+// Le même, pour un message : seulement s'il est écrit par un MJ (le système poste ses annonces depuis le navigateur du MJ
+// actif) ; un joueur qui copie la classe dans son message reste un joueur.
+export const estAnnonceDuSysteme = message => message?.author?.isGM === true && estAnnonceSysteme(message?.content);
 
 // Qui parle, au plus max, une fois chacun : ceux que le texte cite d'abord, puis ceux qui ont parlé le moins récemment.
 export function choisirOrateurs(candidats, { max = 1, mentions = "", derniere = new Map() } = {}) {

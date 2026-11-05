@@ -270,7 +270,7 @@ const MUTATIONS = {
   "abstention comptée pour la première option": ["decisions.js", "if (v === null || !comptes[v]) abstentions.push(id);", "if (!comptes[v ?? 0]) abstentions.push(id);"],
   "égalité tranchée en faveur de la première": ["decisions.js", ".map(c => c.index) : [];", ".map(c => c.index).slice(0, 1) : [];"],
   "voix d'un joueur non appelé acceptée": ["decisions.js", "if (!vote.votants.includes(emetteur)) return { ok: false, raison: \"votant non attendu\" };", ""],
-  "identité déclarée crue sur parole": ["canal.js", "const qui = emetteur || message.userId || null;", "const qui = message.userId || emetteur || null;",
+  "identité déclarée crue sur parole": ["canal.js", "  const qui = emetteur;", "  const qui = message.userId || emetteur;",
     "if (emetteur && message.userId && message.userId !== emetteur) return false;   // se fait passer pour un autre", ""],
   "message diffusé à tous": ["canal.js", "game.socket.emit(CANAL, message, { recipients: autres });", "game.socket.emit(CANAL, message);"],
   "réponse secrète acceptée de n'importe qui": ["decisions.js", "if (!c || c.destinataire !== emetteur) return false;", "if (!c) return false;"]

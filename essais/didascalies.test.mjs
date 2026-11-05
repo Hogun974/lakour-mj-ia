@@ -63,7 +63,7 @@ test("affichage : la didascalie en italique, style « didascalie », sous le nom
   assert.match(m.content, /^<p><em class="lakour-mjia-didascalie">Valentin regarde Clémence, les bras croisés\.<\/em> — Moi, je l'ai vue sortir hier soir\.<\/p>$/);
   await k.poster(acteur, "Je n'ai rien vu.");
   assert.equal(chat.at(-1).content, "<p>Je n'ai rien vu.</p>");
-  const lu = decrireMessage({ ...m, author: { name: "Hogun" }, flags: m.flags });
+  const lu = decrireMessage({ ...m, author: { name: "Hogun", isGM: true }, flags: m.flags });
   assert.equal(lu, `Valentin (compagnon IA) : ${EXEMPLE}`);
   assert.ok(readFileSync(new URL("../styles/mj-ia.css", import.meta.url), "utf8").includes(".lakour-mjia-didascalie"));
 });

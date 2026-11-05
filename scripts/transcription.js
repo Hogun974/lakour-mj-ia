@@ -251,8 +251,9 @@ export class EcouteJoueurs {
     } else if (route.declencher) {
       this.sansNarrateur?.entendre(`${evenement.nom} (à voix haute) : ${evenement.texte}`);
     }
-    // Montrée aux MJ (réglage). Aux Veillées, jamais par un chuchotement (Foundry livre tout message de chat à tous les
-    // navigateurs : la parole d'un loup la nuit, au salon de la tanière, s'y lirait) : affichée ici (le MJ actif, qui écoute) et
+    // Montrée aux MJ (réglage). Aux Veillées, jamais par un chuchotement (Foundry v14 livre tout message de chat, chuchoté ou non,
+    // à tous les navigateurs, qui ne font que le masquer : la parole d'un loup la nuit, au salon de la tanière, s'y lirait dans
+    // la console) : affichée ici (le MJ actif, qui écoute) et
     // envoyée aux autres MJ par le canal du module, à eux seuls ({ recipients }) ; chacun l'affiche localement, sans document.
     // Ailleurs (40k, Warcraft), rien de secret dans ce que les joueurs disent à voix haute à la table : le chuchotement aux MJ
     // d'avant, gardé dans le chat (relisible).

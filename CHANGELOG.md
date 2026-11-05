@@ -4,6 +4,15 @@ Versions du moteur MJ IA de La Kour (les modules de contenu des mondes tiennent 
 suivent `module.json` ; chaque release GitHub `v<version>` reprend la section correspondante. Avant la 0.26, le moteur
 vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici.
 
+## Non publié
+
+- Sécurité : aux Veillées, plus aucune part de la clé du coffre chez les joueurs (clé renouvelée une fois si des joueurs en
+  gardaient, en vigueur par la clé de secours) ; boutons, drapeaux et classes du MJ IA honorés seulement sur un message
+  d'un MJ (raison des dés échappée) ; parole des joueurs encadrée comme une donnée pour le narrateur ; canal du module
+  sans émetteur refusé ; rythme par joueur des réponses automatiques (réglage) ; section sécurité des README.
+- Horloges : `api.horloges.libelles(table)` pour les modules de contenu (nom français -> clé i18n) : jauges, seuils et
+  factions traduits dans le Carnet et les cartes du chat ; l'IA et les données restent en français.
+
 ## 0.40.1 — 2026-11-05
 
 - Guide d'utilisation en anglais (`scripts/guide-en.js`, `docs/guide-utilisation.en.md`), installé selon la langue du

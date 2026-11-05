@@ -103,7 +103,7 @@ Le **Carnet de campagne** (bouton **livre ouvert** dans la barre de gauche, calq
 - **Clic** sur un camembert ou une barre : avancer d'un cran ; **clic droit** (ou **−**) : reculer. L'**œil** montre l'élément aux joueurs ou le leur cache : ils ne voient que ce que tu as montré.
 - Quand une horloge sonne, qu'une jauge franchit un seuil ou qu'une réputation change de palier, une **carte** paraît au chat (chuchotée aux MJ si l'élément est caché) et le **MJ IA** en est prévenu pour en tirer une conséquence.
 - Le MJ IA voit l'état de chaque élément à chaque tour ; ses **notes** (ce qui arrive quand l'horloge sonne) restent secrètes. Pendant un intermède, il avance les horloges des factions.
-- **Modules des mondes** : *game.modules.get("lakour-mj-ia").api.horloges* — *assurer(def)* crée un élément s'il n'existe pas (par son id) et le rend ; *avancer(id, n)* ; *lister()* ; *palier(id)*. Seul le MJ actif écrit.
+- **Modules des mondes** : *game.modules.get("lakour-mj-ia").api.horloges* — *assurer(def)* crée un élément s'il n'existe pas (par son id) et le rend ; *avancer(id, n)* ; *lister()* ; *palier(id)*. Seul le MJ actif écrit. *libelles({ "Exposition": "LAKOUR40K.Jauges.Exposition", … })* (dans chaque navigateur, au chargement du module) : le nom français d'un élément, d'un seuil ou d'une faction et la clé de traduction du module ; le Carnet et les cartes du chat les montrent dans la langue de l'interface, l'IA et les données gardent le français.
 - **Réinitialiser la campagne** efface aussi les horloges.
 
 ### Enquêtes et contacts (40k et Warcraft)
@@ -129,6 +129,7 @@ Foundry envoie les réglages du monde à tous les navigateurs, et sert les fichi
 - **Nouveau navigateur** (autre poste, cache vidé) : un bandeau le dit ; les parts sont demandées aux joueurs connectés et la clé aux autres MJ connectés. En attendant, les éléments visibles restent utilisables, mais rien n'est créé, caché, retiré ni changé de secret, l'IA repart d'un fil vide et rien de chiffré n'est écrasé. *api.coffre.chercher()* redemande les parts.
 - **Renouvellement** quand un compte est supprimé, créé ou change de rôle (et à la demande, fenêtre du Coffre ou *api.coffre.renouveler()*) : la nouvelle clé n'entre en vigueur qu'une fois ses parts reçues par assez de joueurs (ou sa clé de secours exportée) ; jusque-là l'ancienne reste en vigueur, et rien n'est jamais scellé sous une clé que personne ne pourrait retrouver.
 - **Mots de passe** : un compte joueur sans mot de passe est une part que n'importe qui peut prendre ; sans mots de passe, le coffre ne protège rien.
+- **Aux Veillées** (rôles secrets) : aucune part n'est confiée aux joueurs, car deux loups alliés pourraient réunir les leurs et lire tous les rôles. La clé ne se retrouve que par la clé de secours (rappelée dans une fenêtre à chaque chargement tant qu'elle n'est pas téléchargée) et les autres MJ connectés. Un monde où des joueurs gardaient encore des parts renouvelle sa clé une fois ; la nouvelle entre en vigueur quand tu télécharges sa clé de secours.
 - **Clé perdue** (ni parts, ni autre MJ, ni clé de secours) : *api.coffre.abandonner({ confirmer: true })* renonce aux éléments cachés et aux fils chiffrés (gardés à part, illisibles) ; les visibles restent.
 
 ### Mener les Veillées soi-même, avec des joueurs IA

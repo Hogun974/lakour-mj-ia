@@ -4,14 +4,14 @@ import { fournisseurTexte, fournisseurCompagnons, modeleCompagnons, expliquerErr
 import { OUTILS, outil, resumerAppel, outilsDuSysteme, partieLoupsEnCoursIci } from "./outils.js";
 import { etapeHistoire } from "./histoire-logique.js";
 import { promptSysteme, etatDuJeu, decrireMessage, messagePourIA } from "./contexte.js";
-import { versHTML, roleLoups, campLoups, secretsVeilleesEnAttente, texteJoueurs } from "./utilitaires.js";
+import { versHTML, roleLoups, campLoups, secretsVeilleesEnAttente, texteJoueurs, ecritParUnMJ } from "./utilitaires.js";
 import { nomAfficheDe } from "./personnalites.js";
 import { lireFil, ecrireFil } from "./fils.js";
 import { validerSchema } from "./schema.js";
 import { VoixEnDirect, direReplique } from "./voix.js";
 import { estSilence } from "./voix-texte.js";
 import { Compagnons, effacerPrive } from "./compagnons-jeu.js";
-import { peuventReagir, estAnnonceSysteme } from "./compagnons.js";
+import { peuventReagir, estAnnonceDuSysteme } from "./compagnons.js";
 import { PiloteAutomatique, attendreFinVoix } from "./pilote.js";
 
 const MAX_TOURS_OUTILS = 12;
@@ -153,6 +153,8 @@ export class MoteurMJ {
   constructor() {
     this.attente = [];        // messages de joueurs pas encore transmis
     this.minuterie = null;
+    // Rythme par joueur (réglage « rythmeJoueur ») : userId -> heure du dernier lot parti avec un message de lui.
+    this.declenchements = new Map();
     this.enCours = false;
     this.chaine = Promise.resolve();   // file d'attente des tours
     this.fil = null;
@@ -219,6 +221,7 @@ export class MoteurMJ {
   async arreter() {
     if (!lire("seance").active) return;
     clearTimeout(this.minuterie);
+    this.minuterie = null;
     this.pilote.arreter("seance");
     // Aux Veillées : ni mémoire de campagne (un journal du monde se lit dans la console de chaque joueur), ni chronique pendant une
     // partie en cours (elle la raconterait à tous).
@@ -313,24 +316,50 @@ export class MoteurMJ {
     if (!this.actif || !messagePourIA(message)) return;
     // Une annonce du système des Veillées (mort, vote…) : le MJ la lit, mais elle ne réveille pas les compagnons. Pendant le pilote
     // automatique, celles qui naissent d'un tour du MJ viennent de ses propres outils (aucun humain vivant n'agit) : il les a déjà.
-    if (estAnnonceSysteme(message.content)) {
+    if (estAnnonceDuSysteme(message)) {
       if (this.enCours && this.pilote.enMarche) return;
       return this.signaler(decrireMessage(message), { source: "annonce" });
     }
-    // Une réplique de compagnon IA arrive comme un message de joueur, mais ne relance pas les compagnons (pas de boucle).
-    this.signaler(decrireMessage(message), { source: message.flags?.[ID]?.compagnon ? "compagnon" : "humain" });
+    // Une réplique de compagnon IA arrive comme un message de joueur, mais ne relance pas les compagnons (pas de boucle) ; le
+    // drapeau n'est cru que d'un MJ (ecritParUnMJ).
+    const compagnon = ecritParUnMJ(message) && message.flags?.[ID]?.compagnon;
+    // auteur : un joueur (pas un MJ), soumis au rythme par joueur.
+    const auteur = ecritParUnMJ(message) ? null : message.author?.id ?? null;
+    this.signaler(decrireMessage(message), { source: compagnon ? "compagnon" : "humain", auteur });
+  }
+
+  // Rythme par joueur (réglage « rythmeJoueur », en secondes ; 0 : aucun), en plus du budget de séance : les messages d'un même
+  // joueur ne déclenchent pas plus d'une réponse automatique du MJ IA par période (un joueur qui écrit en rafale ne fait pas
+  // tourner l'IA en continu). Ses messages ne sont jamais perdus : ils partent avec la réponse suivante. Une table normale ne le
+  // sent pas : le lot attend déjà que chacun ait fini d'écrire (délai de réponse), et la réponse elle-même prend ce temps.
+  // -> ms avant qu'un message de cet auteur puisse déclencher une réponse, 0 tout de suite.
+  attenteRythme(auteur, maintenant = Date.now()) {
+    if (!auteur) return 0;
+    let periode = 0;
+    try { periode = Math.max(0, Number(lire("rythmeJoueur")) || 0) * 1000; } catch { /* réglage absent */ }
+    const dernier = this.declenchements.get(auteur);
+    return periode && dernier !== undefined ? Math.max(0, dernier + periode - maintenant) : 0;
+  }
+
+  planifier(ms) {
+    clearTimeout(this.minuterie);
+    this.minuterie = setTimeout(() => { this.minuterie = null; this.vider(); }, ms);
   }
 
   // fusion : une clé ; un nouvel événement de même clé remplace l'ancien (ex. la dernière position d'un jeton).
   // immediat : on répond vite (tour d'un PNJ en combat) au lieu d'attendre que les joueurs aient fini.
   // source : "humain" (message de joueur), "compagnon" (réplique ou action d'un compagnon IA), "evenement" (plateau, vote…).
-  signaler(texte, { fusion = null, immediat = false, source = "evenement" } = {}) {
+  // auteur : l'utilisateur joueur d'un message du chat (rythme par joueur) ; null pour le reste.
+  signaler(texte, { fusion = null, immediat = false, source = "evenement", auteur = null } = {}) {
     if (!this.actif) return;
     if (fusion) this.attente = this.attente.filter(e => e.fusion !== fusion);
-    this.attente.push({ texte, fusion, source });
+    this.attente.push({ texte, fusion, source, auteur });
+    // Un joueur qui vient de déclencher une réponse : son message rejoint la prochaine sans la repousser (sinon une rafale la
+    // retarderait sans fin) ; s'il n'y en a pas de prévue, elle l'est à la fin de sa période.
+    const rythme = this.attenteRythme(auteur);
+    if (rythme > 0 && this.minuterie) return;
     // On attend que les joueurs aient fini d'écrire ou de bouger, pour répondre à tout le groupe d'un coup.
-    clearTimeout(this.minuterie);
-    this.minuterie = setTimeout(() => this.vider(), immediat ? 500 : lire("delaiReponse") * 1000);
+    this.planifier(Math.max(rythme, immediat ? 500 : lire("delaiReponse") * 1000));
   }
 
   async vider() {
@@ -338,7 +367,13 @@ export class MoteurMJ {
     // Tour de table en cours (tour-par-tour.js) : le MJ IA attend que chacun ait parlé (ou passé) avant de raconter ; la fin
     // du tour de table lui est signalée et relance la file.
     if (this.tourParTour?.retientIA?.()) return;
+    // Rythme par joueur : tout ce qui attend vient de joueurs qui ont déclenché une réponse il y a moins d'une période ? Le lot
+    // part quand la première période s'achève.
+    const maintenant = Date.now();
+    const rythme = Math.min(...this.attente.map(e => this.attenteRythme(e.auteur, maintenant)));
+    if (rythme > 0) return this.planifier(rythme);
     const lot = this.attente.splice(0);
+    for (const e of lot) if (e.auteur) this.declenchements.set(e.auteur, maintenant);
     const textes = lot.map(e => e.texte);
     // Compté jusqu'à la fin des réactions des compagnons : le pilote automatique attend que tout soit retombé.
     this.vidages++;
@@ -656,6 +691,8 @@ export class MoteurMJ {
     await ecrire("compagnonsHorsSeance", { ...HORS_SEANCE_VIDE, depuis: Date.now() });
   }
 
+  // Les chuchotements aux MJ (cet avis, une bulle chuchotée) sont masqués aux joueurs par leur client, mais livrés à tous les
+  // navigateurs (Foundry 14.370 diffuse chaque document de chat à tous : outils.js, aube des Veillées) : rien de secret n'y va.
   async prevenirMJ(texte) {
     ui.notifications.error(texte);
     await ChatMessage.implementation.create({
@@ -670,6 +707,8 @@ export class MoteurMJ {
 class BulleChat {
   constructor(alias, chuchoter = false) {
     this.alias = alias;
+    // Chuchotée (préparation d'un scénario) : masquée aux joueurs, pas chiffrée (voir prevenirMJ). Le scénario lui-même est
+    // un journal du MJ, protégé par les seuls droits de Foundry (README, Sécurité).
     this.whisper = chuchoter ? game.users.filter(u => u.isGM).map(u => u.id) : [];
     this.texte = "";
     this.message = null;

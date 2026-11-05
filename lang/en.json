@@ -94,6 +94,10 @@
         "Nom": "Delay before answering (seconds)",
         "Aide": "The AI GM waits this long after the last message, to answer the whole group at once."
       },
+      "Rythme": {
+        "Nom": "Pace per player (seconds)",
+        "Aide": "Messages from the same player trigger at most one automatic AI GM answer per period (they go with the next one, never lost): a player posting in bursts does not keep the AI running. 0: no limit. Comes on top of the session budget."
+      },
       "Budget": {
         "Nom": "Budget per session (dollars)",
         "Aide": "The AI GM stops when the session's estimated cost reaches this amount (0 = no limit). Estimate available for Claude only."
@@ -518,6 +522,7 @@
         "Titre": "MJ IA vault",
         "Ouvrir": "Open the vault",
         "AideMenu": "Key that encrypts the hidden notebook and the AI thread: share holders, renewal, backup key.",
+        "SansParts": "Secret-role world: no share of the key is given to the players (two accomplices could pool theirs and read every role). Only the backup key and the other connected GMs restore it.",
         "Porteurs": "Players holding a share of the key",
         "Comptes": "player accounts",
         "Renouvellement": "New key pending: acknowledged shares",
@@ -535,10 +540,15 @@
       },
       "RenouvellementAttente": "Vault key renewal pending: shares distributed {porteurs} / threshold {seuil}. The old key stays in force until {seuil} players have received the new one (or you export the backup key).",
       "SecoursConseille": "Too few share holders to recover the vault key ({porteurs} / threshold {seuil}): export the backup key (Settings › MJ IA › Vault) and keep it outside the world.",
+      "AttenteSansParts": "Vault locked in this browser: a key is missing (AI thread, game secrets). Secret-role world: players hold no share of the key in force. Import the backup key (Settings › MJ IA › Vault), or connect another GM who has it (it is requested from them). Nothing encrypted is overwritten.",
+      "SecoursRappelSeul": "Secret-role world: no share of the vault key is given to the players (accomplices could pool theirs). The backup key is the ONLY way to recover it if this browser loses it: download it now (Settings › MJ IA › Vault) and keep it outside the world.",
+      "RenouvellementSecours": "Secret-role world: the shares players were keeping stop working. A new vault key is pending: it only comes into force when you download the backup key (Settings › MJ IA › Vault). Until then, the old key stays in force.",
+      "RenouveleeSansParts": "Vault key renewed: everything is resealed. Secret-role world: no share is given to the players; keep the backup key safe.",
       "SecoursRappel": "Backup key never downloaded for the vault key in force: download it (Settings › MJ IA › Vault) and keep it outside the world. Without it, if this browser loses the key and the players' shares are not enough, the hidden Notebook and the AI threads are lost.",
       "Rappel": {
         "Titre": "Download your backup key now",
         "Texte": "A new vault key has just come into force in this browser, and its backup key has not been downloaded. Do it right away and keep the file outside the world: if this browser loses the key and the players' shares are not enough, the hidden Notebook and the AI threads are lost. An older backup file does not contain this key.",
+        "TexteSansParts": "Secret-role world: no share of the key is given to the players. Without this file, if this browser loses the key and no other GM has it, the game in progress and the AI threads are lost.",
         "PlusTard": "Later"
       },
       "Abandonne": "New key created in this browser. Now export the backup key (\"Download the backup key\" button).",

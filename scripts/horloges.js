@@ -35,11 +35,14 @@ const aliasMJ = () => {
 
 // Carte sobre au chat, pour un élément visible des joueurs. Jamais lue par l'IA (drapeau « ia ») : elle reçoit les événements
 // par l'outil ou par moteur.signaler. Un élément CACHÉ n'a pas de carte (un message chuchoté pourrait parvenir à tous les
-// navigateurs) : le MJ actif est prévenu ici même, les autres MJ par le canal, à eux seuls.
+// navigateurs) : le MJ actif est prévenu ici même, les autres MJ par le canal, à eux seuls. Nom et faction dans la langue de
+// l'interface (libellés des modules de contenu, api.horloges.libelles).
 async function carte(el, phrases) {
   if (!phrases.length) return;
+  const nom = L.nomElement(el, texteJoueurs);
+  const faction = L.factionElement(el, texteJoueurs);
   if (!el.visible) {
-    const texte = `${el.nom} : ${phrases.join(" ")}`;
+    const texte = `${nom} : ${phrases.join(" ")}`;
     globalThis.ui?.notifications?.info?.(texte);
     const autres = game.users.filter(u => u.isGM && u.active && u.id !== game.user.id).map(u => u.id);
     if (autres.length) envoyer({ type: "horloges.avis", texte }, autres);
@@ -48,8 +51,8 @@ async function carte(el, phrases) {
   const icone = el.type === "horloge" ? "fa-clock" : el.type === "jauge" ? "fa-gauge-high" : "fa-handshake";
   try {
     await ChatMessage.implementation.create({
-      content: `<div class="lakour-mjia-horloge-carte"><p><i class="fa-solid ${icone}"></i> <strong>${esc(el.nom)}</strong>`
-        + `${el.faction ? ` <small>${esc(el.faction)}</small>` : ""}</p>${phrases.map(p => `<p>${esc(p)}</p>`).join("")}</div>`,
+      content: `<div class="lakour-mjia-horloge-carte"><p><i class="fa-solid ${icone}"></i> <strong>${esc(nom)}</strong>`
+        + `${faction ? ` <small>${esc(faction)}</small>` : ""}</p>${phrases.map(p => `<p>${esc(p)}</p>`).join("")}</div>`,
       speaker: { alias: aliasMJ() },
       flags: { [ID]: { ia: true, horloge: el.id } }
     });
@@ -147,6 +150,14 @@ export function retirer(ref) {
     await ecrireHorloges(liste.filter(e => e.id !== el.id));
     return copie(el);
   });
+}
+
+// Les libellés d'un module de contenu (clé française -> clé i18n) : le Carnet et les cartes de chat les montrent traduits ; la
+// fenêtre ouverte est redessinée. -> le nombre de libellés retenus.
+export function libelles(table) {
+  const n = L.enregistrerLibelles(table);
+  try { game.modules.get(ID)?.api?.horloges?.rafraichir?.("horloges"); } catch { /* pas de fenêtre */ }
+  return n;
 }
 
 export const lister = () => lireHorloges();   // une copie (lireRegistre en rend une)

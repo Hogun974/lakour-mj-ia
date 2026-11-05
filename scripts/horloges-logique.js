@@ -136,7 +136,6 @@ export function trouver(liste, ref) {
 }
 
 const LIBELLES = { horloge: "Horloge", jauge: "Jauge", reputation: "Réputation" };
-const deFaction = el => (el.faction ? ` (${el.faction})` : "");
 const signe = n => (n > 0 ? `+${n}` : String(n));
 
 // Textes vus des joueurs (carte au chat, Carnet) : « t(cle, francais, donnees) » les traduit (horloges.js passe texteJoueurs,
@@ -145,11 +144,36 @@ export const enFrancais = (cle, francais, donnees = {}) => String(francais).repl
 // Les paliers de réputation livrés (PALIERS_REPUTATION, et ceux de même nom des modules des mondes) ont un nom traduit ; un
 // palier nommé autrement (par le MJ, l'IA ou un module) garde son nom.
 const CLES_PALIERS = { "Haï": "Hai", Hostile: "Hostile", Inamical: "Inamical", Neutre: "Neutre", Amical: "Amical", "Honoré": "Honore", "Révéré": "Revere", "Exalté": "Exalte" };
-export const nomPalier = (nom, t = enFrancais) => (CLES_PALIERS[nom] ? t(`LAKOUR_MJIA.Horloges.Paliers.${CLES_PALIERS[nom]}`, nom) : nom);
+
+// Les libellés des modules de contenu (api.horloges.libelles) : nom français d'un élément, d'un seuil ou d'une faction -> clé
+// i18n du module (ex. « Exposition » -> « LAKOUR40K.Jauges.Exposition »). Les données gardent le nom français (c'est lui que
+// l'IA, les outils et les modules connaissent) ; seul l'affichage des joueurs (t = texteJoueurs) le traduit. Le texte pour
+// l'IA (t par défaut : enFrancais) reste en français. Un nom absent du registre s'affiche tel quel.
+const LIBELLES_MONDE = new Map();
+// Ajoute (ou remplace) des libellés : { "Exposition": "LAKOUR40K.Jauges.Exposition", … }. -> le nombre de libellés retenus.
+export function enregistrerLibelles(table = {}) {
+  let n = 0;
+  for (const [francais, cle] of Object.entries(table && typeof table === "object" ? table : {})) {
+    const nom = String(francais ?? "").trim();
+    if (!nom || typeof cle !== "string" || !cle.trim()) continue;
+    LIBELLES_MONDE.set(nom, cle.trim());
+    n++;
+  }
+  return n;
+}
+export const libellesEnregistres = () => Object.fromEntries(LIBELLES_MONDE);
+export const oublierLibelles = () => LIBELLES_MONDE.clear();   // essais
+// Un nom français tel que le voient les joueurs (traduit s'il est au registre).
+export const libelle = (nom, t = enFrancais) => (LIBELLES_MONDE.has(nom) ? t(LIBELLES_MONDE.get(nom), nom) : nom);
+export const nomPalier = (nom, t = enFrancais) => (CLES_PALIERS[nom] ? t(`LAKOUR_MJIA.Horloges.Paliers.${CLES_PALIERS[nom]}`, nom) : libelle(nom, t));
+// Le nom d'un élément (horloge, jauge, réputation) tel que le voient les joueurs ; sa faction de même.
+export const nomElement = (el, t = enFrancais) => libelle(el?.nom ?? "", t);
+export const factionElement = (el, t = enFrancais) => (el?.faction ? libelle(el.faction, t) : "");
 
 // Phrase d'un événement, telle qu'elle paraît dans le chat (sans les notes du MJ, qui peuvent être secrètes).
 export function texteEvenement(el, ev, t = enFrancais) {
-  const d = { nom: el.nom, faction: deFaction(el), max: el.max, valeur: el.valeur, seuil: ev.nom ?? "" };
+  const faction = factionElement(el, t);
+  const d = { nom: nomElement(el, t), faction: faction ? ` (${faction})` : "", max: el.max, valeur: el.valeur, seuil: ev.nom ? nomPalier(ev.nom, t) : "" };
   const T = (cle, francais, plus = {}) => t(`LAKOUR_MJIA.Horloges.Evenements.${cle}`, francais, { ...d, ...plus });
   if (ev.type === "sonne") return T("Sonne", "L'horloge « {nom} »{faction} est pleine ({max}/{max}) : elle sonne !");
   if (ev.type === "pleine") return T("Pleine", "La jauge « {nom} »{faction} est au maximum ({max}/{max}).");
@@ -160,7 +184,7 @@ export function texteEvenement(el, ev, t = enFrancais) {
   }
   if (ev.type === "palier") {
     return T("Palier", "Réputation auprès de {qui} : {avant} → {apres} ({points}).",
-      { qui: el.faction || el.nom, avant: nomPalier(ev.avant, t), apres: nomPalier(ev.apres, t), points: signe(el.valeur) });
+      { qui: faction || d.nom, avant: nomPalier(ev.avant, t), apres: nomPalier(ev.apres, t), points: signe(el.valeur) });
   }
   return "";
 }
@@ -230,7 +254,7 @@ const pourcent = (v, min, max) => (max > min ? arrondi(((v - min) / (max - min))
 export function vuePourFenetre(liste, { mj = false, t = enFrancais } = {}) {
   return (liste ?? []).filter(el => mj || el.visible).map(el => {
     const b = bornes(el);
-    const vue = { id: el.id, nom: el.nom, type: el.type, faction: el.faction, valeur: el.valeur, max: el.max, visible: el.visible,
+    const vue = { id: el.id, nom: nomElement(el, t), type: el.type, faction: factionElement(el, t), valeur: el.valeur, max: el.max, visible: el.visible,
       notes: mj ? el.notes : "", [el.type]: true };
     if (el.type === "horloge") return { ...vue, svg: camembertSVG(el.valeur, el.max), plein: el.valeur >= el.max };
     const p = palierDe(el);

@@ -58,7 +58,8 @@ globalThis.Hooks = { on: (nom, fn) => crochets.set(nom, [...(crochets.get(nom) ?
 globalThis.ui = { notifications: { info() {}, warn() {}, error() {} } };
 globalThis.CONST = { DOCUMENT_OWNERSHIP_LEVELS: { NONE: 0, OWNER: 3 }, TOKEN_DISPOSITIONS: { FRIENDLY: 1, HOSTILE: -1 } };
 globalThis.ChatMessage = { implementation: { create: async d => {
-  const m = document(d);
+  // Comme Foundry (DocumentAuthorField) : l'auteur est l'utilisateur qui crée le message, sauf s'il est donné.
+  const m = document({ author: game.user, ...d });
   chat.push(m);
   // Ce que fait le hook createChatMessage du MJ IA : chaque message est proposé au moteur.
   if (moteurEnEcoute) setImmediate(() => moteurEnEcoute.recevoir(m));

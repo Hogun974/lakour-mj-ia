@@ -79,6 +79,7 @@ export async function reinitialiserCampagne(moteur) {
 
   // 1. Le MJ IA s'arrête et oublie tout (fil de conversation, compteurs, déplacements bloqués).
   clearTimeout(moteur.minuterie);
+  moteur.minuterie = null;
   moteur.attente = [];
   moteur.fil = null;
   await ecrire("seance", { active: false, debut: null, jetons: { entree: 0, cacheLecture: 0, cacheEcriture: 0, sortie: 0 }, cout: 0 });

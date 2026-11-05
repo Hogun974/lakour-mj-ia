@@ -1131,6 +1131,8 @@ OUTILS.push(
         await game.lakourLoups.envoyerSecret(villageois.id, { texte, titre: aliasMJ() });
         return { contenu: `Message secret remis dans le carnet de ${utilisateur.name}.` };
       }
+      // Ailleurs (40k, Warcraft, Fénoir) : un chuchotement. Foundry v14 le livre à TOUS les navigateurs et ne fait que le masquer
+      // (voir l'aube des Veillées, plus bas) : il protège la surprise entre amis, pas contre un joueur qui fouille la console.
       await ChatMessage.implementation.create({
         content: versHTML(texte), speaker: { alias: aliasMJ() },
         whisper: [utilisateur.id, ...game.users.filter(u => u.isGM).map(u => u.id)],
@@ -1582,7 +1584,11 @@ OUTILS.push(
       }
       await api.changerPhase("aube");
       // Le système applique l'aube (morts, révélations, bâtiments) ; ce que chaque rôle a appris est remis en SECRET au seul
-      // joueur concerné (carnet secret, par le socket) : un chuchotement du chat serait livré à tous les navigateurs.
+      // joueur concerné (carnet secret, par le socket) : un chuchotement du chat serait livré à tous les navigateurs (vérifié
+      // dans Foundry 14.370 : le serveur diffuse chaque document de chat créé à tous les sockets, server-backend.mjs,
+      // broadcast.emit("modifyDocument"), sans filtrer les destinataires ; le client se contente de masquer le message). Le
+      // chuchotement ci-dessous n'est qu'un repli pour un système des Veillées trop ancien pour avoir envoyerSecret : il se lit
+      // alors dans la console d'un joueur curieux.
       const { morts = [], revelations = [], messages = [], sauves = [], narrateur = [], narration = [], enAttente = [], annonces = [], deuil = "" } = await api.resoudreNuit();
       for (const m of messages) {
         const acteurId = m.acteurId ?? m.destinataire;

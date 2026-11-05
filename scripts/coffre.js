@@ -31,6 +31,11 @@
 //   lui seul (secours : { [empreinte]: date ISO du dernier téléchargement de la clé de secours qui la contient }) ;
 //   « partCarnet » (client, chez un joueur) : { [monde]: { [userId]: { [idDeCle]: part } } } (les dernières, par id).
 // Chez le MJ actif, tout ce qui touche à la clé ou au coffre passe dans UNE file (enFile) : rien ne s'y croise.
+// Jeu à rôles secrets (système lakour-loups, les Veillées ; coffre-logique.js, partsAuxJoueurs) : AUCUNE part n'est confiée aux
+// joueurs (deux loups alliés réuniraient les leurs et liraient tous les rôles). La clé ne se retrouve que par la clé de secours
+// (rappelée à chaque chargement, dans une fenêtre, tant qu'elle n'est pas téléchargée) et les autres MJ ; un renouvellement n'y
+// entre en vigueur que par sa clé de secours. Un monde de ce système où des joueurs gardent encore des parts (porteurs au
+// trousseau : parts distribuées avant ce changement) renouvelle sa clé une fois (sevrerParts) : ces parts cessent de servir.
 // ATTENTION : un compte joueur sans mot de passe est une part que n'importe qui peut prendre (et des comptes ouverts à tous
 // suffisent à atteindre le seuil) : la protection suppose que chaque compte ait un mot de passe.
 import { ID } from "./constantes.js";
@@ -88,6 +93,9 @@ const comptesJoueurs = () => game.users.filter(u => !u.isGM).map(u => u.id);
 const joueursConnectes = () => game.users.filter(u => u.active && !u.isGM).map(u => u.id);
 const autresMJConnectes = () => game.users.filter(u => u.active && u.isGM && u.id !== game.user.id).map(u => u.id);
 export const disponible = () => horlogesDisponibles(game.system?.id);
+// Des parts sont-elles confiées aux joueurs dans ce monde ? (non dans un jeu à rôles secrets : coffre-logique.js)
+export const partsDistribuees = () => C.partsAuxJoueurs(game.system?.id);
+const sansParts = () => !partsDistribuees();
 const rafraichir = (cle = null) => game.modules?.get(ID)?.api?.horloges?.rafraichir?.(cle);
 function avertir(niveau, cle, donnees = {}, une = "", options = {}) {
   if (une && avertis.has(une)) return;
@@ -184,7 +192,7 @@ const idsManquants = () => [...new Set([lireTrousseau().id, lireCoffre().id, ...
 export function etatCoffre() {
   if (!game.user?.isGM) return { etat: "joueur" };
   const t = lireTrousseau();
-  const commun = { porteurs: (t.porteurs ?? []).length, seuil: t.seuil ?? 2, comptes: comptesJoueurs().length,
+  const commun = { porteurs: (t.porteurs ?? []).length, seuil: t.seuil ?? 2, comptes: comptesJoueurs().length, sansParts: sansParts(),
     renouvellement: t.enCours ? { porteurs: (t.enCours.porteurs ?? []).length, seuil: t.enCours.seuil } : null };
   const manquants = idsManquants();
   if (manquants.length) {
@@ -195,10 +203,11 @@ export function etatCoffre() {
   if (!coffre.donnees) return { ...commun, etat: "vide" };
   return { ...commun, etat: contenuOuvert() ? "ouvert" : "ouverture" };
 }
-// Trop peu de porteurs pour retrouver la clé par les parts : la clé de secours est le seul recours.
+// Trop peu de porteurs pour retrouver la clé par les parts (ou aucune part confiée : rôles secrets) : la clé de secours est le
+// seul recours.
 export const secoursConseille = () => {
   const t = lireTrousseau();
-  return Boolean(t.id) && ((t.porteurs ?? []).length < (t.seuil ?? 2) || comptesJoueurs().length <= 2);
+  return Boolean(t.id) && (sansParts() || (t.porteurs ?? []).length < (t.seuil ?? 2) || comptesJoueurs().length <= 2);
 };
 
 // ------------------------------------------------------------------ le rappel de la clé de secours (chez le MJ actif)
@@ -224,6 +233,8 @@ async function noterSecours(cles, date = new Date().toISOString()) {
 // notification permanente) : si sa clé de secours n'a jamais été téléchargée d'ici, le MJ actif est rappelé à l'ordre, une fois
 // par clé et par chargement. -> true si un rappel est fait.
 function rappelerSecours(fenetre = false) {
+  // Sans parts (rôles secrets), la clé de secours est le seul recours : la fenêtre, à chaque chargement aussi.
+  fenetre ||= sansParts();
   const t = lireTrousseau();
   if (!estMJActif() || !t.empreinte || !cleCourante() || rappeles.has(t.empreinte) || secoursExportee()) return false;
   rappeles.add(t.empreinte);
@@ -231,8 +242,21 @@ function rappelerSecours(fenetre = false) {
     // Hors de la file (on y est) : la fenêtre, et son export, viennent après.
     Promise.resolve().then(fenetreRappel).catch(e => console.error(`${ID} | coffre (rappel de la clé de secours)`, e));
   } else {
-    avertir("warn", "SecoursRappel", {}, "", { permanent: true });
+    avertir("warn", sansParts() ? "SecoursRappelSeul" : "SecoursRappel", {}, "", { permanent: true });
   }
+  return true;
+}
+// Sans parts (rôles secrets), une clé en cours n'entre en vigueur que par sa clé de secours : le MJ actif est invité à la
+// télécharger (la fenêtre, sinon une notification permanente), une fois par clé et par chargement. -> true si un rappel est fait.
+function rappelerRenouvellement() {
+  const t = lireTrousseau();
+  const p = local().enAttente;
+  if (!sansParts() || !estMJActif() || !t.enCours?.empreinte || p?.cle?.id !== t.enCours.id || p.secours || rappeles.has(t.enCours.empreinte)) {
+    return false;
+  }
+  rappeles.add(t.enCours.empreinte);
+  if (fenetreRappel) Promise.resolve().then(fenetreRappel).catch(e => console.error(`${ID} | coffre (rappel de la clé de secours)`, e));
+  else avertir("warn", "RenouvellementSecours", {}, "", { permanent: true });
   return true;
 }
 
@@ -260,7 +284,8 @@ function demanderParts(ids) {
   const mjs = autresMJConnectes();
   if (mjs.length) emettre({ type: "coffre.demandeCle", ids }, mjs);
   const m = metaPour(ids[0]);
-  avertir("warn", "Attente", { joueurs: joueurs.length, seuil: m?.seuil ?? 2 }, `attente:${ids.join(",")}`);
+  // Sans parts (rôles secrets), les joueurs n'en ont pas pour la clé en vigueur (seulement, peut-être, d'anciennes clés).
+  avertir("warn", sansParts() ? "AttenteSansParts" : "Attente", { joueurs: joueurs.length, seuil: m?.seuil ?? 2 }, `attente:${ids.join(",")}`);
   rafraichir();
 }
 
@@ -357,13 +382,14 @@ async function cleRetrouvee() {
   for (const fn of quandDisponible) {
     try { await fn(); } catch (e) { console.error(`${ID} | coffre`, e); }
   }
-  await reprendreRenouvellement();
+  // Sans parts (rôles secrets) : celles que des joueurs gardent encore cessent de servir (sevrerParts).
+  await (sansParts() ? sevrerParts() : reprendreRenouvellement());
   for (const u of joueursConnectes()) envoyerParts(u);
   // Trop peu de porteurs probables (ceux qui ont accusé, et les connectés qui viennent de recevoir leur part), ou une table d'un
-  // ou deux joueurs : la clé de secours est conseillée, une fois par clé.
+  // ou deux joueurs : la clé de secours est conseillée, une fois par clé. Sans parts : le rappel ci-dessous, plus insistant.
   const t = lireTrousseau();
   const probables = new Set([...(t.porteurs ?? []), ...joueursConnectes()]).size;
-  if (probables < (t.seuil ?? 2) || comptesJoueurs().length <= 2) {
+  if (!sansParts() && (probables < (t.seuil ?? 2) || comptesJoueurs().length <= 2)) {
     avertir("warn", "SecoursConseille", { porteurs: probables, seuil: t.seuil ?? 2 }, `secours:${t.id}`);
   }
   // Et, dans tous les mondes : la clé est là mais sa clé de secours n'a jamais été téléchargée d'ici.
@@ -392,11 +418,24 @@ async function renouvelerDansFile({ force = false } = {}) {
     // Une clé en cours remplacée reste connue (son empreinte au trousseau, la clé ici) : elle a pu sceller quelque chose.
     const anciennes = t.enCours ? [{ id: t.enCours.id, seuil: t.enCours.seuil, empreinte: t.enCours.empreinte }, ...(t.anciennes ?? [])] : t.anciennes ?? [];
     await ecrireLocal({ ...l, enAttente: { cle, secours: false }, anciennes: [l.enAttente?.cle, ...(l.anciennes ?? [])] });
-    await game.settings.set(ID, "trousseau", { ...t, enCours: { ...(await meta(cle)), porteurs: [] }, anciennes: anciennes.slice(0, MAX_ANCIENNES) });
+    // sansParts : une clé en cours née sans parts (rôles secrets), que personne n'a reçue.
+    const enCours = { ...(await meta(cle)), porteurs: [], ...(sansParts() ? { sansParts: true } : {}) };
+    await game.settings.set(ID, "trousseau", { ...t, enCours, anciennes: anciennes.slice(0, MAX_ANCIENNES) });
   }
   return reprendreRenouvellement();
 }
 export const renouveler = (options = {}) => enFile(() => renouvelerDansFile(options));
+
+// Sans parts (rôles secrets), des joueurs gardent encore des parts (porteurs de la clé en vigueur, ou clé en cours née quand
+// les parts étaient distribuées : avant ce changement) : la clé est renouvelée, une seule fois (la nouvelle, née sans parts,
+// est reprise si elle existe déjà ici), et n'entre en vigueur qu'avec sa clé de secours. D'ici là l'ancienne reste en vigueur :
+// rien n'est jamais scellé sous une clé que personne ne pourrait reconstituer. Dans la file, chez le MJ actif.
+async function sevrerParts() {
+  const t = lireTrousseau();
+  const enCoursDistribuee = Boolean(t.enCours) && !t.enCours.sansParts;
+  if (!(t.porteurs ?? []).length && !enCoursDistribuee) return reprendreRenouvellement();
+  return renouvelerDansFile({ force: enCoursDistribuee });
+}
 
 // Le renouvellement en cours : ses parts renvoyées aux joueurs connectés ; validé s'il a assez d'accusés (ou sa clé de secours).
 async function reprendreRenouvellement() {
@@ -404,6 +443,14 @@ async function reprendreRenouvellement() {
   const p = local().enAttente;
   if (!t.enCours) return { etat: "fait" };
   if (!p?.cle || p.cle.id !== t.enCours.id) return { etat: "attente", porteurs: (t.enCours.porteurs ?? []).length, seuil: t.enCours.seuil };
+  // Sans parts (rôles secrets) : seule sa clé de secours fait entrer la nouvelle clé en vigueur (jamais des accusés).
+  if (sansParts()) {
+    if (p.secours) return validerRenouvellement();
+    avertir("warn", "RenouvellementSecours", {}, `renouv:${t.enCours.id}`);
+    rappelerRenouvellement();
+    rafraichir();
+    return { etat: "attente", porteurs: 0, seuil: t.enCours.seuil };
+  }
   if ((t.enCours.porteurs ?? []).length >= t.enCours.seuil || p.secours) return validerRenouvellement();
   for (const u of joueursConnectes()) envoyerParts(u);
   // Parts distribuées n / seuil t (les accusés suivent ; la fenêtre du coffre les compte).
@@ -437,7 +484,7 @@ async function validerRenouvellement() {
     anciennes: [{ id: t.id, seuil: t.seuil, empreinte: t.empreinte }, ...(t.anciennes ?? [])].filter(m => m.id !== cle.id).slice(0, MAX_ANCIENNES)
   });
   await ecrireLocal({ courante: cle, enAttente: null, anciennes: [l.courante, ...(l.anciennes ?? [])] });
-  avertir("info", "Renouvelee", { seuil: cle.seuil });
+  avertir("info", sansParts() ? "RenouveleeSansParts" : "Renouvelee", { seuil: cle.seuil });
   rappelerSecours(true);
   rafraichir();
   return { etat: "fait", porteurs: (t.enCours.porteurs ?? []).length, seuil: cle.seuil };
@@ -465,7 +512,8 @@ export function abandonnerCoffre({ confirmer = false } = {}) {
 // Les parts d'un joueur (clé en vigueur, et clé en cours s'il y en a une), à lui seul.
 function envoyerParts(userId) {
   const u = game.users.get(userId);
-  if (!u || u.isGM || !estMJActif()) return 0;
+  // Sans parts (rôles secrets) : aucune, à personne.
+  if (!u || u.isGM || !estMJActif() || sansParts()) return 0;
   const t = lireTrousseau();
   let n = 0;
   for (const cle of [cleCourante(), t.enCours ? cleDe(t.enCours.id) : null]) {
@@ -497,6 +545,8 @@ export function recevoirAccuse({ id } = {}, userId) {
   });
 }
 async function noterPorteur(id, userId) {
+  // Sans parts (rôles secrets), personne ne devient porteur (un « accusé » forgé ne relancerait pas de renouvellement).
+  if (sansParts()) return;
   const t = lireTrousseau();
   if (t.id === id && !(t.porteurs ?? []).includes(userId)) {
     await game.settings.set(ID, "trousseau", { ...t, porteurs: [...(t.porteurs ?? []), userId] });
@@ -722,9 +772,10 @@ export function brancherCoffre() {
     etaisActif = estMJActif();
   });
   // Un compte supprimé ou qui change de rôle : ses parts doivent cesser de servir (la clé en cours est remplacée) ; un compte
-  // créé : la majorité change.
+  // créé : la majorité change. Sans parts (rôles secrets), un joueur n'a rien à faire cesser : seuls un MJ supprimé ou un
+  // changement de rôle (un ancien MJ a pu garder la clé) renouvellent.
   const renouvelerSiActif = force => { if (estMJActif()) renouveler({ force }).catch(e => console.error(`${ID} | coffre`, e)); };
-  Hooks.on("deleteUser", () => renouvelerSiActif(true));
-  Hooks.on("createUser", () => renouvelerSiActif(false));
+  Hooks.on("deleteUser", utilisateur => { if (!sansParts() || utilisateur?.isGM) renouvelerSiActif(true); });
+  Hooks.on("createUser", () => { if (!sansParts()) renouvelerSiActif(false); });
   Hooks.on("updateUser", (_u, changements) => { if (changements && "role" in changements) renouvelerSiActif(true); });
 }
