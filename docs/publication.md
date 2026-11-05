@@ -12,14 +12,37 @@ son manifeste.
       défaut quel que soit son nom.
 - [x] Les scripts d'infrastructure privée (`outils/reconstruire-lakour-v14.sh`, `outils/serveur/`) et le plan de
       travail interne sont sortis du dépôt, et le pseudonyme retiré des essais (commit « Avant publication »).
-- [ ] Reste une phrase d'infrastructure dans le **guide installé dans chaque monde** (`scripts/guide.js`, section
-      « Sauvegardes et dépannage », recopiée dans `docs/guide-utilisation.md` par `npm run ecrire-guide`) : « Les
-      mondes sont sauvegardés chaque nuit à 4 h 30 sur le serveur (14 jours) ». À reformuler pour un inconnu (« faites
-      des sauvegardes de votre monde ») ou à retirer, puis relancer `npm run ecrire-guide`.
+- [x] La phrase d'infrastructure du **guide installé dans chaque monde** (`scripts/guide.js` et `scripts/guide-en.js`,
+      section « Sauvegardes et dépannage ») est reformulée pour un inconnu (« Sauvegarde ton monde régulièrement… ») ;
+      `npm run ecrire-guide` relancé le 5 novembre 2026 : `docs/guide-utilisation*.md` sont à jour (essai `guide`).
 - [ ] L'historique git porte l'ancien titre « (Claude / ChatGPT) » et des messages de commit avec les noms des modèles :
       sans gravité, mais le savoir avant de rendre l'historique public.
-- [ ] Aucune adresse IP privée, aucune clé, aucun mot de passe nulle part (`git grep -nE "sk-|172\.|192\.168"` doit ne
-      rien rendre hors `docs/empaqueter-monde.md`, qui décrit le filtre).
+- [x] Aucune adresse IP privée, aucune clé, aucun mot de passe nulle part : vérifié le 5 novembre 2026 avec
+      `git grep -nE "172\.|192\.168|AMP|ampdata|sk-|4 h 30|Kuma|Forgejo|forgejo"` (hors
+      `docs/empaqueter-monde.md`, qui décrit le filtre). Ce motif rend encore des **faux positifs** sans danger : `AMP`
+      dans `CHAMPS_*`, `TAMPON_S`, « CAMP » ; `sk-` dans des noms d'icônes (`mask-`, `flask-`, `tusk-`…), le filtre de
+      `outils/empaqueter-monde.mjs` et les textes d'exemple `sk-ant-…` / `sk-…` du champ de clé (`templates/config-ia.hbs`).
+      Motif plus strict, qui ne rend rien le 5 novembre 2026 : `git grep -nwE "172\.[0-9]+|192\.168|ampdata|Kuma|[Ff]orgejo|4 h 30"
+      -- ':!outils/game-icons' ':!docs/publication.md' ':!docs/empaqueter-monde.md'` (les icônes SVG contiennent des
+      nombres comme `172.31`).
+- [x] **Tutoriels** pour un inconnu, de zéro à la première séance : `TUTORIEL.md` (français) et `TUTORIAL.md` (anglais),
+      liés en tête des deux README.
+- [x] **Le monde 40k reste privé** : plus aucun lien vers `lakour-w40k` dans les README et `docs/` ; le tableau des mondes
+      des README ne présente plus que Warcraft, les Veillées et Fénoir (avec leur lien), plus une phrase neutre sur le
+      système `impmal`. Exemples de `docs/fetes.md` et `docs/traduction.md` passés sur Warcraft ;
+      `docs/empaqueter-monde.md` ne cite plus que les trois mondes publics.
+- [ ] Restent des **mentions sans lien** du 40k, à décider : le guide installé dans chaque monde (`scripts/guide.js`,
+      `scripts/guide-en.js`, donc `docs/guide-utilisation*.md`) présente encore « Les trois mondes » avec une section
+      Warhammer 40 000 / `lakour-40k` et des titres « (40k et Warcraft) » : c'est du code livré dans les mondes, non
+      modifié ici (le changer = nouvelle version du guide, `VERSION_GUIDE`, et l'essai `guide`). Aussi : les libellés
+      « 40k » de `docs/compagnons.md`, `docs/tour-par-tour.md`, `docs/voix-et-ecoute.md`, `docs/survie.md`,
+      `CHANGELOG.md`, `lang/*.json` (aide du pilote), `assets/sons/index.json` ; la configuration `lakour-40k` /
+      `lakour-w40k` de `outils/empaqueter-monde.mjs` (code, gardée pour le monde privé) et quelques commentaires
+      `lakour-40k` de `outils/` ; les adresses `lakour-w40k` qui servent de données d'essai dans
+      `essais/empaqueter-monde.test.mjs`. Les commentaires qui nommaient le dépôt `lakour-w40k` (outils, essai `parite`,
+      `lier-modules.ps1`) citent désormais les mondes publics.
+- [x] **Transparence** : les deux README disent que le code et les textes ont été écrits avec l'aide d'une IA (Claude,
+      d'Anthropic) et relus par l'auteur.
 - [ ] `.gitmodules` des quatre mondes pointe sur `../lakour-mj-ia` : il faut que ce dépôt soit public **avant** la
       première release d'un monde, sinon `actions/checkout` (`submodules: recursive`) échoue chez eux.
 
@@ -47,6 +70,8 @@ son manifeste.
 
 - [ ] Poser dans `docs/captures/` les PNG listés dans `docs/captures/LISEZ-MOI.md` (au minimum `console.png`,
       `plateau.png`, `carnet.png`, `tour-par-tour.png`, qui font le bandeau des README et la couverture du manifeste).
+- [ ] Les tutoriels attendent aussi `installer-manifeste.png`, `config-ia.png`, `validation.png`, `personnalites.png`,
+      `coffre.png` et `compagnons.png` (même liste).
 - [ ] Vérifier qu'aucune capture ne montre un nom de joueur réel, une clé d'API (même partielle), une adresse de serveur
       dans la barre du navigateur, un chemin de machine.
 
@@ -64,10 +89,12 @@ son manifeste.
 
 - [ ] `package-lock.json` à jour après les changements de `package.json` (`npm install`, puis `npm ci` doit passer :
       c'est ce que fait le workflow, avec Node 24).
-- [ ] `npm run essais` vert (466 essais au moment d'écrire ces lignes).
+- [ ] `npm run essais` vert (492 essais dans 72 fichiers, tous verts le 5 novembre 2026).
+- [ ] `module.json` déclare `"verified": "14.369"`, alors que les tutoriels et les README disent « testé avec 14.370 » :
+      passer `compatibility.verified` à `14.370` à la prochaine version (et dans le formulaire du catalogue).
 - [ ] La version du tag doit être **celle de `module.json`** et avoir sa section dans `CHANGELOG.md` (le workflow en fait
       le texte de la release). La section « Non publié » du CHANGELOG doit être renommée en version datée au moment de
-      publier (par exemple `0.40.1`, la version servie sur LaKour au 2026-11-05 ; mettre alors
+      publier (par exemple `0.40.1`, la version en service au 2026-11-05 ; mettre alors
       `"version": "0.40.1"` dans `module.json`). Pour publier :
 
   ```bash
@@ -149,7 +176,8 @@ Ensuite, à chaque version, ajouter la nouvelle version depuis la page d'adminis
 | Le guide d'utilisation complet | `https://github.com/Hogun974/lakour-mj-ia/blob/HEAD/docs/guide-utilisation.md` |
 | Signaler un bogue | `https://github.com/Hogun974/lakour-mj-ia/issues` |
 | Le journal des versions | `https://github.com/Hogun974/lakour-mj-ia/blob/HEAD/CHANGELOG.md` |
-| Les mondes | `https://github.com/Hogun974/lakour-w40k`, `https://github.com/Hogun974/lakour-warcraft`, `https://github.com/Hogun974/lakour-veillees` |
+| Le tutoriel | `https://github.com/Hogun974/lakour-mj-ia/blob/HEAD/TUTORIEL.md` (anglais : `TUTORIAL.md`) |
+| Les mondes | `https://github.com/Hogun974/lakour-warcraft`, `https://github.com/Hogun974/lakour-veillees`, `https://github.com/Hogun974/lakour-fenoir` |
 
 Ordre d'installation chez un joueur-MJ : Foundry 14 → le système du monde choisi → le module de contenu du monde et
 `lakour-mj-ia` → le monde vierge du dépôt du monde (ou un monde neuf, où le module de contenu propose d'installer son

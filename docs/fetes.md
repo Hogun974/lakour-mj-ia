@@ -1,7 +1,7 @@
 # Fêtes de saison — le socle du moteur (MJ IA 0.36.0)
 
 Le moteur `lakour-mj-ia` connaît un petit calendrier de fêtes populaires. Il ne célèbre rien de lui-même : **chaque monde
-décline les fêtes qui lui vont** (40k, Warcraft, Veillées) en enregistrant une *déclinaison* (nom, description, consigne au
+décline les fêtes qui lui vont** (Warcraft, Veillées, Fénoir…) en enregistrant une *déclinaison* (nom, description, consigne au
 narrateur, décor, liens). Une fête que le monde ne décline pas n'existe pas pour lui : ni décor, ni carte, ni ligne pour l'IA.
 
 Code : `scripts/fetes-logique.js` (logique pure, testée), `scripts/fetes.js` (branchement Foundry), `styles/mj-ia.css` (décor),
@@ -69,17 +69,17 @@ Pas d'autre fête au calendrier : pas de commémoration historique ou religieuse
 // Dans le module du monde : à charger au niveau du module (ou dans init/setup), PAS dans « ready ».
 // À faire dans CHAQUE navigateur (joueurs compris) : le registre vit en mémoire, il n'est pas écrit dans le monde.
 Hooks.once("lakour-mj-ia.pret", api => {
-  if (game.system.id !== "impmal") return;   // le module n'est actif que dans son monde, mais restez prudents
+  if (game.system.id !== "dnd5e") return;    // le module n'est actif que dans son monde, mais restez prudents
   api.fetes?.enregistrer({
-    id: "vigile-des-cierges",                // minuscules, chiffres, tirets ; unique
+    id: "treve-des-presents",                // minuscules, chiffres, tirets ; unique
     fete: "noel",                            // id du calendrier ci-dessus
-    nom: "Vigile des Cierges",               // la fête à la mode du monde (défaut : le nom du calendrier)
-    description: "Dans toute la Kour, les ruches allument un cierge par fidèle mort pour l'Empereur.",
-    consigne: "Les ruches de la Kour allument des cierges ; les prêcheurs bénissent les foules",
-    decor: { palette: "or", ornements: ["bougies", "neige"] },
+    nom: "La Trêve des Présents",            // la fête à la mode du monde (défaut : le nom du calendrier)
+    description: "Au Carrefour, l'Épineux du relais ploie sous les grelots ; Horde et Alliance échangent des cadeaux.",
+    consigne: "C'est la Trêve des Présents dans les Tarides : Horde et Alliance échangent des cadeaux",
+    decor: { palette: "sapin", ornements: ["guirlandes", "bougies"] },
     contenu: [
-      { uuid: "Compendium.lakour-40k.journaux.JournalEntry.xxxxxxxxxxxxxxxx", nom: "La Vigile des Cierges" },
-      "Compendium.lakour-40k.tables.RollTable.yyyyyyyyyyyyyyyy"
+      { uuid: "Compendium.lakour-warcraft.objets.Item.xxxxxxxxxxxxxxxx", nom: "Grelot de l'Épineux" },
+      "Compendium.lakour-warcraft.tables.RollTable.yyyyyyyyyyyyyyyy"
     ]
   });
 });

@@ -2,7 +2,7 @@
   "name": "lakour-mj-ia",
   "private": true,
   "type": "module",
-  "description": "Moteur commun La Kour : le module Foundry « MJ IA » (racine du dépôt) et l'outillage partagé par les trois mondes (lakour-w40k, lakour-warcraft, lakour-veillees).",
+  "description": "Moteur commun La Kour : le module Foundry « MJ IA » (racine du dépôt) et l'outillage partagé par les mondes (lakour-warcraft, lakour-veillees, lakour-fenoir).",
   "scripts": {
     "essais": "node --test \"essais/**/*.test.mjs\"",
     "embarquer": "node outils/embarquer-sdk.mjs",

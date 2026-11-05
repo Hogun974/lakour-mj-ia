@@ -3,6 +3,9 @@
 *English version: [README.en.md](README.en.md). Projet francophone : code, commentaires, essais et documentation sont
 en français.*
 
+> **Premiers pas : [le tutoriel, de zéro à la première séance](TUTORIEL.md)** (installation, clé d'API, budget, première
+> séance, dépannage). *Getting started in English: [TUTORIAL.md](TUTORIAL.md).*
+
 <p align="center">
   <img src="docs/captures/console.png" alt="La console du MJ IA et une narration dans le chat" width="49%">
   <img src="docs/captures/plateau.png" alt="Une carte créée par le MJ IA, jetons posés avant la narration" width="49%">
@@ -21,10 +24,11 @@ cerveau et sa propre voix. Un MJ humain reste aux commandes : en mode *validatio
 modifie le monde ou coûte de l'argent attend son accord ; un budget par séance arrête l'IA ; un fournisseur *factice*
 permet de tout essayer sans clé ni coût.
 
-Le module est le **moteur commun** des quatre mondes de La Kour (Warhammer 40 000 avec *Imperium Maledictum*, Warcraft
-avec D&D 5e, *Les Veillées de Brumecombe* et Fénoir), et il apporte aussi des outils **sans IA** : tour par tour guidé,
-Carnet de campagne, coffre chiffré, histoires des personnages, fêtes de saison. Dans les autres systèmes de jeu, il
-fonctionne en mode générique (narration, cartes, votes, mémoire ; les joueurs lancent eux-mêmes leurs dés).
+Le module est le **moteur commun** des mondes de La Kour (Warcraft avec D&D 5e, *Les Veillées de Brumecombe* et
+Fénoir), et il apporte aussi des outils **sans IA** : tour par tour guidé, Carnet de campagne, coffre chiffré, histoires
+des personnages, fêtes de saison. Il sait aussi travailler avec le système *Imperium Maledictum* (`impmal`). Dans les
+autres systèmes de jeu, il fonctionne en mode générique (narration, cartes, votes, mémoire ; les joueurs lancent
+eux-mêmes leurs dés).
 
 ## Ce que ça coûte, ce que ça envoie
 
@@ -84,13 +88,13 @@ aucune clé ; les compagnons passent alors en mode simple (sans IA) et la partie
 
 | Quoi | Version | Où |
 |---|---|---|
-| Foundry VTT | **14** (vérifié avec 14.369) | [foundryvtt.com](https://foundryvtt.com) |
+| Foundry VTT | **14** (testé avec 14.370) | [foundryvtt.com](https://foundryvtt.com) |
 | Un navigateur récent pour le MJ | Chrome, Edge ou Firefox à jour | Le coffre utilise WebCrypto, la voix WebAudio et AudioWorklet. |
 | Une clé d'API | facultatif | [Anthropic](https://console.anthropic.com) pour Claude ; [OpenAI](https://platform.openai.com) pour ChatGPT, et dans tous les cas pour la voix, l'écoute et les images. |
 | La voix intégrée de Foundry (A/V) | facultatif | Mode *Audio seulement*, pour l'écoute des joueurs et les salons vocaux des Veillées. |
 
 Modules **facultatifs**, reconnus par le MJ IA s'ils sont actifs, jamais requis : **Sequencer** et **JB2A** (animations),
-**FXMaster** (météo), **Calendaria** (date, heure et météo du jour, 40k et Warcraft), **Item Piles** (butin et marchands,
+**FXMaster** (météo), **Calendaria** (date, heure et météo du jour, D&D 5e et Imperium Maledictum), **Item Piles** (butin et marchands,
 Warcraft), **3D Canvas** (`levels-3d-preview`, vue en relief).
 
 ## Installation
@@ -105,7 +109,8 @@ https://github.com/Hogun974/lakour-mj-ia/releases/latest/download/module.json
 
 Puis, dans le monde : **Réglages › Gérer les modules**, cocher *La Kour – MJ IA*. Au premier chargement, le module installe
 dans le monde son **guide d'utilisation** (deux journaux : guide du MJ, caché aux joueurs, et guide des joueurs ; en
-anglais dans un monde anglais) et propose de configurer une clé. Chapeau de magicien dans la barre de gauche : la console.
+anglais dans un monde anglais). La clé se règle ensuite dans *Réglages › MJ IA › Configurer*. Chapeau de magicien dans la
+barre de gauche : la console. Pas à pas, de l'installation à la première séance : [`TUTORIEL.md`](TUTORIEL.md).
 
 ### 2. Depuis les sources
 
@@ -129,12 +134,14 @@ vierge prêt à jouer.
 
 | Monde | Système | Module de contenu | Dépôt |
 |---|---|---|---|
-| **La Kour 40k** — le sous-secteur de la Kour, Warhammer 40 000 | *Imperium Maledictum* (`impmal`) | `lakour-40k` | [github.com/Hogun974/lakour-w40k](https://github.com/Hogun974/lakour-w40k) |
 | **La Kour Warcraft** — Azeroth pour D&D 5e (règles 2024) | `dnd5e` | `lakour-warcraft` | [github.com/Hogun974/lakour-warcraft](https://github.com/Hogun974/lakour-warcraft) |
 | **Les Veillées de Brumecombe** — déduction sociale, famille du loup-garou | `lakour-loups` (fourni) | `lakour-veillees` | [github.com/Hogun974/lakour-veillees](https://github.com/Hogun974/lakour-veillees) |
-| **Fénoir** — survie à La Réunion au jour zéro d'une épidémie | `lakour-survie` | `lakour-fenoir` | quatrième monde, en préparation |
+| **Fénoir** — survie à La Réunion au jour zéro d'une épidémie | `lakour-survie` (fourni) | `lakour-fenoir` | [github.com/Hogun974/lakour-fenoir](https://github.com/Hogun974/lakour-fenoir) |
 
 Aux Veillées, le module est **requis même sans IA** : c'est lui qui tient le coffre chiffré des secrets de la partie.
+
+Le moteur a aussi un adaptateur pour le système *Imperium Maledictum* (`impmal`) : fiches, jets, création de personnage,
+tour par tour et Carnet de campagne y fonctionnent comme en D&D 5e.
 
 **Mode générique.** Dans un système sans adaptateur dédié, le MJ IA raconte, crée des cartes et des journaux, lance les
 ambiances, mène votes et choix secrets, tient sa mémoire, et demande aux joueurs de lancer eux-mêmes leurs dés en
@@ -211,19 +218,19 @@ MJ IA (`scripts/coffre.js`, `coffre-logique.js`) protège ce qui doit rester sec
   page ; et rien du tout si les comptes joueurs n'ont **pas de mot de passe** (une part sans mot de passe est une part que
   n'importe qui peut prendre).
 
-### Carnet de campagne, horloges, enquêtes, contacts (40k, Warcraft)
+### Carnet de campagne, horloges, enquêtes, contacts (D&D 5e, Imperium Maledictum)
 
 Livre ouvert dans la barre de gauche. **Horloges** à segments (à la manière de *Blades in the Dark*) qui sonnent quand
-elles sont pleines, **jauges** à seuils (l'Exposition en 40k), **réputations** de faction de −100 à +100 lues en paliers ;
+elles sont pleines, **jauges** à seuils, **réputations** de faction de −100 à +100 lues en paliers ;
 **enquêtes** selon la règle des trois indices (conclusions, indices, cochés quand ils sont trouvés, alerte quand une
 conclusion en a moins de trois) ; **contacts** avec attitude, dettes et demandes. L'œil montre ou cache chaque élément aux
 joueurs ; une carte paraît au chat quand une horloge sonne ou qu'un palier est franchi, et le MJ IA en tire une
 conséquence. Les modules des mondes y branchent leurs propres éléments (`api.horloges`, `api.enquetes`, `api.contacts`) ;
-`api.horloges.libelles({ "Exposition": "LAKOUR40K.Jauges.Exposition", … })`, appelé dans chaque navigateur, donne la clé
+`api.horloges.libelles({ "Réputation du Carrefour": "MONMODULE.Factions.Carrefour", … })`, appelé dans chaque navigateur, donne la clé
 de traduction d'un nom français (élément, seuil, faction) : le Carnet et les cartes du chat l'affichent dans la langue de
 l'interface, tandis que l'IA et les données gardent le nom français.
 
-### Tour par tour (40k, Warcraft)
+### Tour par tour (D&D 5e, Imperium Maledictum)
 
 Un panneau (bouclier) qui s'appuie sur le combat de Foundry sans le remplacer, **avec ou sans IA** : l'étape suivante est
 écrite en haut et le bouton qui la fait est encadré de pointillés. Préparation et initiative avec la vraie méthode du
@@ -239,7 +246,7 @@ dessiné en SVG vue de dessus (aucun service d'images), murs, portes, lumières,
 natives (texte de récit, téléportation, pause, obscurité), épingles vers les journaux, étages avec escaliers, et un
 index des pièces qui permet de poser un jeton « près de la forge ». Style plat ou en relief (3D Canvas).
 
-### Histoires des personnages (40k, Warcraft, Fénoir)
+### Histoires des personnages (D&D 5e, Fénoir, Imperium Maledictum)
 
 Un journal « Histoire de <nom> » en quatre pages par personnage et par compagnon (qui il est, son histoire, ce qu'il garde
 pour lui, chapitres datés), écrit par le MJ IA après deux ou trois questions au joueur, ou créé vide avec des questions
@@ -249,7 +256,7 @@ pour l'écrire soi-même (bouton **Histoire** de la fiche, sans IA).
 
 Un calendrier des fêtes populaires (Nouvel An, Saint-Valentin, Carnaval, Pâques, Fête de la musique, Fête nationale,
 Halloween, Noël ; et, pour La Réunion : 20 décembre, letchis, Dipavali, Cavadee, Nouvel An chinois), que chaque monde
-**décline** à sa manière (en 40k, une veillée de l'Imperium plutôt que Noël). Carte du jour, décor léger coupable par
+**décline** à sa manière (à Warcraft, la Trêve des Présents plutôt que Noël). Carte du jour, décor léger coupable par
 joueur, allusion naturelle du narrateur. Réglage automatique, aucune, ou fête forcée. Contrat des mondes :
 [`docs/fetes.md`](docs/fetes.md).
 
@@ -308,18 +315,19 @@ reprenne où il en était ; il est chiffré avec la clé du coffre. La **mémoir
 
 ## Langues
 
-L'**interface** du module existe en français et en anglais (`lang/fr.json`, `lang/en.json`). Les **textes** du MJ IA
-(consignes au modèle, cartes au chat, personnalités) et les contenus des mondes sont en **français** ; l'IA raconte en
-français. Le **guide d'utilisation** existe dans les deux langues (`scripts/guide.js` et sa traduction `scripts/guide-en.js`) :
-un monde dont le module de contenu est la variante `-en` (ou, sans module de contenu, dont l'interface est en anglais)
-reçoit le guide anglais, et le guide déjà installé change de langue avec le monde. Une version anglaise des contenus
-est en cours, par des modules `-en` propres à chaque monde ; elle n'est pas encore publiée. Le projet lui-même est francophone :
-code, commentaires, essais et documentation sont écrits en français.
+L'**interface** du module existe en français et en anglais (`lang/fr.json`, `lang/en.json`). L'IA raconte dans la
+**langue du monde** : en anglais quand le module de contenu actif est la variante `-en` (ou, sans module de contenu,
+quand l'interface de Foundry est en anglais), en français sinon ; ses consignes internes restent en français. Le **guide
+d'utilisation** existe dans les deux langues (`scripts/guide.js` et sa traduction `scripts/guide-en.js`), selon la même
+règle, et le guide déjà installé change de langue avec le monde. Chaque monde a son module de contenu anglais (`-en`) :
+voir le dépôt du monde. Le tutoriel existe en français ([`TUTORIEL.md`](TUTORIEL.md)) et en anglais
+([`TUTORIAL.md`](TUTORIAL.md)). Le projet lui-même est francophone : code, commentaires, essais et documentation sont
+écrits en français.
 
 ## Essais
 
 ```bash
-npm run essais      # 438 essais Node dans 68 fichiers, ~40 s, aucun réseau, aucune clé, aucun coût
+npm run essais      # 492 essais Node dans 72 fichiers, ~50 s, aucun réseau, aucune clé, aucun coût
 ```
 
 Les essais éprouvent la logique pure du moteur hors de Foundry (adaptateurs, outils, compagnons, pilote, tour par tour,
@@ -334,6 +342,7 @@ dépôts de monde l'appellent à la main.
 ## Structure du dépôt
 
 ```
+TUTORIEL.md, TUTORIAL.md   le tutoriel de prise en main (français, anglais)
 module.json, scripts/, templates/, styles/, lang/, assets/sons/, vendor/   le module Foundry (racine du dépôt)
 scripts/        main.js, moteur.js (boucle du MJ IA), contexte.js (ce qui est envoyé à l'IA), outils*.js (outils de l'IA),
                 adaptateurs.js (ce qui dépend du système), fournisseurs/ (anthropic, openai, factice),
@@ -364,6 +373,12 @@ Les retours et contributions sont bienvenus, en français de préférence (l'ang
   mutations** ; `npm run essais` doit rester vert, ici puis dans chaque monde après mise à jour du sous-module.
 - **Une traduction** : les chaînes d'interface sont dans `lang/` ; les textes du MJ IA passent par les modules `-en`.
 - Ne modifiez pas `vendor/` ni `assets/sons/` à la main : `npm run embarquer` et `npm run fabriquer-sons` les régénèrent.
+
+## Transparence
+
+Ce projet, code comme textes (guides, documentation, personnalités, consignes au modèle), a été écrit avec l'aide d'une
+IA, **Claude**, d'Anthropic, et relu par l'auteur, qui en répond. L'historique git en garde la trace (mentions
+`Co-Authored-By`).
 
 ## Crédits
 
@@ -398,6 +413,6 @@ l'archive avec `LICENSE`) :
 - les SDK embarqués de `vendor/` (`@anthropic-ai/sdk` et `openai`) : **Apache-2.0** ;
 - les icônes de `outils/game-icons/` (game-icons.net, hors archive du module) : **CC BY 3.0**.
 
-Les mondes de La Kour (`lakour-w40k`, `lakour-warcraft`, `lakour-veillees`, `lakour-fenoir`) ont leur propre dépôt et
+Les mondes de La Kour (`lakour-warcraft`, `lakour-veillees`, `lakour-fenoir`) ont leur propre dépôt et
 leur propre licence (MIT pour le code, CC BY-NC-SA 4.0 pour les textes et les images). Foundry VTT est une marque de
 Foundry Gaming, LLC ; ce module n'est ni affilié à Foundry Gaming ni approuvé par elle.

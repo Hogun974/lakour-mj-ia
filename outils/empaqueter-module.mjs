@@ -2,7 +2,7 @@
 // (celui que Foundry lit à l'adresse « releases/latest/download/module.json ») et une archive lakour-mj-ia.zip
 // installable (fichiers à la racine du zip, comme Foundry l'attend). Appelé par .github/workflows/release.yml à chaque
 // tag « v<version> », et utilisable à la main (`npm run empaqueter`). Même forme que l'empaqueteur des dépôts de monde
-// (lakour-w40k/outils/empaqueter-module.mjs). Aucune dépendance : l'archive zip est écrite ici même (déflate et CRC-32
+// (lakour-warcraft/outils/empaqueter-module.mjs, par exemple). Aucune dépendance : l'archive zip est écrite ici même (déflate et CRC-32
 // de node:zlib).
 //
 // 1. lit module.json, vérifie que sa version est celle demandée (le tag fait foi, le manifeste doit déjà la porter : on

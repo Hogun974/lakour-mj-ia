@@ -1,5 +1,5 @@
 # Relie les modules et systèmes d'un dépôt La Kour dans le Foundry LOCAL (jonctions, pas besoin d'être administrateur).
-# - lancé depuis un dépôt de monde (lakour-w40k, lakour-warcraft, lakour-veillees) : chaque dossier de modules\
+# - lancé depuis un dépôt de monde (lakour-warcraft, lakour-veillees, lakour-fenoir…) : chaque dossier de modules\
 #   (dont le sous-module modules\lakour-mj-ia) va dans Data\modules, et chaque dossier de systems\ dans Data\systems ;
 # - lancé depuis le dépôt lakour-mj-ia lui-même : sa racine (le module) devient Data\modules\lakour-mj-ia.
 # Usage (à la racine du dépôt) : powershell -File modules\lakour-mj-ia\outils\lier-modules.ps1 [-DataPath C:\FoundryDev]

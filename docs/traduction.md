@@ -1,11 +1,11 @@
 # Traduction des modules de contenu (français → anglais)
 
-Les quatre modules de contenu La Kour (`lakour-40k`, `lakour-warcraft`, `lakour-veillees`, `lakour-fenoir`) sont fabriqués
+Les modules de contenu La Kour (`lakour-warcraft`, `lakour-veillees`, `lakour-fenoir`…) sont fabriqués
 de la même façon : sources `contenu/*.mjs` → fabricant `outils/fabriquer-<monde>.mjs` → `src/<pack>/*.json` → `packs/`
 (LevelDB, CLI Foundry). Leur interface (`lang/fr.json`, `lang/en.json`) est bilingue, mais Foundry ne sait pas localiser
 les **documents** d'un compendium (journaux, objets, acteurs, tables, scènes, dossiers, étiquettes des packs).
 
-La méthode retenue : chaque module produit un **second module anglais `<id>-en`** (ex. `lakour-40k-en`), engendré par
+La méthode retenue : chaque module produit un **second module anglais `<id>-en`** (ex. `lakour-warcraft-en`), engendré par
 le même fabricant à partir des mêmes sources et d'un **dictionnaire de traduction**, avec :
 
 - les **mêmes `_id`** de documents (et les mêmes `_key`) : les liens `@UUID[Compendium.<id>.<pack>.<Type>.<_id>]`, les
@@ -47,26 +47,26 @@ Options : `module` (portée des drapeaux), `exclure` (clés en plus), `champs` (
 `heuristique: false` (seulement `champs`), `ignorerPacks`. Une entrée **ajoutée à la main** dans un dictionnaire sur un
 chemin non extrait est appliquée quand même.
 
-## Le pilote : `lakour-40k` → `lakour-40k-en`
+## Un exemple complet : `lakour-warcraft` → `lakour-warcraft-en`
 
-Dans `lakour-w40k` :
+Dans `lakour-warcraft` :
 
 ```
-node outils/fabriquer-40k.mjs --extraire    # écrit / met à jour modules/lakour-40k/contenu/en/<pack>.json
-npm run fabriquer-40k-en                    # = --langue en : engendre modules/lakour-40k-en/ en entier, puis contrôle le contrat
-npm run essais                              # essais/traduction-40k.test.mjs : mêmes _id, aucun uuid vers lakour-40k, balises, manifeste
-node modules/lakour-mj-ia/outils/valider-foundry.mjs modules/lakour-40k-en impmal <dossier contenant common/>
-node outils/empaqueter-module.mjs --module lakour-40k-en --version <v> --sortie dist   # lakour-40k-en.zip + lakour-40k-en.json
+node outils/fabriquer-warcraft.mjs --extraire   # écrit / met à jour modules/lakour-warcraft/contenu/en/<pack>.json
+npm run fabriquer-warcraft-en                   # = --langue en : engendre modules/lakour-warcraft-en/ en entier, puis contrôle le contrat
+npm run essais                                  # essais/traduction-warcraft.test.mjs : mêmes _id, aucun uuid vers lakour-warcraft, manifeste
+node modules/lakour-mj-ia/outils/valider-foundry.mjs modules/lakour-warcraft-en dnd5e <dossier contenant common/>
+node outils/empaqueter-module.mjs --module lakour-warcraft-en --version <v> --sortie dist   # lakour-warcraft-en.zip + lakour-warcraft-en.json
 ```
 
-`modules/lakour-40k-en/` contient : `module.json` (engendré de `contenu/en/module.json` + manifeste français), `src/` et
-`packs/` traduits, copies de `lang/`, `scripts/`, `styles/`, `templates/`, `CREDITS.md` et `assets/` (les JSON des assets
-sont récrits `modules/lakour-40k/` → `modules/lakour-40k-en/` ; `assets/cartes/plans.json` est **refait** à partir des
-plans traduits des scènes, pour le contrat du contenu). Le workflow de release fabrique et publie les deux modules ;
-l'adresse stable du manifeste anglais est `releases/latest/download/lakour-40k-en.json`.
+`modules/lakour-warcraft-en/` contient : `module.json` (engendré de `contenu/en/module.json` + manifeste français), `src/`
+et `packs/` traduits, copies de `lang/`, `scripts/`, `templates/`, `CREDITS.md` et `assets/` (les JSON des assets sont
+récrits `modules/lakour-warcraft/` → `modules/lakour-warcraft-en/` ; `assets/cartes/plans.json` est **refait** à partir
+des plans traduits des scènes, pour le contrat du contenu). Le workflow de release fabrique et publie les deux modules ;
+l'adresse stable du manifeste anglais est `releases/latest/download/lakour-warcraft-en.json`.
 
 Le pack `aventures` (documents Adventure, copies des autres packs) n'a pas de dictionnaire : il est emballé **après** la
-traduction, à partir des copies anglaises (`paquetsAventures(documents, { module: "lakour-40k-en", langue: "en" })`) ; ses
+traduction, à partir des copies anglaises (`paquetsAventures(documents, { module: "lakour-warcraft-en", langue: "en" })`) ; ses
 textes propres (légende, résumé, phrase d'import, titres des listes) sont dans `contenu/aventures-paquets.mjs`, par
 langue, et son titre vient du drapeau `aventure` des cartes traduites (celui que l'installateur compare au dossier).
 
@@ -76,11 +76,10 @@ Un fichier par pack, `modules/<id>/contenu/en/<pack>.json` :
 
 ```json
 {
-  "talents/b6WANqKurSgyjPAy": {
-    "_nom": "Accès aux archives",
-    "name": { "fr": "Accès aux archives", "en": "Archive Access" },
-    "system.notes.player": { "fr": "<p>Vous savez où chercher. … <strong>+1 DR</strong> …</p>", "en": "<p>You know where to look. … <strong>+1 SL</strong> …</p>" },
-    "effects.qYEVe6XBYR7v9tHi.name": { "fr": "Accès aux archives (+1 DR)", "en": "Archive Access (+1 SL)" }
+  "dons/OpTlmxLn3pVRr4ey": {
+    "_nom": "Rescapé du Fléau",
+    "name": { "fr": "Rescapé du Fléau", "en": "Scourge Survivor" },
+    "system.description.value": { "fr": "<p>… Vous ajoutez <strong>1d4</strong> à vos <strong>jets de sauvegarde contre la mort</strong> …</p>", "en": "<p>… You add <strong>1d4</strong> to your <strong>Death Saving Throws</strong> …</p>" }
   }
 }
 ```
@@ -91,43 +90,43 @@ Un fichier par pack, `modules/<id>/contenu/en/<pack>.json` :
 3. Un texte qui revient (objet embarqué dans un PNJ, nom d'une pièce repris par ses zones) n'est listé qu'une fois : la
    mémoire comble les autres occurrences. Pour traduire **différemment** une occurrence, ajouter son entrée à la main
    (chemin dans `tout`, ou lu dans `src/`) : l'entrée directe prime sur la mémoire.
-4. Les libellés du **système** (compétences, caractéristiques, états, difficultés, spécialisations d'armes `One Handed`,
-   `Pistols`, `Long Guns`…) suivent le `lang/en.json` du système : un nom de spécialisation doit être **exactement** celui
-   du système, l'arme retrouve la spécialisation du tireur par son nom.
+4. Les libellés du **système** (compétences, caractéristiques, états, difficultés, spécialisations d'armes…) suivent le
+   `lang/en.json` du système : un nom que le système relit (par exemple une spécialisation d'arme) doit être
+   **exactement** celui du système, sinon le lien se perd.
 5. `enAncien` : la source a changé ; relire, retraduire dans `en`, supprimer `enAncien`.
 6. Relancer `--extraire` après toute modification des sources (`contenu/*.mjs`) : il signale les entrées obsolètes et
-   retire celles qui n'ont plus de source. Puis `npm run fabriquer-40k-en` et `npm run essais`.
+   retire celles qui n'ont plus de source. Puis `npm run fabriquer-<monde>-en` (ex. `fabriquer-warcraft-en`) et `npm run essais`.
 
 Un texte non traduit reste en français dans le module anglais (compté « manquant » dans le résumé du fabricant) ; le
 module reste installable.
 
-## Adopter le mécanisme dans un autre module (Warcraft, Veillées, Fénoir)
+## Adopter le mécanisme dans un autre module de contenu
 
 1. **Fabricant** : importer `appliquer`, `extraire`, `fusionner`, `resumerRapport` de
    `modules/lakour-mj-ia/outils/traduction.mjs` ; ajouter `--extraire` (extraire + fusionner + écrire
    `contenu/en/<pack>.json`) et `--langue en` (appliquer avec `{ module: ID, deId: ID, versId: ID + "-en", ignorerPacks }`,
    écrire `src/` et compiler `packs/` dans `modules/<id>-en/`, engendrer `module.json`, copier `lang/`, `scripts/`,
    `styles/`, `templates/`, `assets/` en récrivant `modules/<id>/` dans les JSON des assets, refaire `plans.json`,
-   puis `verifierModuleDeContenu`). Modèle : `lakour-w40k/outils/fabriquer-40k.mjs` (fonctions `lireDictionnaires`,
+   puis `verifierModuleDeContenu`). Modèle : `lakour-warcraft/outils/fabriquer-warcraft.mjs` (fonctions `lireDictionnaires`,
    `extraireDictionnaires`, `fabriquerAnglais`, `manifesteAnglais`, `copierModule`).
 2. **Dictionnaire du manifeste** : `contenu/en/module.json` (`title`, `description`, `packs: { nom: étiquette }`,
    `packFolders: { nom français: nom anglais }`).
 3. **Scripts du module** : tout ce qui porte l'identifiant du module (réglages `game.settings.register(ID, …)`, drapeaux
    `getFlag(ID, …)` / `flags.<ID>`, compendiums `game.packs.get(\`${ID}.<pack>\`)`, chemins `modules/${ID}/…`, feuilles
    `registerSheet(Actor, ID, …)`, `game.modules.get(ID).api`, fenêtres `id: \`${ID}-…\``) doit passer par un **`ID` lu
-   dans l'adresse du script** et non une constante : `scripts/identite.js` de lakour-40k
+   dans l'adresse du script** et non une constante : `scripts/identite.js` de lakour-warcraft
    (`/\/modules\/([^/]+)\//.exec(new URL(import.meta.url).pathname)`), importé par chaque script. Les essais qui copient
    un script dans un dossier temporaire doivent copier `identite.js` à côté (il retombe alors sur l'identifiant français).
 4. **Documents engendrés par du code** (paquets d'aventure, textes composés dans le fabricant) : paramétrer le module et
    la langue, comme `paquetsAventures(docs, { module, langue })`.
-5. **Dossiers et libellés créés par les scripts à l'installation** (ex. dossier « La Kour 40k » des tables, titre par
+5. **Dossiers et libellés créés par les scripts à l'installation** (ex. dossier « La Kour Warcraft » des journaux, titre par
    défaut d'une aventure) : restent tels quels ou passent par `lang/*.json` ; à décider module par module.
 6. **Moteur** : `scripts/contenus.js` connaît les deux variantes (`variantes(id)`, `moduleDeBase(id)`) et
    `moduleDeContenu()` rend celle qui est active ; `reinitialiser.js` s'en sert. Tout autre endroit du moteur qui nomme
    un module de contenu en dur doit passer par `moduleDeContenu()` (voir la liste ci-dessous).
 7. **Release** : `.github/workflows/release.yml` fabrique le module `-en`, `outils/empaqueter-module.mjs --module <id>-en`
    l'emballe ; `.gitignore` : `modules/<id>-en/`.
-8. **Essais** : copier `lakour-w40k/essais/traduction-40k.test.mjs` (mêmes `_id`, aucun uuid vers l'id français, balises,
+8. **Essais** : copier `lakour-warcraft/essais/traduction-warcraft.test.mjs` (mêmes `_id`, aucun uuid vers l'id français,
    dictionnaires à jour, manifeste).
 
 ### Particularités repérées (traitées dans chaque module)
@@ -139,9 +138,9 @@ module reste installable.
   `lireDictionnaires` ignore ce fichier, comme `module.json`).
 - **Textes dans les scripts** : `scripts/fetes.js` (nom, description, consigne des fêtes déclinées auprès du moteur, nom
   des liens de la carte) porte un bloc `en` par fête, et `textesDeFete(f)` rend la fête dans la langue du module (`ANGLAIS`
-  de `scripts/identite.js`) : 40k, Warcraft et les Veillées enregistrent celle-là ; dans node (fabricant, essais) la fête
+  de `scripts/identite.js`) : Warcraft et les Veillées enregistrent celle-là ; dans node (fabricant, essais) la fête
   reste française. Fénoir lit ses fêtes dans le registre traduit (`assets/donnees.json`). Les noms anglais des liens sont
-  ceux des dictionnaires (`contenu/en/<pack>.json`, essais `fetes-40k.test.mjs`, `warcraft-fetes.test.mjs`).
+  ceux des dictionnaires (`contenu/en/<pack>.json`, essai `warcraft-fetes.test.mjs` de Warcraft, par exemple).
 - **Classe CSS** `${MODULE}-illustration` dans les pages de journal : non récrite (pas de style associé).
 - **Warcraft** : `flags.lakour-warcraft.contrat` (contrats des joueurs, lus par le moteur) et les recettes : les champs
   textuels y sont extraits par l'heuristique (`type`, `faction` exclus par `CLES_EXCLUES`/minuscules) ; vérifier le squelette.
@@ -165,13 +164,13 @@ module reste installable.
 
 - `contenuNomme(systeme)` : l'identifiant à nommer (compendium, asset, API) — la variante active, sinon l'identifiant
   français (le monde n'a pas le module : la recherche échoue proprement, comme avant) ;
-- `packDeContenu(nom, systeme)` : `lakour-40k-en.armement` quand la variante anglaise est active ;
+- `packDeContenu(nom, systeme)` : `lakour-warcraft-en.objets` quand la variante anglaise est active ;
 - `drapeauxDuContenu(flags, module)` : les drapeaux posés par le contenu (`flags.<id>`) portent l'identifiant du module qui a
-  posé le document (un document importé de `lakour-40k-en` porte `flags["lakour-40k-en"]`, un autre importé avant le
-  changement de langue porte `flags["lakour-40k"]`) : on lit la variante active d'abord, puis l'autre.
+  posé le document (un document importé de `lakour-warcraft-en` porte `flags["lakour-warcraft-en"]`, un autre importé avant
+  le changement de langue porte `flags["lakour-warcraft"]`) : on lit la variante active d'abord, puis l'autre.
 
-Endroits passés par ces aides : `scripts/main.js` (réparation des munitions), `scripts/outils.js` (`preparerDepart` de
-l'API 40k, jeton du rôle et du peuple, munitions, assets et compendiums des Veillées, drapeaux des résultats de
+Endroits passés par ces aides : `scripts/main.js` (réparation des munitions), `scripts/outils.js` (`preparerDepart` du
+module de contenu d'Imperium Maledictum, jeton du rôle et du peuple, munitions, assets et compendiums des Veillées, drapeaux des résultats de
 `lancer_table`), `scripts/compagnons-jeu.js` (table des noms de villageois), `scripts/outils-survie.js` (compendiums des
 passés, savoirs et équipements de Fénoir), `scripts/placement.js` (module des figurants par défaut, résolu à chaque appel),
 `scripts/tirages.js` (lecture des drapeaux `contrat` / `appel`, quel que soit le module qui les a posés). L'essai

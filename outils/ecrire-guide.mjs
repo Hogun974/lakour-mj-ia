@@ -1,6 +1,6 @@
 // Recopie le guide d'utilisation du MJ IA (scripts/guide.js et sa traduction scripts/guide-en.js, seules sources) en Markdown
-// dans docs/guide-utilisation.md (français) et docs/guide-utilisation.en.md (anglais), pour le lire hors de Foundry (dépôt git,
-// Forgejo).  Usage : node outils/ecrire-guide.mjs
+// dans docs/guide-utilisation.md (français) et docs/guide-utilisation.en.md (anglais), pour le lire hors de Foundry (dépôt git).
+// Usage : node outils/ecrire-guide.mjs
 import { writeFileSync } from "node:fs";
 import { GUIDES } from "../scripts/guide.js";
 

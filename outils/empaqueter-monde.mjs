@@ -1,8 +1,8 @@
 // Empaquette un MONDE VIERGE La Kour (Foundry VTT v14) à partir d'une copie du monde joué sur le serveur : le contenu
 // de monde (scènes et journaux installés depuis nos compendiums, tables, listes de lecture, dossiers, réglages qui
 // configurent le monde) est gardé ; tout ce qui est personnel ou de partie (utilisateurs, messages, personnages des
-// joueurs, brouillard, combats, clés, coffres, mémoires, fils, horloges, chroniques…) est retiré. Outil COMMUN aux trois
-// mondes, appelé depuis le sous-module : `npm run empaqueter-monde` dans lakour-w40k, lakour-warcraft, lakour-veillees.
+// joueurs, brouillard, combats, clés, coffres, mémoires, fils, horloges, chroniques…) est retiré. Outil COMMUN aux
+// mondes, appelé depuis le sous-module : `npm run empaqueter-monde` dans lakour-warcraft, lakour-veillees, lakour-fenoir…
 //
 // Modes (le dépôt du monde est le dossier courant, ou --depot <dossier>) :
 //   --inventaire <Data/worlds/<id serveur>>  déballe la base LevelDB (dans un dossier temporaire) et AFFICHE le tri,
@@ -287,7 +287,7 @@ const ecrireJson = (chemin, v) => { mkdirSync(dirname(chemin), { recursive: true
 const slug = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "sans-nom";
 const lireDossierJson = d => existsSync(d) ? readdirSync(d).filter(f => f.endsWith(".json")).sort().map(f => lireJson(join(d, f))) : [];
 
-// Le CLI Foundry, résolu depuis le dépôt du monde (node_modules de lakour-w40k, lakour-warcraft, lakour-veillees).
+// Le CLI Foundry, résolu depuis le dépôt du monde (son node_modules).
 async function cliFoundry(racine) {
   const require = createRequire(join(racine, "package.json"));
   return import(pathToFileURL(require.resolve("@foundryvtt/foundryvtt-cli")).href);

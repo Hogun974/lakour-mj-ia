@@ -3,6 +3,9 @@
 *Version française : [README.md](README.md). This is a French-speaking project: code, comments, tests and
 documentation are written in French.*
 
+> **Getting started: [the tutorial, from zero to your first session](TUTORIAL.md)** (installation, API key, budget,
+> first session, troubleshooting). *Premiers pas en français : [TUTORIEL.md](TUTORIEL.md).*
+
 <p align="center">
   <img src="docs/captures/console.png" alt="The AI GM console and a narration in the chat" width="49%">
   <img src="docs/captures/plateau.png" alt="A map created by the AI GM, tokens placed before the narration" width="49%">
@@ -20,10 +23,10 @@ memory, and can run **AI companions** on the players' side, each with its own br
 in charge: in *validation* mode (the default), every action that changes the world or costs money waits for their
 approval; a per-session budget stops the AI; a *dummy* provider lets you try everything without a key or a cost.
 
-The module is the **shared engine** of the four La Kour worlds (Warhammer 40,000 with *Imperium Maledictum*, Warcraft
-with D&D 5e, *Les Veillées de Brumecombe* and Fénoir), and it also brings **AI-free** tools: a guided turn tracker, the
-campaign notebook, an encrypted vault, character backstories, seasonal festivals. In other game systems it runs in a
-generic mode (narration, maps, votes, memory; players roll their own dice).
+The module is the **shared engine** of the La Kour worlds (Warcraft with D&D 5e, *Les Veillées de Brumecombe* and
+Fénoir), and it also brings **AI-free** tools: a guided turn tracker, the campaign notebook, an encrypted vault, character
+backstories, seasonal festivals. It can also work with the *Imperium Maledictum* system (`impmal`). In other game
+systems it runs in a generic mode (narration, maps, votes, memory; players roll their own dice).
 
 ## What it costs, what it sends
 
@@ -79,13 +82,13 @@ a simple mode (no AI) and the game is never blocked.
 
 | What | Version | Where |
 |---|---|---|
-| Foundry VTT | **14** (verified with 14.369) | [foundryvtt.com](https://foundryvtt.com) |
+| Foundry VTT | **14** (tested with 14.370) | [foundryvtt.com](https://foundryvtt.com) |
 | A recent browser for the GM | up-to-date Chrome, Edge or Firefox | The vault uses WebCrypto, the voice WebAudio and AudioWorklet. |
 | An API key | optional | [Anthropic](https://console.anthropic.com) for Claude; [OpenAI](https://platform.openai.com) for ChatGPT and, in every case, for voice, listening and images. |
 | Foundry's built-in voice (A/V) | optional | *Audio only* mode, for listening to players and the Veillées voice rooms. |
 
 **Optional** modules, recognised by the AI GM when active, never required: **Sequencer** and **JB2A** (animations),
-**FXMaster** (weather), **Calendaria** (date, time and weather of the day; 40k and Warcraft), **Item Piles** (loot and
+**FXMaster** (weather), **Calendaria** (date, time and weather of the day; D&D 5e and Imperium Maledictum), **Item Piles** (loot and
 merchants; Warcraft), **3D Canvas** (`levels-3d-preview`, relief view).
 
 ## Installation
@@ -100,7 +103,8 @@ https://github.com/Hogun974/lakour-mj-ia/releases/latest/download/module.json
 
 Then, in the world: **Settings › Manage Modules**, tick *La Kour – MJ IA*. On first load the module installs its **user
 guide** in the world (two journals: the GM guide, hidden from players, and the players' guide; in English in an English
-world) and offers to configure a key. The wizard hat in the left bar opens the console.
+world). The key is then set in *Settings › MJ IA › Configure*. The wizard hat in the left bar opens the console. Step by
+step, from installation to the first session: [`TUTORIAL.md`](TUTORIAL.md).
 
 ### 2. From the sources
 
@@ -124,12 +128,14 @@ blank world.
 
 | World | System | Content module | Repository |
 |---|---|---|---|
-| **La Kour 40k** — the Kour sub-sector, Warhammer 40,000 | *Imperium Maledictum* (`impmal`) | `lakour-40k` | [github.com/Hogun974/lakour-w40k](https://github.com/Hogun974/lakour-w40k) |
 | **La Kour Warcraft** — Azeroth for D&D 5e (2024 rules) | `dnd5e` | `lakour-warcraft` | [github.com/Hogun974/lakour-warcraft](https://github.com/Hogun974/lakour-warcraft) |
 | **Les Veillées de Brumecombe** — social deduction, werewolf family | `lakour-loups` (provided) | `lakour-veillees` | [github.com/Hogun974/lakour-veillees](https://github.com/Hogun974/lakour-veillees) |
-| **Fénoir** — survival on Réunion Island on day zero of an epidemic | `lakour-survie` | `lakour-fenoir` | fourth world, in preparation |
+| **Fénoir** — survival on Réunion Island on day zero of an epidemic | `lakour-survie` (provided) | `lakour-fenoir` | [github.com/Hogun974/lakour-fenoir](https://github.com/Hogun974/lakour-fenoir) |
 
 In the Veillées, the module is **required even without AI**: it holds the encrypted vault of the game's secrets.
+
+The engine also has an adapter for the *Imperium Maledictum* system (`impmal`): sheets, rolls, character creation, turn
+by turn and the campaign notebook work there as in D&D 5e.
 
 **Generic mode.** In a system without a dedicated adapter, the AI GM narrates, creates maps and journals, starts ambient
 sounds, runs votes and secret choices, keeps its memory, and asks players to roll their own dice with the formula; it
@@ -206,19 +212,19 @@ therefore read in their browser console what the interface hides from them. The 
   ownership rights; the "what they keep to themselves" page of character backstories, which is a plain page property;
   and nothing at all if player accounts have **no password** (a share without a password is a share anyone can take).
 
-### Campaign notebook: clocks, investigations, contacts (40k, Warcraft)
+### Campaign notebook: clocks, investigations, contacts (D&D 5e, Imperium Maledictum)
 
 Open book in the left bar. Segmented **clocks** (in the manner of *Blades in the Dark*) that ring when full,
-**gauges** with thresholds (Exposure in 40k), faction **reputations** from −100 to +100 read in tiers;
+**gauges** with thresholds, faction **reputations** from −100 to +100 read in tiers;
 **investigations** following the three-clue rule (conclusions, clues, ticked when found, warning when a conclusion has
 fewer than three left); **contacts** with attitude, debts and demands. The eye shows or hides each element to players; a
 card appears in the chat when a clock rings or a tier is crossed, and the AI GM draws a consequence. World modules plug
 their own elements in (`api.horloges`, `api.enquetes`, `api.contacts`);
-`api.horloges.libelles({ "Exposition": "LAKOUR40K.Jauges.Exposition", … })`, called in every browser, gives the
+`api.horloges.libelles({ "Réputation du Carrefour": "MYMODULE.Factions.Crossroads", … })`, called in every browser, gives the
 translation key for a French name (element, threshold, faction): the notebook and the chat cards show it in the interface
 language, while the AI and the data keep the French name.
 
-### Turn by turn (40k, Warcraft)
+### Turn by turn (D&D 5e, Imperium Maledictum)
 
 A panel (shield) that relies on Foundry's combat tracker without replacing it, **with or without AI**: the next step is
 written at the top and the button that performs it is framed in dotted lines. Setup and initiative with the system's real
@@ -234,7 +240,7 @@ background drawn in SVG (no image service), walls, doors, lights, ambient sounds
 (narrative text, teleport, pause, darkness), journal pins, floors with stairs, and a room index that lets a token be
 placed "near the forge". Flat or relief style (3D Canvas).
 
-### Character backstories (40k, Warcraft, Fénoir)
+### Character backstories (D&D 5e, Fénoir, Imperium Maledictum)
 
 A journal "Histoire de <name>" with four pages per character and per companion (who they are, their story, what they
 keep to themselves, dated chapters), written by the AI GM after two or three questions to the player, or created empty
@@ -244,7 +250,7 @@ with prompts to write it yourself (**Histoire** button on the sheet, no AI).
 
 A calendar of popular festivals (New Year, Valentine's Day, Carnival, Easter, Fête de la musique, Bastille Day,
 Halloween, Christmas; and, for Réunion Island: 20 December, lychees, Dipavali, Cavadee, Chinese New Year), which each
-world **adapts** its own way (in 40k, an Imperial vigil rather than Christmas). Card of the day, light decoration each
+world **adapts** its own way (in Warcraft, the Truce of Presents rather than Christmas). Card of the day, light decoration each
 player can turn off, a natural allusion by the narrator. Setting: automatic, none, or a forced festival. Contract for
 worlds: [`docs/fetes.md`](docs/fetes.md).
 
@@ -301,18 +307,19 @@ places, open threads, notes) that the AI rereads at the start of each session an
 
 ## Languages
 
-The module's **interface** exists in French and English (`lang/fr.json`, `lang/en.json`). The AI GM's **texts** (model
-instructions, chat cards, personalities) and the worlds' content are in **French**; the AI narrates in French. The
-**user guide** exists in both languages (`scripts/guide.js` and its translation `scripts/guide-en.js`): a world whose content
-module is the `-en` variant (or, with no content module, whose interface is in English) gets the English guide, and an
-installed guide switches language along with the world. An English version of the content is in progress, through
-`-en` modules specific to each world; it is not published yet. The project itself is French-speaking: code, comments,
-tests and documentation are written in French.
+The module's **interface** exists in French and English (`lang/fr.json`, `lang/en.json`). The AI narrates in the
+**world's language**: in English when the active content module is the `-en` variant (or, with no content module, when
+Foundry's interface is in English), in French otherwise; its internal instructions stay in French. The **user guide**
+exists in both languages (`scripts/guide.js` and its translation `scripts/guide-en.js`), by the same rule, and an
+installed guide switches language along with the world. Each world has its English content module (`-en`): see the
+world's repository. The tutorial exists in English ([`TUTORIAL.md`](TUTORIAL.md)) and French
+([`TUTORIEL.md`](TUTORIEL.md)). The project itself is French-speaking: code, comments, tests and documentation are
+written in French.
 
 ## Tests
 
 ```bash
-npm run essais      # 438 Node tests in 68 files, ~40 s, no network, no key, no cost
+npm run essais      # 492 Node tests in 72 files, ~50 s, no network, no key, no cost
 ```
 
 The tests exercise the engine's pure logic outside Foundry (adapters, tools, companions, autopilot, turn tracker, vault
@@ -327,6 +334,7 @@ world repositories call it by hand.
 ## Repository layout
 
 ```
+TUTORIEL.md, TUTORIAL.md   the getting-started tutorial (French, English)
 module.json, scripts/, templates/, styles/, lang/, assets/sons/, vendor/   the Foundry module (repository root)
 scripts/        main.js, moteur.js (AI GM loop), contexte.js (what is sent to the AI), outils*.js (the AI's tools),
                 adaptateurs.js (what depends on the system), fournisseurs/ (anthropic, openai, dummy),
@@ -357,6 +365,12 @@ Feedback and contributions are welcome, preferably in French (English is read to
   then in every world after updating the submodule.
 - **A translation**: interface strings are in `lang/`; the AI GM's texts go through the `-en` modules.
 - Do not edit `vendor/` or `assets/sons/` by hand: `npm run embarquer` and `npm run fabriquer-sons` regenerate them.
+
+## Transparency
+
+This project, its code as well as its texts (guides, documentation, personalities, model instructions), was written with
+the help of an AI, **Claude**, by Anthropic, and reviewed by the author, who stands by it. The git history keeps track of
+it (`Co-Authored-By` lines).
 
 ## Credits
 
@@ -389,6 +403,6 @@ archive alongside `LICENSE`):
 - the SDKs bundled in `vendor/` (`@anthropic-ai/sdk` and `openai`): **Apache-2.0**;
 - the icons in `outils/game-icons/` (game-icons.net, not in the module archive): **CC BY 3.0**.
 
-The La Kour worlds (`lakour-w40k`, `lakour-warcraft`, `lakour-veillees`, `lakour-fenoir`) have their own repositories
+The La Kour worlds (`lakour-warcraft`, `lakour-veillees`, `lakour-fenoir`) have their own repositories
 and their own licence (MIT for the code, CC BY-NC-SA 4.0 for texts and images). Foundry VTT is a trademark of Foundry
 Gaming, LLC; this module is neither affiliated with nor endorsed by Foundry Gaming.

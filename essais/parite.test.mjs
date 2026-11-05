@@ -2,7 +2,7 @@
 // module de contenu par système (jetons de personnage, figurants) lu de la même façon.
 // Ce que chaque module de contenu doit fournir (figurants.json, index des jetons, plans) est le contrat commun
 // outils/contrat-contenu.mjs, éprouvé ici sur un module d'essai (contrat-contenu.test.mjs) et appliqué à chaque monde
-// dans son propre dépôt (lakour-w40k, lakour-warcraft, lakour-veillees).
+// dans son propre dépôt (lakour-warcraft, lakour-veillees, lakour-fenoir…).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 

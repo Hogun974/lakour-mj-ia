@@ -1,6 +1,6 @@
 # Empaqueter un monde vierge (`outils/empaqueter-monde.mjs`)
 
-Les trois mondes de La Kour (40k, Warcraft, Veillées) sont joués sur le serveur, avec les joueurs, leurs personnages,
+Les mondes de La Kour (Warcraft, Veillées, Fénoir) sont joués sur un serveur Foundry, avec les joueurs, leurs personnages,
 le chat, les clés d'API, le coffre… Pour qu'un tiers puisse installer le monde **vierge** — le contenu de nos modules
 déjà installé, les réglages qui font le monde, et rien de personnel — l'outil commun `outils/empaqueter-monde.mjs`
 trie une copie du monde du serveur, en écrit les sources versionnées dans le dépôt du monde (`monde/`), puis compile
@@ -9,15 +9,15 @@ racine du monde, donc de l'archive, les licences du dépôt du monde : `LICENSE`
 `"license": "LICENSE"`) et `LICENCE-CONTENU.md` (CC BY-NC-SA 4.0, les textes et les images), avec un avertissement si
 l'un manque.
 
-Chaque dépôt de monde l'appelle depuis le sous-module : `npm run empaqueter-monde` dans `lakour-w40k`,
-`lakour-warcraft`, `lakour-veillees` (script `node modules/lakour-mj-ia/outils/empaqueter-monde.mjs`). Le CLI
+Chaque dépôt de monde l'appelle depuis le sous-module : `npm run empaqueter-monde` dans `lakour-warcraft`,
+`lakour-veillees`, `lakour-fenoir` (script `node modules/lakour-mj-ia/outils/empaqueter-monde.mjs`). Le CLI
 `@foundryvtt/foundryvtt-cli` du dépôt du monde fait le déballage et la compilation LevelDB.
 
 | Dépôt | Monde publié (`id`) | Monde du serveur | Système | Modules requis |
 | --- | --- | --- | --- | --- |
-| lakour-w40k | `la-kour-40k` | `la-kour-mj-ia` | impmal | lakour-40k, lakour-mj-ia, warhammer-lib |
 | lakour-warcraft | `la-kour-warcraft` | `la-kour-warcraft` | dnd5e | lakour-warcraft, lakour-mj-ia |
 | lakour-veillees | `la-kour-veillees` | `la-kour-veillees` | lakour-loups | lakour-veillees, lakour-mj-ia |
+| lakour-fenoir | `la-kour-fenoir` | `la-kour-fenoir` | lakour-survie | lakour-fenoir, lakour-mj-ia |
 
 ## Modes
 
@@ -136,7 +136,7 @@ contrôle.
 
 ## Reconstruire après une évolution du monde sur le serveur
 
-1. Copier le monde du serveur (sauvegarde nocturne ou `Data/worlds/<id serveur>`, dossier `data/` + `world.json`) dans un
+1. Copier le monde du serveur (une sauvegarde ou `Data/worlds/<id serveur>`, dossier `data/` + `world.json`) dans un
    dossier de travail hors des dépôts : ce sont des données personnelles, elles ne doivent pas entrer dans git.
 2. Dans le dépôt du monde : `npm run empaqueter-monde -- --inventaire <dossier>` et lire le tri. Un document gardé qui
    ne devrait pas l'être, ou un nouveau réglage de nos modules : corriger la règle dans `empaqueter-monde.mjs`
@@ -152,8 +152,7 @@ contrôle.
 
 ## Le monde vierge anglais (`--langue en`)
 
-Chaque monde a son jumeau anglais, `<id>-en` (`la-kour-40k-en`, `la-kour-warcraft-en`, `la-kour-veillees-en`,
-`la-kour-fenoir-en`), construit par `npm run empaqueter-monde -- --langue en` (`--construire`, `--verifier` ou sans
+Chaque monde a son jumeau anglais, `<id>-en` (`la-kour-warcraft-en`, `la-kour-veillees-en`, `la-kour-fenoir-en`), construit par `npm run empaqueter-monde -- --langue en` (`--construire`, `--verifier` ou sans
 option ; `--inventaire` et `--extraire` restent français : les sources `monde/src` sont celles du monde français) :
 
 - **documents** : les mêmes que le monde français (mêmes `_id` et `_key`), traduits par les dictionnaires du module de
@@ -183,8 +182,8 @@ drapeaux, réglage) ou si `core.moduleConfiguration` n'active pas `<module>-en`.
 fabriqué (`npm run fabriquer-<monde>-en`) : ses `src/` et son fond d'écran sont ceux que la vérification lit.
 
 Release : chaque workflow lance `npm run empaqueter-monde` puis `npm run empaqueter-monde -- --langue en` et publie
-`world.json`, `<id>.zip`, `world-en.json` et `<id>-en.zip` (40k : `outils/empaqueter-module.mjs --monde monde/dist`
-les recopie dans `dist/` en alignant `manifest` et `download` ; Warcraft, Veillées et Fénoir les recopient tels quels).
+`world.json`, `<id>.zip`, `world-en.json` et `<id>-en.zip` (recopiés tels quels dans `dist/` ; un dépôt peut aussi
+passer par `outils/empaqueter-module.mjs --monde monde/dist`, qui aligne `manifest` et `download`).
 Adresse stable du manifeste anglais : `https://github.com/Hogun974/<dépôt>/releases/latest/download/world-en.json`.
 Essais : `essais/empaqueter-monde.test.mjs` (manifeste, traduction, réglages, clés protégées, contexte).
 
@@ -200,7 +199,6 @@ modèles, et régler voix et compagnons.
 
 | Monde | À installer avant | Contenu livré |
 | --- | --- | --- |
-| La Kour — Kour Primaris (40k) | système impmal ≥ 4.1.0, modules lakour-40k, lakour-mj-ia, warhammer-lib | 11 scènes (une campagne, une aventure, un one-shot), 15 journaux (aides de jeu, aventures, fêtes, guides) + 2 guides du MJ IA, 7 tables (critiques, maladresses, origines, périls du Warp), dossiers, réglages impmal (`tableSettings`…) |
 | La Kour — Les Tarides (Warcraft) | système dnd5e ≥ 6.0.6, modules lakour-warcraft, lakour-mj-ia | 11 scènes, 24 journaux (aides de jeu, aventure, campagne, donjon, fêtes, guides, listes de sorts, contrats, réputation…) + 2 guides du MJ IA, dossiers de compendiums dnd5e et Warcraft, réglages dnd5e (règles 2024, métrique, calendrier) |
 | La Kour — Les Veillées de Brumecombe | système lakour-loups ≥ 0.10.2, modules lakour-veillees, lakour-mj-ia | la scène du village, 7 journaux (guides du joueur et du narrateur, variantes, veillées de fête) + 2 guides du MJ IA, la liste de lecture « Ambiances (MJ IA) », les règles de la veillée |
 
