@@ -209,11 +209,12 @@ export const OUTILS_SURVIE = [
       membres: liste(chaine("Nom d'un survivant."), "Les survivants du groupe ; vide = les personnages des joueurs et les compagnons IA."),
       pnj: liste(objet({ nom: chaine("Nom du PNJ."), passe: chaine("Son passé (clé du contenu ou texte libre).") }),
         "PNJ qui suivent le groupe dès le départ (voisins, famille) ; vide = aucun."),
-      date_depart: chaine("Date réelle du jour zéro, « AAAA-MM-JJ » ; vide = le réglage du monde (4 décembre 2026 par défaut)."),
-      graine: chaine("Graine du hasard de la partie ; vide = au hasard.")
+      date_depart: chaine("Date réelle du jour zéro, « AAAA-MM-JJ » ; vide = le réglage du monde (4 décembre 2026 par défaut).")
     }),
     sensible: true,
-    async executer({ region, membres: noms, pnj, date_depart, graine }) {
+    // Pas de graine choisie par l'IA : le système tire une graine sûre de 128 bits (une graine courte ou devinable laisserait un
+    // joueur recalculer le monde réel). Une graine donnée quand même est ignorée.
+    async executer({ region, membres: noms, pnj, date_depart }) {
       api();
       const cle = cleDe("regions", region, "une région de départ");
       const ids = noms.length ? noms.map(x => survivant(x).id)
@@ -222,7 +223,7 @@ export const OUTILS_SURVIE = [
       if (date_depart.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(date_depart.trim())) throw new Refus(`date_depart illisible : « ${date_depart} » (AAAA-MM-JJ).`);
       await appeler("demarrer", {
         region: cle, membres: ids,
-        ...(date_depart.trim() ? { dateDepart: date_depart.trim() } : {}), ...(graine.trim() ? { graine: graine.trim() } : {}),
+        ...(date_depart.trim() ? { dateDepart: date_depart.trim() } : {}),
         ...(pnj.length ? { pnj: pnj.map(p => ({ nom: p.nom, passe: p.passe })) } : {})
       });
       const sites = (trouverFiche(lire("contenu")?.regions, cle)?.sites ?? []).map(s => `${nomDe(lire("contenu")?.sites, s)} [${s}]`);

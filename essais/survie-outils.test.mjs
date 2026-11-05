@@ -74,15 +74,16 @@ test("survie_etat : coffre fermé -> pas de réel, l'IA ne doit pas deviner", as
   sansSecret(r.contenu, "coffre fermé");
 });
 
-test("survie_demarrer : région et membres résolus par nom, date et graine facultatives ; date illisible refusée", async () => {
+test("survie_demarrer : région et membres résolus par nom, date facultative, graine jamais transmise (le système tire une graine sûre) ; date illisible refusée", async () => {
   const { api } = installerFenoir();
   const r = await executer("survie_demarrer", { region: "Saint-Denis", membres: ["Lucie Hoarau"], pnj: [{ nom: "Tantine Josette", passe: "retraitee" }],
-    date_depart: "2026-12-04", graine: "" });
+    date_depart: "2026-12-04" });
   assert.ok(!r.erreur, r.contenu);
   assert.deepEqual(derniersArgs(api), ["demarrer", { region: "saint-denis", membres: ["s1"], dateDepart: "2026-12-04", pnj: [{ nom: "Tantine Josette", passe: "retraitee" }] }]);
-  await executer("survie_demarrer", { region: "saint-paul", membres: [], pnj: [], date_depart: "", graine: "g" });
-  assert.deepEqual(derniersArgs(api)[1], { region: "saint-paul", membres: ["s1", "s2"], graine: "g" }, "vide = joueurs et compagnons");
-  assert.match((await executer("survie_demarrer", { region: "saint-paul", membres: [], pnj: [], date_depart: "4 décembre", graine: "" })).contenu, /date_depart illisible/);
+  await executer("survie_demarrer", { region: "saint-paul", membres: [], pnj: [], date_depart: "" });
+  assert.deepEqual(derniersArgs(api)[1], { region: "saint-paul", membres: ["s1", "s2"] }, "vide = joueurs et compagnons ; jamais de graine");
+  assert.equal("graine" in (OUTILS.find(o => o.nom === "survie_demarrer")?.schema?.properties ?? {}), false, "l'IA ne choisit pas la graine");
+  assert.match((await executer("survie_demarrer", { region: "saint-paul", membres: [], pnj: [], date_depart: "4 décembre" })).contenu, /date_depart illisible/);
 });
 
 test("survie_avancer : quarts bornés ; faits publics au connu, hors-champ depuis le dernier jour au secret", async () => {
@@ -333,7 +334,7 @@ test("hors du MJ actif : chaque outil qui écrit est refusé avec le message du 
     survie_marquer: { personnage: "Lucie", competence: "soins", raison: "" },
     survie_assaut: { force: 3, type: "chiens", description: "" },
     survie_renseigner: { region: "le-port", source: "radio", infestation: "", pillage: "", electricite: "", eau: "", routes: [], factions: [], notes: "x" },
-    survie_demarrer: { region: "saint-paul", membres: [], pnj: [], date_depart: "", graine: "" },
+    survie_demarrer: { region: "saint-paul", membres: [], pnj: [], date_depart: "" },
     survie_fabriquer: { recette: "filtre-portatif", artisan: "Eddy", membres: [] },
     survie_affliction: { action: "donner", personnage: "Lucie", affliction: "fracture" },
     survie_feter: { fete: "liberte" },
