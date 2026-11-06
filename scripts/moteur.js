@@ -14,6 +14,7 @@ import { langueDuMonde } from "./contenus.js";
 import { Compagnons, effacerPrive } from "./compagnons-jeu.js";
 import { peuventReagir, estAnnonceDuSysteme } from "./compagnons.js";
 import { PiloteAutomatique, attendreFinVoix } from "./pilote.js";
+import { miseEnPlaceLoups, appelSur } from "./veillees-pacte.js";
 
 const MAX_TOURS_OUTILS = 12;
 const HORS_SEANCE_VIDE = { cout: 0, appels: 0, depuis: 0 };
@@ -61,7 +62,8 @@ export function consigneCreation(nomJoueur, { enParenthese = false, systeme = "i
 // La composition n'est JAMAIS annoncée aux joueurs (ni rôles en jeu, ni nombre de loups) : une partie peut être une peste noire.
 export const OUVERTURE_NOUVELLE_PARTIE = "Nouvelle partie : la précédente est finie et archivée, ne la raconte pas et n'y fais aucune allusion. "
   + "Présente le village et les bâtiments en jeu, sans annoncer la composition (ni les rôles en jeu, ni le nombre de loups : "
-  + "le village devra le découvrir), et lance la première nuit (loups_nuit).";
+  + "le village devra le découvrir), et lance la première nuit (loups_nuit) — sauf si la distribution dit que la veillée commence par "
+  + "un jour (le Feu follet : le débat et le vote d'abord).";
 export const OUVERTURE_NOUVELLE_VEILLEE = "Nouvelle veillée, sans aucune partie précédente à rappeler. Accueille les joueurs, compose la partie "
   + "en secret pour les joueurs présents (loups_composer si tu veux la préparer ; et des compagnons IA s'ils en veulent), puis "
   + "loups_distribuer. N'annonce jamais la composition.";
@@ -76,7 +78,9 @@ export function distributionSecrete(api = game.lakourLoups) {
   const lignes = (api?.villageois?.() ?? []).map(a => {
     const role = roleLoups(a, api);
     const qui = a.system?.joueur ? game.users.get(a.system.joueur)?.name ?? "joueur" : "compagnon IA";
-    return `- ${a.name} (${qui}) : ${role?.name ?? "?"}, camp ${campLoups(a, api) || role?.system?.camp || "?"}`;
+    // Double visage (grande complication) : la seconde carte, dans la fiche secrète.
+    const seconde = appelSur(api, "fiche", a.id)?.seconde?.name;
+    return `- ${a.name} (${qui}) : ${role?.name ?? "?"}${seconde ? ` (seconde carte : ${seconde})` : ""}, camp ${campLoups(a, api) || role?.system?.camp || "?"}`;
   });
   // La peste noire : le narrateur le sait (il choisit la première victime), il ne le dit jamais avant la fin.
   const peste = api?.etat?.()?.peste?.active
@@ -85,7 +89,10 @@ export function distributionSecrete(api = game.lakourLoups) {
       + `victime la désigne. Le village gagne s'il crie « C'est la peste noire ! »${langueDuMonde() === "en" ? " (en anglais : « It's the black plague! »)" : ""} `
       + "(loups_peste) ; un cri à tort pend le crieur."
     : "";
-  return lignes.length ? `[Distribution — secret, pour toi seul]\n${lignes.join("\n")}${peste}` : "";
+  // Le Pacte : ce que la table voit de la mise en place (variantes, cartes du Bateleur, Village, traits, Gazette, Feu follet) et le
+  // centre du Chapardeur (pour le narrateur seul).
+  const miseEnPlace = lignes.length ? miseEnPlaceLoups(api, { nom: id => game.actors?.get?.(id)?.name ?? id }) : [];
+  return lignes.length ? `[Distribution — secret, pour toi seul]\n${lignes.join("\n")}${peste}${miseEnPlace.length ? `\n${miseEnPlace.join("\n")}` : ""}` : "";
 }
 
 // La partie des Veillées en cours (phase ni « preparation » ni « fin ») ?

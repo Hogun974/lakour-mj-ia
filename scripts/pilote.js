@@ -26,6 +26,7 @@ import { ID } from "./constantes.js";
 import { estCompagnon, compagnonsPresents } from "./compagnons-jeu.js";
 import { voixAuRepos } from "./voix.js";
 import { texteJoueurs } from "./utilitaires.js";
+import { ORDRE_D_APPEL } from "./veillees-pacte.js";
 
 export const ETAPES_MAX = 60;
 export const DEBAT_TOURS = 2;
@@ -118,11 +119,23 @@ const ENTETE = "[Pilote automatique — plus aucun joueur humain vivant : les co
 const ENTETE_AVENTURE = "[Pilote automatique — plus aucun joueur humain présent : les compagnons IA continuent seuls, des spectateurs "
   + "regardent. Ne décide jamais à leur place ; récits courts.]";
 
+// L'ordre d'appel du livre (Le Pacte, étape 5) : loups_nuit le suit (le système le tient, api.ordreDeNuit) ; le narrateur ne nomme jamais
+// à voix haute un rôle qui se réveille (la composition ne s'annonce pas).
 export const CONSIGNES_LOUPS = {
-  nuit: "Étape : la nuit. Raconte en deux ou trois phrases la tombée de la nuit sur Brumecombe, puis appelle loups_nuit (delai_secondes 60). "
+  nuit: "Étape : la nuit. Raconte en deux ou trois phrases la tombée de la nuit sur Brumecombe, sans nommer aucun rôle qui se réveille, puis "
+    + "appelle loups_nuit (delai_secondes 60) : il réveille chacun dans l'ordre d'appel du livre. "
     + "Après son résultat, réponds seulement « — » : l'aube sera racontée à l'étape suivante, même si une victoire est annoncée.",
-  aube: "Étape : l'aube. Raconte l'aube de cette nuit (les morts et leur sort, sans trahir qui a fait quoi ni aucun rôle secret), "
+  aube: "Étape : l'aube. Raconte l'aube de cette nuit (les morts et leur sort, sans trahir qui a fait quoi ni aucun rôle secret ; ce que le "
+    + "chat a déjà annoncé — la Gazette de la lune, le Mur des murmures, les oies, la plume — se raconte sans se relire), "
     + "puis ouvre le débat du jour en une phrase. N'ouvre pas encore le vote.",
+  // Un vote ouvert de lui-même au matin (le Cauchemar, le Châtiment, l'Exécuteur) : il va à son terme, sans débat.
+  aubeVoteOuvert: "Étape : l'aube. Raconte l'aube de cette nuit (les morts et leur sort, sans trahir qui a fait quoi ni aucun rôle secret ; "
+    + "ce que le chat a déjà annoncé se raconte sans se relire). Un vote s'est ouvert de lui-même ce matin : dis-le en une phrase, n'ouvre "
+    + "et ne clos aucun vote à cette étape.",
+  // La Chaîne des innocents (variante du jeu de soirée) : personne ne vote, le système mène la chaîne.
+  chaine: "Avec la Chaîne des innocents, personne ne vote : le système mène la chaîne (chacun garantit un innocent, qui s'assied ; le "
+    + "dernier debout est condamné), et la clôture l'attend.",
+  ordre: ORDRE_D_APPEL,
   juger: nom => `Avec le Banc des accusés, ce vote est le jugement de ${nom}, lui seul : voter pour lui le condamne, ne rien voter `
     + "l'acquitte (le suivant sera jugé à l'étape d'après).",
   annonceBailli: resultat => `Avant cela, le village vient d'élire son Bailli (élection menée au débat) : ${resultat}. Annonce-le d'abord `
@@ -137,6 +150,16 @@ export const CONSIGNES_LOUPS = {
     + "en quelques phrases : qui l'emporte, les rôles qui ont pesé (sans passer tout le village en revue), une image finale. N'appelle aucun outil et ne relance pas de partie "
     + "(pas de loups_rejouer : une autre partie se décide entre humains)."
 };
+
+// L'aube (étape du pilote) : le matin de la Gazette de la lune d'abord (Spiritisme, Crieur public), puis le récit (raconter(consigne)) ;
+// enfin le jour se lève et le débat commence (la Table de jeu et la mise en scène suivent la phase) — sauf si un vote s'est ouvert de
+// lui-même ce matin (le Cauchemar, le Châtiment, l'Exécuteur) : changerPhase le fermerait, l'étape suivante le clôt.
+export async function aubeDesVeillees(api, raconter) {
+  try { await api.attendreGazette?.(); } catch { /* sans Gazette */ }
+  const ouvert = Boolean(api.etat().vote?.ouvert);
+  await raconter(ouvert ? CONSIGNES_LOUPS.aubeVoteOuvert : CONSIGNES_LOUPS.aube);
+  if (api.etat().phase === "aube" && !api.etat().vote?.ouvert) await api.changerPhase("jour");
+}
 
 // Peste noire (secret, donnée au seul narrateur, seulement dans une telle partie) : la nuit, tant que la peste n'a pas de porteur,
 // le narrateur choisit sa victime. Jamais dans une partie ordinaire (rien ne doit lui souffler l'idée d'une peste).
@@ -406,10 +429,8 @@ export class PiloteAutomatique {
         return this.#tour(ENTETE, premiere ? `${CONSIGNES_LOUPS.nuit}\n${CONSIGNE_PESTE_NUIT}` : CONSIGNES_LOUPS.nuit);
       }
       case "aube":
-        await this.#tour(ENTETE, CONSIGNES_LOUPS.aube);
+        await aubeDesVeillees(api, texte => this.#tour(ENTETE, texte));
         m.aube = true;
-        // Le jour se lève : le débat commence (la Table de jeu et la mise en scène suivent la phase).
-        if (api.etat().phase === "aube") await api.changerPhase("jour");
         return;
       case "debat": {
         // L'exception à la règle anti-boucle : le pilote donne lui-même la parole aux compagnons, au plus debatMax fois.
@@ -425,7 +446,9 @@ export class PiloteAutomatique {
         // Le Banc des accusés (système 0.8.0) : ce vote juge le prochain accusé, lui seul.
         let banc = "";
         try { const b = api.banc?.(); if (b?.actif && b.prochain) banc = ` ${CONSIGNES_LOUPS.juger(b.prochainNom)}`; } catch { /* pas de Banc */ }
-        return this.#tour(ENTETE, `${CONSIGNES_LOUPS["vote-ouvrir"]}${annonce}${banc}`);
+        // La Chaîne des innocents (Le Pacte, étape 5) : le vote se fait par la chaîne.
+        const chaine = api.etat().variantes?.chaine && !banc ? ` ${CONSIGNES_LOUPS.chaine}` : "";
+        return this.#tour(ENTETE, `${CONSIGNES_LOUPS["vote-ouvrir"]}${annonce}${banc}${chaine}`);
       }
       case "vote-clore": return this.#tour(ENTETE, CONSIGNES_LOUPS["vote-clore"]);
       case "bailli": {

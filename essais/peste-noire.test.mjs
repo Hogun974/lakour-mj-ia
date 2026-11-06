@@ -284,10 +284,10 @@ test("peste noire (MJ IA) : les scripts d'origine passent toute la batterie", as
 });
 
 const MUTATIONS = [
-  ["outils.js", "        if (roleCle === \"peste\") {", "        if (false) {", "loups_nuit : l'étape de la peste"],
-  ["outils.js", "const cible = voulue && !/^(au )?hasard$/i.test(voulue) ? idVillageois(voulue) ?? \"\" : \"\";", "const cible = \"\";", "loups_nuit : la victime du narrateur"],
+  ["outils.js", "    if (roleCle === \"peste\") {", "    if (false) {", "loups_nuit : l'étape de la peste"],
+  ["outils.js", "const victimeDeLaPeste = voulue && !/^(au )?hasard$/i.test(voulue) ? idVillageois(voulue) ?? \"\" : \"\";", "const victimeDeLaPeste = \"\";", "loups_nuit : la victime du narrateur"],
   ["outils.js", "      return { contenu: r.juste\n", "      return { contenu: false\n", "loups_peste : le verdict"],
-  ["outils.js", "        + (enPeste ? `${NOTE_PESTE}\\n` : \"\")\n        + `Bâtiments", "        + `Bâtiments", "loups_composer : la peste dite au narrateur"],
+  ["outils.js", "        + (enPeste ? `${NOTE_PESTE}\\n` : \"\")\n        + (v ?", "        + (v ?", "loups_composer : la peste dite au narrateur"],
   ["outils.js", "        enPeste ??= Boolean(propositionPeste && memesRoles(rolesPour({ roles: cles }, total), propositionPeste));", "        enPeste ??= false;", "la peste proposée reste une peste"],
   ["outils.js", "        enPeste ??= tirerPesteIA(api);", "        enPeste ??= false;", "le hasard en mode auto"],
   ["outils.js", "...(voulue !== undefined ? { peste: voulue } : {})", "...{}", "loups_rejouer : la peste voulue"],

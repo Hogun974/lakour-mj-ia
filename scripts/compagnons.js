@@ -27,6 +27,13 @@ export const TEMPERAMENTS = {
   taciturne: { libelle: "taciturne", consigne: "Tu es taciturne : tu parles peu, mais chaque mot compte.", silence: 0.7 }
 };
 
+// L'adresse d'un compagnon qui décide sans modèle aux Veillées (les politiques de jeu du système lakour-loups, Le Pacte, étape 6 : de 0,
+// toujours au hasard, à 1, tout ce qu'il sait) : tirée de son tempérament. Un prudent ou un soupçonneux use de ce qu'il sait, un impulsif
+// ou un farceur moins souvent.
+export const ADRESSE_DES_TEMPERAMENTS = { prudent: 0.9, soupconneux: 0.85, taciturne: 0.8, loyal: 0.75, bavard: 0.65, farceur: 0.55, impulsif: 0.5 };
+export const ADRESSE_PAR_DEFAUT = 0.7;
+export const adresseDe = (personnalite, graine = "") => ADRESSE_DES_TEMPERAMENTS[normaliserPersonnalite(personnalite, graine).temperament] ?? ADRESSE_PAR_DEFAUT;
+
 export const FACONS_DE_PARLER = [
   "phrases courtes et sèches",
   "langue fleurie, un brin théâtrale",
@@ -110,7 +117,9 @@ const REGLES = {
     + "et les déclarations des villageois ; une déclaration n'est qu'une parole, que personne ne vérifie. Selon la veillée, un mort garde son "
     + "Dernier souffle (une seule voix, au vote d'exécution) et l'Almanach des brumes annonce chaque matin un présage qui change la journée. "
     + "Des gens de passage peuvent arriver (leur rôle est public, leur camp secret) ; avec le Banc des accusés, seul un accusé est jugé, "
-    + "et sans accusation, personne n'est exécuté ce jour-là.",
+    + "et sans accusation, personne n'est exécuté ce jour-là. Selon la veillée encore (le jeu de soirée), des bâtiments sont tenus par des "
+    + "joueurs (des personnalités PUBLIQUES : Métayers, Prieur, Hobereau…), des variantes changent les règles (annoncées), et la Gazette de "
+    + "la lune tire au matin une carte qui change la journée (un vote à tour de rôle, deux voix chacun…) : tout cela est dit au chat.",
   aventure: "C'est une partie de jeu de rôle : le meneur décrit le monde et joue les PNJ, chaque joueur joue son personnage. "
     + "Tu dis ce que fait et dit ton personnage, jamais ce que font les autres ni ce qui leur arrive."
 };
@@ -362,6 +371,15 @@ const REPLIQUES_LANGUES = {
     // Le mot confié la nuit (le Messager des Veillées) : une phrase, lue par son destinataire.
     mots: ["Méfie-toi de ceux qui parlent trop.", "Je veille sur toi cette nuit.", "J'étais dehors cette nuit, mais je n'y suis pour rien.",
       "Regarde qui se tait au moment du vote."],
+    // Le Mur des murmures (variante des Veillées) : une phrase ANONYME, lue au matin par tous.
+    murmures: ["Quelqu'un ici ment depuis le premier soir.", "J'ai entendu marcher dans la brume, près du puits.", "Ne vous fiez pas aux plus bavards.",
+      "Le loup dort plus près de vous que vous ne croyez."],
+    // Ce qu'il dit tout haut quand il croit tenir un loup (les politiques du système : annoncesDuJoueur ; un loup peut mentir).
+    annonces: [
+      n => `Je vous le dis franchement : ${n} est un loup.`,
+      n => `Écoutez-moi bien : ${n} est de la meute, je n'en doute pas.`,
+      n => `Ne cherchez plus : c'est ${n}, le loup.`
+    ],
     quelquun: "quelqu'un"
   },
   en: {
@@ -389,6 +407,13 @@ const REPLIQUES_LANGUES = {
     ],
     mots: ["Beware of those who talk too much.", "I'm watching over you tonight.", "I was out last night, but I had nothing to do with it.",
       "Watch who goes quiet when the vote comes."],
+    murmures: ["Someone here has been lying since the first night.", "I heard footsteps in the mist, near the well.", "Don't trust the loudest ones.",
+      "The wolf sleeps closer to you than you think."],
+    annonces: [
+      n => `I'll say it plainly: ${n} is a wolf.`,
+      n => `Listen to me: ${n} runs with the pack, I'm sure of it.`,
+      n => `Look no further: ${n} is the wolf.`
+    ],
     quelquun: "someone"
   }
 };
@@ -402,6 +427,8 @@ export function repliReplique(vue, graine, { combat = false, n = 0 } = {}) {
   const h = hasard(`parler|${graine}|${vue.id}|${vue.tour ?? 0}|${n}`);
   const R = repliquesDansLaLangue(vue.langue);
   if (combat) return choisir(R.combat, h)();
+  // Aux Veillées, ce qu'il a à dire tout haut (vue.annonce : { cible, nom }, les politiques du système) passe avant le silence.
+  if (vue.jeu === "loups" && vue.annonce?.nom) return choisir(R.annonces, h)(vue.annonce.nom);
   const p = normaliserPersonnalite(vue.personnalite, vue.id);
   if (h() < TEMPERAMENTS[p.temperament].silence) return "";
   let autres = (vue.autres ?? []).filter(a => a.vivant !== false && a.id !== vue.id && !(vue.allies ?? []).includes(a.id));
@@ -415,7 +442,10 @@ export function repliReplique(vue, graine, { combat = false, n = 0 } = {}) {
 // Une décision sans IA. Un loup ne vise pas les siens ; un villageois vise d'abord un suspect connu ; parfois on passe.
 export function repliDecision(vue, demande, graine) {
   const h = hasard(`decider|${graine}|${vue.id}|${demande.cle ?? demande.invite ?? demande.question ?? ""}`);
-  if (demande.type === "texte") return { texte: couper(choisir(repliquesDansLaLangue(vue.langue).mots, h), demande.max ?? 120) };
+  if (demande.type === "texte") {
+    const R = repliquesDansLaLangue(vue.langue);
+    return { texte: couper(choisir(demande.objet === "mur" ? R.murmures : R.mots, h), demande.max ?? 120) };
+  }
   if (demande.type === "option") return { choix: demande.options.length ? Math.floor(h() * demande.options.length) : null };
   const allies = new Set(vue.allies ?? []);
   const suspects = new Set(vue.suspects ?? []);
@@ -437,6 +467,8 @@ export function repliDecision(vue, demande, graine) {
     if (!accuse || allies.has(accuse.id)) return { cibles: [] };
     return { cibles: suspects.has(accuse.id) || h() < 0.5 ? [accuse.id] : [] };
   }
+  const pacte = repliDuPacte(vue, demande, h, { allies, suspects });
+  if (pacte) return pacte;
   // Le Dernier souffle : une voix unique ; sans IA, on ne la donne que contre un suspect connu, une fois sur deux.
   if (demande.objet === "souffle") {
     const vises = pool.filter(c => suspects.has(c.id));
@@ -451,6 +483,72 @@ export function repliDecision(vue, demande, graine) {
   // La nuit, un loup chasse toujours ; un autre rôle agit le plus souvent.
   if (!allies.size && h() < 0.15) return { cibles: [] };
   return { cibles: melanger(pool, h).slice(0, n).map(c => c.id) };
+}
+
+// Les demandes du Pacte (système lakour-loups : jeu de soirée, Village, variantes, Gazette de la lune), sans modèle et sans politique du
+// système : un choix sensé, jamais toujours le même (un compagnon n'accepte pas toujours un marché, le Crieur ne lit pas toujours une
+// carte). demande.objet : le sujet (compagnons-jeu.js, sujetDemandeLoups) ; vue.effet : l'effet de son rôle. -> { cibles } | null
+export function repliDuPacte(vue, demande, h, { allies = new Set(), suspects = new Set() } = {}) {
+  const candidats = demande.candidats ?? [];
+  const soi = candidats.find(c => c.id === vue.id);
+  const un = l => (l.length ? [choisir(l, h).id] : []);
+  const loup = vue.camp ? vue.camp === "meute" : allies.size > 0;
+  const autres = candidats.filter(c => c.id !== vue.id);
+  // Un sûr : un allié pour un loup ; pour un villageois, quelqu'un qu'il ne soupçonne pas.
+  const surs = autres.filter(c => (loup ? allies.has(c.id) : !suspects.has(c.id)));
+  const ennemis = autres.filter(c => !allies.has(c.id));
+  const suspectsIci = ennemis.filter(c => suspects.has(c.id));
+  switch (demande.objet) {
+    // Se désigner = accepter (le marché avec le Malin, l'appel du Châtiment, le logement du Prévôt) ; supplier le Hobereau : toujours.
+    case "marche": return { cibles: soi && h() < 0.35 ? [soi.id] : [] };
+    case "appel": return { cibles: soi && h() < 0.75 ? [soi.id] : [] };
+    case "logement": return { cibles: soi && h() < 0.8 ? [soi.id] : [] };
+    case "supplique": return { cibles: candidats.length ? [candidats[0].id] : [] };
+    // Le Hobereau gracie un allié (un loup), un villageois qu'il ne soupçonne pas (plus d'une fois sur deux), ou lui-même.
+    case "grace": {
+      const c = candidats[0];
+      if (!c) return { cibles: [] };
+      return { cibles: c.id === vue.id || allies.has(c.id) || (!loup && !suspects.has(c.id) && h() < 0.6) ? [c.id] : [] };
+    }
+    // La Chambrière se dévoue rarement (et jamais pour un suspect).
+    case "chambriere": return { cibles: surs.length && h() < 0.25 ? un(surs) : [] };
+    // Le Crieur public : une carte de sa main un matin sur deux.
+    case "crieur-annonce": return { cibles: candidats.length && h() < 0.5 ? un(candidats) : [] };
+    // Confier une charge (Crieur, Exécuteur, logement du Prévôt) : un sûr.
+    case "crieur-nommer": case "crieur-transmettre": case "crieur-garder": case "executeur": case "prevot": case "vote-executeur":
+      return { cibles: un(surs.length ? surs : autres.length ? autres : candidats) };
+    // Le Chapardeur prend une carte du centre une fois sur deux ; le Bateleur joue presque toujours une carte.
+    case "chapardeur": return { cibles: candidats.length && h() < 0.5 ? un(candidats) : [] };
+    case "bateleur": return { cibles: candidats.length && h() < 0.85 ? un(candidats) : [] };
+    // Le Souffre-douleur : qui votera demain — ceux qu'il ne soupçonne pas (un loup : sa meute d'abord), un au moins.
+    case "votants": {
+      const l = loup ? [...candidats.filter(c => allies.has(c.id)), ...melanger(candidats.filter(c => !allies.has(c.id)), h).slice(0, 1)]
+        : candidats.filter(c => !suspects.has(c.id));
+      return { cibles: (l.length ? l : candidats).slice(0, Math.max(1, demande.nombre ?? 1)).map(c => c.id) };
+    }
+    // La Chaîne des innocents : garantir l'innocence d'un debout (un loup blanchit un loup).
+    case "chaine": return { cibles: un(surs.length ? surs : autres) };
+    // La Braconnière emporte, le Châtiment punit : un suspect, sinon quelqu'un qui n'est pas des siens.
+    case "emporter": case "chatiment": return { cibles: un(suspectsIci.length ? suspectsIci : ennemis.length ? ennemis : candidats) };
+    // Les Influences, le Spiritisme, le Spectre, le Méchant Benêt : au hasard (rien à savoir de plus).
+    case "influences": case "seance-question": case "spectre": case "benet": return { cibles: un(candidats) };
+    case "seance-spirite": return { cibles: un(autres.length ? autres : candidats) };
+    case "seance-designer": return { cibles: melanger(suspectsIci.length ? suspectsIci : ennemis.length ? ennemis : candidats, h).slice(0, Math.max(1, demande.nombre ?? 1)).map(c => c.id) };
+    // La Grande Défiance : deux voix à deux amis, jamais à soi.
+    case "defiance": return { cibles: melanger(surs.length >= 2 ? surs : [...surs, ...ennemis.filter(c => !surs.includes(c))], h).slice(0, 2).map(c => c.id) };
+    // Le Châtiment : témoigner pour l'accusé, s'il est des siens (un loup) ou s'il n'est pas soupçonné (une fois sur deux).
+    case "vote-chatiment": {
+      const c = candidats[0];
+      return { cibles: c && (allies.has(c.id) || (!loup && !suspects.has(c.id) && h() < 0.5)) ? [c.id] : [] };
+    }
+    default: break;
+  }
+  // Les réveils sans autre choix que soi : le Mâtin rejoint la meute deux fois sur cinq, la Liseuse d'étoiles dit oui le plus souvent.
+  if (soi && candidats.length === 1) {
+    if (vue.effet === "choisir-camp") return { cibles: h() < 0.4 ? [soi.id] : [] };
+    if (vue.effet === "spiritisme") return { cibles: h() < 0.7 ? [soi.id] : [] };
+  }
+  return null;
 }
 
 // ------------------------------------------------------------------ rythme de parole (pas de boucle entre compagnons)
@@ -529,8 +627,10 @@ export class CerveauxCompagnons {
     return { texte: repliReplique(vue, this.graine, { combat, n }), source: "repli" };
   }
 
-  // Une décision : { cibles } | { texte } | { choix }, plus source ("ia", "invalide", "repli"). Invalide = passer.
-  async decider(vue, demande) {
+  // Une décision : { cibles } | { texte } | { choix }, plus source ("ia", "invalide", "politique", "repli"). Invalide = passer.
+  // repli (facultatif) : () -> { cibles } | null (ou sa promesse), une décision sans modèle mieux informée que repliDecision (aux
+  // Veillées : les politiques de jeu du système, compagnons-jeu.js) ; null ou une erreur : le repli déterministe.
+  async decider(vue, demande, { repli = null } = {}) {
     const f = this.modeIA();
     if (f) {
       try {
@@ -540,6 +640,17 @@ export class CerveauxCompagnons {
         return v ? { ...v.valeur, source: "ia" } : { ...passer(demande), source: "invalide" };
       } catch (e) {
         console.warn("lakour-mj-ia | compagnon, repli après erreur :", e?.message ?? e);
+      }
+    }
+    if (typeof repli === "function") {
+      try {
+        const v = await repli();
+        if (v && Array.isArray(v.cibles)) {
+          this.#noter(vue, "decider", "politique");
+          return { ...v, source: "politique" };
+        }
+      } catch (e) {
+        console.warn("lakour-mj-ia | compagnon, politique en échec :", e?.message ?? e);
       }
     }
     this.#noter(vue, "decider", "repli");

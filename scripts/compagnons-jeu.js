@@ -19,8 +19,9 @@ import { vuePubliqueDepuisApi } from "./survie-logique.js";
 import { ligneHistoireActeur } from "./histoire-logique.js";
 import {
   CerveauxCompagnons, BAVARDAGE, normaliserPersonnalite, texteBrut, choisirOrateurs, repliReplique, criePeste, declarationAuRegistre, accusationDans,
-  formulesReplique
+  formulesReplique, adresseDe, hasard
 } from "./compagnons.js";
+import { appelSur, texteDesVariantes, variantesActives } from "./veillees-pacte.js";
 
 // Réglage du MJ IA, sans erreur s'il n'est pas enregistré (essais, système sans MJ IA).
 const reglageSur = (cle, defaut) => {
@@ -169,6 +170,8 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
   const dePassage = gens.has(acteur.id);
   // Le Dernier souffle (système 0.7.0) : un mort garde une voix, au vote d'exécution, tant qu'il ne l'a pas donnée.
   const souffle = !vivant && !parti && Boolean((() => { try { return api.peutSouffler?.(acteur.id)?.aSonSouffle; } catch { return false; } })());
+  // Le Pacte (système lakour-loups récent) : sa personnalité, sa carte envoûtée, ses charges ; le public du jeu de soirée.
+  const pacte = pacteDuCompagnon(api, acteur, pub, role, nom);
   const fiche = [
     `Tu es ${acteur.name}, villageois de Brumecombe${metier ? `, ${metier.name} de ton métier (public)` : ""}`
       + `${acteur.system.maison ? ` ; tu dors à « ${acteur.system.maison} »` : ""}.`,
@@ -178,6 +181,7 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
     loup ? "Tes Masques de veillée, s'ils sont dans ton carnet, sont des rôles du Village absents de la partie : tu peux prétendre en tenir "
       + "un sans qu'on te contredise. Accorde ton masque avec la meute (pas deux loups sous le même) et ne dis jamais qu'un rôle n'est pas en jeu." : "",
     dePassage ? "Ton camp, lui, est SECRET (ton carnet te le dit) : ne le révèle que si ton camp y gagne." : "",
+    ...pacte.fiche,
     vivant ? "" : parti ? "Tu as quitté la veillée (départ ou exil) : tu ne joues plus, tu ne parles ni ne votes." : souffle ? "Tu es MORT : tu te tais. Mais tu gardes ton Dernier souffle : une seule voix, au vote d'exécution, qui ne reviendra pas ; "
       + "garde-la pour un vote décisif." : "Tu es MORT : tu te tais et tu ne votes plus.",
     acteur.system.silence ? "Tu es réduit au silence : tu ne parles pas au débat d'aujourd'hui." : ""
@@ -199,6 +203,7 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
     ...bailliEtRegistre(api, acteur),
     presageDuJour(api),
     ...bancEtDeuil(api, acteur),
+    ...pacte.scene,
     pub.historique?.length ? `Annonces publiques récentes :\n${pub.historique.slice(-12).map(h => `· ${texteBrut(h.texte)}`).join("\n")}` : ""
   ].filter(Boolean).join("\n");
   // La Petite tablée (système 0.11.0, publique : etat.petiteTablee) et les villageois tenus par un humain (system.joueur, public) :
@@ -207,11 +212,60 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
   const humains = autres.filter(a => a.system.joueur).map(a => a.id);
   return {
     id: acteur.id, nom: acteur.name, monde: MONDE_VEILLEES, jeu: "loups", personnalite: personnaliteDe(acteur), fiche,
+    // La clé et l'effet de SON rôle, et son camp (sa propre carte : les politiques de jeu et le repli s'en servent).
+    roleCle: role?.system?.cle ?? "", effet: role?.system?.effet ?? "", camp: camp || "",
     prive: [...carnet, ...privesDe(acteur.id)], public: chatPublic({ messages, paroles: parolesPour(acteur.id) }), scene,
     autres: autres.map(a => ({ id: a.id, nom: a.name, vivant: a.system.vivant !== false, humain: Boolean(a.system.joueur) })), allies, suspects,
     vivant, peutParler: vivant && !acteur.system.silence && pub.phase !== "nuit", tour: pub.tour,
     humains, petiteTablee: Boolean(pub.petiteTablee)
   };
+}
+
+// Le Pacte (système lakour-loups, étapes 1 à 9 ; un système plus ancien n'a rien de tout cela) : ce que le compagnon sait du jeu de
+// soirée. fiche : sa propre carte (personnalité publique, carte envoûtée, Crieur public, Exécuteur) ; scene : le public (variantes, sagesse,
+// graciés, votants du jour, plume, Bateleur, Illuminé, Chambrière, Village, Gazette, traits). Jamais un secret d'un autre.
+function pacteDuCompagnon(api, acteur, pub = {}, role = null, nom = id => id) {
+  const fiche = [], scene = [];
+  const id = acteur.id;
+  const perso = appelSur(api, "personnalite", id);
+  if (perso?.titre) {
+    fiche.push(`Ta personnalité du village (PUBLIQUE) : ${perso.titre}${perso.batiment ? `, tu tiens ${perso.batiment}` : ""}. ${texteBrut(perso.aide)}`
+      + (perso.personnalite === "cabaretier" ? " Ton vote est annoncé à tous : vote en le sachant." : ""));
+  }
+  if (role?.system?.envoute) fiche.push("Tu es ENVOÛTÉ : ta carte n'a plus aucun pouvoir (ni la nuit, ni le jour, ni à ta mort). N'agis plus comme si tu l'avais.");
+  const g = appelSur(api, "gazette");
+  if (g?.crieur?.acteurId === id) {
+    // Sa main (ses propres cartes, secrètes pour les autres) : leur nombre ici ; leurs noms sont dans son carnet et dans la demande du matin.
+    const main = appelSur(api, "gazetteSecrets")?.main ?? [];
+    fiche.push(`Tu es le Crieur public (charge publique) : ${main.length ? `${main.length} carte(s) de la Gazette en main, ` : ""}dans ton carnet, `
+      + "secrètes ; un matin, tu peux en lire une, ou te taire.");
+  }
+  if (g?.executeur?.acteurId === id) fiche.push("Tu es l'Exécuteur (public) : tu apprends seul, dans ton carnet, la carte de chaque condamné ; les autres ne la voient pas.");
+  if (variantesActives(pub.variantes)) scene.push(`Variantes de la veillée (publiques) : ${texteDesVariantes(pub.variantes)}.`);
+  const p = appelSur(api, "pacte");
+  if (p?.sagessePerdue) scene.push("Brumecombe a perdu sa sagesse : plus aucun pouvoir de rôle du Village ni de métier.");
+  if (p?.gracies?.length) scene.push(`Innocents graciés (ils ne votent plus) : ${p.gracies.map(x => nom(x.acteurId)).join(", ")}.`);
+  if (p?.votants?.ids?.length && Number(p.votants.tour) === Number(pub.tour)) scene.push(`Aujourd'hui, seuls votent à l'exécution : ${p.votants.ids.map(nom).join(", ")}.`);
+  if (p?.plume?.cible && Number(p.plume.tour) === Number(pub.tour)) scene.push(`La plume noire désigne ${nom(p.plume.cible)} : deux voix contre lui au premier vote du jour.`);
+  const a = appelSur(api, "ambigus");
+  if (a?.bateleur?.length) scene.push(`Cartes du Bateleur, face visible : ${a.bateleur.map(c => c.nom).join(", ")}.`);
+  if (a?.groupes?.a?.length && a.groupes.b?.length) scene.push(`Les deux groupes de l'Illuminé : ${a.groupes.a.map(x => x.nom).join(", ")} | ${a.groupes.b.map(x => x.nom).join(", ")}.`);
+  if (a?.devouements?.length) scene.push(`Dévouements de la Chambrière : ${a.devouements.map(d => `${nom(d.acteurId)} a pris la carte de ${nom(d.de)}`).join(", ")}.`);
+  if (a?.commenceParLeJour && Number(pub.tour) < 1) scene.push("La veillée commence par un jour : débat et vote d'exécution avant la première nuit.");
+  const v = appelSur(api, "village");
+  if (v?.actif) {
+    const tenus = (v.batiments ?? []).filter(b => b.acteurId).map(b => `${b.occupant || nom(b.acteurId)}, ${b.titre}`);
+    scene.push(`Le Village (public) : ${tenus.join(" ; ") || "personne"}${v.chemineaux?.length ? ` ; Chemineaux : ${v.chemineaux.map(c => c.nom).join(", ")}` : ""}.`);
+    if (v.regent?.ids?.length && Number(v.regent.tour) === Number(pub.tour)) scene.push(`Privés de vote par le Régent aujourd'hui : ${v.regent.ids.map(nom).join(", ")}.`);
+  }
+  if (g?.actif) {
+    if (g.enCours?.length) scene.push(`Gazette de la lune, cartes en cours : ${g.enCours.map(c => `${c.nom}${c.effet ? ` (${String(c.effet).replace(/[.\s]+$/, "")})` : ""}`).join(" ; ")}.`);
+    if (g.crieur?.acteurId && g.crieur.acteurId !== id) scene.push(`Crieur public : ${g.crieur.nom || nom(g.crieur.acteurId)}.`);
+    if (g.executeur?.acteurId && g.executeur.acteurId !== id) scene.push(`Exécuteur : ${g.executeur.nom || nom(g.executeur.acteurId)} (les cartes des condamnés ne sont plus retournées).`);
+  }
+  const traits = appelSur(api, "traits");
+  if (traits && Object.keys(traits).length) scene.push(`Traits visibles (publics) : ${Object.entries(traits).map(([i, t]) => `${nom(i)} — ${t.texte}`).join(" ; ")}.`);
+  return { fiche, scene };
 }
 
 // Le Banc des accusés et le Glas du deuil (système 0.8.0 ; publics) : les accusations du jour, comment accuser, le compte du glas.
@@ -365,13 +419,26 @@ export function sujetDemandeLoups(demande = {}) {
   if (demande.type === "vote" && demande.banc) return "banc";
   if (demande.type === "vote" && demande.souffle) return "souffle";
   if (demande.type === "vote" && demande.objet === "exil") return "exil";
-  if (demande.type === "vote") return demande.objet === "bailli" ? "bailli" : demande.objet === "chapelle" ? "chapelle" : "vote";
+  // La Gazette de la lune : la Grande Défiance (deux voix), l'élection de l'Exécuteur, le Châtiment (témoigner), le vote à tour de rôle.
+  if (demande.type === "vote" && demande.mode === "defiance") return "defiance";
+  if (demande.type === "vote" && demande.objet === "executeur") return "vote-executeur";
+  if (demande.type === "vote" && demande.objet === "chatiment") return "vote-chatiment";
+  if (demande.type === "vote") return demande.objet === "bailli" ? "bailli" : demande.objet === "chapelle" ? "chapelle" : demande.mode === "suite" ? "suite" : "vote";
+  // Le Pacte : les derniers gestes, les ambigus, le Village, les variantes, la Gazette (l'objet de la demande est son sujet).
+  if (OBJETS_DU_PACTE.includes(demande.objet)) return demande.objet;
   if (demande.objet === "departage") return "departage";
   if (demande.objet === "deuil-vision") return "deuil-vision";
   if (demande.objet === "deuil-voix") return "deuil-voix";
   if (demande.objet === "succession") return "succession";
   return demande.posthume ? "posthume" : "nuit";
 }
+
+// Les objets de demande du Pacte (système lakour-loups, docs/loups-contrat.md des Veillées), chacun son sujet.
+export const OBJETS_DU_PACTE = ["emporter", "votants", "chapardeur", "bateleur", "chambriere", "supplique", "grace", "prevot", "logement", "chaine",
+  "marche", "appel", "chatiment", "influences", "executeur", "crieur-nommer", "crieur-transmettre", "crieur-garder", "crieur-annonce",
+  "seance-question", "seance-spirite", "seance-designer", "spectre", "benet"];
+// Les sujets qui sont des votes (le cerveau peut s'abstenir).
+export const SUJETS_DE_VOTE = ["vote", "chapelle", "bailli", "departage", "souffle", "banc", "exil", "defiance", "vote-executeur", "vote-chatiment", "suite"];
 
 // Ce que le cerveau lit en plus de l'invite du système, pour les demandes du Bailli.
 const PRECISIONS_LOUPS = {
@@ -388,9 +455,59 @@ const PRECISIONS_LOUPS = {
   souffle: "Tu es mort, mais tu gardes ton Dernier souffle : une seule voix, pour ce vote d'exécution, et elle ne reviendra pas. Elle est "
     + "précieuse : ne la donne que si ce vote est décisif ; sinon abstiens-toi, tu pourras voter un autre jour.",
   succession: "Tu es mort, et tu étais le Bailli : remets le sceau à un vivant de ton choix (sa voix comptera double, il tranchera les "
-    + "égalités), ou passe : la charge restera vacante et le village élira un nouveau Bailli."
+    + "égalités), ou passe : la charge restera vacante et le village élira un nouveau Bailli.",
+  // Le Pacte : chaque demande nouvelle, ce qu'elle décide (le modèle lit aussi l'invite du système).
+  emporter: "Tu es mort, et ta carte t'emporte quelqu'un dans la tombe (la Braconnière) : désigne qui meurt avec toi, ou passe.",
+  votants: "Tu es mort de l'égalité (le Souffre-douleur) : désigne ceux qui auront le droit de voter demain aux votes d'exécution (un au "
+    + "moins, autant que tu veux) ; les autres ne voteront pas.",
+  chapardeur: "Le Chapardeur : les candidats sont des CARTES. En prendre une, c'est échanger ta carte contre elle (ton rôle, et peut-être "
+    + "ton camp, changent) ; passer, c'est garder la tienne.",
+  bateleur: "Le Bateleur : les candidats sont des CARTES face visible. Celle que tu choisis, tu la joues cette nuit (tu te réveilleras "
+    + "avec son pouvoir) ; passer : rien cette nuit.",
+  chambriere: "La Chambrière : te dévouer pour un condamné (le désigner), c'est prendre sa carte ; la sienne n'est pas montrée, la tienne "
+    + "de Chambrière est retournée (ton secret tombe). Passe si tu ne veux pas.",
+  supplique: "Le village t'a condamné : supplier le Hobereau (le désigner) peut te sauver ; il décidera. Passer, c'est accepter ton sort.",
+  grace: "Tu es le Hobereau : gracier ce condamné (le désigner) le sauve de ce vote, une seule fois par partie ; passe sinon.",
+  prevot: "Tu es le Prévôt : un bâtiment est libre, désigne le Chemineau que tu y loges (il prendra sa personnalité), ou passe.",
+  logement: "Le Prévôt t'offre un bâtiment : te désigner, c'est accepter (tu prends sa personnalité) ; passer, c'est refuser.",
+  chaine: "La Chaîne des innocents : désigne un villageois encore debout dont tu GARANTIS l'innocence ; il s'assied. Le dernier debout "
+    + "sera condamné (un loup peut blanchir un loup).",
+  marche: "Le Marché avec le Malin : te désigner, c'est accepter (ce vote ne t'élimine pas), mais si ton camp perd, tu ne seras pas de la "
+    + "partie suivante. Ce n'est pas toujours une bonne affaire : pèse-le.",
+  appel: "Le Châtiment t'accuse : te désigner, c'est lancer un appel au village pour que deux joueurs témoignent pour toi ; passer, c'est te taire.",
+  chatiment: "Tu es mort : le Châtiment te fait désigner le joueur que le village doit punir (il faudra deux témoignages pour le sauver).",
+  influences: "Tu es mort : les Influences te font choisir qui votera le premier (le vote se fera à tour de rôle, à découvert).",
+  executeur: "Tu étais l'Exécuteur : désigne ton successeur (il apprendra seul les cartes des condamnés).",
+  "crieur-nommer": "Tu es le Bailli : nomme le Crieur public (jamais toi), qui lira peut-être des cartes de la Gazette au matin.",
+  "crieur-transmettre": "Tu es devenu Bailli et tu étais Crieur public : transmets cette charge à un autre.",
+  "crieur-garder": "Tu es le nouveau Bailli : désigner le Crieur actuel, c'est le garder ; un autre, c'est le remplacer.",
+  "crieur-annonce": "Tu es le Crieur public : les candidats sont tes CARTES de la Gazette. En lire une l'applique aussitôt à tout le "
+    + "village ; passer, c'est te taire ce matin. Garde-les pour le bon moment.",
+  "seance-question": "Le Spiritisme : choisis la question que l'esprit du premier mort entendra (il répondra par oui ou non, sans mentir).",
+  "seance-spirite": "Le Spiritisme : désigne le Spirite, qui posera la question à l'esprit.",
+  "seance-designer": "Le Spiritisme : désigne les joueurs sur qui porte la question.",
+  spectre: "Le Spectre : tu deviens loup ; désigne l'ancien loup qui mourra à ta place.",
+  benet: "Tu es mort le premier : le Méchant Benêt te fait désigner un joueur qui n'est pas loup ; il deviendra l'allié secret de la meute.",
+  defiance: "La Grande Défiance : donne tes DEUX voix à deux amis (jamais toi) ; ceux qui n'en reçoivent aucune seront condamnés.",
+  "vote-executeur": "Élection de l'Exécuteur : vote pour celui qui apprendra seul les cartes des condamnés.",
+  "vote-chatiment": "Le Châtiment : désigner l'accusé, c'est TÉMOIGNER POUR LUI (pour le sauver) ; ne rien choisir, c'est te taire. Avec "
+    + "moins de deux témoignages, il est éliminé.",
+  suite: "Vote à tour de rôle, à découvert : c'est ton tour, et tout le monde verra ta voix."
 };
-const inviteLoups = (demande, sujet) => [PRECISIONS_LOUPS[sujet], demande.invite].filter(Boolean).join("\n");
+// Les réveils dont l'effet change le sens d'un choix (le Mâtin, la Liseuse d'étoiles) : une précision de plus.
+const PRECISIONS_DES_EFFETS = {
+  "choisir-camp": "Le Mâtin : te désigner, c'est rejoindre la meute dès cette nuit (ton camp change) ; passer, c'est rester au Village.",
+  spiritisme: "La Liseuse d'étoiles : te désigner, c'est tenir une séance de Spiritisme au matin ; passer, c'est attendre."
+};
+// Le Mur des murmures (mode « texte ») : une phrase ANONYME, à ne pas confondre avec le mot du Messager.
+const PRECISION_DU_MUR = "Le Mur des murmures : écris une courte phrase ANONYME (jamais ton nom, rien qui te trahisse), que tout le village "
+  + "lira au matin sans savoir qui l'a écrite. Ce n'est pas un mot du Messager.";
+const estLeMur = invite => {
+  const t = String(invite ?? "");
+  try { if (game.i18n?.has?.("LAKOUR_LOUPS.Variantes.Mur.Invite") && t === game.i18n.localize("LAKOUR_LOUPS.Variantes.Mur.Invite")) return true; } catch { /* sans i18n */ }
+  return /mur des murmures|wall of whispers/i.test(t);
+};
+const inviteLoups = (demande, sujet, effet = "") => [PRECISIONS_LOUPS[sujet], sujet === "nuit" ? PRECISIONS_DES_EFFETS[effet] : "", demande.invite].filter(Boolean).join("\n");
 
 // La note privée du compagnon après sa décision, dite selon le sujet (pas « Nuit X… tu as choisi » pour un vote ou le sceau).
 export function notePriveeLoups(sujet, tour, noms = [], invite = "") {
@@ -406,7 +523,169 @@ export function notePriveeLoups(sujet, tour, noms = [], invite = "") {
     case "souffle": return `Dernier souffle, tour ${tour} : ${qui ? `tu as donné ta dernière voix contre ${noms[0]} (elle ne reviendra pas)` : "tu as gardé ton souffle pour un autre jour"}.`;
     case "departage": return `Jour ${tour}, en Bailli, tu as tranché l'égalité : ${qui ? `tu as désigné ${qui}` : "tu n'as désigné personne"}.`;
     case "succession": return `Mort, tu as remis le sceau du Bailli ${qui ? `à ${qui}` : "à personne (la charge reste vacante)"}.`;
+    case "emporter": return `Mort, tu as ${qui ? `emporté ${qui} dans la tombe` : "n'emporté personne"}.`;
+    case "votants": return `Mort de l'égalité, tu as désigné qui votera demain : ${qui || "personne"}.`;
+    case "chapardeur": return `Nuit ${tour}, Chapardeur : ${qui ? `tu as pris la carte « ${noms[0]} »` : "tu as gardé ta carte"}.`;
+    case "bateleur": return `Nuit ${tour}, Bateleur : ${qui ? `tu joues la carte « ${noms[0]} »` : "tu n'as joué aucune carte"}.`;
+    case "chambriere": return `Jour ${tour}, Chambrière : ${qui ? `tu t'es dévouée pour ${qui}` : "tu ne t'es pas dévouée"}.`;
+    case "supplique": return `Jour ${tour} : ${qui ? `tu as supplié ${qui} de te gracier` : "tu n'as pas supplié le Hobereau"}.`;
+    case "grace": return `Jour ${tour}, Hobereau : ${qui ? `tu as gracié ${qui}` : "tu n'as gracié personne"}.`;
+    case "prevot": return `Jour ${tour}, Prévôt : ${qui ? `tu as logé ${qui}` : "tu as laissé le bâtiment vide"}.`;
+    case "logement": return `Jour ${tour} : ${qui ? "tu as accepté le bâtiment du Prévôt" : "tu as refusé le bâtiment du Prévôt"}.`;
+    case "chaine": return `Vote du tour ${tour}, Chaîne des innocents : ${qui ? `tu as garanti l'innocence de ${qui}` : "tu n'as désigné personne"}.`;
+    case "marche": return `Jour ${tour} : ${qui ? "tu as passé un marché avec le Malin" : "tu as refusé le marché du Malin"}.`;
+    case "appel": return `Jour ${tour}, Châtiment : ${qui ? "tu as lancé un appel au village" : "tu t'es tu"}.`;
+    case "chatiment": return `Mort, tu as désigné ${qui || "personne"} pour le Châtiment.`;
+    case "influences": return `Mort, tu as choisi ${qui || "personne"} pour voter le premier.`;
+    case "executeur": return `Mort, tu as désigné ton successeur d'Exécuteur : ${qui || "personne"}.`;
+    case "crieur-nommer": case "crieur-transmettre": case "crieur-garder": return `Jour ${tour}, Crieur public : ${qui ? `tu as désigné ${qui}` : "tu n'as désigné personne"}.`;
+    case "crieur-annonce": return `Matin du tour ${tour}, Crieur public : ${qui ? `tu as lu « ${noms[0]} »` : "tu t'es tu"}.`;
+    case "seance-question": case "seance-spirite": case "seance-designer": return `Matin du tour ${tour}, Spiritisme : ${qui ? `tu as choisi ${qui}` : "tu as passé"}.`;
+    case "spectre": return `Nuit ${tour}, Spectre : ${qui ? `${qui} meurt à ta place` : "tu n'as désigné personne"}.`;
+    case "benet": return `Méchant Benêt : ${qui ? `tu as fait de ${qui} l'allié secret de la meute` : "tu n'as désigné personne"}.`;
+    case "defiance": return `Vote du tour ${tour}, Grande Défiance : ${qui ? `tes voix à ${qui}` : "tu t'es abstenu"}.`;
+    case "vote-executeur": return `Élection de l'Exécuteur, tour ${tour} : ${qui ? `tu as voté pour ${noms[0]}` : "tu t'es abstenu"}.`;
+    case "vote-chatiment": return `Châtiment, tour ${tour} : ${qui ? `tu as témoigné pour ${noms[0]}` : "tu t'es tu"}.`;
+    case "suite": return `Vote du tour ${tour} (à découvert) : ${qui ? `tu as voté contre ${noms[0]}` : "tu t'es abstenu"}.`;
     default: return `Nuit ${tour} (« ${invite} ») : tu as choisi ${qui || "de passer"}.`;
+  }
+}
+
+// ------------------------------------------------------------------ décider sans modèle : les politiques du système (Le Pacte, étape 6)
+// Le système des Veillées expose les politiques de jeu de ses joueurs simulés (api.logique : savoirDuJoueur, politiqueDeNuit,
+// politiqueDeVote, rumeurDuJour, proieDuVoteDeLaMeute, politiqueDuJour, annoncesDuJoueur) ; un compagnon sans modèle s'en sert, avec
+// l'adresse de son tempérament (compagnons.js, adresseDe). Il ne sait que ce que sait son villageois : son carnet, le chat public, les
+// rôles révélés, le Registre, ce que les compagnons ont dit tout haut. Un système plus ancien (sans api.logique.politiqueDeNuit) : null,
+// le repli d'avant (compagnons.js, repliDecision).
+const politiquesDe = api => (typeof api?.logique?.politiqueDeNuit === "function" && typeof api.logique.savoirDuJoueur === "function" ? api.logique : null);
+// Les annonces des compagnons au débat (en mémoire, liées à la partie) : [{ partie, tour, par, cible, camp }].
+const annoncesDesCompagnons = [];
+function retenirAnnonce(par, cible, tour = 0) {
+  annoncesDesCompagnons.push({ partie: partieEnCours(), tour, par, cible, camp: "meute" });
+  while (annoncesDesCompagnons.length > 200) annoncesDesCompagnons.shift();
+}
+const annoncesDeLaPartie = () => annoncesDesCompagnons.filter(a => a.partie === partieEnCours()).map(({ par, cible, camp }) => ({ par, cible, camp }));
+// Le contenu de la partie (l'équilibre : camp, information, protection de chaque rôle ; les noms des rôles), gardé par partie.
+let contenuDesPolitiques = { partie: null, roles: {}, nomsDesRoles: {} };
+async function contenuPourPolitiques(api) {
+  const partie = partieEnCours();
+  if (contenuDesPolitiques.partie === partie) return contenuDesPolitiques;
+  let c = null;
+  try { c = typeof api?.contenu === "function" ? await api.contenu() : null; } catch { c = null; }
+  contenuDesPolitiques = { partie, roles: c?.equilibre?.roles ?? {}, nomsDesRoles: Object.fromEntries((c?.roles ?? []).map(r => [r.nom, r.cle])) };
+  return contenuDesPolitiques;
+}
+// Le chat public, en texte (sans « Nom : » devant : les gabarits du système se lisent sur la phrase même).
+const textesPublics = (messages = game.messages?.contents ?? []) => messages
+  .filter(m => !m.whisper?.length && !m.blind && !m.flags?.[ID]?.prive).map(m => texteBrut(m.content)).filter(Boolean).slice(-80);
+// Le savoir d'un compagnon, au sens des politiques du système.
+async function savoirDuCompagnon(api, acteur, vue) {
+  const L = politiquesDe(api);
+  if (!L) return null;
+  const contenu = await contenuPourPolitiques(api);
+  const pub = L.etatPublic ? L.etatPublic(api.etat()) : api.etat();
+  const gabarits = game.i18n?.translations?.LAKOUR_LOUPS ?? null;
+  const camps = gabarits?.Camps ?? {};
+  const nomsDesCamps = Object.fromEntries(Object.entries(camps).map(([cle, libelle]) => [libelle, cle]));
+  const roleDe = a => (a.id === acteur.id ? roleLoups(a, api) : a.system?.revele ? a.items?.find?.(i => i.type === "role") ?? null : null);
+  const villageois = api.villageois().map(a => {
+    const r = roleDe(a);
+    return { id: a.id, nom: a.name, vivant: a.system?.vivant !== false, revele: Boolean(a.system?.revele),
+      camp: a.id === acteur.id ? vue.camp || "" : a.system?.revele ? r?.system?.camp ?? "" : "", role: r?.system?.cle ?? "" };
+  });
+  const textes = [...(api.carnet?.(acteur.id) ?? []).map(e => texteBrut(e.html ?? e.texte)), ...privesDe(acteur.id)];
+  return L.savoirDuJoueur({ moi: acteur.id, camp: vue.camp || "village", allies: vue.allies ?? [], textes, publics: textesPublics(),
+    villageois, gabarits, nomsDesRoles: contenu.nomsDesRoles, nomsDesCamps, annonces: annoncesDeLaPartie(), roles: contenu.roles,
+    registre: pub.registre ?? [], role: vue.roleCle ?? "", groupes: pub.ambigus?.groupes ?? null,
+    voisins: id => { const v = appelSur(api, "voisins", id); return [v?.gauche, v?.droite].filter(Boolean); } });
+}
+// L'effet d'un réveil de nuit : celui de son rôle quand l'invite est la sienne (l'Herboriste : la sienne, précédée des proies) ; un loup
+// réveillé sous une autre invite chasse (la meute, le Toucher, la Crue) ; sinon (une carte empruntée, une seconde carte), au hasard.
+function effetDuReveil(api, acteur, vue, invite = "") {
+  const role = roleLoups(acteur, api);
+  const sienne = String(role?.system?.nuit?.invite ?? "");
+  if (sienne && String(invite).includes(sienne)) return role?.system?.effet ?? "";
+  if (vue.camp === "meute") return "tuer";
+  return sienne ? "" : role?.system?.effet ?? "";
+}
+// -> { cibles } | null (null : le repli d'avant).
+export async function decisionParPolitique(api, acteur, vue, demande, sujet, graine = "") {
+  const L = politiquesDe(api);
+  if (!L || !acteur) return null;
+  const savoir = await savoirDuCompagnon(api, acteur, vue);
+  if (!savoir) return null;
+  const contenu = await contenuPourPolitiques(api);
+  const adresse = adresseDe(vue.personnalite, vue.id);
+  const h = hasard(`politique|${graine}|${vue.id}|${demande.id ?? demande.invite ?? ""}`);
+  const candidats = (demande.candidats ?? []).map(c => ({ id: c.id, nom: c.nom }));
+  const ids = candidats.map(c => c.id);
+  const garder = l => ({ cibles: [...new Set((l ?? []).filter(id => ids.includes(id)))].slice(0, Math.max(1, demande.nombre ?? 1)) });
+  if (demande.type === "vote") {
+    // La Défiance, le Châtiment, le Banc, le Dernier souffle : le repli (compagnons.js) a leur règle propre.
+    if (!["vote", "suite", "chapelle", "bailli", "vote-executeur"].includes(sujet) || typeof L.politiqueDeVote !== "function") return null;
+    const objet = sujet === "bailli" || sujet === "vote-executeur" ? "bailli" : sujet === "chapelle" ? "chapelle" : "execution";
+    // Ce dont le village et la meute se sont parlé : la rumeur du jour, la proie concertée de la meute (même tirage pour tous).
+    const e = api.etat();
+    const commun = cle => hasard(`${cle}|${partieEnCours()}|${e.tour}|${e.vote?.numero ?? demande.numero ?? 0}`);
+    const revele = new Map(api.villageois().filter(a => a.system?.revele).map(a => [a.id, a.items?.find?.(i => i.type === "role")?.system?.camp ?? ""]));
+    const annonces = annoncesDeLaPartie();
+    const rumeur = typeof L.rumeurDuJour === "function" ? L.rumeurDuJour({ candidats: ids, annonces, menteurs: savoir.menteurs ?? [], hasard: commun("rumeur"), adresse,
+      connus: ids.filter(id => revele.get(id) === "meute"), fiables: typeof L.fiablesDesAnnonces === "function" ? L.fiablesDesAnnonces(annonces, revele) : [] }) : "";
+    const proie = savoir.camp === "meute" && typeof L.proieDuVoteDeLaMeute === "function" ? L.proieDuVoteDeLaMeute({ candidats: ids, savoir, adresse, hasard: commun("proie") }) : "";
+    const c = L.politiqueDeVote({ objet, candidats: ids, savoir, adresse, hasard: h, place: { rumeur, proie } });
+    return garder(c ? [c] : []);
+  }
+  // Les gestes que le système sait jouer (Braconnière, Souffre-douleur, Prévôt, Chaîne, Chambrière, Hobereau…).
+  if (L.POLITIQUES_DES_GESTES?.[sujet]) {
+    return garder(L.politiqueDeNuit({ objet: sujet, candidats, nombre: demande.nombre ?? 1, invite: demande.invite, savoir, adresse, hasard: h,
+      roles: contenu.roles, nomsDesRoles: contenu.nomsDesRoles }));
+  }
+  // Un réveil de nuit (son rôle, la meute ; le Chapardeur et le Bateleur choisissent une carte).
+  if (["nuit", "chapardeur", "bateleur"].includes(sujet)) {
+    const effet = sujet === "nuit" ? effetDuReveil(api, acteur, vue, demande.invite) : vue.effet;
+    // Le Mâtin et la Liseuse d'étoiles : un choix de goût (le repli s'en charge).
+    if (["choisir-camp", "spiritisme"].includes(effet) && ids.length === 1) return null;
+    return garder(L.politiqueDeNuit({ effet, objet: "", candidats, nombre: demande.nombre ?? 1, invite: demande.invite, savoir, adresse, hasard: h,
+      roles: contenu.roles, nomsDesRoles: contenu.nomsDesRoles, solitaire: vue.camp === "solitaire" }));
+  }
+  return null;
+}
+// Ce que le compagnon dirait tout haut au débat (un loup qu'il croit tenir ; un loup ment parfois) : { cible, nom } | null.
+async function annonceDuCompagnon(api, acteur, vue) {
+  const L = politiquesDe(api);
+  if (!L || typeof L.annoncesDuJoueur !== "function") return null;
+  try {
+    const savoir = await savoirDuCompagnon(api, acteur, vue);
+    const vivants = api.villageois().filter(a => a.system?.vivant !== false).map(a => a.id);
+    const dejaDites = annoncesDesCompagnons.filter(a => a.partie === partieEnCours() && a.par === acteur.id).map(a => a.cible);
+    const [x] = L.annoncesDuJoueur({ savoir, adresse: adresseDe(vue.personnalite, vue.id), hasard: hasard(`annonce|${acteur.id}|${vue.tour}|${dejaDites.length}`), dejaDites, vivants });
+    const nom = x?.cible ? game.actors.get(x.cible)?.name : "";
+    return nom ? { cible: x.cible, nom } : null;
+  } catch { return null; }
+}
+// Un pouvoir de jour (politiqueDuJour), au plus un par jour et par compagnon, seulement au débat : le système l'applique et l'annonce.
+const pouvoirsTentes = new Set();
+async function pouvoirDuJourDuCompagnon(api, acteur, vue, graine = "") {
+  const L = politiquesDe(api);
+  if (!L || typeof L.politiqueDuJour !== "function" || typeof api?.pouvoirsDeJour !== "function" || typeof api.agirDeJour !== "function") return null;
+  const e = api.etat();
+  if (e.phase !== "jour" || e.vainqueur) return null;
+  const cle = `${partieEnCours()}|${e.tour}|${acteur.id}`;
+  if (pouvoirsTentes.has(cle)) return null;
+  pouvoirsTentes.add(cle);
+  try {
+    const possibles = api.pouvoirsDeJour(acteur.id).filter(p => p.possible && p.pouvoir !== "chapelle")
+      .map(p => ({ pouvoir: p.pouvoir, nom: p.nom, cibles: p.cibles, candidats: p.candidats ?? [] }));
+    if (!possibles.length) return null;
+    const savoir = await savoirDuCompagnon(api, acteur, vue);
+    const choix = L.politiqueDuJour({ possibles, savoir, adresse: adresseDe(vue.personnalite, vue.id), hasard: hasard(`jour|${graine}|${cle}`) });
+    if (!choix) return null;
+    await api.agirDeJour({ acteurId: acteur.id, pouvoir: choix.pouvoir, cibles: choix.cibles ?? [] });
+    await noterPrive(acteur.id, `Jour ${e.tour} : tu as usé de ton pouvoir de jour (${possibles.find(p => p.pouvoir === choix.pouvoir)?.nom ?? "ton pouvoir"}).`);
+    return choix;
+  } catch (err) {
+    console.warn(`${ID} | pouvoir de jour d'un compagnon refusé`, err);
+    return null;
   }
 }
 
@@ -463,9 +742,14 @@ export class Compagnons {
     const parlants = compagnonsPresents().map(a => ({ id: a.id, nom: a.name, acteur: a, vue: this.vue(a, { messages }) }))
       .filter(c => c.vue.peutParler);
     const dits = [];
+    // Sans modèle, aux Veillées : ce qu'il sait se dit tout haut (les politiques du système : annoncesDuJoueur).
+    const sansModele = !this.cerveaux.modeIA();
     for (const c of choisirOrateurs(parlants, { max, mentions, derniere: this.derniere })) {
+      if (sansModele && c.vue.jeu === "loups") c.vue.annonce = await annonceDuCompagnon(game.lakourLoups, c.acteur, c.vue);
       const r = await this.cerveaux.parler(c.vue);
+      if (sansModele && c.vue.jeu === "loups") await pouvoirDuJourDuCompagnon(game.lakourLoups, c.acteur, c.vue, this.cerveaux.graine);
       if (!r.texte) continue;
+      if (c.vue.annonce && r.source === "repli" && r.texte.includes(c.vue.annonce.nom)) retenirAnnonce(c.id, c.vue.annonce.cible, c.vue.tour);
       this.derniere.set(c.id, ++this.horloge);
       await this.poster(c.acteur, r.texte);
       dits.push({ acteurId: c.id, nom: c.nom, texte: r.texte, source: r.source });
@@ -503,14 +787,20 @@ export class Compagnons {
     if (!estCompagnon(acteur)) return demande.mode === "texte" ? "" : [];
     const vue = this.vue(acteur);
     if (demande.mode === "texte") {
-      const r = await this.cerveaux.decider(vue, { type: "texte", invite: demande.invite, max: demande.max, cle: `texte|${demande.id}` });
-      if (r.texte) await noterPrive(acteur.id, `Nuit ${vue.tour} : tu as confié ce mot au Messager : « ${r.texte} ».`);
+      // Le Mur des murmures (une phrase anonyme), ou le mot confié au Messager.
+      const mur = estLeMur(demande.invite);
+      const r = await this.cerveaux.decider(vue, { type: "texte", invite: mur ? `${PRECISION_DU_MUR}\n${demande.invite}` : demande.invite, max: demande.max,
+        cle: `texte|${demande.id}`, ...(mur ? { objet: "mur" } : {}) });
+      if (r.texte) await noterPrive(acteur.id, mur ? `Nuit ${vue.tour} : tu as écrit sur le Mur des murmures : « ${r.texte} ».` : `Nuit ${vue.tour} : tu as confié ce mot au Messager : « ${r.texte} ».`);
       return r.texte;
     }
     const candidats = (demande.candidats ?? []).map(c => ({ id: c.id, nom: c.nom }));
     const sujet = sujetDemandeLoups(demande);
-    const r = await this.cerveaux.decider(vue, { type: "cibles", invite: inviteLoups(demande, sujet), candidats, nombre: demande.nombre ?? 1,
-      vote: ["vote", "chapelle", "bailli", "departage", "souffle", "banc", "exil"].includes(sujet), objet: sujet, cle: `${demande.type}|${demande.id}` });
+    const demandeCerveau = { type: "cibles", invite: inviteLoups(demande, sujet, vue.effet), candidats, nombre: demande.nombre ?? 1,
+      vote: SUJETS_DE_VOTE.includes(sujet), objet: sujet, cle: `${demande.type}|${demande.id}` };
+    // Sans modèle : les politiques de jeu du système des Veillées (Le Pacte, étape 6), l'adresse de son tempérament ; un système qui
+    // ne les a pas : le repli d'avant.
+    const r = await this.cerveaux.decider(vue, demandeCerveau, { repli: () => decisionParPolitique(game.lakourLoups, acteur, vue, demande, sujet, this.cerveaux.graine) });
     const noms = r.cibles.map(id => candidats.find(c => c.id === id)?.nom).filter(Boolean);
     await noterPrive(acteur.id, notePriveeLoups(sujet, vue.tour, noms, demande.invite));
     return r.cibles;

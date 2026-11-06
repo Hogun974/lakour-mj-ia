@@ -16,6 +16,7 @@ import { lignePourIA as ligneFete } from "./fetes.js";
 import { contexteSurvie } from "./survie-logique.js";
 import { ligneHistoireActeur } from "./histoire-logique.js";
 import { langueDuMonde } from "./contenus.js";
+import { etatPacteLoups, appelSur } from "./veillees-pacte.js";
 
 // Pour le narrateur seul : les secrets du personnage (page secrète de son journal d'histoire), "" sinon.
 const secretHistoire = a => { const l = ligneHistoireActeur(a, { publique: false, secret: true }); return l ? ` — ${l}` : ""; };
@@ -371,6 +372,11 @@ export function etatPartieLoups(api) {
   lignes.push(...etatBailliRegistreMasques(api, e));
   lignes.push(...etatCalendrierSouffle(api, e, nom));
   lignes.push(...etatPassageBancDeuil(api, e, nom));
+  // Le Pacte (système lakour-loups récent ; un plus ancien n'a rien de tout cela) : sagesse, graciés, votants, plume, Village,
+  // variantes, Gazette — publics ; et, pour le narrateur seul, avant la première nuit, le centre du Chapardeur.
+  lignes.push(...etatPacteLoups(api, e, nom));
+  const centre = Number(e.tour) < 1 && !e.vainqueur ? appelSur(api, "ambigusSecrets")?.centre ?? [] : [];
+  if (centre.length) lignes.push(`Pour toi seul (SECRET) : le centre du Chapardeur — ${centre.map(c => c.nom).join(", ")}.`);
   return lignes;
 }
 

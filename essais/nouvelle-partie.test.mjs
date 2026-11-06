@@ -275,7 +275,7 @@ test("loups_rejouer (doublure de l'API) : mêmes joueurs, nouvelle composition, 
   const def = outil("loups_rejouer");
   assert.deepEqual(def.systemes, ["lakour-loups"]);
   assert.equal(def.sensible, true);
-  assert.deepEqual(Object.keys(def.schema.properties).sort(), ["composition", "format", "glas", "niveau", "peste", "roles"]);
+  assert.deepEqual(Object.keys(def.schema.properties).sort(), ["composition", "format", "gazette", "glas", "niveau", "peste", "roles", "variantes", "village"]);
   const r = await def.executer({ niveau: "chaos", roles: [], composition: "" });
   assert.ok(!r.erreur, r.contenu);
   assert.deepEqual(api.appels, [{ memesJoueurs: true, niveau: "chaos", roles: [], composition: "" }]);

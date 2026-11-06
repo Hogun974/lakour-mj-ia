@@ -391,7 +391,7 @@ const MUTATIONS = [
   ["compagnons-jeu.js", "  if (demande.type === \"vote\" && demande.objet === \"exil\") return \"exil\";\n", "", "résolveur : l'exil"],
   ["compagnons.js", "    if (!accuse || allies.has(accuse.id)) return { cibles: [] };", "    if (!accuse) return { cibles: [] };", "repli : un loup condamne les siens"],
   ["compagnons.js", "?? candidats.find(x => vise.startsWith(plierNom(x.nom)))", "", "accusation suivie d'une raison"],
-  ["outils.js", "        if (roleCle === \"deuil\") {", "        if (false) {", "loups_nuit : la vision du deuil"],
+  ["outils.js", "    if (roleCle === \"deuil\") {", "    if (false) {", "loups_nuit : la vision du deuil"],
   ["outils.js", "      if (banc?.actif && !banc.prochain) {", "      if (false) {", "loups_vote : banc vide"],
   ["outils.js", "      if (r.banc) {", "      if (false) {", "loups_vote : le verdict du Banc"],
   ["outils.js", "      if (r.objet === \"exil\") {", "      if (false) {", "loups_vote : l'exil"],
