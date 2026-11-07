@@ -47,11 +47,14 @@ export function prixDuModele(fournisseur, modele) {
   return null;
 }
 
-// Coût en dollars d'un appel, d'après son usage ({ entree, cacheLecture, cacheEcriture, sortie }) et un prix.
+// Coût en dollars d'un appel, d'après son usage ({ entree, cacheLecture, cacheEcriture, sortie, cacheEcriture1h? }) et un prix.
+// cacheEcriture compte toutes les écritures du cache au prix de cinq minutes (1,25 fois l'entrée) ; celles gardées une heure
+// (cacheEcriture1h, Anthropic, comprises dans cacheEcriture) coûtent deux fois l'entrée : la différence s'ajoute.
 export function coutDe(usage, prix) {
   if (!prix) return 0;
+  const uneHeure = (usage.cacheEcriture1h ?? 0) * Math.max(0, 2 * prix.entree - (prix.cacheEcriture ?? 0));
   return ((usage.entree ?? 0) * prix.entree + (usage.cacheLecture ?? 0) * prix.cacheLecture
-    + (usage.cacheEcriture ?? 0) * (prix.cacheEcriture ?? 0) + (usage.sortie ?? 0) * prix.sortie) / 1e6;
+    + (usage.cacheEcriture ?? 0) * (prix.cacheEcriture ?? 0) + uneHeure + (usage.sortie ?? 0) * prix.sortie) / 1e6;
 }
 
 // Modèle des compagnons IA par défaut : un modèle bon marché du fournisseur actif (Claude Haiku 5.5 chez Anthropic,

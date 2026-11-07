@@ -118,14 +118,15 @@ export function voixDe(p) {
   return { voix: p.voixOpenAI || base?.voixOpenAI || "cedar", ton: p.tonVoix || base?.tonVoix || "" };
 }
 
-export function decrirePersonnalite(p) {
+// scenario : false là où il n'y a pas de scénario à suivre (aux Veillées, ni scénario ni modifier_scenario) : sans le degré d'improvisation.
+export function decrirePersonnalite(p, { scenario = true } = {}) {
   return [
     `Ta personnalité de meneur : « ${p.nom} ».`,
     p.consignes,
     VIOLENCE[p.violence] ?? VIOLENCE[2],
     LONGUEUR[p.longueur] ?? LONGUEUR.moyenne,
     RIGUEUR[p.rigueur] ?? RIGUEUR.normale,
-    IMPROVISATION[improvisationDe(p)]
+    ...(scenario ? [IMPROVISATION[improvisationDe(p)]] : [])
   ].join("\n");
 }
 

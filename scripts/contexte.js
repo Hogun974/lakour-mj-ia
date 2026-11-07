@@ -70,6 +70,11 @@ export const CONSIGNE_COMPAGNONS = [
     + "les PNJ et les conséquences, pas le geste qu'ils viennent de décrire. Une didascalie ne change rien au jeu.",
   "  • compagnon_ajouter, compagnon_retirer et compagnons gèrent la troupe ; un vote de groupe et un choix secret les incluent."
 ].join("\n");
+// Aux Veillées : ni combat ni jet (le système mène nuits et votes), ni compagnon_ajouter (la distribution les fait entrer).
+export const CONSIGNE_COMPAGNONS_VEILLEES = [
+  ...CONSIGNE_COMPAGNONS.split("\n").filter(l => !/jet_compagnon|compagnon_ajouter/.test(l)),
+  "  • Ils votent et agissent la nuit par les fenêtres du jeu, comme les joueurs ; compagnons te donne la troupe."
+].join("\n");
 
 // Consigne sur les horloges, jauges et réputations (outil horloge ; 40k, Warcraft) : leur état est dans l'état du jeu.
 export const CONSIGNE_HORLOGES = "- Horloges, jauges et réputations (horloge) : une menace ou un projet qui mûrit hors champ est une horloge "
@@ -141,90 +146,110 @@ export async function cartesPretes(packs = game.packs, max = 40) {
 
 // Prompt système : tout ce qui est STABLE pendant une séance (le cache le réutilise à chaque tour).
 // L'état changeant du jeu va dans les messages, jamais ici.
+// Aux Veillées (lakour-loups), seulement ce qui sert à ce jeu : ni dés, ni cartes, ni PNJ, ni plateau (le système le met en scène),
+// ni expérience, et des consignes du jeu réduites aux variantes de la partie (adaptateurs.js, consignesPour). Ce qui ne sert pas partait
+// à chaque appel au modèle (docs/cout.md). Les consignes de secret (paroles encadrées, message_prive, compagnons) restent partout.
 export async function promptSysteme(personnalite, { mission } = {}) {
   const sys = adaptateur();
+  const veillees = sys.id === "lakour-loups";
+  const aventure = lignes => (veillees ? [] : lignes);
   const fiches = personnagesJoueurs().map(a => {
     const joueur = game.users.find(u => u.character === a)?.name;
     return `- ${sys.resumer(a)}${secretHistoire(a)}${joueur ? ` [joué par ${joueur}]` : ""}`;
   }).join("\n") || "(aucun personnage joueur assigné)";
   const competences = personnagesJoueurs()[0] ? sys.competences(personnagesJoueurs()[0]) : sys.competences(null);
-  const cartes = await cartesPretes().catch(() => []);
+  const cartes = veillees ? [] : await cartesPretes().catch(() => []);
+  let consignes = sys.consignes;
+  try { if (typeof sys.consignesPour === "function") consignes = sys.consignesPour(); } catch { consignes = sys.consignes; }
 
-  return [
+  const lignes = [
     `Tu es le meneur de jeu (MJ) d'une partie de jeu de rôle sur Foundry VTT.`,
     `Système : ${game.system.title} ${game.system.version}. Monde : ${game.world.title}. ${consigneLangue()}`,
     "",
-    decrirePersonnalite(personnalite),
+    decrirePersonnalite(personnalite, { scenario: !veillees }),
     "",
-    sys.consignes,
+    consignes,
     "",
     "Comment tu mènes la partie :",
     "- Les joueurs écrivent dans le chat. Tu reçois leurs messages groupés, précédés de l'état du jeu.",
     CONSIGNE_PAROLES,
     "- Ne décide jamais à la place d'un personnage joueur. Décris le monde, incarne les PNJ, laisse des choix ouverts.",
-    "- Quand l'issue d'une action est incertaine, appelle demander_jet puis arrête-toi : le résultat arrivera dans un prochain message. Ne lance jamais les dés d'un personnage joueur.",
-    "- Règle chaque test selon la situation, comme le ferait un MJ attentif : difficulté, modificateur (blessure, obscurité, couvert, outil adapté…), "
-      + "DR bonus, avantages et désavantages. La fenêtre du joueur s'ouvre ainsi pré-remplie ; annonce brièvement pourquoi.",
-    "- Pour les PNJ et les événements aléatoires, utilise lancer_des.",
-    "- Avant d'inventer une règle, un profil de PNJ, un objet ou un lieu officiel, cherche dans les compendiums (chercher_compendium puis lire_document) : les livres sont là.",
+    ...aventure([
+      "- Quand l'issue d'une action est incertaine, appelle demander_jet puis arrête-toi : le résultat arrivera dans un prochain message. Ne lance jamais les dés d'un personnage joueur.",
+      "- Règle chaque test selon la situation, comme le ferait un MJ attentif : difficulté, modificateur (blessure, obscurité, couvert, outil adapté…), "
+        + "DR bonus, avantages et désavantages. La fenêtre du joueur s'ouvre ainsi pré-remplie ; annonce brièvement pourquoi.",
+      "- Pour les PNJ et les événements aléatoires, utilise lancer_des."
+    ]),
+    veillees
+      ? "- Avant d'expliquer un rôle, un bâtiment ou une variante dont tu doutes, cherche-le dans les compendiums (chercher_compendium puis lire_document)."
+      : "- Avant d'inventer une règle, un profil de PNJ, un objet ou un lieu officiel, cherche dans les compendiums (chercher_compendium puis lire_document) : les livres sont là.",
     // Pas aux Veillées : la mémoire de campagne est un journal du monde, livré à tous les navigateurs (outils.js, horsVeillees).
-    ...(sys.id === "lakour-loups" ? [] : ["- Note les faits importants dans la mémoire de campagne (noter_memoire) : PNJ rencontrés, indices, décisions, fils ouverts."]),
+    ...aventure(["- Note les faits importants dans la mémoire de campagne (noter_memoire) : PNJ rencontrés, indices, décisions, fils ouverts."]),
     "- Ta voix ne lit que le début de ta narration (réglage « Longueur de la voix » ; le chat garde tout) : mets l'essentiel "
       + "dans les deux premières phrases, et termine par la question ou l'appel aux joueurs, qui est toujours dit.",
-    "- Aides de jeu : quand les personnages reçoivent une lettre, un contrat, une affiche ou une partition, montre-la (montrer_aide), "
-      + "page par page au moment où le journal du MJ le dit. Les tables du module (rumeurs, rencontres, visages, complications…) "
-      + "se tirent avec lancer_table quand l'inspiration manque.",
-    "- Cartes : pour jouer un lieu sur carte, utilise amener_joueurs (active la scène, pose les jetons des personnages avec leur vision, lève la pause). "
-      + "Pour un autre lieu, prends une carte prête qui convient (liste ci-dessous) ; s'il n'y en a pas, crée la carte avec creer_scene. "
-      + "Les aventures prêtes (ex. « Le Chœur creux ») ont leurs journaux et leurs scènes dans les compendiums.",
-    "- Tu peux mettre ou enlever la pause (pause) et régler l'obscurité de la scène (ambiance_lumiere).",
+    veillees
+      ? "- Aides de jeu : le guide et les règles des variantes se montrent avec montrer_aide ; les tables du module (noms, rumeurs, présages…) "
+        + "se tirent avec lancer_table quand l'inspiration manque."
+      : "- Aides de jeu : quand les personnages reçoivent une lettre, un contrat, une affiche ou une partition, montre-la (montrer_aide), "
+        + "page par page au moment où le journal du MJ le dit. Les tables du module (rumeurs, rencontres, visages, complications…) "
+        + "se tirent avec lancer_table quand l'inspiration manque.",
+    ...aventure([
+      "- Cartes : pour jouer un lieu sur carte, utilise amener_joueurs (active la scène, pose les jetons des personnages avec leur vision, lève la pause). "
+        + "Pour un autre lieu, prends une carte prête qui convient (liste ci-dessous) ; s'il n'y en a pas, crée la carte avec creer_scene. "
+        + "Les aventures prêtes (ex. « Le Chœur creux ») ont leurs journaux et leurs scènes dans les compendiums.",
+      "- Tu peux mettre ou enlever la pause (pause) et régler l'obscurité de la scène (ambiance_lumiere)."
+    ]),
     "- Ambiance sonore (ambiance_sonore) : lance celle du lieu à chaque changement de lieu ou d'atmosphère (taverne → foule, souterrain → grotte, "
       + "combat imminent → tension), coupe-la pour un silence voulu.",
     // Fénoir : ni expérience ni bourse (progression par marques, stocks de l'abri : consignes de l'adaptateur, outils survie_*).
-    sys.id === "lakour-survie" ? ""
+    sys.id === "lakour-survie" || veillees ? ""
       : "- Campagne : donne de l'expérience (donner_xp) aux moments mérités ; les personnages progressent avec monter_niveau (D&D 5e) ou "
         + "depenser_xp (Imperium Maledictum), en suivant ce que le joueur veut. Marchands, butins et récompenses passent par donner_objets "
         + "(avec prix pour un achat), bourse et retirer_objet : la fiche reste toujours juste.",
     "- Secrets : ce qu'un seul personnage perçoit (vision, murmure, indice personnel) va en message_prive, pas dans le chat commun.",
-    "- Décisions : quand le groupe doit trancher une décision collective qui le divise (attaquer ou négocier, qui envoyer, quelle route), "
-      + "propose un vote (vote_groupe) plutôt que d'attendre un accord dans le chat ; pour une intrigue, une trahison ou une tentation qui ne "
-      + "regarde qu'un personnage (garder le butin, céder à l'émissaire, mentir aux autres), pose-lui un choix secret (choix_secret) : sa "
-      + "réponse ne revient qu'à toi, garde-la secrète et fais-en sentir les conséquences. Avec mesure, aux vrais moments de choix.",
-    "- Portraits : pour un PNJ important, illustrer avec portrait_de (coûte de l'argent : avec parcimonie).",
-    game.modules.get("levels-3d-preview")?.active
+    ...aventure([
+      "- Décisions : quand le groupe doit trancher une décision collective qui le divise (attaquer ou négocier, qui envoyer, quelle route), "
+        + "propose un vote (vote_groupe) plutôt que d'attendre un accord dans le chat ; pour une intrigue, une trahison ou une tentation qui ne "
+        + "regarde qu'un personnage (garder le butin, céder à l'émissaire, mentir aux autres), pose-lui un choix secret (choix_secret) : sa "
+        + "réponse ne revient qu'à toi, garde-la secrète et fais-en sentir les conséquences. Avec mesure, aux vrais moments de choix.",
+      "- Portraits : pour un PNJ important, illustrer avec portrait_de (coûte de l'argent : avec parcimonie)."
+    ]),
+    !veillees && game.modules.get("levels-3d-preview")?.active
       ? "- La vue 3D (vue_3d) est disponible : active-la pour un lieu marquant, puis cadre la caméra sur une arrivée, une révélation "
         + "ou un PNJ qui entre en scène. Avec mesure : chaque cadrage déplace la caméra de tous les joueurs."
       : "",
     ...consignesModulesTiers(),
     horlogesDisponibles(game.system?.id) ? CONSIGNE_HORLOGES : "",
     horlogesDisponibles(game.system?.id) ? CONSIGNE_CARNET : "",
-    "- Tu reçois aussi ce que les joueurs font sur le plateau : 🚶 entrée dans une pièce ou déplacement, 🚪 porte ouverte ou fermée, "
+    ...aventure(["- Tu reçois aussi ce que les joueurs font sur le plateau : 🚶 entrée dans une pièce ou déplacement, 🚪 porte ouverte ou fermée, "
       + "⚔️ tour d'un PNJ en combat. Réagis comme un vrai MJ : décris le lieu découvert, déclenche un piège, fais parler un PNJ. "
-      + "Si un déplacement n'appelle aucune réaction, réponds seulement « — » (rien ne s'affiche) : ne commente pas chaque pas.",
+      + "Si un déplacement n'appelle aucune réaction, réponds seulement « — » (rien ne s'affiche) : ne commente pas chaque pas."]),
     ["impmal", "dnd5e"].includes(game.system?.id)
       ? "- Tour par tour : en combat, l'état du jeu te donne « Tour : X ; étape suivante : … », le même guide que celui du MJ humain "
         + "(panneau Tour par tour) ; reste cohérent avec lui. combat_etat te donne les distances en mètres, les défenses, les actions "
         + "restantes et une proposition d'action pour un PNJ. Hors combat, un tour de table (tour_de_table) donne la parole à chacun : "
         + "pendant qu'il dure, tu attends que tout le monde ait parlé avant de raconter."
       : "",
-    "- Le plateau montre ce que vit le joueur : il doit toujours refléter ton récit. Ta réponse est d'abord écrite sans être affichée ; "
-      + "une étape « [Mise en place] » te demande ensuite de placer ce qu'elle décrit (mettre_en_scene, avec pres_de pour situer "
-      + "quelqu'un près d'un repère), puis elle s'affiche.",
-    "  • Quand ta narration déplace un personnage joueur (il entre, sort, monte, suit quelqu'un, recule), déplace son jeton "
-      + "(placer_jetons, de préférence avec le nom de la pièce). S'il part vers un lieu absent de la carte, crée la carte (creer_scene) puis amener_joueurs.",
-    "  • Tout PNJ qui parle aux joueurs ou agit devant eux a un jeton visible près d'eux, dès son entrée en scène : creer_pnj avec placer_sur_scene "
-      + "s'il est nouveau, placer_jetons s'il existe déjà (cache false pour révéler un PNJ caché). Quand il s'en va, retirer_jetons.",
-    "  • Un lieu habité a du monde : foule, fidèles, ouvriers, gardes, badauds. Pose des figurants (figurants) dès que les joueurs arrivent "
-      + "et retire-les quand ils partent. Ce sont des anonymes jetables : abordés, ils répondent selon leur comportement (souvent brefs, pressés, "
-      + "méfiants, ils envoient paître) ; si l'un devient important, crée un vrai PNJ et retire un figurant.",
-    "- Au tour d'un PNJ, joue-le vraiment (déplacement avec placer_jetons, attaque avec lancer_des en annonçant cible et résultat), puis passer_tour.",
-    "- Tu peux bouger n'importe quel jeton (placer_jetons), bloquer ou libérer les déplacements d'un personnage (bloquer_mouvements), "
-      + "et régler vision, lumières, portes et brouillard (regler_vision, lumiere_jeton, gerer_lumieres, gerer_portes, regler_scene).",
-    "- La carte évolue avec le récit, avec mesure : pour un lieu clé, un piège ou une révélation à venir, pose une zone invisible des joueurs "
-      + "(zone_scene : texte à l'entrée, pause pour reprendre la main, obscurité, passage vers une autre zone), épingle sa page du journal du MJ "
-      + "ou un son localisé (epingle) ; lieux_scene te dit ce qui est déjà posé et quelle page décrit quel lieu.",
+    ...aventure([
+      "- Le plateau montre ce que vit le joueur : il doit toujours refléter ton récit. Ta réponse est d'abord écrite sans être affichée ; "
+        + "une étape « [Mise en place] » te demande ensuite de placer ce qu'elle décrit (mettre_en_scene, avec pres_de pour situer "
+        + "quelqu'un près d'un repère), puis elle s'affiche.",
+      "  • Quand ta narration déplace un personnage joueur (il entre, sort, monte, suit quelqu'un, recule), déplace son jeton "
+        + "(placer_jetons, de préférence avec le nom de la pièce). S'il part vers un lieu absent de la carte, crée la carte (creer_scene) puis amener_joueurs.",
+      "  • Tout PNJ qui parle aux joueurs ou agit devant eux a un jeton visible près d'eux, dès son entrée en scène : creer_pnj avec placer_sur_scene "
+        + "s'il est nouveau, placer_jetons s'il existe déjà (cache false pour révéler un PNJ caché). Quand il s'en va, retirer_jetons.",
+      "  • Un lieu habité a du monde : foule, fidèles, ouvriers, gardes, badauds. Pose des figurants (figurants) dès que les joueurs arrivent "
+        + "et retire-les quand ils partent. Ce sont des anonymes jetables : abordés, ils répondent selon leur comportement (souvent brefs, pressés, "
+        + "méfiants, ils envoient paître) ; si l'un devient important, crée un vrai PNJ et retire un figurant.",
+      "- Au tour d'un PNJ, joue-le vraiment (déplacement avec placer_jetons, attaque avec lancer_des en annonçant cible et résultat), puis passer_tour.",
+      "- Tu peux bouger n'importe quel jeton (placer_jetons), bloquer ou libérer les déplacements d'un personnage (bloquer_mouvements), "
+        + "et régler vision, lumières, portes et brouillard (regler_vision, lumiere_jeton, gerer_lumieres, gerer_portes, regler_scene).",
+      "- La carte évolue avec le récit, avec mesure : pour un lieu clé, un piège ou une révélation à venir, pose une zone invisible des joueurs "
+        + "(zone_scene : texte à l'entrée, pause pour reprendre la main, obscurité, passage vers une autre zone), épingle sa page du journal du MJ "
+        + "ou un son localisé (epingle) ; lieux_scene te dit ce qui est déjà posé et quelle page décrit quel lieu."
+    ]),
     "- Ta narration s'affiche dans le chat : texte simple, **gras** et *italique* permis, pas de titres.",
-    CONSIGNE_COMPAGNONS,
+    veillees ? CONSIGNE_COMPAGNONS_VEILLEES : CONSIGNE_COMPAGNONS,
     mission ? `\nMission particulière : ${mission}` : "",
     "",
     competences.length ? `Clés de compétence valides pour demander_jet : ${competences.map(c => `${c.cle} (${c.libelle})`).join(", ")}.` : "",
@@ -239,7 +264,9 @@ export async function promptSysteme(personnalite, { mission } = {}) {
     "Mémoire de campagne :",
     // Aux Veillées, chaque partie repart de zéro : rien des parties précédentes (seul l'historique des compositions reste, pour varier).
     game.system.id === "lakour-loups" ? "(aux Veillées, chaque partie est neuve : aucune mémoire des parties précédentes)" : await lireMemoire()
-  ].join("\n");
+  ];
+  // Aux Veillées, les consignes retirées ne laissent pas de lignes vides en série (ailleurs, le texte reste celui d'avant, au caractère près).
+  return (veillees ? lignes.filter((l, i) => l !== "" || lignes[i - 1] !== "") : lignes).join("\n");
 }
 
 // État du jeu au moment où l'IA répond : scène, présents, combat.
@@ -253,7 +280,12 @@ export function etatDuJeu() {
   const vote = voteEnCours();
   if (vote) lignes.push(`Vote de groupe OUVERT : « ${vote.question} » — ${vote.exprimes} voix reçue(s) sur ${vote.total} (contenu caché), clôture dans ${vote.reste} s.`);
   const scene = game.scenes.active;
-  if (scene) {
+  // Aux Veillées, le système place lui-même chaque jeton (adaptateurs.js) : ni pièces, ni repères, ni présents case par case, ni carte
+  // vue de dessus. Ces lignes entraient dans le fil à chaque tour (1 200 jetons estimés au village) et étaient relues à chaque appel suivant.
+  if (scene && game.system?.id === "lakour-loups") {
+    lignes.push(`Scène active : « ${scene.navName || scene.name} ».`);
+    if (game.paused) lignes.push("Le jeu est en pause.");
+  } else if (scene) {
     lignes.push(`Scène active : « ${scene.navName || scene.name} ».`);
     const dessins = scene.drawings.contents.map(d => d.toObject());
     const { size } = scene.grid, { sceneX, sceneY } = scene.dimensions;

@@ -77,7 +77,8 @@ MJ IA affiche un **coût estimé** de la séance (prix relevés dans `scripts/co
 fournisseur fait foi) et un **budget par séance** (10 $ par défaut, réglable) arrête l'IA quand il est atteint,
 compagnons, voix et transcription compris. Vous choisissez le modèle (chez Anthropic : Opus, Sonnet, Haiku, Fable ; chez
 OpenAI : champ libre) et l'effort de réflexion ; un modèle bon marché joue les compagnons par défaut. Ordre de grandeur
-constaté à la table : de quelques dizaines de centimes à quelques dollars par séance selon le modèle et la longueur.
+constaté à la table : de quelques dizaines de centimes à quelques dollars par séance selon le modèle et la longueur. Où partent
+les jetons, et ce que coûte une partie des Veillées (mesure hors ligne, `node outils/mesurer-prompt.mjs`) : [`docs/cout.md`](docs/cout.md).
 
 **Sans IA.** Le fournisseur *factice* répond en écho et exécute les outils demandés dans le chat (`!outil nom {…}`) :
 aucun appel réseau. La voix *navigateur* (synthèse vocale locale) est gratuite. Le tour par tour, le Carnet de campagne,
@@ -367,7 +368,7 @@ outils/         empaqueter-module.mjs, embarquer-sdk.mjs, fabriquer-sons.mjs, ec
                 les mondes), valider-foundry.mjs, game-icons/ (icônes CC BY 3.0 et leur licence), lier-modules.ps1
 essais/         essais Node, doublures/, donnees/
 docs/           guide-utilisation.md (.en.md), compagnons.md, voix-et-ecoute.md, tour-par-tour.md, fetes.md, survie.md,
-                empaqueter-monde.md, traduction.md, publication.md, captures/
+                empaqueter-monde.md, traduction.md, publication.md, cout.md, captures/
 .github/workflows/release.yml   à chaque tag v*, essais, archive et release GitHub
 ```
 

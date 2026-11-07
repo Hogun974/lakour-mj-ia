@@ -19,6 +19,8 @@ import { miseEnPlaceLoups, appelSur } from "./veillees-pacte.js";
 const MAX_TOURS_OUTILS = 12;
 const HORS_SEANCE_VIDE = { cout: 0, appels: 0, depuis: 0 };
 const MAX_TOURS_PLATEAU = 3;
+// Appels du narrateur gardés en mémoire (journalAppels).
+const JOURNAL_APPELS_MAX = 400;
 // Demandes adressées aux joueurs : pendant le brouillon, elles attendent que la narration soit affichée.
 const DIFFEREES = ["demander_jet", "demander_des"];
 
@@ -213,6 +215,7 @@ export class MoteurMJ {
       await effacerPrive();
     }
     this.systeme = await promptSysteme(this.personnalite);
+    this.outils = outilsDuSysteme();
     await this.viderCouts();   // les coûts hors séance qui attendaient
     await ecrire("seance", { active: true, debut: Date.now(), jetons: { entree: 0, cacheLecture: 0, cacheEcriture: 0, sortie: 0 }, cout: 0 });
     this.pilote.suspendu = false;
@@ -241,7 +244,7 @@ export class MoteurMJ {
     // Aux Veillées : ni mémoire de campagne (un journal du monde se lit dans la console de chaque joueur), ni chronique pendant une
     // partie en cours (elle la raconterait à tous).
     const veillees = game.system?.id === "lakour-loups";
-    const chronique = veillees && partieLoupsEnCoursIci() ? ""
+    const chronique = (veillees && partieLoupsEnCoursIci()) || !(this.outils ?? outilsDuSysteme()).some(o => o.nom === "ecrire_chronique") ? ""
       : "écris pour les joueurs le résumé de la séance dans la chronique (ecrire_chronique, sans les secrets du MJ), ";
     await this.tour(`[Fin de séance] Donne l'expérience méritée (donner_xp), ${chronique}coupe l'ambiance sonore (ambiance_sonore « aucune »). `
       + (veillees ? "" : "Mets à jour la mémoire de campagne avec noter_memoire : résumé de la séance, "
@@ -281,6 +284,7 @@ export class MoteurMJ {
     await this.#archiverFil(this.fil);
     this.fil = this.fournisseur.nouveauFil();
     try { this.systeme = await promptSysteme(this.personnalite); } catch (e) { console.error(`${ID} | prompt système`, e); }
+    this.outils = outilsDuSysteme();
     await ecrireFil(this.nomFichier(), this.fil).catch(e => console.error(`${ID} | sauvegarde du fil`, e));
     const distribution = distributionSecrete();
     if (!demande.ouverture) {
@@ -454,8 +458,10 @@ export class MoteurMJ {
   }
 
   // Mise en place avant chaque réponse, sauf en plein combat (les tours des PNJ doivent rester rapides).
+  // Jamais aux Veillées : le système y met lui-même le plateau en scène (adaptateurs.js) ; l'étape « [Mise en place] » y coûtait un appel
+  // au modèle de plus par réponse, pour répondre « plateau prêt ».
   miseEnPlaceVoulue() {
-    return lire("miseEnPlace") && !game.combats.active?.started;
+    return lire("miseEnPlace") && !game.combats.active?.started && game.system?.id !== "lakour-loups";
   }
 
   // ---------- Création de personnage avec un joueur, dans le fil de la séance (le joueur répond dans le chat)
@@ -505,7 +511,10 @@ export class MoteurMJ {
     return !this.enCours && this.toursEnFile === 0 && !this.vidages && !this.attente.length;
   }
 
-  async #tour(entree, { fil = this.fil, systeme = this.systeme, outils = outilsDuSysteme(), sauver = true, chuchoter = false, miseEnPlace = false } = {}) {
+  // outils : ceux de la séance (this.outils, figés au démarrage et à chaque nouvelle partie, comme le prompt système). La liste part en
+  // tête de chaque appel, avant le prompt système : qu'elle change en cours de route (fin d'une partie des Veillées, où ecrire_chronique
+  // revenait) et le fournisseur réécrit tout le fil dans son cache, au prix fort.
+  async #tour(entree, { fil = this.fil, systeme = this.systeme, outils = this.outils ?? outilsDuSysteme(), sauver = true, chuchoter = false, miseEnPlace = false } = {}) {
     this.enCours = true;
     this.derniereNarration = "";
     // Premier tour d'un fil neuf commencé sans ouverture (loups_distribuer) : la distribution secrète passe devant.
@@ -545,6 +554,7 @@ export class MoteurMJ {
     }
     const reponse = await this.fournisseur.envoyer(fil, { systeme, outils, surTexte });
     await this.compter(reponse.usage);
+    this.noterAppel(reponse.usage);
     if (reponse.arret === "refus") {
       await this.prevenirMJ(game.i18n.format("LAKOUR_MJIA.Erreurs.Refus", { detail: reponse.detail ?? "" }));
       return null;
@@ -676,6 +686,17 @@ export class MoteurMJ {
   }
 
   // ---------- Coût
+
+  // Les derniers appels du narrateur (jetons et heure), en mémoire seulement : de quoi voir, après une partie en vrai, où le cache a été
+  // réécrit (cacheEcriture proche de tout le fil) et après quelle attente (docs/cout.md). Console du MJ :
+  // game.modules.get("lakour-mj-ia").api.moteur.journalAppels
+  noterAppel(usage) {
+    if (!usage) return;
+    this.journalAppels ??= [];
+    this.journalAppels.push({ quand: Date.now(), entree: usage.entree ?? 0, cacheLecture: usage.cacheLecture ?? 0,
+      cacheEcriture: usage.cacheEcriture ?? 0, cacheEcriture1h: usage.cacheEcriture1h ?? 0, sortie: usage.sortie ?? 0 });
+    if (this.journalAppels.length > JOURNAL_APPELS_MAX) this.journalAppels.shift();
+  }
 
   // modele : celui de l'appel (les compagnons IA ont le leur, moins cher) ; par défaut celui du MJ.
   // Hors séance (joueurs IA d'une partie des Veillées menée par un MJ humain), le coût va au compteur « compagnons hors

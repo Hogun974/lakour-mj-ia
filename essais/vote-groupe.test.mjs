@@ -219,11 +219,13 @@ test("vote anonyme : le chat ne montre que les totaux ; l'IA garde les noms et l
   assert.match(etat.signaux[0].texte, /ne révèle pas qui a voté quoi/);
 });
 
-test("vote_groupe et choix_secret servent dans tous les systèmes", () => {
-  for (const systeme of ["impmal", "dnd5e", "lakour-loups", "pf2e"]) {
+test("vote_groupe et choix_secret servent dans tous les systèmes d'aventure ; pas aux Veillées (loups_vote, fenêtres du jeu)", () => {
+  for (const systeme of ["impmal", "dnd5e", "lakour-survie", "pf2e"]) {
     const noms = outilsDuSysteme(systeme).map(o => o.nom);
     assert.ok(noms.includes("vote_groupe") && noms.includes("choix_secret"), systeme);
   }
+  const loups = outilsDuSysteme("lakour-loups").map(o => o.nom);
+  assert.ok(!loups.includes("vote_groupe") && !loups.includes("choix_secret") && loups.includes("loups_vote"));
 });
 
 // ---------------------------------------------------------------- mutations

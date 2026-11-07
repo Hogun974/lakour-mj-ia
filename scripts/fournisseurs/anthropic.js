@@ -47,8 +47,10 @@ export class FournisseurAnthropic {
     const parametres = {
       model: this.modele,
       max_tokens: 64000,
-      // Prompt système stable en tête (personnalité, mémoire) : c'est lui que le cache réutilise.
-      system: [{ type: "text", text: systeme }],
+      // Le cache se lit dans l'ordre outils → système → fil (docs/cout.md). Trois points de cache : la fin des outils et la fin du
+      // prompt système, stables pendant toute la séance ou la partie, gardés une heure (une nuit des Veillées ou un vote peut durer
+      // plus de cinq minutes : le préfixe y survit) ; le fil, qui grandit à chaque appel, par le point automatique (cinq minutes).
+      system: [{ type: "text", text: systeme, cache_control: { ...CACHE_PREFIXE } }],
       cache_control: { type: "ephemeral" },
       thinking: { type: "adaptive" },
       output_config: { effort: this.effort },
@@ -56,7 +58,7 @@ export class FournisseurAnthropic {
       context_management: { edits: [{ type: "compact_20260112" }] },
       // Pas de « strict » ici : avec une quinzaine d'outils, l'API refuse la grammaire compilée
       // (400 « compiled grammar is too large »). Le moteur valide lui-même chaque appel (schema.js).
-      tools: outils.map(o => ({ name: o.nom, description: o.description, input_schema: o.schema })),
+      tools: definitionsOutils(outils),
       messages: fil.messages
     };
     // Repli automatique si un filtre de sécurité refuse (scènes violentes d'un univers grimdark, par exemple).
@@ -119,16 +121,31 @@ export class FournisseurAnthropic {
   }
 }
 
+// Point de cache du préfixe stable (outils, prompt système) : une heure. Écrit deux ou trois fois par partie (2× le prix d'entrée au
+// lieu de 1,25×), il évite de tout réécrire après une attente de plus de cinq minutes. Le fil garde le point automatique de cinq minutes
+// (les entrées plus longues doivent venir avant les plus courtes : c'est le cas).
+export const CACHE_PREFIXE = Object.freeze({ type: "ephemeral", ttl: "1h" });
+// Les outils tels que l'API les reçoit, dans l'ordre donné (le cache est une comparaison au caractère près) ; le dernier porte le point
+// de cache des outils.
+export function definitionsOutils(outils = []) {
+  return outils.map((o, i) => ({ name: o.nom, description: o.description, input_schema: o.schema,
+    ...(i === outils.length - 1 ? { cache_control: { ...CACHE_PREFIXE } } : {}) }));
+}
+
 function extraireTexte(message) {
   return message.content.filter(b => b.type === "text").map(b => b.text).join("\n\n").trim();
 }
 
+// cacheEcriture : toutes les écritures du cache ; cacheEcriture1h, celles gardées une heure (comprises dans cacheEcriture), qui coûtent
+// plus (constantes.js, coutDe) ; absent quand il n'y en a pas.
 function usage(message) {
   const u = message.usage ?? {};
+  const uneHeure = u.cache_creation?.ephemeral_1h_input_tokens ?? 0;
   return {
     entree: u.input_tokens ?? 0,
     cacheLecture: u.cache_read_input_tokens ?? 0,
     cacheEcriture: u.cache_creation_input_tokens ?? 0,
-    sortie: u.output_tokens ?? 0
+    sortie: u.output_tokens ?? 0,
+    ...(uneHeure ? { cacheEcriture1h: uneHeure } : {})
   };
 }

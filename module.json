@@ -2,7 +2,7 @@
   "id": "lakour-mj-ia",
   "title": "La Kour – MJ IA (Anthropic / OpenAI)",
   "description": "Un meneur de jeu IA pour Foundry VTT, avec votre propre clé Claude (Anthropic) ou ChatGPT (OpenAI), rangée dans votre navigateur et jamais dans le monde. Il raconte dans le chat, pose les jetons sur la carte avant de parler, demande les jets, joue les PNJ, crée des cartes et des scénarios, tient le Carnet de campagne (horloges, enquêtes, contacts) et fait jouer des compagnons IA côté joueurs ; la voix et l'écoute des joueurs passent par OpenAI. Chaque action sensible attend l'accord du MJ humain (mode validation), un budget par séance arrête l'IA, et un fournisseur factice permet de tout essayer sans clé ni coût. Il apporte aussi des outils sans IA : tour par tour guidé, Carnet de campagne, coffre chiffré, histoires des personnages, fêtes de saison. Conçu pour les quatre mondes de La Kour (Imperium Maledictum, D&D 5e, Les Veillées de Brumecombe, Fénoir) ; les autres systèmes marchent en mode générique. — An AI game master for Foundry VTT using your own Claude or ChatGPT key, kept in your browser: narration in chat, tokens placed before speaking, rolls requested from players, NPCs, generated maps and scenarios, a campaign notebook, AI companions, voice and speech-to-text through OpenAI, a per-session budget and a GM-approval mode, plus AI-free tools (guided turn tracker, encrypted vault, character backstories, seasonal festivals). Interface in French and English; AI texts in French.",
-  "version": "0.44.1",
+  "version": "0.45.0",
   "authors": [{ "name": "Jordan", "url": "https://github.com/Hogun974" }],
   "url": "https://github.com/Hogun974/lakour-mj-ia",
   "manifest": "https://github.com/Hogun974/lakour-mj-ia/releases/latest/download/module.json",

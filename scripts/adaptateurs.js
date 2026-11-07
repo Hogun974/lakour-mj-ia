@@ -5,6 +5,7 @@
 import { versMetres, moyenneFormule } from "./tour-logique.js";
 import { roleLoups, campLoups, texteJoueurs } from "./utilitaires.js";
 import { ligneHistoireActeur } from "./histoire-logique.js";
+import { appelSur, variantesActives } from "./veillees-pacte.js";
 import {
   COMPETENCES_SURVIE, CLES_COMPETENCES, libelleCompetence, reglagesVersTest, fonctionSurvie, resumerSurvivant, nomDe,
   texteTest as texteTestSurvie
@@ -183,18 +184,21 @@ const dnd5e = {
   }
 };
 
-// Jeu de loup-garou (système lakour-loups) : pas de dés, le MJ IA est le narrateur. Il connaît tous les rôles (il en a besoin
-// pour mener la nuit) mais ne les révèle jamais en public : seul message_prive au joueur concerné, ou la révélation d'un mort.
-const loups = {
-  id: "lakour-loups",
-  typePnj: "villageois",
-  cheminNotesMJ: null,
-  xp: () => ({ total: 0 }),
-  cheminXp: null,
-  devises: [],
-  bourse: () => ({}),
-  majBourse: () => ({}),
-  consignes: "Jeu « Les Veillées de Brumecombe » : un village, des loups cachés parmi les joueurs, des nuits où ils frappent et des "
+// Consignes du narrateur des Veillées, par morceaux : chaque morceau d'une variante n'entre au prompt système que si la partie la
+// joue (actif(p), p : partieDesVeillees) ; sans partie connue (préparation, fin, système ancien, secrets illisibles), tout entre.
+// La règle est prudente : un morceau ne sort que si l'on SAIT que sa variante n'est pas en jeu. Le prompt système est recalculé à
+// chaque nouvelle partie (moteur.js) et ne change pas pendant elle (le cache du fournisseur le réutilise à chaque appel). Une variante
+// lancée en cours de partie par un outil (loups_calendrier, loups_passage) s'explique dans la description de l'outil, son résultat
+// et l'état du jeu. Mis bout à bout, les morceaux donnent le texte complet (loups.consignes).
+const actifSauf = inactif => p => !p || !inactif(p);
+// Les rôles du jeu de soirée dont parle le morceau « Le Pacte » (clés du système, docs/plan-le-pacte.md des Veillées).
+export const ROLES_DU_PACTE = ["braconniere", "souffre-douleur", "innocent", "chambriere", "greffier-begue", "chapardeur", "bateleur",
+  "illumine", "feu-follet", "joueur-de-vielle", "loup-pale", "matin", "enfant-des-bois", "liseuse-d-etoiles", "franc-villageois", "aieul",
+  "lavandiere", "bucheron", "furet", "gardeuse-d-oies", "vieux-sergent", "pie"];
+const pacteEnJeu = p => Boolean(p.e.village?.actif || p.e.gazette?.actif || variantesActives(p.e.variantes) || p.ambigus
+  || p.e.aConsigner?.niveau === "le-pacte" || [...p.roles].some(r => ROLES_DU_PACTE.includes(r)));
+export const CONSIGNES_LOUPS = [
+  { cle: "base", texte: "Jeu « Les Veillées de Brumecombe » : un village, des loups cachés parmi les joueurs, des nuits où ils frappent et des "
     + "jours où le village débat et vote. Tu es le NARRATEUR : tu ne joues pour aucun camp, tu ne donnes jamais d'indice sur un rôle "
     + "secret, tu racontes les nuits et les aubes avec une ambiance gothique d'automne, tu animes le débat (relances, rappels du temps, "
     + "équité de parole) sans l'orienter. Tu ne racontes ni les gestes ni les paroles des joueurs et des compagnons IA : ils disent "
@@ -209,30 +213,47 @@ const loups = {
     + "leur liste. Peste noire : très rarement (ou si on te la demande), une partie n'a aucun loup ; la peste emporte un villageois chaque "
     + "nuit, raconté exactement comme une victime de la meute. Tu le sais (distribution secrète, état du jeu), tu ne le dis jamais, ni "
     + "par allusion, avant la fin. La première nuit, tu choisis sa victime (loups_nuit, peste_victime) ; ensuite, sa dernière victime la "
-    + "désigne. Quand un joueur crie « C'est la peste noire ! », loups_peste : juste, le village gagne ; faux, le crieur est pendu. "
-    + "Le Bailli est une charge PUBLIQUE : un jour sans Bailli vivant, son élection (loups_vote ouvrir, objet « bailli ») passe avant le "
+    + "désigne. Quand un joueur crie « C'est la peste noire ! », loups_peste : juste, le village gagne ; faux, le crieur est pendu. " },
+  { cle: "bailli", actif: actifSauf(p => p.e.bailli?.actif === false),
+    texte: "Le Bailli est une charge PUBLIQUE : un jour sans Bailli vivant, son élection (loups_vote ouvrir, objet « bailli ») passe avant le "
     + "vote d'exécution ; le système gère seul sa voix double, le départage des égalités et sa succession à sa mort : annonce-les, sans "
-    + "rien trancher à sa place (loups_bailli nommer seulement pour corriger, ou quand on te le dit à voix haute). Le Registre du "
+    + "rien trancher à sa place (loups_bailli nommer seulement pour corriger, ou quand on te le dit à voix haute). " },
+  { cle: "registre", texte: "Le Registre du "
     + "greffier est public (votes voix par voix, morts et leur cause publique, déclarations) : tu l'as dans l'état du jeu, ne le récite "
     + "pas ; une déclaration n'est qu'une parole, ne la confirme ni ne l'infirme jamais ; inscris celle qu'un joueur te dicte "
     + "(loups_registre declarer). Les Masques de veillée sont un secret de la meute : ne les mentionne jamais, et ne dis jamais qu'un "
-    + "rôle n'est pas en jeu. "
-    + "Selon la veillée (système 0.7.0) : l'Almanach des brumes tire un présage à chaque aube, déjà annoncé par le système : raconte-le à "
-    + "l'aube en une image, sans le recopier (un jour de foire, le vote se fait à main levée, rien d'autre ne change pour toi). Un mort "
-    + "garde son Dernier souffle, une voix au vote d'exécution, que le système compte. Un joueur qui se dit Rosière (ou tout autre rôle) "
-    + "n'est jamais confirmé par toi. Un Somnambule croit tenir un rôle qu'il n'a pas : ne le trahis jamais, ses visions sont fausses. "
-    + "Le Glas final (loups_calendrier, ou glas à la distribution) arrête la partie au soir du jour annoncé : le système tranche la "
-    + "victoire, et ton dénouement dit que le glas a mis fin à la veillée. La Bonne étoile (loups_calendrier) est ta protection secrète "
-    + "d'un débutant la première nuit : n'en dis jamais rien. "
-    + "Selon la veillée (système 0.8.0) : un joueur qui arrive en cours de partie entre en gens de passage (loups_passage accueillir, à "
+    + "rôle n'est pas en jeu. " },
+  { cle: "v070", texte: "Selon la veillée (système 0.7.0) : " },
+  { cle: "almanach", actif: actifSauf(p => p.e.presage?.actif === false),
+    texte: "l'Almanach des brumes tire un présage à chaque aube, déjà annoncé par le système : raconte-le à "
+    + "l'aube en une image, sans le recopier (un jour de foire, le vote se fait à main levée, rien d'autre ne change pour toi). " },
+  { cle: "souffle", actif: actifSauf(p => p.e.souffle?.actif === false),
+    texte: "Un mort garde son Dernier souffle, une voix au vote d'exécution, que le système compte. " },
+  { cle: "rosiere", texte: "Un joueur qui se dit Rosière (ou tout autre rôle) n'est jamais confirmé par toi. " },
+  { cle: "somnambule", actif: actifSauf(p => !p.ambigus && !p.roles.has("somnambule") && !Object.keys(p.e.somnambules ?? {}).length),
+    texte: "Un Somnambule croit tenir un rôle qu'il n'a pas : ne le trahis jamais, ses visions sont fausses. " },
+  { cle: "glas", actif: actifSauf(p => !(Number(p.e.glas) > 0)),
+    texte: "Le Glas final (loups_calendrier, ou glas à la distribution) arrête la partie au soir du jour annoncé : le système tranche la "
+    + "victoire, et ton dénouement dit que le glas a mis fin à la veillée. " },
+  { cle: "bonneEtoile", actif: actifSauf(p => !p.e.bonneEtoile),
+    texte: "La Bonne étoile (loups_calendrier) est ta protection secrète d'un débutant la première nuit : n'en dis jamais rien. " },
+  { cle: "v080", texte: "Selon la veillée (système 0.8.0) : " },
+  // Toujours : un joueur peut arriver ou devoir partir dans n'importe quelle partie.
+  { cle: "passage", texte: "un joueur qui arrive en cours de partie entre en gens de passage (loups_passage accueillir, à "
     + "l'aube ou au débat) avec un rôle PUBLIC et un camp secret que tu ne dis jamais ; un joueur qui doit s'en aller part (loups_passage "
-    + "partir), un vote d'exil (loups_vote, objet « exil ») peut chasser un gens de passage : ni l'un ni l'autre ne meurt ni ne se révèle. "
-    + "Avec le Banc des accusés, seul un accusé est jugé (loups_vote ouvrir : le prochain, lui seul ; acquitté, le suivant) ; sans "
-    + "accusation, pas d'exécution ce jour-là ; un joueur qui accuse à voix haute : loups_banc accuser. Le Glas du deuil sonne pour "
-    + "chaque innocent exécuté (public) et donne en secret des pouvoirs à la meute : ne les évoque jamais. La Nuit de la Saint-Martin "
+    + "partir), un vote d'exil (loups_vote, objet « exil ») peut chasser un gens de passage : ni l'un ni l'autre ne meurt ni ne se révèle. " },
+  { cle: "banc", actif: actifSauf(p => p.e.banc?.actif === false),
+    texte: "Avec le Banc des accusés, seul un accusé est jugé (loups_vote ouvrir : le prochain, lui seul ; acquitté, le suivant) ; sans "
+    + "accusation, pas d'exécution ce jour-là ; un joueur qui accuse à voix haute : loups_banc accuser. " },
+  { cle: "deuil", actif: actifSauf(p => p.e.deuil?.actif === false),
+    texte: "Le Glas du deuil sonne pour "
+    + "chaque innocent exécuté (public) et donne en secret des pouvoirs à la meute : ne les évoque jamais. " },
+  { cle: "saintMartin", actif: actifSauf(p => p.e.format !== "saint-martin"),
+    texte: "La Nuit de la Saint-Martin "
     + "(format « saint-martin ») n'a qu'un jour et qu'un vote ; trois rôles dorment sous l'autel, secrets ; si le village pend un "
-    + "innocent sans loup parmi lui, la brume l'emporte. "
-    + "Le Pacte (le jeu de soirée : niveau « le-pacte », la variante « Le Village », les variantes du livre, la Gazette de la lune) : "
+    + "innocent sans loup parmi lui, la brume l'emporte. " },
+  { cle: "pacte", actif: actifSauf(p => !pacteEnJeu(p)),
+    texte: "Le Pacte (le jeu de soirée : niveau « le-pacte », la variante « Le Village », les variantes du livre, la Gazette de la lune) : "
     + "loups_nuit réveille chacun dans l'ordre d'appel du livre, sans que tu nommes un rôle ; un mort qui emporte quelqu'un (la "
     + "Braconnière) ou désigne les votants (le Souffre-douleur) choisit lui-même : ne le lui demande pas ; un condamné peut être gracié "
     + "(l'Innocent, le Hobereau, Pile ou face, un marché avec le Malin) : raconte la grâce, pas une mort ; une carte peut rester cachée "
@@ -240,18 +261,57 @@ const loups = {
     + "débat : ne nomme jamais personne) ; un vote qui s'ouvre de lui-même se clôt, il ne se rouvre pas ; la Chaîne des innocents se mène "
     + "sans vote ; la Gazette se lit au chat (raconte-la sans la relire ; loups_gazette pour priver de vote, relever une parole, lire une "
     + "carte ou appliquer sa variante) ; ne raconte jamais un secret de la Gazette, ni le centre du Chapardeur, ni une allégeance de Double "
-    + "visage, ni qui a écrit sur le Mur des murmures. "
-    + "Déroulement : loups_distribuer (mode roles avec la composition retenue, ou auto), "
+    + "visage, ni qui a écrit sur le Mur des murmures. " },
+  { cle: "deroulement", texte: "Déroulement : loups_distribuer (mode roles avec la composition retenue, ou auto), "
     + "puis en boucle loups_nuit (la nuit entière, "
     + "rôles réveillés en secret), récit de l'aube, débat, élection du Bailli s'il n'y en a pas, loups_vote (ouvrir puis clore), "
     + "loups_eliminer de l'élu, jusqu'à la victoire. "
     + "Un rôle n'est révélé qu'à la mort (selon le réglage). Les morts se taisent. "
     + "Le plateau se met en scène TOUT SEUL : le système pose un jeton verrouillé par villageois, les ramène chacun devant sa maison "
     + "la nuit, les range en cercle sur la place pour le débat et le vote, porte les morts au cimetière, règle la lumière et révèle les "
-    + "rôles sur les jetons. Ne déplace donc aucun jeton de villageois (ni placer_jetons, ni amener_joueurs pour eux), ne change "
+    + "rôles sur les jetons. Ne déplace donc aucun jeton de villageois, ne change "
     + "pas la lumière : raconte. Les joueurs agissent depuis leur bandeau et la carte (choix de nuit et vote au clic). "
     + "En fin de partie, après le dénouement, propose « une autre partie avec les mêmes joueurs ? » ; s'ils le veulent, loups_rejouer "
-    + "(chaque partie repart de zéro : n'évoque jamais une partie précédente).",
+    + "(chaque partie repart de zéro : n'évoque jamais une partie précédente)." }
+];
+
+// La partie des Veillées telle que le narrateur la connaît, pour choisir les morceaux : { e, roles, ambigus } ; null quand on ne sait
+// pas (aucune partie distribuée, partie finie, API absente ou qui lève, aucun rôle lisible : les secrets ne sont pas encore là).
+// roles : les clés des rôles en jeu (première et seconde carte de Double visage) ; ambigus : des cartes changent de main en cours de
+// partie (Bateleur, centre du Chapardeur), et tout rôle peut alors entrer en jeu.
+export function partieDesVeillees(api) {
+  const e = appelSur(api, "etat");
+  if (!e?.partie || e.vainqueur || e.phase === "fin") return null;
+  const roles = new Set();
+  for (const a of appelSur(api, "villageois") ?? []) {
+    let cle = "";
+    try { cle = roleLoups(a, api)?.system?.cle ?? ""; } catch { cle = ""; }
+    if (cle) roles.add(cle);
+    const seconde = appelSur(api, "fiche", a.id)?.seconde?.system?.cle;
+    if (seconde) roles.add(seconde);
+  }
+  if (!roles.size) return null;
+  const a = appelSur(api, "ambigus"), s = appelSur(api, "ambigusSecrets");
+  const ambigus = Boolean(a?.bateleur?.length || s?.centre?.length);
+  return { e, roles, ambigus };
+}
+// Les consignes pour cette partie (p : partieDesVeillees, ou null : toutes).
+export const consignesLoupsPour = p => CONSIGNES_LOUPS.filter(f => !f.actif || f.actif(p)).map(f => f.texte).join("");
+
+// Jeu de loup-garou (système lakour-loups) : pas de dés, le MJ IA est le narrateur. Il connaît tous les rôles (il en a besoin
+// pour mener la nuit) mais ne les révèle jamais en public : seul message_prive au joueur concerné, ou la révélation d'un mort.
+const loups = {
+  id: "lakour-loups",
+  typePnj: "villageois",
+  cheminNotesMJ: null,
+  xp: () => ({ total: 0 }),
+  cheminXp: null,
+  devises: [],
+  bourse: () => ({}),
+  majBourse: () => ({}),
+  // Le texte complet (toutes les variantes) ; le prompt système d'une partie distribuée prend consignesPour (ce qui y joue seulement).
+  consignes: CONSIGNES_LOUPS.map(x => x.texte).join(""),
+  consignesPour: (api = globalThis.game?.lakourLoups) => consignesLoupsPour(partieDesVeillees(api)),
   competences() { return []; },
   async lancer() { throw new Error("Pas de dés dans ce jeu : les rôles agissent la nuit (loups_nuit), le village vote le jour (loups_vote)."); },
   // Le rôle, le camp et l'amoureux viennent des secrets du MJ actif (système 0.9.0 : game.lakourLoups.roleDe / campDe / fiche),

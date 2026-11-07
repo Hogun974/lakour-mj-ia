@@ -71,7 +71,8 @@ thread with the AI is kept **encrypted** in `Data/lakour-mj-ia/fils/` (see *Secu
 what counts) and a **per-session budget** (10 $ by default, adjustable) stops the AI when reached, companions, voice and
 transcription included. You choose the model (Anthropic: Opus, Sonnet, Haiku, Fable; OpenAI: free field) and the
 reasoning effort; a cheap model plays the companions by default. Order of magnitude seen at the table: from a few tens of
-cents to a few dollars per session, depending on the model and the length.
+cents to a few dollars per session, depending on the model and the length. Where the tokens go, and what a Veillées game
+costs (measured offline, `node outils/mesurer-prompt.mjs`): [`docs/cout.md`](docs/cout.md) (in French).
 
 **Without AI.** The *dummy* provider echoes and runs the tools requested in the chat (`!outil name {…}`): no network
 call. The *browser* voice (local speech synthesis) is free. The turn tracker, the campaign notebook, the vault,
@@ -359,7 +360,7 @@ outils/         empaqueter-module.mjs, embarquer-sdk.mjs, fabriquer-sons.mjs, ec
                 the worlds), valider-foundry.mjs, game-icons/ (CC BY 3.0 icons and their licence), lier-modules.ps1
 essais/         Node tests, doublures/, donnees/
 docs/           guide-utilisation.md (.en.md), compagnons.md, voix-et-ecoute.md, tour-par-tour.md, fetes.md, survie.md,
-                empaqueter-monde.md, traduction.md, publication.md, captures/
+                empaqueter-monde.md, traduction.md, publication.md, cout.md, captures/
 .github/workflows/release.yml   on every v* tag: tests, archive and GitHub release
 ```
 

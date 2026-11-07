@@ -17,9 +17,16 @@ test("chaque monde ne reçoit que ses outils", () => {
   for (const n of ["demander_jet", "lancer_combat", "creer_personnage", "creer_personnage_dnd5e", "bourse"]) assert.ok(!loups.has(n), `loups ne doit pas avoir ${n}`);
   assert.ok(impmal.has("creer_personnage") && impmal.has("depenser_xp") && !impmal.has("monter_niveau") && !impmal.has("loups_nuit"));
   assert.ok(dnd.has("monter_niveau") && dnd.has("creer_personnage_dnd5e") && !dnd.has("creer_personnage") && !dnd.has("loups_vote"));
-  // Les outils communs restent partout (parité).
+  // Les outils communs aux aventures restent dans chacune (parité) ; aux Veillées, le système met le plateau en scène : ni plateau,
+  // ni cartes, ni PNJ (docs/cout.md), mais le secret, la chronique hors partie, les aides et les tables.
   for (const n of ["mettre_en_scene", "figurants", "vue_3d", "modifier_scenario", "message_prive", "ecrire_chronique"]) {
-    for (const s of [loups, impmal, dnd]) assert.ok(s.has(n), `${n} manquant`);
+    for (const s of [impmal, dnd]) assert.ok(s.has(n), `${n} manquant`);
+  }
+  for (const n of ["message_prive", "ecrire_chronique", "montrer_aide", "lancer_table", "chercher_compendium", "lire_document", "compagnons"]) {
+    assert.ok(loups.has(n), `loups : ${n}`);
+  }
+  for (const n of ["mettre_en_scene", "figurants", "vue_3d", "modifier_scenario", "creer_scene", "placer_jetons", "creer_pnj", "illustrer"]) {
+    assert.ok(!loups.has(n), `loups ne doit pas avoir ${n}`);
   }
 });
 

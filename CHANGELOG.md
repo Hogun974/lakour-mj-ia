@@ -4,6 +4,15 @@ Versions du moteur MJ IA de La Kour (les modules de contenu des mondes tiennent 
 suivent `module.json` ; chaque release GitHub `v<version>` reprend la section correspondante. Avant la 0.26, le moteur
 vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici.
 
+## 0.45.0 — 2026-11-07
+
+- Coût du narrateur aux Veillées divisé par deux environ (modèle hors ligne : 3,40 $ → 1,67 $ pour la partie du 7 novembre) :
+  23 outils de plateau et d'aventure retirés aux Veillées, prompt système propre aux Veillées avec les seules variantes de la
+  partie en cours, état du jeu sans carte case par case, liste des outils figée par séance et par partie (le préfixe du cache ne
+  change plus à la fin d'une partie), plus d'étape de mise en place aux Veillées, points de cache d'une heure sur les outils et le
+  prompt système. Warcraft, 40k et Fénoir gardent leur prompt au caractère près. Mesure : `node outils/mesurer-prompt.mjs`,
+  méthode dans `docs/cout.md` ; journal des derniers appels dans `api.moteur.journalAppels`.
+
 ## 0.42.0 — 2026-11-05
 
 - Fêtes lunaires calculées pour toute année (phases de la lune de Meeus, zodiaque sidéral de Lahiri) : la Dipavali, la

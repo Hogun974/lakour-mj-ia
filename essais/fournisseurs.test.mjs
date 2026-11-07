@@ -35,8 +35,10 @@ test("Anthropic : requête complète (cache, compaction, repli, outils SANS stri
   const r = await f.envoyer(fil, { systeme: "SYS", outils: [OUTIL], surTexte: t => { flux += t; } });
   const p = appel.params;
   assert.equal(p.model, "claude-opus-5-5");
-  assert.deepEqual(p.system, [{ type: "text", text: "SYS" }]);
+  // Points de cache : fin des outils et fin du prompt système (une heure), le fil par le point automatique (cinq minutes).
+  assert.deepEqual(p.system, [{ type: "text", text: "SYS", cache_control: { type: "ephemeral", ttl: "1h" } }]);
   assert.deepEqual(p.cache_control, { type: "ephemeral" });
+  assert.deepEqual(p.tools.at(-1).cache_control, { type: "ephemeral", ttl: "1h" });
   assert.deepEqual(p.thinking, { type: "adaptive" });
   assert.deepEqual(p.output_config, { effort: "high" });
   assert.deepEqual(p.context_management, { edits: [{ type: "compact_20260112" }] });

@@ -4411,6 +4411,16 @@ OUTILS.push(...OUTILS_SURVIE);
 // ---------------------------------------------------------------- Histoire de chaque personnage (outils-histoire.js ; 40k, Warcraft, Fénoir)
 OUTILS.push(OUTIL_HISTOIRE);
 
+// Aux Veillées, le système met lui-même le plateau en scène (un jeton verrouillé par villageois, la lumière, la place, le cimetière) et le
+// narrateur ne fait que raconter (adaptateurs.js, consignes des Veillées) : les outils du plateau, des cartes, des PNJ et de l'aventure
+// n'y sont pas proposés. Leurs descriptions partaient à chaque appel au modèle (10 000 jetons estimés sur 19 300, docs/cout.md) sans servir.
+export const OUTILS_HORS_VEILLEES = ["modifier_scenario", "creer_pnj", "placer_jetons", "changer_scene", "illustrer", "creer_scene",
+  "amener_joueurs", "ambiance_lumiere", "vue_3d", "regler_vision", "lumiere_jeton", "gerer_lumieres", "gerer_portes", "regler_scene",
+  "bloquer_mouvements", "figurants", "retirer_jetons", "mettre_en_scene", "vote_groupe", "choix_secret", "lieux_scene", "zone_scene", "epingle"];
+for (const o of OUTILS) {
+  if (OUTILS_HORS_VEILLEES.includes(o.nom) && !(o.horsSystemes ?? []).includes("lakour-loups")) o.horsSystemes = [...(o.horsSystemes ?? []), "lakour-loups"];
+}
+
 export const outil = nom => OUTILS.find(o => o.nom === nom);
 // Outils utiles au système du monde : sans « systemes », un outil sert partout (sauf dans ses « horsSystemes ») ; avec
 // « modules », seulement si tous ces modules sont actifs (animations, météo, calendrier, butin).
