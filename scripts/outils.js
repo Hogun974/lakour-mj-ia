@@ -1269,6 +1269,30 @@ export function rolesPour(composition, nombre) {
 
 // Joueurs d'une partie : ceux nommés, sinon tous les connectés hors MJ.
 const joueursDeLaPartie = noms => (noms.length ? noms.map(n => trouverJoueur(n)) : game.users.filter(u => u.active && !u.isGM));
+// Les joueurs humains qui ont un villageois au village (hors gens de passage partis), une fois chacun.
+function humainsDuVillage(api) {
+  const partis = new Set((appelSur(api, "etat")?.partis ?? []).map(p => p.acteurId));
+  const ids = (appelSur(api, "villageois") ?? []).filter(a => a.system?.joueur && !a.system?.compagnon && !partis.has(a.id)).map(a => a.system.joueur);
+  return [...new Set(ids)].map(id => game.users.get(id)).filter(u => u && !u.isGM);
+}
+// Une partie que prépare le MJ IA laisse de côté les joueurs humains absents (hors ligne) qui ont un villageois au village, sauf
+// ceux que le narrateur nomme (gardes) : ils ne reçoivent pas de carte et leur villageois quitte le village (le système).
+const absentsDuVillage = (api, gardes = []) => humainsDuVillage(api).filter(u => !u.active && !gardes.some(g => g?.id === u.id));
+// Ce que la sortie de l'outil en dit au narrateur : les absents laissés de côté, et ceux qu'il a nommés quoique hors ligne.
+function noteDesAbsents(absents = [], nommesHorsLigne = []) {
+  const noms = l => l.map(u => u.name).join(", ");
+  const lignes = [];
+  if (absents.length) {
+    lignes.push(`Laissé${absents.length > 1 ? "s" : ""} de côté, car absent${absents.length > 1 ? "s" : ""} (hors ligne) : ${noms(absents)} — `
+      + `${absents.length > 1 ? "leurs villageois quittent le village, sans carte" : "son villageois quitte le village, sans carte"}. `
+      + "Pour garder un joueur absent quand même, nomme-le dans joueurs.");
+  }
+  if (nommesHorsLigne.length) {
+    lignes.push(`Hors ligne mais inclus à ta demande : ${noms(nommesHorsLigne)} (tant qu'il n'est pas connecté, ses choix secrets ne lui `
+      + "parviennent pas : au délai, il passe).");
+  }
+  return lignes.join("\n");
+}
 
 // Génère une composition équilibrée et variée (générateur du système, poids du contenu, historique des parties).
 // peste : une composition de peste noire (aucun rôle de la meute).
@@ -1629,6 +1653,8 @@ OUTILS.push(
       const api = apiLoups();
       const contenu = await contenuVeillees();
       const nombre = nombre_joueurs > 0 ? nombre_joueurs : joueursDeLaPartie([]).length;
+      // Sans nombre donné : les connectés ; un joueur absent (hors ligne) n'est pas compté, et le narrateur le sait.
+      const absents = nombre_joueurs > 0 ? [] : absentsDuVillage(api);
       niveau ||= "classique";
       const cles = liste => liste.map(t => [t, cleDeRole(t, contenu.noms)]);
       const inconnus = [...cles(inclure), ...cles(exclure)].filter(([, c]) => !c).map(([t]) => t);
@@ -1661,7 +1687,8 @@ OUTILS.push(
         + (enVillage ? "Le Village : oui (les personnalités seront tirées à la distribution).\n" : "")
         + `Bâtiments : ${c.batiments.map(b => contenu.noms.get(b) ?? b).join(", ") || "aucun"}.\n`
         + `Clés pour loups_distribuer (mode roles) : roles = ${JSON.stringify(c.roles)}, batiments = ${JSON.stringify(c.batiments)}`
-        + `${enPeste ? ", peste = « oui »" : ""}${enVillage && villageVoulu(village) ? ", village = « oui »" : ""}${voulues ? `, variantes = ${JSON.stringify(variantes)}` : ""}.` };
+        + `${enPeste ? ", peste = « oui »" : ""}${enVillage && villageVoulu(village) ? ", village = « oui »" : ""}${voulues ? `, variantes = ${JSON.stringify(variantes)}` : ""}.`
+        + (absents.length ? `\n${noteDesAbsents(absents)} Ils ne sont pas comptés dans les ${nombre} joueurs.` : "") };
     }
   },
   {
@@ -1678,7 +1705,8 @@ OUTILS.push(
       + "traits, Gazette), SANS annoncer la composition (ni rôles en jeu, ni nombre de loups), puis la première nuit (loups_nuit) — sauf "
       + "si la sortie dit que la veillée commence par un jour (Feu follet).",
     schema: objet({
-      joueurs: { type: "array", items: chaine("Nom d'un joueur Foundry."), description: "Joueurs de la partie ; vide = tous les joueurs connectés (hors MJ)." },
+      joueurs: { type: "array", items: chaine("Nom d'un joueur Foundry."), description: "Joueurs de la partie ; vide = tous les joueurs connectés (hors MJ) : "
+        + "un joueur absent (hors ligne) n'en est pas, sauf si tu le nommes ici." },
       mode: { type: "string", enum: ["auto", "roles", "composition"], description: "Comment choisir les rôles." },
       niveau: { type: "string", enum: NIVEAUX_LOUPS, description: "Niveau (modes auto et composition ; « le-pacte » : le jeu de soirée du livre ; « debutants » : un loup de moins, compté par le système)." },
       roles: { type: "array", items: chaine("Rôle (nom ou clé)."), description: "Mode roles : autant de rôles que de joueurs (complétés par des villageois)." },
@@ -1705,6 +1733,10 @@ OUTILS.push(
       niveau ||= "classique";
       const utilisateurs = joueursDeLaPartie(joueurs);
       if (utilisateurs.some(u => !u)) return { erreur: true, contenu: `Joueur introuvable parmi : ${joueurs.join(", ")}.` };
+      // Un joueur absent (hors ligne) qui a un villageois au village n'est pas de la partie, sauf si le narrateur le nomme (il est
+      // alors gardé, et la sortie le dit) ; le système fait quitter le village au villageois d'un absent.
+      const absents = absentsDuVillage(api, utilisateurs);
+      const nommesHorsLigne = joueurs.length ? utilisateurs.filter(u => !u.active) : [];
       const nbCompagnons = Math.max(0, Math.min(18, Math.floor(Number(compagnons) || 0)));
       const total = utilisateurs.length + nbCompagnons;
       if (total < 4) return { erreur: true, contenu: `Il faut au moins 4 joueurs, compagnons IA compris (${total} ici).` };
@@ -1827,7 +1859,8 @@ OUTILS.push(
         + `\nBâtiments en jeu : ${batiments.map(u => fromUuidSync(u)?.name).filter(Boolean).join(", ") || "aucun"}. Ne révèle aucun rôle.`
         + (glas > 0 ? `\nGlas final : la partie s'arrêtera au soir du jour ${Math.floor(glas)} (annoncé au chat).` : "")
         + (compo.autel ? `\nNuit de la Saint-Martin : un seul jour, un seul vote. Sous l'autel (SECRET, ne les nomme jamais) : ${compo.autel.map(c => contenu.noms.get(c) ?? c).join(", ")}.` : "")
-        + (miseEnPlace.length ? `\n${miseEnPlace.join("\n")}` : "") };
+        + (miseEnPlace.length ? `\n${miseEnPlace.join("\n")}` : "")
+        + (absents.length || nommesHorsLigne.length ? `\n${noteDesAbsents(absents, nommesHorsLigne)}` : "") };
     }
   },
   {
@@ -1837,8 +1870,11 @@ OUTILS.push(
       + "une peste noire), sauf si des rôles sont donnés (ou une composition prête ; le Somnambule et la Rosière seulement ainsi). À proposer en fin de partie (« une autre partie avec les mêmes joueurs ? »), "
       + "seulement si les joueurs le veulent. La partie précédente est archivée et la nouvelle s'ouvre dans un fil NEUF, où tu présenteras "
       + "le village : après l'outil, dis seulement une phrase de transition. village, variantes, gazette : comme loups_distribuer (un choix "
-      + "explicite est retenu par les réglages du monde pour les parties suivantes).",
+      + "explicite est retenu par les réglages du monde pour les parties suivantes). Un joueur absent (hors ligne) est laissé de côté "
+      + "(la sortie le dit), sauf si tu le nommes dans joueurs.",
     schema: objet({
+      joueurs: { type: "array", items: chaine("Nom d'un joueur Foundry."), description: "Joueurs humains à garder même hors ligne (vide : les "
+        + "mêmes joueurs, sans les absents)." },
       niveau: { type: "string", enum: ["", ...NIVEAUX_LOUPS], description: "Niveau ; vide = celui de la partie précédente (« le-pacte » : le jeu de soirée du livre ; « debutants » : un loup de moins, compté par le système)." },
       roles: { type: "array", items: chaine("Rôle (nom ou clé)."), description: "Rôles voulus (vide = composition équilibrée générée)." },
       composition: chaine("Clé d'une composition prête (vide = aucune)."),
@@ -1851,11 +1887,20 @@ OUTILS.push(
       gazette: GAZETTE_CHOIX
     }),
     sensible: true,
-    async executer({ niveau = "", roles = [], composition = "", peste = "", glas = 0, format = "", village = "", variantes = [], gazette = "" }) {
+    async executer({ joueurs = [], niveau = "", roles = [], composition = "", peste = "", glas = 0, format = "", village = "", variantes = [], gazette = "" }) {
       // Le format : vide = celui de la partie précédente (le système le garde) ; « ordinaire » = une veillée ordinaire.
       const formatVoulu = format === "saint-martin" ? { format } : format === "ordinaire" ? { format: "" } : {};
       const api = apiLoups();
       if (typeof api?.nouvellePartie !== "function") return { erreur: true, contenu: "Le système lakour-loups de ce monde ne sait pas rejouer une partie : mets-le à jour." };
+      const gardes = joueurs.map(n => trouverJoueur(n));
+      if (gardes.some(u => !u || u.isGM)) return { erreur: true, contenu: `Joueur introuvable parmi : ${joueurs.join(", ")}.` };
+      // Les mêmes joueurs, sans les absents (hors ligne) que le narrateur n'a pas nommés : la liste est alors donnée au système (le
+      // villageois d'un absent quitte le village, comme celui d'un joueur qui ne rejoue pas) ; sinon, « mêmes joueurs » tel quel.
+      const absents = absentsDuVillage(api, gardes);
+      const humains = humainsDuVillage(api);
+      const enPlus = gardes.filter(u => !humains.some(h => h.id === u.id));
+      const lesJoueurs = absents.length || enPlus.length ? [...humains.filter(u => !absents.includes(u)), ...enPlus].map(u => u.id) : null;
+      const nommesHorsLigne = gardes.filter(u => !u.active);
       let r;
       // Sans choix, le système tire lui-même la peste noire (très rarement) pour une composition générée.
       const voulue = pesteVoulue(peste);
@@ -1865,7 +1910,7 @@ OUTILS.push(
         // Le Pacte : la variante « Le Village », les variantes du jeu de soirée, la Gazette (un système plus ancien les ignore). Double
         // visage : le système fait lui-même la composition (aucun rôle à lui passer).
         const voulues = variantesDemandees(variantes), enVillage = villageVoulu(village), laGazette = gazetteVoulue(gazette);
-        r = await api.nouvellePartie({ memesJoueurs: true, niveau, roles, composition, ...(voulue !== undefined ? { peste: voulue } : {}),
+        r = await api.nouvellePartie({ memesJoueurs: true, ...(lesJoueurs ? { joueurs: lesJoueurs } : {}), niveau, roles, composition, ...(voulue !== undefined ? { peste: voulue } : {}),
           ...(glas > 0 ? { glas: Math.floor(glas) } : {}), ...formatVoulu, ...(enVillage !== undefined ? { village: enVillage } : {}),
           ...(voulues ? { variantes: voulues } : {}), ...(laGazette ? { gazette: laGazette } : {}) });
       }
@@ -1878,7 +1923,8 @@ OUTILS.push(
       game.modules?.get(ID)?.api?.moteur?.nouvellePartie({ ouverture: true });
       return { contenu: `Nouvelle partie prête : ${r?.joueurs?.length ?? 0} joueurs et ${r?.compagnons?.length ?? 0} compagnons IA, composition « ${c.libelle ?? c.cle ?? "?"} » `
         + "(pour toi seul : ne l'annonce jamais). La partie précédente est archivée ; l'ouverture de la nouvelle (village, première nuit) "
-        + "suit dans un fil neuf. Dis maintenant une seule phrase de transition, sans rien annoncer d'autre." };
+        + "suit dans un fil neuf. Dis maintenant une seule phrase de transition, sans rien annoncer d'autre."
+        + (absents.length || nommesHorsLigne.length ? `\n${noteDesAbsents(absents, nommesHorsLigne)}` : "") };
     }
   },
   {
