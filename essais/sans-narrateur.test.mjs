@@ -99,6 +99,9 @@ test("point d'enregistrement : game.lakourLoups.compagnons { disponible, creer, 
     assert.equal(a.system.joueur, "");
     assert.ok(J.estCompagnon(a));
     assert.ok(a.flags["lakour-mj-ia"].compagnon.temperament, "une personnalité");
+    // Le genre de son prénom, posé en trait (drapeau « traits » du système des Veillées) : « Odile » n'est jamais un homme.
+    assert.equal(a.flags["lakour-loups"]?.traits?.genre, J.genreDuPrenom(a.name), a.name);
+    assert.ok(["femme", "homme"].includes(a.flags["lakour-loups"].traits.genre), a.name);
     assert.ok(a.name && a.name !== "Jordan" && a.name !== "Hogun");
   }
   assert.equal(new Set(ids.map(id => game.actors.get(id).name)).size, 4, "noms distincts");
@@ -164,6 +167,8 @@ test("coût hors séance : au compteur « compagnons hors séance », borné par
   chat.length = 0;
   reglages.compagnonsHorsSeance = { cout: 0, appels: 0, depuis: 0 };
   reglages.seance.cout = 0;
+  // Ce qu'ont laissé en attente les essais d'avant (le navigateur du MJ le garde d'un moteur à l'autre : couts-seance.test.mjs).
+  reglages.coutsEnAttente = {};
   const { s, appels, moteur } = monter();
   etat.phase = "jour";
   await s.parler("essai");

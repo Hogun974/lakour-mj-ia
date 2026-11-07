@@ -52,7 +52,9 @@ export class ConsoleMJ extends HandlebarsApplicationMixin(ApplicationV2) {
   get moteur() { return game.modules.get(ID).api.moteur; }
 
   async _prepareContext() {
+    // La séance écrite plus les coûts qui attendent la fin d'une partie des Veillées (moteur.coutDeLaSeance) : ce que le budget compte.
     const seance = lire("seance");
+    const compte = this.moteur?.coutDeLaSeance?.() ?? { cout: seance.cout ?? 0, jetons: seance.jetons, enAttente: 0, hors: lire("compagnonsHorsSeance")?.cout ?? 0 };
     const fournisseur = lire("fournisseur");
     const modele = fournisseur === "anthropic" ? (MODELES_ANTHROPIC[lire("modeleAnthropic")] ? libelleModele(lire("modeleAnthropic")) : undefined)
       : fournisseur === "openai" ? lire("modeleOpenAI") : "factice";
@@ -71,10 +73,10 @@ export class ConsoleMJ extends HandlebarsApplicationMixin(ApplicationV2) {
       personnalite: personnalites.find(p => p.id === lire("personnaliteActive"))?.nom,
       personnalites: Object.fromEntries(personnalites.map(p => [p.id, p.nom])),
       active: lire("personnaliteActive"),
-      cout: seance.cout.toFixed(2),
-      horsSeance: game.system.id === "lakour-loups" ? (lire("compagnonsHorsSeance")?.cout ?? 0).toFixed(2) : null,
+      cout: compte.cout.toFixed(2),
+      horsSeance: game.system.id === "lakour-loups" ? compte.hors.toFixed(2) : null,
       budget: lire("budgetSeance"),
-      jetons: seance.jetons,
+      jetons: compte.jetons,
       prixConnus: fournisseur === "anthropic" || (fournisseur === "openai" && Boolean(prixOpenAI(lire("modeleOpenAI")))),
       creationPossible: game.system.id === "impmal",
       horloges: horlogesDisponibles(game.system.id),

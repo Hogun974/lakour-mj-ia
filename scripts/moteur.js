@@ -11,8 +11,8 @@ import { validerSchema } from "./schema.js";
 import { VoixEnDirect, direReplique } from "./voix.js";
 import { estSilence } from "./voix-texte.js";
 import { langueDuMonde } from "./contenus.js";
-import { Compagnons, effacerPrive } from "./compagnons-jeu.js";
-import { peuventReagir, estAnnonceDuSysteme } from "./compagnons.js";
+import { Compagnons, effacerPrive, compagnonsPresents } from "./compagnons-jeu.js";
+import { peuventReagir, estAnnonceDuSysteme, interpellesDans } from "./compagnons.js";
 import { PiloteAutomatique, attendreFinVoix } from "./pilote.js";
 import { miseEnPlaceLoups, appelSur } from "./veillees-pacte.js";
 
@@ -157,6 +157,11 @@ function etapesImpmal(nomJoueur) {
   ];
 }
 
+// Les compagnons interpellés par le narrateur répondent au plus tant de fois de suite sans message humain ; un interpellé muet relance le
+// narrateur après RELANCE_MIN secondes au moins (ou le réglage « rythmeJoueur », s'il est plus long).
+export const INTERPELLATIONS_MAX = 3;
+export const RELANCE_MIN = 20;
+
 // Le moteur ne tourne que dans le navigateur du MJ actif (c'est là que vit la clé).
 export class MoteurMJ {
   constructor() {
@@ -230,6 +235,7 @@ export class MoteurMJ {
   async arreter() {
     if (!lire("seance").active) return;
     clearTimeout(this.minuterie);
+    clearTimeout(this.minuterieRelance);
     this.minuterie = null;
     this.pilote.arreter("seance");
     // Aux Veillées : ni mémoire de campagne (un journal du monde se lit dans la console de chaque joueur), ni chronique pendant une
@@ -388,7 +394,9 @@ export class MoteurMJ {
     this.vidages++;
     try {
       await this.tour(`[État du jeu]\n${etatDuJeu()}\n\n[Messages et actions des joueurs]\n${textes.join("\n")}`, { miseEnPlace: this.miseEnPlaceVoulue() });
-      await this.faireReagirCompagnons(lot);
+      const narration = this.derniereNarration ?? "";
+      const dits = await this.faireReagirCompagnons(lot, narration);
+      await this.repondreAuxInterpelles(lot, narration, dits);
     } finally {
       this.vidages--;
     }
@@ -398,14 +406,51 @@ export class MoteurMJ {
   // leurs répliques entrent ensuite dans la file comme des messages de joueurs. Jamais quand le lot ne contenait que des
   // répliques de compagnons (pas de boucle entre compagnons sans message humain), ni en plein combat (ils agissent à leur tour),
   // ni pendant un tour de table (ils parlent quand vient leur tour de parole).
-  async faireReagirCompagnons(lot) {
+  // narration : ce que le MJ vient de raconter ; un compagnon qu'il y nomme passe d'abord (choisirOrateurs).
+  async faireReagirCompagnons(lot, narration = "") {
     if (!this.actif || !peuventReagir(lot) || game.combats?.active?.started || this.tourParTour?.tableActive?.()) return [];
     try {
-      return await this.compagnons.reagir({ mentions: lot.map(e => e.texte).join("\n") });
+      return await this.compagnons.reagir({ mentions: [narration, ...lot.map(e => e.texte)].filter(Boolean).join("\n") });
     } catch (erreur) {
       console.error(`${ID} | compagnons`, erreur);
       return [];
     }
+  }
+
+  // Le narrateur a donné la parole à un compagnon (« Léonce, c'est à vous : pourquoi cette grâce ? ») : il répond, même quand le lot ne
+  // venait que de compagnons (la règle anti-boucle l'aurait fait taire : vu en vrai, la partie restait suspendue, moteur au repos) — au plus
+  // INTERPELLATIONS_MAX fois de suite sans qu'un humain écrive. Celui qui ne répond pas (silence du modèle, budget, réduit au silence) :
+  // après un délai (réglage « rythmeJoueur », RELANCE_MIN secondes au moins), le moteur relance le narrateur pour qu'il passe au suivant.
+  async repondreAuxInterpelles(lot, narration, dits = []) {
+    if (!this.actif || !narration || game.combats?.active?.started || this.tourParTour?.tableActive?.()) return [];
+    if (lot.some(e => (e.source ?? "humain") === "humain")) this.interpellationsDeSuite = 0;
+    let presents = [];
+    try { presents = compagnonsPresents().map(a => ({ id: a.id, nom: a.name })); } catch { presents = []; }
+    const ont = new Set((dits ?? []).map(d => d.acteurId));
+    const appeles = interpellesDans(narration, presents).filter(id => !ont.has(id));
+    if (!appeles.length) return [];
+    let reponses = [];
+    if ((this.interpellationsDeSuite ?? 0) < INTERPELLATIONS_MAX) {
+      this.interpellationsDeSuite = (this.interpellationsDeSuite ?? 0) + 1;
+      try { reponses = await this.compagnons.reagir({ mentions: narration, seuls: appeles, max: appeles.length }); } catch (e) { console.error(`${ID} | compagnons`, e); }
+    }
+    const muets = appeles.filter(id => !reponses.some(d => d.acteurId === id));
+    if (muets.length) this.relancerSiMuets(muets.map(id => presents.find(c => c.id === id)?.nom).filter(Boolean));
+    return reponses;
+  }
+
+  // Le compagnon interpellé ne répond pas : passé le délai, si rien n'a bougé (moteur au repos, aucun tour depuis), le narrateur est relancé.
+  relancerSiMuets(noms) {
+    clearTimeout(this.minuterieRelance);
+    const n = this.tours ?? 0;
+    let periode = 0;
+    try { periode = Math.max(0, Number(lire("rythmeJoueur")) || 0); } catch { periode = 0; }
+    this.minuterieRelance = setTimeout(() => {
+      this.minuterieRelance = null;
+      if (!this.actif || !this.auRepos() || (this.tours ?? 0) !== n) return;
+      this.signaler(`[Le temps presse] ${noms.join(", ")} ne répond pas : ne l'attends plus. Passe au suivant, ou, si le débat a assez `
+        + "duré, ouvre le vote. Une phrase suffit.", { fusion: "relance-interpelles" });
+    }, Math.max(RELANCE_MIN, periode) * 1000);
   }
 
   // Mise en place avant chaque réponse, sauf en plein combat (les tours des PNJ doivent rester rapides).
@@ -448,6 +493,7 @@ export class MoteurMJ {
   // Les tours passent un par un : deux tours simultanés mélangeraient le fil.
 
   tour(entree, options = {}) {
+    this.tours = (this.tours ?? 0) + 1;
     this.toursEnFile++;
     const suite = this.chaine.then(() => this.#tour(entree, options)).finally(() => { this.toursEnFile--; });
     this.chaine = suite.catch(() => null);
@@ -461,6 +507,7 @@ export class MoteurMJ {
 
   async #tour(entree, { fil = this.fil, systeme = this.systeme, outils = outilsDuSysteme(), sauver = true, chuchoter = false, miseEnPlace = false } = {}) {
     this.enCours = true;
+    this.derniereNarration = "";
     // Premier tour d'un fil neuf commencé sans ouverture (loups_distribuer) : la distribution secrète passe devant.
     if (this.preambule && fil === this.fil) {
       entree = `${this.preambule}\n\n${entree}`;
@@ -516,6 +563,7 @@ export class MoteurMJ {
       // La voix suit le texte tel qu'il a été reçu (ses positions), pas la version finale retouchée.
       const ecrit = bulle.texte.trim() ? bulle.texte : reponse?.texte ?? "";
       await bulle.terminer(reponse?.texte);
+      if (!chuchoter && ecrit.trim()) this.derniereNarration = ecrit;
       if (voix) {
         voix.suivre(bulle.message ? ecrit : "", true);
         voix.terminer(bulle.message).catch(e => console.error(`${ID} | voix`, e));
@@ -581,6 +629,7 @@ export class MoteurMJ {
     try {
       const bulle = new BulleChat(nomAfficheDe(this.personnalite, texteJoueurs), chuchoter);
       await bulle.terminer(recit);
+      if (!chuchoter) this.derniereNarration = recit;
       voix?.terminer(bulle.message).catch(e => console.error(`${ID} | voix`, e));
     } finally {
       ouvrir();
@@ -652,12 +701,28 @@ export class MoteurMJ {
       if (usage) for (const k of Object.keys(usage)) if (typeof usage[k] === "number") p.seance.jetons[k] = (p.seance.jetons[k] ?? 0) + usage[k];
       p.seance.n += 1;
     }
-    if (!this.coutsDifferes()) await this.viderCouts();
+    if (!this.coutsDifferes()) return this.viderCouts();
+    // Différés : recopiés dans le navigateur du MJ (réglage client « coutsEnAttente ») pour survivre à un rechargement.
+    try { await ecrire("coutsEnAttente", structuredClone(p)); } catch { /* sans stockage local : la mémoire suffit */ }
   }
 
-  // Les coûts en attente : { seance: { cout, jetons, n }, hors: { cout, appels } }.
+  // Les coûts en attente : { seance: { cout, jetons, n }, hors: { cout, appels } } — repris du navigateur du MJ après un rechargement.
   get couts() {
-    return (this._couts ??= { seance: { cout: 0, jetons: {}, n: 0 }, hors: { cout: 0, appels: 0 } });
+    if (!this._couts) {
+      let garde = null;
+      try { garde = lire("coutsEnAttente"); } catch { garde = null; }
+      this._couts = { seance: { cout: 0, jetons: {}, n: 0, ...(garde?.seance ?? {}) }, hors: { cout: 0, appels: 0, ...(garde?.hors ?? {}) } };
+    }
+    return this._couts;
+  }
+
+  // Ce que la console montre au MJ : la séance écrite plus ce qui attend la fin de la partie (le budget les compte ensemble).
+  coutDeLaSeance() {
+    const seance = lire("seance") ?? {};
+    const p = this.couts;
+    const jetons = { ...(seance.jetons ?? {}) };
+    for (const [k, v] of Object.entries(p.seance.jetons ?? {})) jetons[k] = (jetons[k] ?? 0) + v;
+    return { cout: (seance.cout ?? 0) + p.seance.cout, jetons, enAttente: p.seance.cout, hors: (lire("compagnonsHorsSeance")?.cout ?? 0) + p.hors.cout };
   }
 
   // Aux Veillées, pendant une partie (distribuée, pas finie) : les écritures de coût attendent.
@@ -672,7 +737,10 @@ export class MoteurMJ {
   // Écrit d'un coup les coûts en attente (une écriture par compteur touché).
   async viderCouts() {
     const p = this.couts;
-    this._couts = null;
+    this._couts = { seance: { cout: 0, jetons: {}, n: 0 }, hors: { cout: 0, appels: 0 } };
+    if (p.seance.n || p.seance.cout || p.hors.appels || p.hors.cout) {
+      try { await ecrire("coutsEnAttente", {}); } catch { /* sans stockage local */ }
+    }
     if (p.hors.appels || p.hors.cout) {
       const hors = { ...HORS_SEANCE_VIDE, ...(lire("compagnonsHorsSeance") ?? {}) };
       await ecrire("compagnonsHorsSeance", { ...hors, cout: hors.cout + p.hors.cout, appels: hors.appels + p.hors.appels });

@@ -220,7 +220,9 @@ export function vueVeillees(acteur, { api = game.lakourLoups, messages } = {}) {
     prive: [...carnet, ...privesDe(acteur.id)], public: chatPublic({ messages, paroles: parolesPour(acteur.id) }), scene,
     autres: autres.map(a => ({ id: a.id, nom: a.name, vivant: a.system.vivant !== false, humain: Boolean(a.system.joueur) })), allies, suspects,
     vivant, peutParler: vivant && !acteur.system.silence && pub.phase !== "nuit", tour: pub.tour,
-    humains, petiteTablee: Boolean(pub.petiteTablee)
+    humains, petiteTablee: Boolean(pub.petiteTablee),
+    // La partie (publique) : les répliques sans IA ne se répètent pas dans une partie (CerveauxCompagnons).
+    partie: pub.partie ?? ""
   };
 }
 
@@ -385,6 +387,29 @@ export function vueDe(acteur, options = {}) {
 }
 
 // ------------------------------------------------------------------ noms des compagnons des Veillées
+// Le genre de chaque prénom : les noms de secours et ceux de la table « Noms de villageois » du contenu (lakour-veillees et sa variante
+// anglaise : les mêmes noms). Le système des Veillées en a la liste complète (logique/prenoms.mjs, api.logique.genreDuPrenom), plus
+// des prénoms usuels : elle passe d'abord ; celle-ci sert à un système qui ne l'a pas encore.
+export const GENRES_DES_PRENOMS = Object.freeze({
+  femme: ["Ysaline", "Odile", "Clémence", "Rosalie", "Perrine", "Léontine", "Bertille", "Guillemette", "Mahaut", "Jacquette", "Aliénor", "Margot",
+    "Solène", "Philippine", "Agathe", "Isaure", "Hermine", "Blanche", "Edmée", "Apolline", "Ondine"],
+  homme: ["Mathurin", "Anselme", "Gaspard", "Firmin", "Eudes", "Bastien", "Colin", "Aymeric", "Thibaut", "Félicien", "Sylvestre", "Honoré", "Hugon",
+    "Léonce", "Valentin", "Quentin", "Augustin", "Josselin", "Norbert", "Baptistin"]
+});
+const sansAccents = t => String(t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const PRENOMS_CONNUS = new Map(Object.entries(GENRES_DES_PRENOMS).flatMap(([g, l]) => l.map(p => [sansAccents(p), g])));
+// Le genre d'un nom de compagnon (« Ondine Malefosse » : femme) : celui du système s'il le sait, sinon cette liste ; "" s'il est inconnu.
+export function genreDuPrenom(nom, api = globalThis.game?.lakourLoups) {
+  try {
+    const g = api?.logique?.genreDuPrenom?.(nom);
+    if (g === "femme" || g === "homme") return g;
+  } catch { /* système ancien */ }
+  return PRENOMS_CONNUS.get(sansAccents(String(nom ?? "").trim().split(/\s+/)[0])) ?? "";
+}
+// Le trait de genre à poser sur l'acteur d'un compagnon (drapeau « traits » du système des Veillées, qu'il respecte à la distribution) :
+// { traits: { genre } } pour flags["lakour-loups"], ou null si le prénom ne dit rien.
+export const traitDeGenre = nom => { const g = genreDuPrenom(nom); return g ? { traits: { genre: g } } : null; };
+
 const NOMS_DE_SECOURS = ["Mathurin Vaudrey", "Ysaline Corbet", "Anselme Ferrand", "Odile Basquin", "Gaspard Lerouge", "Clémence Aubrac",
   "Firmin Delorme", "Rosalie Brunet", "Eudes Malivert", "Perrine Sauvage", "Bastien Corbière", "Léontine Gaudry"];
 
@@ -704,6 +729,45 @@ export async function decisionParPolitique(api, acteur, vue, demande, sujet, gra
   }
   return null;
 }
+// Ce que le compagnon écrirait sur le Mur des murmures, sans modèle : { sens: "loup" | "innocent", genre, indice } | null. Un villageois
+// désigne un loup qu'il a découvert (sinon, une fois sur deux, défend un innocent sûr) ; un loup ment une fois sur deux (un non-loup
+// présenté comme loup) ou défend un des siens. L'indice : un trait visible (public) de la personne, de préférence partagé avec d'autres
+// vivants (une allusion, pas une preuve) ; jamais son nom.
+export const INDICES_DU_MUR = ["lunettes", "bijou", "sabots", "coiffe", "pipe", "bourg", "ecart", "jeune", "vieux"];
+const indicesDe = x => ({ ...Object.fromEntries(["lunettes", "bijou", "sabots", "coiffe", "pipe"].map(c => [c, Boolean(x?.[c])])),
+  bourg: Boolean(x) && x.bourg !== false, ecart: x?.bourg === false, jeune: x?.age === "jeune", vieux: x?.age === "vieux" });
+export function indiceDuMur(id, traits = {}, vivants = [], h = Math.random) {
+  const t = traits[id];
+  if (!t) return "";
+  const siens = INDICES_DU_MUR.filter(c => indicesDe(t)[c]);
+  if (!siens.length) return "";
+  const partages = siens.filter(c => vivants.some(v => v !== id && indicesDe(traits[v])[c]));
+  const l = partages.length ? partages : siens;
+  return l[Math.floor(h() * l.length)];
+}
+async function murmureDuCompagnon(api, acteur, vue) {
+  try {
+    const savoir = await savoirDuCompagnon(api, acteur, vue);
+    const traits = appelSur(api, "traits") ?? {};
+    if (!savoir || !Object.keys(traits).length) return null;
+    const vivants = api.villageois().filter(a => a.system?.vivant !== false).map(a => a.id);
+    const autres = vivants.filter(id => id !== acteur.id);
+    const h = hasard(`mur|${partieEnCours()}|${acteur.id}|${vue.tour ?? 0}`);
+    const tirer = l => (l.length ? l[Math.floor(h() * l.length)] : "");
+    let sens = "", cible = "";
+    if (vue.camp === "meute") {
+      const allies = new Set([...(vue.allies ?? []), ...(savoir.allies ?? [])]);
+      if (h() < 0.5) { sens = "loup"; cible = tirer(autres.filter(id => !allies.has(id))); } else if (h() < 0.5) { sens = "innocent"; cible = tirer(autres.filter(id => allies.has(id))); }
+    } else {
+      const loups = (savoir.loups ?? []).filter(id => autres.includes(id));
+      const innocents = (savoir.innocents ?? []).filter(id => autres.includes(id));
+      if (loups.length) { sens = "loup"; cible = tirer(loups); } else if (innocents.length && h() < 0.5) { sens = "innocent"; cible = tirer(innocents); }
+    }
+    const indice = cible ? indiceDuMur(cible, traits, vivants, h) : "";
+    const genre = traits[cible]?.genre === "femme" || traits[cible]?.genre === "homme" ? traits[cible].genre : "";
+    return indice ? { sens, genre, indice } : null;
+  } catch { return null; }
+}
 // Ce que le compagnon dirait tout haut au débat (un loup qu'il croit tenir ; un loup ment parfois) : { cible, nom } | null.
 async function annonceDuCompagnon(api, acteur, vue) {
   const L = politiquesDe(api);
@@ -791,9 +855,12 @@ export class Compagnons {
   // Aux Veillées, un compagnon qui crie « C'est la peste noire ! » dans sa réplique crie pour de bon : le système tranche
   // (api.crierPeste : juste, la partie s'arrête ; faux, il est pendu) et le tour de parole s'arrête là. Une réplique qui commence
   // par « Au Registre : … » fait inscrire sa déclaration au Registre du greffier (api.declarer).
-  async reagir({ mentions = "", max = this.maxRepliques(), messages } = {}) {
+  // seuls (facultatif) : les compagnons que le narrateur vient d'interpeller (moteur.js, repondreAuxInterpelles) — eux seuls parlent, et
+  // aucun ne se tait par tempérament : on lui a donné la parole.
+  async reagir({ mentions = "", max = this.maxRepliques(), messages, seuls = null } = {}) {
     if (max <= 0) return [];
-    const parlants = compagnonsPresents().map(a => ({ id: a.id, nom: a.name, acteur: a, vue: this.vue(a, { messages }) }))
+    const parlants = compagnonsPresents().filter(a => !seuls || seuls.includes(a.id))
+      .map(a => ({ id: a.id, nom: a.name, acteur: a, vue: { ...this.vue(a, { messages }), ...(seuls ? { interpelle: true } : {}) } }))
       .filter(c => c.vue.peutParler);
     const dits = [];
     // Sans modèle, aux Veillées : ce qu'il sait se dit tout haut (les politiques du système : annoncesDuJoueur).
@@ -843,8 +910,10 @@ export class Compagnons {
     if (demande.mode === "texte") {
       // Le Mur des murmures (une phrase anonyme), ou le mot confié au Messager.
       const mur = estLeMur(demande.invite);
+      // Sans modèle, ce qu'il sait (un loup découvert, un innocent sûr ; un loup peut mentir) devient une allusion (compagnons.js).
+      const murmure = mur ? await murmureDuCompagnon(game.lakourLoups, acteur, vue) : null;
       const r = await this.cerveaux.decider(vue, { type: "texte", invite: mur ? `${PRECISION_DU_MUR}\n${demande.invite}` : demande.invite, max: demande.max,
-        cle: `texte|${demande.id}`, ...(mur ? { objet: "mur" } : {}) });
+        cle: `texte|${demande.id}`, ...(mur ? { objet: "mur", murmure } : {}) });
       if (r.texte) await noterPrive(acteur.id, mur ? `Nuit ${vue.tour} : tu as écrit sur le Mur des murmures : « ${r.texte} ».` : `Nuit ${vue.tour} : tu as confié ce mot au Messager : « ${r.texte} ».`);
       return r.texte;
     }

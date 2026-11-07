@@ -149,7 +149,8 @@
       },
       "ModeleCompagnons": {
         "Nom": "Modèle des compagnons IA",
-        "Aide": "Modèle qui fait jouer les compagnons IA (personnages côté joueurs tenus par l'IA). Vide : un modèle bon marché du fournisseur actif (Claude Haiku 5.5, ou le moins cher d'OpenAI). Leur coût compte dans le budget de la séance."
+        "Aide": "Modèle qui fait jouer les compagnons IA (personnages côté joueurs tenus par l'IA). Par défaut : un modèle bon marché du fournisseur actif (Claude Haiku 5.5, ou le moins cher d'OpenAI) ; un modèle d'un autre fournisseur que celui du MJ revient au défaut. Leur coût compte dans le budget de la séance.",
+        "Defaut": "Par défaut (un modèle bon marché du fournisseur actif)"
       },
       "BavardageCompagnons": {
         "Nom": "Bavardage des compagnons IA",

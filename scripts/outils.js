@@ -22,7 +22,7 @@ import { appelSur, attendreSur, ORDRE_D_APPEL, CHOIX_DES_VARIANTES, variantesDem
 import { tirerSansDoublon, donneesDuResultat, TIRAGES_MAX } from "./tirages.js";
 import { TEMPERAMENTS, FACONS_DE_PARLER, personnaliteAuHasard } from "./compagnons.js";
 import {
-  estCompagnon, personnaliteDe, compagnonsDuMonde, compagnonsPresents, trouverCompagnon, noterPrive, oublierPrive, nomsPourCompagnons
+  estCompagnon, personnaliteDe, compagnonsDuMonde, compagnonsPresents, trouverCompagnon, noterPrive, oublierPrive, nomsPourCompagnons, traitDeGenre
 } from "./compagnons-jeu.js";
 import { planVersScene, zoneVersRegion, idStable, cheminSon, etagesDuPlan, SOLS, SONS_AMBIANCE, TYPES_ZONE, MAX_ETAGES } from "./cartes.js";
 import { planVersSVG } from "./cartes-rendu.js";
@@ -1792,9 +1792,12 @@ OUTILS.push(
         ...(voulues || compo.cle === "double-visage" ? { variantes: choix } : {}),
         ...(laGazette && !compo.autel ? { gazette: laGazette } : {})
       });
-      // Une personnalité au hasard pour chaque compagnon (drapeau du MJ IA : rien de secret).
+      // Une personnalité au hasard pour chaque compagnon (drapeau du MJ IA : rien de secret) ; le genre de son prénom en trait (drapeau
+      // « traits » du système : le système l'a déjà déduit du nom à la distribution, il le garde pour les parties suivantes).
       for (const r of resultat.filter(x => x.compagnon)) {
-        await game.actors.get(r.acteurId)?.update({ [`flags.${ID}.compagnon`]: personnaliteAuHasard(`${r.acteurId}|${Math.random()}`) });
+        const a = game.actors.get(r.acteurId);
+        const genre = traitDeGenre(a?.name)?.traits.genre;
+        await a?.update({ [`flags.${ID}.compagnon`]: personnaliteAuHasard(`${r.acteurId}|${Math.random()}`), ...(genre ? { "flags.lakour-loups.traits.genre": genre } : {}) });
       }
       const nomRole = id => roleLoups(game.actors.get(id))?.name ?? "?";
       // Double visage : l'allégeance (le camp de la fiche) et la seconde carte (grande complication), pour le narrateur seul.

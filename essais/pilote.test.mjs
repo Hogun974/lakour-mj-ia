@@ -199,7 +199,30 @@ test("détection aux Veillées : un humain vivant, la phase, la séance, le rég
   assert.equal(q.conditions().raison, "fin");
   const vide = village({ humains: 1, compagnons: 0 });
   assert.equal(pilote(P, vide, moteurFactice(vide)).p.conditions().raison, "personne");
-  assert.deepEqual(P.vivantsVeillees(village({ humains: 2, humainVivant: true })).humains.length, 2);
+  // Deux humains vivants, mais seul le joueur u1 est connecté (u2 n'est pas au monde) : un humain compte.
+  assert.deepEqual(P.vivantsVeillees(village({ humains: 2, humainVivant: true })).humains.length, 1);
+});
+
+test("détection aux Veillées : un humain hors de la partie (pas au cercle) ou hors ligne ne retient pas le pilote", () => {
+  remettre();
+  const api = village({ humainVivant: true });
+  const { p } = pilote(P, api, moteurFactice(api));
+  assert.equal(p.conditions().raison, "humain", "un humain vivant et connecté : pas de pilote");
+  // Vu en vrai : « Hogun974 », joueur hors ligne, laissé hors de la partie : son personnage vivant traîne au monde.
+  joueur.active = false;
+  assert.deepEqual(p.conditions(), { ok: true }, "son joueur n'est pas connecté : il ne compte pas");
+  joueur.active = true;
+  const humain = game.actors.find(a => a.system.joueur === "u1");
+  const etat = api.etat;
+  api.etat = () => ({ ...etat(), cercle: game.actors.filter(a => a.system.compagnon).map(a => a.id) });
+  assert.deepEqual(p.conditions(), { ok: true }, "connecté, mais hors du cercle de la partie : il ne compte pas");
+  api.etat = () => ({ ...etat(), cercle: game.actors.map(a => a.id) });
+  assert.equal(p.conditions().raison, "humain", "au cercle et connecté : il compte");
+  assert.deepEqual(P.vivantsVeillees(api).humains.map(a => a.id), [humain.id]);
+  // Un compagnon hors du cercle (un ancien compagnon resté au monde) ne compte pas non plus.
+  api.etat = () => ({ ...etat(), cercle: [humain.id] });
+  assert.equal(P.vivantsVeillees(api).compagnons.length, 0);
+  api.etat = etat;
 });
 
 test("étapes des Veillées (logique pure) : nuit, aube, débat borné, vote, exécution, dénouement", () => {

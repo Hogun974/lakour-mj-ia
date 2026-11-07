@@ -11,7 +11,7 @@
 //   atteint, repli déterministe (compagnons.js).
 // Pendant une séance du MJ IA, tout cela se tait : le moteur (et le pilote automatique) mène les compagnons.
 import { ID } from "./constantes.js";
-import { estCompagnon, nomsPourCompagnons, oublierPrive } from "./compagnons-jeu.js";
+import { estCompagnon, nomsPourCompagnons, oublierPrive, traitDeGenre } from "./compagnons-jeu.js";
 import { personnaliteAuHasard, estAnnonceSysteme } from "./compagnons.js";
 
 const reglage = (cle, defaut) => {
@@ -47,7 +47,8 @@ export class CompagnonsSansNarrateur {
     return api.compagnons;
   }
 
-  // n joueurs IA : des villageois sans joueur, marqués compagnon, avec un nom du village et une personnalité au hasard.
+  // n joueurs IA : des villageois sans joueur, marqués compagnon, avec un nom du village et une personnalité au hasard ; le genre de
+  // son prénom posé en trait (drapeau « traits » du système, respecté à la distribution) : « Ondine » n'est jamais un homme.
   async creer(n = 1) {
     const api = this.api();
     const nombre = Math.max(0, Math.min(18, Math.floor(Number(n) || 0)));
@@ -62,7 +63,7 @@ export class CompagnonsSansNarrateur {
         system: { joueur: "", compagnon: true, vivant: true },
         ownership: { default: niveaux.LIMITED ?? 1 },
         prototypeToken: { name: nom, actorLink: true, disposition: CONST.TOKEN_DISPOSITIONS?.NEUTRAL ?? 0 },
-        flags: { [ID]: { compagnon: personnaliteAuHasard(`${nom}|${Math.random()}`) } }
+        flags: { [ID]: { compagnon: personnaliteAuHasard(`${nom}|${Math.random()}`) }, ...(traitDeGenre(nom) ? { "lakour-loups": traitDeGenre(nom) } : {}) }
       });
       ids.push(acteur.id);
     }

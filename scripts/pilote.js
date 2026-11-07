@@ -49,10 +49,18 @@ const traduire = (cle, donnees) => {
 };
 
 // ------------------------------------------------------------------ qui reste à la table
-// Les vivants des Veillées. Un villageois sans compagnon compte comme humain (même déconnecté : il peut revenir).
+// Les vivants des Veillées DE LA PARTIE EN COURS : ceux du cercle (etat.cercle, public, fixé à la distribution ; un arrivant de passage
+// s'y assoit) — un personnage resté hors de la partie (aucune place, aucun rôle) ne compte pas ; un système sans cercle : tous. Un humain
+// ne compte que si son joueur est connecté, comme groupeAventure (vu en vrai : le personnage d'un joueur hors ligne, laissé hors de la
+// partie, a empêché le pilote de démarrer toute la soirée) ; il compte de nouveau dès qu'il revient (le pilote s'arrête alors).
 export function vivantsVeillees(api) {
-  const vivants = api.villageois().filter(a => a.system?.vivant !== false);
-  return { humains: vivants.filter(a => !estCompagnon(a)), compagnons: vivants.filter(estCompagnon) };
+  let cercle = [];
+  try { cercle = api.etat?.()?.cercle ?? []; } catch { cercle = []; }
+  const places = new Set(Array.isArray(cercle) ? cercle : []);
+  const enJeu = a => !places.size || places.has(a.id);
+  const connecte = a => Boolean(a.system?.joueur && game.users?.get?.(a.system.joueur)?.active);
+  const vivants = api.villageois().filter(a => a.system?.vivant !== false && enJeu(a));
+  return { humains: vivants.filter(a => !estCompagnon(a) && connecte(a)), compagnons: vivants.filter(estCompagnon) };
 }
 
 // Le groupe en 40k et en Warcraft : les personnages de joueurs CONNECTÉS présents (jeton visible sur la scène active ; sans

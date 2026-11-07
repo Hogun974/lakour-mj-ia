@@ -352,7 +352,43 @@ const REPLIQUES_LANGUES = {
       () => "Gardons la tête froide : un vote trop vite fait, c'est un innocent de moins.",
       n => `Je garde un œil sur ${n}. Ses réponses ne tiennent pas debout.`,
       () => "Je n'accuse personne pour l'instant. Écoutons d'abord.",
-      n => `${n}, ça fait deux fois que tu changes d'avis. Pourquoi ?`
+      n => `${n}, ça fait deux fois que tu changes d'avis. Pourquoi ?`,
+      n => `${n}, qu'as-tu fait de ta soirée, au juste ?`,
+      () => "Les loups adorent les votes pressés. Prenons notre temps.",
+      n => `Je voterais bien contre ${n}, mais j'aimerais d'abord l'entendre.`,
+      () => "Qui a parlé le premier, hier ? Souvenez-vous-en.",
+      n => `${n}, tu réponds toujours à côté. C'est fait exprès ?`,
+      () => "Quelqu'un ici en sait plus long qu'on ne le dit.",
+      n => `On a vu quelqu'un près du puits cette nuit. ${n}, une idée ?`,
+      () => "La brume a bon dos : ce sont des mains qui ont frappé cette nuit.",
+      n => `Je ne dis pas que c'est ${n}. Je dis que ça y ressemble.`,
+      () => "Regardez qui défend qui. Ça en dit long.",
+      n => `${n}, tu as beaucoup insisté hier. Qu'est-ce qui te presse ?`,
+      () => "On ne gagnera rien à se disputer. Cherchons ce qui cloche.",
+      n => `Si ${n} n'a rien à cacher, la réponse sera simple.`,
+      () => "Hier, on s'est trompé. Ne refaisons pas la même erreur.",
+      n => `${n} change de sujet dès qu'on parle des loups. J'ai remarqué.`,
+      () => "Faisons le tour : où étiez-vous tous, cette nuit ?",
+      n => `${n}, tes mots d'hier et ceux d'aujourd'hui ne disent pas la même chose.`,
+      () => "Moi, je me méfie de ceux qui ne disent jamais rien.",
+      n => `J'ai confiance en ${n}, pour l'instant. Ne me déçois pas.`,
+      () => "Un loup n'accuse jamais sa propre meute. Écoutez qui accuse qui.",
+      n => `${n}, tu as voté vite hier. Trop vite, peut-être.`,
+      () => "Les cendres ne mentent pas. Les vivants, si.",
+      n => `Je propose qu'on écoute ${n} jusqu'au bout avant de voter.`,
+      () => "Chaque matin, une chaise vide de plus. On doit trancher.",
+      n => `${n}, pourquoi ce regard vers la fenêtre ?`,
+      () => "Qui sait se tait ; qui ment parle trop.",
+      n => `Ce que dit ${n} me trouble. Quelqu'un d'autre a remarqué ?`,
+      () => "Je n'ai pas de preuve. Juste une drôle d'impression.",
+      n => `${n}, à ma place, tu voterais contre qui ?`,
+      () => "Brumecombe a déjà trop pleuré. Votons juste, pas vite.",
+      n => `Je remarque que ${n} n'accuse jamais personne. Curieux.`,
+      () => "Les loups se protègent entre eux. Regardez les votes d'hier.",
+      n => `${n}, raconte-nous ta nuit, sans rien oublier.`,
+      () => "Personne ne dort tranquille tant que la meute rôde.",
+      n => `Ma voix ira peut-être à ${n}. Convaincs-moi du contraire.`,
+      () => "On tourne en rond. Qui a une piste, une vraie ?"
     ],
     aventure: [
       () => "Je reste sur mes gardes. Quelque chose ne colle pas.",
@@ -370,15 +406,39 @@ const REPLIQUES_LANGUES = {
     ],
     // Le mot confié la nuit (le Messager des Veillées) : une phrase, lue par son destinataire.
     mots: ["Méfie-toi de ceux qui parlent trop.", "Je veille sur toi cette nuit.", "J'étais dehors cette nuit, mais je n'y suis pour rien.",
-      "Regarde qui se tait au moment du vote."],
+      "Regarde qui se tait au moment du vote.", "Garde ta porte fermée, et ta lanterne allumée.", "Je te crois. Ne me fais pas regretter.",
+      "Demain, vote avec moi : j'ai une idée.", "Ne dis à personne que je t'ai écrit."],
     // Le Mur des murmures (variante des Veillées) : une phrase ANONYME, lue au matin par tous.
     murmures: ["Quelqu'un ici ment depuis le premier soir.", "J'ai entendu marcher dans la brume, près du puits.", "Ne vous fiez pas aux plus bavards.",
-      "Le loup dort plus près de vous que vous ne croyez."],
+      "Le loup dort plus près de vous que vous ne croyez.", "Une porte a grincé deux fois cette nuit, puis plus rien.",
+      "Les chiens ont aboyé du côté du pont, et se sont tus d'un coup.", "Quelqu'un rentre toujours avec de la boue jusqu'aux genoux.",
+      "Comptez les chaises vides, et regardez qui sourit.", "La meute a un ami parmi les plus calmes.", "Ce n'est pas la brume qui frappe : ce sont des mains.",
+      "J'ai vu une lanterne s'éteindre au moment du cri.", "Le prochain vote dira qui protège qui.", "Écoutez qui accuse le plus vite.",
+      "Les loups votent ensemble. Relisez les votes d'hier.", "Quelqu'un a rincé ses manches au lavoir avant l'aube.",
+      "Une fenêtre est restée ouverte trop longtemps, cette nuit.", "Brumecombe se trompe de coupable depuis deux jours.",
+      "Le silence de certains en dit plus long que les cris.", "Une voix tremble au débat, et ce n'est pas de peur.",
+      "Des cendres encore chaudes à minuit, chez quelqu'un qui dormait, à ce qu'on dit.", "Des traces de griffes sur une barrière, côté rivière.",
+      "La meute rôde autour de ceux qui parlent trop.", "Quelqu'un connaît le chemin des bois mieux que personne.",
+      "Les corbeaux se posent toujours sur le même toit.", "Une ombre a traversé la place sans lanterne.",
+      "On a entendu rire dans la brume, à l'heure des loups.", "Méfiez-vous des amitiés trop soudaines.", "Un regard fuit dès qu'on parle des morts.",
+      "Défendre tout le monde, c'est d'abord se défendre.", "Le vent a porté une odeur de bête jusqu'au fournil.",
+      "Quelqu'un a compté les maisons, la nuit dernière.", "Le Village a encore une chance. Ne la gaspillez pas.",
+      "Les loups ont peur des questions précises.", "Une main a gratté à ma porte, puis s'est ravisée.", "Ceux qui dorment bien ne sont pas tous innocents.",
+      "La brume cache des pas, pas des mensonges.", "Quelqu'un a menti sur sa nuit. Cherchez la contradiction.",
+      "Les morts savent. Écoutez ce qu'on dit d'eux.", "Au bout du pont, une silhouette attendait la meute.", "Une prière n'a pas suffi, cette nuit.",
+      "Tant que la meute vit, personne n'est à l'abri.", "Ce matin, des yeux trop rouges pour une nuit de sommeil.",
+      "Un vote de travers, et la meute rit sous cape.", "La cloche n'a pas sonné, et pourtant une porte s'est ouverte.",
+      "Du sang sous la neige, dans le chemin creux."],
     // Ce qu'il dit tout haut quand il croit tenir un loup (les politiques du système : annoncesDuJoueur ; un loup peut mentir).
     annonces: [
       n => `Je vous le dis franchement : ${n} est un loup.`,
       n => `Écoutez-moi bien : ${n} est de la meute, je n'en doute pas.`,
-      n => `Ne cherchez plus : c'est ${n}, le loup.`
+      n => `Ne cherchez plus : c'est ${n}, le loup.`,
+      n => `J'en mettrais ma main au feu : ${n} chasse avec la meute.`,
+      n => `Votez contre ${n}. C'est un loup, j'en ai la certitude.`,
+      n => `Je sais ce que je sais : ${n} n'est pas du Village.`,
+      n => `Ouvrez les yeux : ${n} court avec les loups.`,
+      n => `Sans détour : ${n} est un loup, et je le maintiens.`
     ],
     quelquun: "quelqu'un"
   },
@@ -389,7 +449,43 @@ const REPLIQUES_LANGUES = {
       () => "Let's keep a cool head: a vote cast too quickly is one more innocent lost.",
       n => `I'm keeping an eye on ${n}. Those answers don't add up.`,
       () => "I'm not accusing anyone yet. Let's listen first.",
-      n => `${n}, that's twice you've changed your mind. Why?`
+      n => `${n}, that's twice you've changed your mind. Why?`,
+      n => `${n}, what did you do with your evening, exactly?`,
+      () => "Wolves love a hurried vote. Let's take our time.",
+      n => `I could vote against ${n}, but I'd like to hear the answer first.`,
+      () => "Who spoke first yesterday? Remember that.",
+      n => `${n}, you always answer beside the point. On purpose?`,
+      () => "Someone here knows more than we're being told.",
+      n => `Someone was seen near the well last night. ${n}, any idea?`,
+      () => "Don't blame the mist: it was hands that struck last night.",
+      n => `I'm not saying it's ${n}. I'm saying it looks like it.`,
+      () => "Watch who defends whom. It says a lot.",
+      n => `${n}, you pushed hard yesterday. What's the hurry?`,
+      () => "Quarrelling gets us nowhere. Let's look for what doesn't fit.",
+      n => `If ${n} has nothing to hide, the answer will be simple.`,
+      () => "Yesterday we got it wrong. Let's not make the same mistake.",
+      n => `${n} changes the subject whenever wolves come up. I've noticed.`,
+      () => "Let's go round the table: where was everyone last night?",
+      n => `${n}, your words yesterday and today don't say the same thing.`,
+      () => "Me, I'm wary of the ones who never say anything.",
+      n => `I trust ${n}, for now. Don't let me down.`,
+      () => "A wolf never accuses its own pack. Listen to who accuses whom.",
+      n => `${n}, you voted fast yesterday. Too fast, maybe.`,
+      () => "Ashes don't lie. The living do.",
+      n => `I say we hear ${n} out before we vote.`,
+      () => "Every morning, one more empty chair. We have to decide.",
+      n => `${n}, why that glance at the window?`,
+      () => "Who knows keeps quiet; who lies talks too much.",
+      n => `What ${n} says troubles me. Anyone else notice?`,
+      () => "I have no proof. Just a strange feeling.",
+      n => `${n}, in my place, who would you vote against?`,
+      () => "Brumecombe has wept enough. Let's vote right, not fast.",
+      n => `I notice ${n} never accuses anyone. Curious.`,
+      () => "Wolves protect each other. Look at yesterday's votes.",
+      n => `${n}, tell us about your night, and leave nothing out.`,
+      () => "Nobody sleeps easy while the pack is prowling.",
+      n => `My vote may go to ${n}. Convince me otherwise.`,
+      () => "We're going round in circles. Who has a lead, a real one?"
     ],
     aventure: [
       () => "I'm staying on my guard. Something doesn't feel right.",
@@ -406,37 +502,132 @@ const REPLIQUES_LANGUES = {
       () => "I step back and shoot."
     ],
     mots: ["Beware of those who talk too much.", "I'm watching over you tonight.", "I was out last night, but I had nothing to do with it.",
-      "Watch who goes quiet when the vote comes."],
+      "Watch who goes quiet when the vote comes.", "Keep your door shut and your lantern lit.", "I believe you. Don't make me regret it.",
+      "Tomorrow, vote with me: I have an idea.", "Tell no one I wrote to you."],
     murmures: ["Someone here has been lying since the first night.", "I heard footsteps in the mist, near the well.", "Don't trust the loudest ones.",
-      "The wolf sleeps closer to you than you think."],
+      "The wolf sleeps closer to you than you think.", "A door creaked twice last night, then nothing.",
+      "The dogs barked by the bridge, then fell silent all at once.", "Someone always comes home with mud up to the knees.",
+      "Count the empty chairs, and watch who smiles.", "The pack has a friend among the calmest of us.", "It isn't the mist that strikes: it's hands.",
+      "I saw a lantern go out at the moment of the scream.", "The next vote will show who protects whom.", "Listen to who accuses fastest.",
+      "Wolves vote together. Read yesterday's votes again.", "Someone rinsed a pair of sleeves at the wash-house before dawn.",
+      "A window stayed open too long last night.", "Brumecombe has been blaming the wrong one for two days.",
+      "Some silences say more than shouting.", "A voice trembles in the debate, and not from fear.",
+      "Embers still warm at midnight, at the house of someone who was asleep, supposedly.", "Claw marks on a gate, on the river side.",
+      "The pack prowls around those who talk too much.", "Someone knows the woodland path better than anyone.",
+      "The crows always land on the same roof.", "A shadow crossed the square without a lantern.",
+      "Laughter was heard in the mist, at the wolves' hour.", "Beware of friendships that come too suddenly.", "Some eyes look away whenever the dead are mentioned.",
+      "Defending everyone is first of all defending oneself.", "The wind carried a smell of beast as far as the bakehouse.",
+      "Someone counted the houses last night.", "The Village still has a chance. Don't waste it.",
+      "Wolves fear precise questions.", "A hand scratched at my door, then thought better of it.", "Not everyone who sleeps well is innocent.",
+      "The mist hides footsteps, not lies.", "Someone lied about last night. Look for the contradiction.",
+      "The dead know. Listen to what is said about them.", "At the end of the bridge, a figure was waiting for the pack.", "A prayer was not enough last night.",
+      "As long as the pack lives, nobody is safe.", "This morning, eyes far too red for a night of sleep.",
+      "One crooked vote, and the pack laughs up its sleeve.", "The bell didn't ring, and yet a door opened.",
+      "There is blood under the snow of the sunken lane."],
     annonces: [
       n => `I'll say it plainly: ${n} is a wolf.`,
       n => `Listen to me: ${n} runs with the pack, I'm sure of it.`,
-      n => `Look no further: ${n} is the wolf.`
+      n => `Look no further: ${n} is the wolf.`,
+      n => `I'd stake my hand on it: ${n} hunts with the pack.`,
+      n => `Vote against ${n}. A wolf, I'm certain of it.`,
+      n => `I know what I know: ${n} is not of the Village.`,
+      n => `Open your eyes: ${n} runs with the wolves.`,
+      n => `No beating about the bush: ${n} is a wolf, and I stand by it.`
     ],
     quelquun: "someone"
   }
 };
+// Le Mur des murmures, ce qu'un compagnon SAIT (les politiques du système : un loup découvert, un innocent sûr ; un loup peut mentir) :
+// une allusion, jamais un nom propre ni une preuve — le genre de la personne et l'un de ses traits visibles (publics : gazette.mjs), de
+// préférence un trait qu'elle partage avec d'autres vivants. « Méfiez-vous de celle qui porte des lunettes. » Ici, les accords suivent le
+// genre de la personne visée (connu de tous : ses traits) ; un genre inconnu : « la personne », « the one ».
+const ALLUSIONS_LANGUES = {
+  fr: {
+    sujet: { femme: "celle", homme: "celui", "": "la personne" },
+    indices: { lunettes: "qui porte des lunettes", bijou: "qui porte un bijou", sabots: "qui marche en sabots", coiffe: "à la coiffe sombre",
+      pipe: "qui fume la pipe", bourg: "qui loge au bourg", ecart: "qui vit de l'autre côté du pont", jeune: "qui est encore jeune", vieux: "aux cheveux gris" },
+    loup: [q => `Méfiez-vous de ${q}.`, q => `${q} ne dort pas la nuit.`, q => `J'ai vu ${q} rentrer bien après minuit.`,
+      q => `Ne tournez pas le dos à ${q}.`, q => `Regardez donc les mains de ${q}.`, q => `Quand le vent tourne, ${q} sent la bête.`,
+      q => `La meute compte sur ${q}.`, q => `Demandez à ${q} d'où vient la boue sur ses manches.`],
+    innocent: [q => `On peut se fier à ${q}.`, q => `${q} n'a rien à se reprocher.`, q => `Ce n'est pas ${q} qu'on doit craindre.`,
+      q => `Laissez en paix ${q} : c'est la meute qui voudrait l'écarter, pas vous.`, q => `Gardez ${q} parmi nous : le Village en a besoin.`]
+  },
+  en: {
+    sujet: { femme: "the woman", homme: "the man", "": "the one" },
+    indices: { lunettes: "who wears spectacles", bijou: "who wears a jewel", sabots: "who walks in clogs", coiffe: "in the dark headdress",
+      pipe: "who smokes a pipe", bourg: "who lodges in the town", ecart: "who lives across the bridge", jeune: "who is still young", vieux: "with the grey hair" },
+    loup: [q => `Beware of ${q}.`, q => `${q} does not sleep at night.`, q => `I saw ${q} come home well after midnight.`,
+      q => `Never turn your back on ${q}.`, q => `Take a good look at the hands of ${q}.`, q => `When the wind turns, ${q} smells of the beast.`,
+      q => `The pack counts on ${q}.`, q => `Ask ${q} where the mud on those sleeves comes from.`],
+    innocent: [q => `You can trust ${q}.`, q => `${q} has nothing to hide.`, q => `It is not ${q} we should fear.`,
+      q => `Leave ${q} in peace: the pack would like that one gone, not you.`, q => `Keep ${q} among us: the Village needs that help.`]
+  }
+};
+export const allusionsDansLaLangue = langue => ALLUSIONS_LANGUES[langue === "en" ? "en" : "fr"];
+const majuscule = t => t.charAt(0).toUpperCase() + t.slice(1);
+// Une phrase d'allusion : murmure = { sens: "loup" | "innocent", genre: "femme" | "homme" | "", indice: clé d'ALLUSIONS_LANGUES.indices }.
+export function phraseDAllusion(murmure, langue, h, dites = null) {
+  const A = allusionsDansLaLangue(langue);
+  const indice = A.indices[murmure?.indice];
+  const liste = A[murmure?.sens];
+  if (!indice || !liste) return "";
+  const qui = `${A.sujet[murmure.genre] ?? A.sujet[""]} ${indice}`;
+  const f = choisirLibre(liste, h, dites, `allusion-${murmure.sens}`);
+  const texte = f(qui);
+  return texte.startsWith(qui) ? majuscule(texte) : texte;
+}
+// La part des compagnons qui n'écrit rien sur le Mur (sans rien savoir ; s'il sait quelque chose : PART_DU_MUR_MUET_SAVANT).
+export const PART_DU_MUR_MUET = 0.3;
+export const PART_DU_MUR_MUET_SAVANT = 0.1;
+// Une phrase du Mur sans IA : ce qu'il sait (demande.murmure, compagnons-jeu.js) passe d'abord ; sinon la réserve, jamais une phrase déjà
+// écrite sur ce mur (demande.deja : les phrases du mur, CerveauxCompagnons les tient) ; parfois rien. Le mur a tout : il se tait.
+export function murmureSansIA(vue, { murmure = null, deja = null } = {}, h) {
+  const R = repliquesDansLaLangue(vue.langue);
+  const pris = new Set(deja ?? []);
+  if (h() < (murmure ? PART_DU_MUR_MUET_SAVANT : PART_DU_MUR_MUET)) return "";
+  if (murmure) {
+    for (let i = 0; i < 6; i++) {
+      const p = phraseDAllusion(murmure, vue.langue, h);
+      if (p && !pris.has(p)) return p;
+    }
+  }
+  const libres = R.murmures.filter(p => !pris.has(p));
+  return libres.length ? choisir(libres, h) : "";
+}
+
 // Les répliques sans IA dans une langue (« en » : anglais ; toute autre valeur : français).
 export const repliquesDansLaLangue = langue => REPLIQUES_LANGUES[langue === "en" ? "en" : "fr"];
 
+// Un élément d'une réserve, jamais un déjà dit : dites (facultatif) est l'ensemble des « liste:rang » déjà tirés (une partie, un mur) ;
+// le rang tiré y est ajouté. Tout est déjà dit : n'importe lequel (la réserve recommence).
+function choisirLibre(liste, h, dites = null, nom = "") {
+  if (!dites) return choisir(liste, h);
+  const libres = liste.map((x, i) => i).filter(i => !dites.has(`${nom}:${i}`));
+  const i = libres.length ? choisir(libres, h) : Math.floor(h() * liste.length);
+  dites.add(`${nom}:${i}`);
+  return liste[i];
+}
+
 // Une réplique sans IA. "" = le compagnon se tait (selon son tempérament). Petite tablée : la réplique nomme un humain
-// (PART_HUMAINS des fois, s'il en reste un en vie), un suspect humain d'abord.
+// (PART_HUMAINS des fois, s'il en reste un en vie), un suspect humain d'abord. dites (facultatif) : les répliques déjà dites dans la
+// partie (CerveauxCompagnons les tient, par partie) — jamais deux fois la même tant que la réserve n'est pas épuisée.
 export const PART_HUMAINS = 0.8;
-export function repliReplique(vue, graine, { combat = false, n = 0 } = {}) {
+export function repliReplique(vue, graine, { combat = false, n = 0, dites = null } = {}) {
   const h = hasard(`parler|${graine}|${vue.id}|${vue.tour ?? 0}|${n}`);
   const R = repliquesDansLaLangue(vue.langue);
   if (combat) return choisir(R.combat, h)();
   // Aux Veillées, ce qu'il a à dire tout haut (vue.annonce : { cible, nom }, les politiques du système) passe avant le silence.
-  if (vue.jeu === "loups" && vue.annonce?.nom) return choisir(R.annonces, h)(vue.annonce.nom);
+  if (vue.jeu === "loups" && vue.annonce?.nom) return choisirLibre(R.annonces, h, dites, "annonces")(vue.annonce.nom);
   const p = normaliserPersonnalite(vue.personnalite, vue.id);
-  if (h() < TEMPERAMENTS[p.temperament].silence) return "";
+  // Interpellé par le narrateur (vue.interpelle) : il répond, quel que soit son tempérament.
+  if (h() < TEMPERAMENTS[p.temperament].silence && !vue.interpelle) return "";
   let autres = (vue.autres ?? []).filter(a => a.vivant !== false && a.id !== vue.id && !(vue.allies ?? []).includes(a.id));
   const humains = vue.jeu === "loups" && vue.petiteTablee ? autres.filter(a => (vue.humains ?? []).includes(a.id)) : [];
   if (humains.length && h() < PART_HUMAINS) autres = humains;
   const suspects = autres.filter(a => (vue.suspects ?? []).includes(a.id));
   const cible = choisir(suspects.length ? suspects : autres, h)?.nom ?? R.quelquun;
-  return choisir(R[vue.jeu] ?? R.aventure, h)(cible);
+  const jeu = R[vue.jeu] ? vue.jeu : "aventure";
+  return choisirLibre(R[jeu], h, dites, jeu)(cible);
 }
 
 // Une décision sans IA. Un loup ne vise pas les siens ; un villageois vise d'abord un suspect connu ; parfois on passe.
@@ -444,7 +635,8 @@ export function repliDecision(vue, demande, graine) {
   const h = hasard(`decider|${graine}|${vue.id}|${demande.cle ?? demande.invite ?? demande.question ?? ""}`);
   if (demande.type === "texte") {
     const R = repliquesDansLaLangue(vue.langue);
-    return { texte: couper(choisir(demande.objet === "mur" ? R.murmures : R.mots, h), demande.max ?? 120) };
+    if (demande.objet === "mur") return { texte: couper(murmureSansIA(vue, demande, h), demande.max ?? 120) };
+    return { texte: couper(choisir(R.mots, h), demande.max ?? 120) };
   }
   if (demande.type === "option") return { choix: demande.options.length ? Math.floor(h() * demande.options.length) : null };
   const allies = new Set(vue.allies ?? []);
@@ -552,6 +744,26 @@ export function repliDuPacte(vue, demande, h, { allies = new Set(), suspects = n
 }
 
 // ------------------------------------------------------------------ rythme de parole (pas de boucle entre compagnons)
+// Les compagnons que le narrateur interpelle dans sa narration (« Léonce, c'est à vous : pourquoi cette grâce ? ») : leur nom (ou leur
+// prénom, seul de ce prénom) dans une phrase qui leur donne la parole — une question, ou « c'est à vous / à toi », « your turn »… Un
+// nom cité dans un récit (« Léonce pâlit. ») n'est pas une interpellation. candidats : [{ id, nom }]. -> [id]
+const DONNE_LA_PAROLE = /\?|(?<!\p{L})(?:c'est à (?:vous|toi)|à (?:vous|toi)|votre tour|ton tour|qu'en dites-vous|qu'en dis-tu|répondez|réponds|parlez|parle|expliquez|explique|your turn|over to you|what do you say|answer|speak|explain)(?!\p{L})/iu;
+const echapperRegex = t => String(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+export function interpellesDans(texte, candidats = []) {
+  const phrases = String(texte ?? "").replace(/<[^>]*>/g, " ").split(/(?<=[.!?…»])\s+|\n+/);
+  const prenom = c => String(c.nom ?? "").trim().split(/\s+/)[0];
+  const prenoms = new Map();
+  for (const c of candidats) prenoms.set(prenom(c), (prenoms.get(prenom(c)) ?? 0) + 1);
+  const cite = (phrase, c) => [c.nom, ...(prenoms.get(prenom(c)) === 1 ? [prenom(c)] : [])].filter(n => n && n.length > 1)
+    .some(n => new RegExp(`(?<!\\p{L})${echapperRegex(n)}(?!\\p{L})`, "iu").test(phrase));
+  const ids = [];
+  for (const phrase of phrases) {
+    if (!DONNE_LA_PAROLE.test(phrase)) continue;
+    for (const c of candidats) if (!ids.includes(c.id) && cite(phrase, c)) ids.push(c.id);
+  }
+  return ids;
+}
+
 // Un lot de messages transmis au MJ ne déclenche une réaction des compagnons que s'il contient autre chose que des
 // répliques de compagnons (un joueur humain, un événement du plateau) : deux compagnons ne se répondent jamais en boucle.
 // Une annonce du système (mort, vote ouvert…) ne les réveille pas non plus : ce n'est pas quelqu'un qui leur parle.
@@ -584,6 +796,10 @@ export class CerveauxCompagnons {
     Object.assign(this, { fournisseur, modele, compter, budgetDepasse, graine });
     this.appels = 0;
     this.repliques = new Map();   // acteurId -> nombre de répliques de repli (pour varier d'un tour de parole à l'autre)
+    // Les répliques de repli déjà dites dans la partie (vue.partie), tous compagnons confondus : pas deux fois la même ; et les phrases
+    // de repli du Mur des murmures de la nuit (vue.partie, vue.tour) : jamais deux fois la même sur un mur.
+    this.dites = { partie: null, ensemble: new Set() };
+    this.mur = { cle: null, phrases: new Set() };
     this.journal = [];   // { acteurId, operation, source } : pour la console et les essais
   }
 
@@ -624,7 +840,20 @@ export class CerveauxCompagnons {
     this.#noter(vue, "parler", "repli");
     const n = (this.repliques.get(vue.id) ?? 0) + 1;
     this.repliques.set(vue.id, n);
-    return { texte: repliReplique(vue, this.graine, { combat, n }), source: "repli" };
+    return { texte: repliReplique(vue, this.graine, { combat, n, dites: combat ? null : this.#ditesDeLaPartie(vue) }), source: "repli" };
+  }
+
+  // Les répliques déjà dites dans la partie de cette vue (une partie neuve : la réserve repart entière).
+  #ditesDeLaPartie(vue) {
+    const partie = String(vue.partie ?? "");
+    if (this.dites.partie !== partie) this.dites = { partie, ensemble: new Set() };
+    return this.dites.ensemble;
+  }
+  // Les phrases déjà écrites (sans IA) sur le Mur de cette nuit.
+  #phrasesDuMur(vue) {
+    const cle = `${vue.partie ?? ""}|${vue.tour ?? 0}`;
+    if (this.mur.cle !== cle) this.mur = { cle, phrases: new Set() };
+    return this.mur.phrases;
   }
 
   // Une décision : { cibles } | { texte } | { choix }, plus source ("ia", "invalide", "politique", "repli"). Invalide = passer.
@@ -654,6 +883,12 @@ export class CerveauxCompagnons {
       }
     }
     this.#noter(vue, "decider", "repli");
+    if (demande.type === "texte" && demande.objet === "mur") {
+      const phrases = this.#phrasesDuMur(vue);
+      const r = repliDecision(vue, { ...demande, deja: [...(demande.deja ?? []), ...phrases] }, this.graine);
+      if (r.texte) phrases.add(r.texte);
+      return { ...r, source: "repli" };
+    }
     return { ...repliDecision(vue, demande, this.graine), source: "repli" };
   }
 }

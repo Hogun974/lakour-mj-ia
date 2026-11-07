@@ -1,4 +1,4 @@
-import { ID, MODELES_ANTHROPIC, MODELE_OPENAI_DEFAUT, MODELE_IMAGE_DEFAUT, MODELE_VOIX, EFFORTS, ANCIENS_DEFAUTS } from "./constantes.js";
+import { ID, MODELES_ANTHROPIC, MODELE_OPENAI_DEFAUT, MODELE_IMAGE_DEFAUT, MODELE_VOIX, EFFORTS, ANCIENS_DEFAUTS, PRIX_OPENAI } from "./constantes.js";
 import { PERSONNALITES_DE_BASE, nomAfficheDe } from "./personnalites.js";
 import { texteJoueurs } from "./utilitaires.js";
 import { BAVARDAGE } from "./compagnons.js";
@@ -74,10 +74,11 @@ export function enregistrerReglages() {
   });
 
   // --- Compagnons IA (compagnons.js) : personnages côté joueurs joués par l'IA, chacun avec son propre cerveau.
-  // Modèle : vide = un modèle bon marché du fournisseur actif (Claude Haiku 5.5, ou le moins cher d'OpenAI).
+  // Modèle : une liste (vu en vrai : « Claude Haiku 5.5 », un nom écrit à la main, remplacé sans un mot par le défaut) ; vide = un modèle
+  // bon marché du fournisseur actif (Claude Haiku 5.5, ou le moins cher d'OpenAI). Un ancien nom reconnu migre (migrerModeleCompagnons).
   game.settings.register(ID, "modeleCompagnons", {
     name: "LAKOUR_MJIA.Reglages.ModeleCompagnons.Nom", hint: "LAKOUR_MJIA.Reglages.ModeleCompagnons.Aide",
-    scope: "world", config: true, type: String, default: ""
+    scope: "world", config: true, type: String, default: "", choices: choixDuModeleDesCompagnons()
   });
   game.settings.register(ID, "bavardageCompagnons", {
     name: "LAKOUR_MJIA.Reglages.BavardageCompagnons.Nom", hint: "LAKOUR_MJIA.Reglages.BavardageCompagnons.Aide",
@@ -87,6 +88,10 @@ export function enregistrerReglages() {
   // Ce que chaque compagnon sait en privé (messages qui lui sont destinés, ses choix secrets) : portée « client », donc rangé
   // dans le navigateur du MJ (localStorage) et jamais envoyé au serveur ni aux joueurs, comme les secrets des Veillées.
   game.settings.register(ID, "compagnonsPrive", { scope: "client", config: false, type: Object, default: {} });
+  // Les coûts des IA en attente (moteur.js, compterCout) : aux Veillées, pendant une partie, ils ne vont pas aux réglages monde (livrés à
+  // tous) ; recopiés ici, dans le navigateur du MJ (localStorage), ils survivent à un rechargement de la page et le budget les compte
+  // toujours (vu en vrai : une séance entière à « 0 $ », le budget ne protégeait rien après un rechargement).
+  game.settings.register(ID, "coutsEnAttente", { scope: "client", config: false, type: Object, default: {} });
   // Coût des compagnons IA hors séance (Veillées menées par un MJ humain, sans narrateur IA) : borné par le budget de séance,
   // remis à zéro à chaque nouvelle partie (compagnons-veillees.js).
   game.settings.register(ID, "compagnonsHorsSeance", { scope: "world", config: false, type: Object, default: { cout: 0, appels: 0, depuis: 0 } });
@@ -294,6 +299,33 @@ function revoirPilote() {
   game.modules.get(ID)?.api?.moteur?.pilote?.verifierBientot();
 }
 
+// Les modèles proposés aux compagnons IA : vide (le défaut du fournisseur actif), les modèles Claude, puis les modèles OpenAI connus.
+export function choixDuModeleDesCompagnons() {
+  return { "": "LAKOUR_MJIA.Reglages.ModeleCompagnons.Defaut", ...Object.fromEntries(Object.entries(MODELES_ANTHROPIC).map(([k, v]) => [k, v.libelle])),
+    ...Object.fromEntries(Object.keys(PRIX_OPENAI).map(k => [k, `OpenAI — ${k}`])) };
+}
+// L'identifiant d'un modèle écrit à la main (« Claude Haiku 5.5 », « claude haiku 5.5 (très économique) », « gpt-6-luna ») ; "" s'il est
+// inconnu.
+const MODELES_CONNUS = () => [...Object.keys(MODELES_ANTHROPIC), ...Object.keys(PRIX_OPENAI)];
+export function identifiantDeModele(texte) {
+  const brut = String(texte ?? "").trim();
+  if (!brut) return "";
+  if (MODELES_CONNUS().includes(brut)) return brut;
+  const forme = t => String(t).toLowerCase().replace(/\([^)]*\)/g, " ").trim().replace(/[\s._]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  const voulu = forme(brut);
+  return MODELES_CONNUS().find(id => forme(id) === voulu)
+    ?? Object.entries(MODELES_ANTHROPIC).find(([, v]) => forme(v.libelle) === voulu)?.[0] ?? "";
+}
+// Un ancien « modeleCompagnons » écrit à la main : son identifiant s'il est reconnu, sinon vide (le défaut). -> « avant → après » | "".
+export async function migrerModeleCompagnons() {
+  let actuel = "";
+  try { actuel = String(lire("modeleCompagnons") ?? ""); } catch { return ""; }
+  if (!actuel || MODELES_CONNUS().includes(actuel)) return "";
+  const nouveau = identifiantDeModele(actuel);
+  await ecrire("modeleCompagnons", nouveau);
+  return `${actuel} → ${nouveau || "—"}`;
+}
+
 export const lire = cle => game.settings.get(ID, cle);
 export const ecrire = (cle, valeur) => game.settings.set(ID, cle, valeur);
 
@@ -309,6 +341,9 @@ export async function migrerReglages() {
       faits.push(`${actuel} → ${nouveau}`);
     }
   }
+  // Le modèle des compagnons écrit à la main (avant la liste) : son identifiant.
+  const compagnons = await migrerModeleCompagnons();
+  if (compagnons) faits.push(compagnons);
   // Voix de personnalité absentes de l'API Realtime : la plus proche.
   const personnalites = lire("personnalites");
   if (personnalites.some(p => p.voixOpenAI && voixRealtime(p.voixOpenAI) !== p.voixOpenAI)) {

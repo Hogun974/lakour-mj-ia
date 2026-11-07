@@ -1,5 +1,5 @@
 import { lire } from "../reglages.js";
-import { MODELES_ANTHROPIC, modeleCompagnonsParDefaut } from "../constantes.js";
+import { MODELES_ANTHROPIC, PRIX_OPENAI, modeleCompagnonsParDefaut } from "../constantes.js";
 import { FournisseurAnthropic } from "./anthropic.js";
 import { FournisseurOpenAI } from "./openai.js";
 import { FournisseurFactice } from "./factice.js";
@@ -18,11 +18,13 @@ export function fournisseurTexte() {
   return cle ? new FournisseurAnthropic({ cle, modele: lire("modeleAnthropic"), effort: lire("effort") }) : null;
 }
 
-// Modèle des compagnons IA : le réglage s'il est rempli (et connu pour Anthropic), sinon un modèle bon marché du fournisseur actif.
+// Modèle des compagnons IA : le réglage s'il est rempli et du fournisseur actif (un modèle Claude chez Anthropic, un autre chez OpenAI),
+// sinon un modèle bon marché du fournisseur actif.
 export function modeleCompagnons(nom = lire("fournisseur")) {
   let choisi = "";
   try { choisi = String(lire("modeleCompagnons") ?? "").trim(); } catch { /* réglage absent */ }
-  if (choisi && (nom !== "anthropic" || MODELES_ANTHROPIC[choisi])) return choisi;
+  if (choisi && nom === "anthropic" && MODELES_ANTHROPIC[choisi]) return choisi;
+  if (choisi && nom === "openai" && !MODELES_ANTHROPIC[choisi]) return choisi;
   return modeleCompagnonsParDefaut(nom);
 }
 

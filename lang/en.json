@@ -149,7 +149,8 @@
       },
       "ModeleCompagnons": {
         "Nom": "AI companions model",
-        "Aide": "Model that plays the AI companions (player-side characters run by the AI). Empty: a cheap model from the active provider (Claude Haiku 5.5, or OpenAI's cheapest). Their cost counts toward the session budget."
+        "Aide": "Model that plays the AI companions (player-side characters run by the AI). Default: a cheap model from the active provider (Claude Haiku 5.5, or OpenAI's cheapest); a model from another provider than the GM's falls back to the default. Their cost counts toward the session budget.",
+        "Defaut": "Default (a cheap model from the active provider)"
       },
       "BavardageCompagnons": {
         "Nom": "AI companions chattiness",
