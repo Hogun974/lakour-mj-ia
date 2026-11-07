@@ -10,7 +10,7 @@ import { OUTIL_HISTOIRE } from "./outils-histoire.js";
 import { nomAfficheDe } from "./personnalites.js";
 import { ecrireHistoire } from "./histoire.js";
 import { ajouterAvecAvancements, donnerEquipement, monterNiveau } from "./creation-dnd5e.js";
-import { jetonJoueur, moduleDeContenu, contenuNomme, packDeContenu, drapeauxDuContenu } from "./contenus.js";
+import { jetonJoueur, moduleDeContenu, contenuNomme, packDeContenu, drapeauxDuContenu, langueDuMonde } from "./contenus.js";
 import { lire, ecrire } from "./reglages.js";
 import { volumeAmbiance } from "./voix-texte.js";
 import { ouvrirVote, cloreVote, demanderChoix, nomPourIA, DELAI_VOTE, DELAI_CHOIX, MAX_OPTIONS } from "./decisions.js";
@@ -18,7 +18,7 @@ import { validerSchema } from "./schema.js";
 import { choisirParNom } from "./recherche-nom.js";
 import { retenirComposition, consignerComposition, historiqueDesParties } from "./historique-loups.js";
 import { appelSur, attendreSur, ORDRE_D_APPEL, CHOIX_DES_VARIANTES, variantesDemandees, variantesDeLaVeillee, texteDesVariantes,
-  miseEnPlaceLoups, resultatDuPacte, etatPacteLoups } from "./veillees-pacte.js";
+  miseEnPlaceLoups, resultatDuPacte, etatPacteLoups, APPEL_DES_CHARMES, texteAppelDesCharmes, conseilDeLAllegeance, notesDuNiveau } from "./veillees-pacte.js";
 import { tirerSansDoublon, donneesDuResultat, TIRAGES_MAX } from "./tirages.js";
 import { TEMPERAMENTS, FACONS_DE_PARLER, personnaliteAuHasard } from "./compagnons.js";
 import {
@@ -1291,7 +1291,8 @@ const VILLAGE_CHOIX = { type: "string", enum: ["", "oui", "non"], description: "
   + "joueurs : Métayers, Prieur, Hobereau… ; l'Incendiaire possible) : « oui », « non » ; vide : le réglage du monde." };
 const VARIANTES_CHOIX = { type: "array", items: { type: "string", enum: CHOIX_DES_VARIANTES }, description: "Variantes du jeu de soirée "
   + "voulues (chandelles, angoissante, chaine, mur, double-visage-petite, double-visage-grande, vendanges, envoutement ; « aucune » : "
-  + "aucune) ; vide : les réglages du monde." };
+  + "aucune) ; vide : les réglages du monde. « allegeance-loup », avec Double visage : une allégeance loup de plus au paquet (conseillée "
+  + "dès 16 joueurs en petite complication et à 13, dès 12 en grande ; en dessous, la meute gagnerait presque toujours)." };
 const GAZETTE_CHOIX = { type: "string", enum: ["", "oui", "oui-crieur", "non"], description: "La Gazette de la lune (une carte au matin) : "
   + "« oui », « oui-crieur » (avec le Crieur public), « non » ; vide : les réglages du monde." };
 const villageVoulu = c => (c === "oui" ? true : c === "non" ? false : undefined);
@@ -1362,6 +1363,23 @@ function issueDeLEtape(api, entree, r = {}) {
   return `${cibles.length ? cibles.map(nomActeur).join(", ") : "passe"}${r.texte ? ` (mot : « ${r.texte} »)` : ""}${r.hasard ? " (au hasard)" : ""}`;
 }
 
+// L'appel des charmés, à voix haute (Le Pacte, étape 6c ; veillees-pacte.js, texteAppelDesCharmes) : comme à la table, le narrateur le
+// dit à tous (chat public, lu par la voix du narrateur : celle de chaque navigateur, sans frais), sans nommer le Joueur de vielle ni un
+// charmé. Le drapeau APPEL_DES_CHARMES le date pour les compagnons. Une panne du chat n'arrête pas la nuit.
+async function appelerLesCharmes(api) {
+  const e = appelSur(api, "etat") ?? {};
+  try {
+    const message = await ChatMessage.implementation.create({ content: versHTML(texteAppelDesCharmes(langueDuMonde())), speaker: { alias: aliasMJ() },
+      flags: { [ID]: { ia: true, narration: true, final: true, [APPEL_DES_CHARMES]: { partie: String(e.partie ?? ""), tour: Number(e.tour) || 0 } } } });
+    // La voix OpenAI ne lit que la narration en direct : ici, chaque navigateur lit l'appel lui-même (repli du narrateur, voix.js).
+    if (lire("voix") === "openai") await message?.setFlag?.(ID, "repliNavigateur", true);
+    return true;
+  } catch (err) {
+    console.warn(`${ID} | appel des charmés`, err);
+    return false;
+  }
+}
+
 // La nuit menée par le système (Le Pacte) : chaque étape de api.ordreDeNuit() par api.reveiller, à son tour. L'ordre est relu après
 // chaque étape : le Chapardeur qui prend un rôle de première nuit, la carte que joue le Bateleur, le Mâtin qui rejoint la meute
 // l'ajoutent ou le changent. -> [ligne du journal]
@@ -1374,6 +1392,8 @@ async function nuitParLeSysteme(api, { delai, victimeDeLaPeste = "" }) {
     faites.add(entree.roleCle);
     const { roleCle, acteurIds = [] } = entree;
     const nom = nomDeLEtape(api, entree);
+    // Les charmés : appelés à voix haute avant leur réveil (le village l'entend).
+    const appeles = roleCle === "charmes" ? await appelerLesCharmes(api) : false;
     let r;
     try {
       r = await api.reveiller(roleCle, { delai, ...(roleCle === "peste" ? { cible: victimeDeLaPeste } : {}) });
@@ -1390,7 +1410,7 @@ async function nuitParLeSysteme(api, { delai, victimeDeLaPeste = "" }) {
       continue;
     }
     const qui = roleCle === "mur" ? "" : ` (${acteurIds.map(nomActeur).join(", ")})`;
-    journal.push(`${nom}${qui} → ${issueDeLEtape(api, entree, r ?? {})}`);
+    journal.push(`${nom}${qui} → ${issueDeLEtape(api, entree, r ?? {})}${appeles ? " ; appelés à voix haute (déjà au chat : tout le village l'a entendu)" : ""}`);
   }
   return journal;
 }
@@ -1597,7 +1617,7 @@ OUTILS.push(
       + "Vendanges ajoutent un loup ; Double visage fait sa propre composition à la distribution).",
     schema: objet({
       nombre_joueurs: entier("Nombre de joueurs (0 = les joueurs connectés)."),
-      niveau: { type: "string", enum: NIVEAUX_LOUPS, description: "Niveau de complexité (« le-pacte » : le jeu de soirée du livre)." },
+      niveau: { type: "string", enum: NIVEAUX_LOUPS, description: "Niveau de complexité (« le-pacte » : le jeu de soirée du livre ; « debutants » : un loup de moins, compté par le système)." },
       inclure: { type: "array", items: chaine("Rôle voulu (nom ou clé)."), description: "Rôles à mettre absolument." },
       exclure: { type: "array", items: chaine("Rôle refusé (nom ou clé)."), description: "Rôles à ne pas mettre." },
       peste: PESTE_CHOIX,
@@ -1617,8 +1637,10 @@ OUTILS.push(
       const voulues = variantesDemandees(variantes);
       const choix = variantesDeLaVeillee(voulues, reglageLoups, { logique: api.logique, places: nombre });
       if (choix.doubleVisage) {
-        return { contenu: `Double visage (${choix.doubleVisage} complication) : le système compose lui-même le paquet (les cartes visibles et les `
-          + "allégeances) à la distribution. Ne prépare pas de rôles : loups_distribuer en mode « auto », avec la même variante." };
+        const conseil = conseilDeLAllegeance(choix, nombre);
+        return { contenu: `Double visage (${choix.doubleVisage} complication${choix.allegeanceLoup ? ", une allégeance loup de plus" : ""}) : le `
+          + "système compose lui-même le paquet (les cartes visibles et les allégeances) à la distribution. Ne prépare pas de rôles : "
+          + `loups_distribuer en mode « auto », avec les mêmes variantes.${conseil ? `\n${conseil}` : ""}` };
       }
       const enPeste = pesteVoulue(peste) ?? (variantesSansPeste(choix) ? false : tirerPesteIA());
       const enVillage = villageVoulu(village) ?? Boolean(reglageLoups("leVillage"));
@@ -1635,6 +1657,7 @@ OUTILS.push(
         + `${annoncerComposition(c.roles, contenu.equilibre, contenu.noms)}\n`
         + (enPeste ? `${NOTE_PESTE}\n` : "")
         + (v ? `Variantes (publiques à la distribution) : ${v}${loupsEnPlus ? " (un loup de plus, compté)" : ""}.\n` : "")
+        + (notesDuNiveau(niveau, api.logique) ? `${notesDuNiveau(niveau, api.logique)}\n` : "")
         + (enVillage ? "Le Village : oui (les personnalités seront tirées à la distribution).\n" : "")
         + `Bâtiments : ${c.batiments.map(b => contenu.noms.get(b) ?? b).join(", ") || "aucun"}.\n`
         + `Clés pour loups_distribuer (mode roles) : roles = ${JSON.stringify(c.roles)}, batiments = ${JSON.stringify(c.batiments)}`
@@ -1657,7 +1680,7 @@ OUTILS.push(
     schema: objet({
       joueurs: { type: "array", items: chaine("Nom d'un joueur Foundry."), description: "Joueurs de la partie ; vide = tous les joueurs connectés (hors MJ)." },
       mode: { type: "string", enum: ["auto", "roles", "composition"], description: "Comment choisir les rôles." },
-      niveau: { type: "string", enum: NIVEAUX_LOUPS, description: "Niveau (modes auto et composition ; « le-pacte » : le jeu de soirée du livre)." },
+      niveau: { type: "string", enum: NIVEAUX_LOUPS, description: "Niveau (modes auto et composition ; « le-pacte » : le jeu de soirée du livre ; « debutants » : un loup de moins, compté par le système)." },
       roles: { type: "array", items: chaine("Rôle (nom ou clé)."), description: "Mode roles : autant de rôles que de joueurs (complétés par des villageois)." },
       batiments: { type: "array", items: chaine("Bâtiment (clé)."), description: "Mode roles : bâtiments voulus (vide = tirés au hasard selon le niveau)." },
       inclure: { type: "array", items: chaine("Rôle voulu."), description: "Mode auto : rôles à mettre absolument." },
@@ -1708,7 +1731,7 @@ OUTILS.push(
         enPeste = false;
       } else if (choix.doubleVisage && typeof api.logique?.paquetDoubleVisage === "function") {
         // Double visage : le paquet des cartes visibles est celui du système (les allégeances sont tirées à la distribution) ; aucun bâtiment.
-        compo = { cle: "double-visage", libelle: `Double visage, ${choix.doubleVisage} complication`, niveau, roles: api.logique.paquetDoubleVisage(total), batiments: [] };
+        compo = { cle: "double-visage", libelle: `Double visage, ${choix.doubleVisage} complication${choix.allegeanceLoup ? ", une allégeance loup de plus" : ""}`, niveau, roles: api.logique.paquetDoubleVisage(total), batiments: [] };
         enPeste = false;
       } else if (mode === "roles") {
         const cles = enCles(roles);
@@ -1786,10 +1809,15 @@ OUTILS.push(
       game.modules?.get(ID)?.api?.moteur?.nouvellePartie({ ouverture: false });
       // Ce que la table voit de la mise en place (Le Pacte), et le centre du Chapardeur pour le narrateur seul.
       const miseEnPlace = miseEnPlaceLoups(api, { nom: nomActeur });
+      // Le Pacte, étape 6c : le loup de moins des débutants (compté par le système), la carte de plus de Double visage hors de sa taille.
+      const niveauNote = compo.autel || compo.cle === "double-visage" ? "" : notesDuNiveau(compo.niveau ?? niveau, api.logique);
+      const allegeance = compo.cle === "double-visage" && choix.allegeanceLoup ? conseilDeLAllegeance(choix, total) : "";
       // Pour toi seul (narrateur) : qui est qui, et la composition. Rien de tout cela ne s'annonce aux joueurs.
       return { contenu: `Partie prête, composition « ${compo.libelle ?? compo.cle} » (${total} joueurs${nbCompagnons ? `, dont ${nbCompagnons} compagnons IA` : ""}).\n`
         + `Composition, pour toi seul (ne l'annonce JAMAIS, ni le nombre de loups) : ${annoncerComposition(cles, contenu.equilibre, contenu.noms)}.\n`
         + (enPeste ? `${NOTE_PESTE}\n` : "")
+        + (niveauNote ? `${niveauNote}\n` : "")
+        + (allegeance ? `${allegeance}\n` : "")
         + resultat.map(r => `- ${nomActeur(r.acteurId)} (${r.compagnon ? "compagnon IA" : game.users.get(r.userId)?.name}) : ${nomRole(r.acteurId)}${visage(r.acteurId)}`).join("\n")
         + (nbCompagnons ? "\nLes compagnons IA jouent seuls (choix de nuit, débat, vote) et ne savent que ce que sait leur villageois : "
           + "traite-les comme des joueurs, ne leur souffle rien." : "")
@@ -1808,7 +1836,7 @@ OUTILS.push(
       + "le village : après l'outil, dis seulement une phrase de transition. village, variantes, gazette : comme loups_distribuer (un choix "
       + "explicite est retenu par les réglages du monde pour les parties suivantes).",
     schema: objet({
-      niveau: { type: "string", enum: ["", ...NIVEAUX_LOUPS], description: "Niveau ; vide = celui de la partie précédente (« le-pacte » : le jeu de soirée du livre)." },
+      niveau: { type: "string", enum: ["", ...NIVEAUX_LOUPS], description: "Niveau ; vide = celui de la partie précédente (« le-pacte » : le jeu de soirée du livre ; « debutants » : un loup de moins, compté par le système)." },
       roles: { type: "array", items: chaine("Rôle (nom ou clé)."), description: "Rôles voulus (vide = composition équilibrée générée)." },
       composition: chaine("Clé d'une composition prête (vide = aucune)."),
       peste: PESTE_CHOIX,
@@ -1859,7 +1887,9 @@ OUTILS.push(
       + "Peste noire (secret) : à la place de la meute, la peste frappe ; tant qu'elle n'a pas de porteur, c'est ta victime "
       + "(peste_victime) ; ensuite, son porteur la désigne en secret. "
       + "Raconte la tombée de la nuit AVANT d'appeler cet outil (sans jamais nommer un rôle qui se réveille) ; il peut durer plusieurs "
-      + `minutes. Ensuite, raconte l'aube. Ordre d'appel, pour toi seul : ${ORDRE_D_APPEL}`,
+      + "minutes. Seule exception, comme à la table : les charmés (du Joueur de vielle) sont appelés à voix haute par l'outil lui-même "
+      + "(« Les charmés, ouvrez les yeux… », au chat) ; tout le village l'entend, ne nomme jamais ni le Joueur de vielle ni un charmé. "
+      + `Ensuite, raconte l'aube. Ordre d'appel, pour toi seul : ${ORDRE_D_APPEL}`,
     schema: objet({
       delai_secondes: entier("Temps laissé à chaque rôle pour choisir (60 à 180 en général)."),
       peste_victime: chaine("Partie de peste noire seulement, sans porteur encore (la première nuit) : le villageois que la peste frappe, "

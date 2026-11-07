@@ -123,7 +123,8 @@ const ENTETE_AVENTURE = "[Pilote automatique — plus aucun joueur humain prése
 // à voix haute un rôle qui se réveille (la composition ne s'annonce pas).
 export const CONSIGNES_LOUPS = {
   nuit: "Étape : la nuit. Raconte en deux ou trois phrases la tombée de la nuit sur Brumecombe, sans nommer aucun rôle qui se réveille, puis "
-    + "appelle loups_nuit (delai_secondes 60) : il réveille chacun dans l'ordre d'appel du livre. "
+    + "appelle loups_nuit (delai_secondes 60) : il réveille chacun dans l'ordre d'appel du livre (les charmés, il les appelle lui-même à voix "
+    + "haute, comme à la table : ne nomme ni le Joueur de vielle ni un charmé). "
     + "Après son résultat, réponds seulement « — » : l'aube sera racontée à l'étape suivante, même si une victoire est annoncée.",
   aube: "Étape : l'aube. Raconte l'aube de cette nuit (les morts et leur sort, sans trahir qui a fait quoi ni aucun rôle secret ; ce que le "
     + "chat a déjà annoncé — la Gazette de la lune, le Mur des murmures, les oies, la plume — se raconte sans se relire), "

@@ -14,7 +14,12 @@
 // - le contexte du narrateur, le pilote (aube sans fermer un vote ouvert, la Chaîne) ;
 // - les compagnons : la clé et l'effet de leur rôle, leur personnalité, chaque demande nouvelle avec son sujet, sa précision, sa note ; un
 //   repli sensé (un marché pas toujours accepté, une carte du Crieur pas toujours lue) ; sans modèle, les politiques du système avec
-//   l'adresse du tempérament ; leurs annonces au débat.
+//   l'adresse du tempérament ; leurs annonces au débat ;
+// - étapes 6b et 6c : « une allégeance loup de plus » demandable (avec Double visage seulement, le réglage du monde, son conseil de
+//   taille, ignorée d'un système qui ne la connaît pas), le loup de moins des débutants dit au narrateur, l'appel des charmés à voix
+//   haute (chat public, avant leur réveil, sans nommer personne), les nuits d'appel comptées pour les compagnons (charmesAppeles : le
+//   hook du système et le chat, jamais un message de joueur), le jour de la victoire du Revenant et du Chasseur de primes (narrateur,
+//   compagnons).
 // Chaque règle est cassée à son tour dans une copie du script : la batterie doit alors échouer.
 // Hors de Foundry, sans appel payant.  Lancer : npm run essais
 import { test } from "node:test";
@@ -34,7 +39,7 @@ class Collection extends Map {
 }
 const reglages = {
   fournisseur: "factice", autonomie: "autonome", voix: "aucune", compagnonsPrive: {}, mouvementsBloques: {}, historiqueLoups: [], pilote: true,
-  bavardageCompagnons: "normal"
+  bavardageCompagnons: "normal", personnalites: [], personnaliteActive: ""
 };
 // Les réglages du système des Veillées (game.settings.get("lakour-loups", …)).
 const reglagesLoups = {};
@@ -56,7 +61,9 @@ globalThis.fetch = async url => {
   const chemin = String(url).split("?")[0];
   return fichiers.has(chemin) ? { ok: true, json: async () => structuredClone(fichiers.get(chemin)) } : { ok: false, json: async () => null };
 };
-globalThis.Hooks = { on() {}, callAll() {}, once() {} };
+// Les réveils de la nuit (hook lakourLoups.reveil du système) : les compagnons y entendent l'appel des charmés.
+const reveils = [];
+globalThis.Hooks = { on(nom, f) { if (nom === "lakourLoups.reveil") reveils.push(f); }, callAll() {}, once() {} };
 globalThis.fromUuidSync = uuid => ({ name: String(uuid).split(".").at(-1) });
 globalThis.ui = { notifications: { info() {}, warn() {}, error() {} } };
 globalThis.ChatMessage = { implementation: { create: async d => { const m = { ...structuredClone(d) }; chat.push(m); return m; } } };
@@ -128,7 +135,10 @@ function pacte({ ancien = false, phase = "jour", tour = 1 } = {}) {
         return { roles: ["loup-de-brumecombe", ...Array(n - 1).fill("villageois")], batiments: options.niveau === "le-pacte" ? [] : ["puits"], somme: 0, verdict: "équilibrée" };
       },
       variantesPermises: v => ({ ...v }), paquetDoubleVisage: n => Array(n).fill("villageois"), LOUPS_DES_VENDANGES: 1,
-      paquetDuChapardeur: cles => cles.includes("chapardeur"), voteEmpeche: e => Boolean(e.crue), CLES_DE_LA_GAZETTE: ["crue", "lune-noire"]
+      paquetDuChapardeur: cles => cles.includes("chapardeur"), voteEmpeche: e => Boolean(e.crue), CLES_DE_LA_GAZETTE: ["crue", "lune-noire"],
+      // Le Pacte, étapes 6b et 6c (un système ancien ne les a pas).
+      ...(ancien ? {} : { allegeanceLoupEnPlus: e => Boolean(e?.variantes?.allegeanceLoup), LOUPS_DE_MOINS: { debutants: 1 }, JOUR_DU_REVENANT: 3,
+        JOUR_LIMITE_DE_LA_PRIME: 2 })
     },
     async changerPhase(p) { etat.phase = p; if (p === "nuit") etat.tour++; },
     candidatsDeNuit: () => api.villageois().filter(a => vivant(a.id)).map(a => a.id),
@@ -443,6 +453,11 @@ const VERIFICATIONS = {
     const rejoint = matin.filter(Boolean).length / matin.length;
     assert.ok(rejoint > 0.15 && rejoint < 0.65, `le Mâtin rejoint la meute deux fois sur cinq environ (${rejoint})`);
     assert.ok(C.adresseDe({ temperament: "prudent" }) > C.adresseDe({ temperament: "impulsif" }), "l'adresse suit le tempérament");
+    // Ce qu'il sait passe avant le silence (vue.annonce, les politiques du système), même chez un taciturne.
+    for (let i = 0; i < 10; i++) {
+      const dit = C.repliReplique({ id: "a1", jeu: "loups", tour: i, personnalite: { temperament: "taciturne" }, annonce: { cible: "a2", nom: "Aubin" }, autres: [] }, `r${i}`);
+      assert.match(dit, /Aubin/, "l'annonce dite");
+    }
   },
   async "compagnons sans modèle : les politiques du système (effet du réveil, objet du vote, adresse du tempérament), sinon le repli"(M) {
     const api = pacte();
@@ -529,7 +544,7 @@ const VERIFICATIONS = {
   "les textes purs du Pacte : variantes demandées et du monde, sans clé brute ; un appel sûr"(M) {
     const P = M.pacte;
     assert.equal(P.variantesDemandees([]), undefined, "rien de demandé : les réglages du monde");
-    assert.deepEqual(P.variantesDemandees(["aucune", "mur"]), { chandelles: false, angoissante: false, chaine: false, mur: false, doubleVisage: "", vendanges: false, envoutement: false });
+    assert.deepEqual(P.variantesDemandees(["aucune", "mur"]), { chandelles: false, angoissante: false, chaine: false, mur: false, doubleVisage: "", allegeanceLoup: false, vendanges: false, envoutement: false });
     assert.equal(P.variantesDemandees(["angoissante"]).chandelles, true, "angoissante : des chandelles");
     assert.equal(P.variantesDeLaVeillee(undefined, cle => (cle === "vendanges" ? true : undefined)).vendanges, true, "le réglage du monde");
     assert.equal(P.variantesDeLaVeillee({ vendanges: false }, () => true).vendanges, false, "le choix l'emporte");
@@ -544,6 +559,201 @@ const VERIFICATIONS = {
     assert.match(lignes, /COMMENCE PAR UN JOUR/);
     sansClesBrutes(lignes, "miseEnPlaceLoups");
     assert.deepEqual(P.miseEnPlaceLoups(pacte({ ancien: true })), [], "un système ancien : rien");
+  },
+  "étape 6c : une allégeance loup de plus, demandée ou du monde, avec Double visage seulement ; son conseil de taille"(M) {
+    const P = M.pacte;
+    assert.ok(P.CHOIX_DES_VARIANTES.includes("allegeance-loup"), "le narrateur peut la demander");
+    assert.equal(P.variantesDemandees(["double-visage-grande", "allegeance-loup"]).allegeanceLoup, true);
+    assert.equal(P.variantesDemandees(["allegeance-loup"]).allegeanceLoup, false, "sans Double visage, rien");
+    const monde = cle => ({ doubleVisage: "petite", allegeanceLoupEnPlus: true })[cle];
+    const nouveau = { allegeanceLoupEnPlus: () => true, variantesPermises: v => ({ ...v }) };
+    assert.equal(P.variantesDeLaVeillee(undefined, monde, { logique: nouveau }).allegeanceLoup, true, "le réglage du monde");
+    assert.equal(P.variantesDeLaVeillee(undefined, monde, { logique: { ...nouveau, variantesPermises: v => ({ ...v, doubleVisage: "" }) } }).allegeanceLoup, false,
+      "Double visage écarté (la taille) : la carte de plus aussi");
+    assert.equal(P.variantesDeLaVeillee(undefined, monde, { logique: { variantesPermises: v => ({ ...v }) } }).allegeanceLoup, false,
+      "un système qui ne la connaît pas : jamais annoncée");
+    assert.match(P.texteDesVariantes({ doubleVisage: "petite", allegeanceLoup: true }), /Double visage \(petite complication, une allégeance loup de plus\)/);
+    // Le conseil mesuré (docs/equilibre-veillees.md des Veillées) : dès 16 en petite complication, et à 13 ; dès 12 en grande.
+    assert.deepEqual([10, 12, 13, 14, 15, 16, 18].map(n => P.allegeanceLoupConseillee("petite", n)), [false, false, true, false, false, true, true]);
+    assert.deepEqual([11, 12, 18].map(n => P.allegeanceLoupConseillee("grande", n)), [false, true, true]);
+    assert.match(P.conseilDeLAllegeance({ doubleVisage: "petite", allegeanceLoup: true }, 10), /donne la partie à la meute/);
+    assert.match(P.conseilDeLAllegeance({ doubleVisage: "grande", allegeanceLoup: false }, 14), /propose-la à la table/);
+    assert.equal(P.conseilDeLAllegeance({ doubleVisage: "petite", allegeanceLoup: false }, 10), "", "en dessous, le paquet du livre : rien à proposer");
+    assert.equal(P.conseilDeLAllegeance({}, 16), "");
+  },
+  "étape 6c : les textes purs (loup de moins, nuits d'appel au chat, jour des solitaires)"(M) {
+    const P = M.pacte;
+    assert.match(P.notesDuNiveau("debutants", { LOUPS_DE_MOINS: { debutants: 1 } }), /^Niveau débutants : un loup de moins/);
+    assert.equal(P.notesDuNiveau("classique", { LOUPS_DE_MOINS: { debutants: 1 } }), "");
+    assert.equal(P.notesDuNiveau("debutants", {}), "", "un système qui ne le compte pas");
+    const mj = m => m.author?.isGM === true;
+    const appel = (tour, o = {}) => ({ author: { isGM: true }, flags: { "lakour-mj-ia": { [P.APPEL_DES_CHARMES]: { partie: "p1", tour } } }, ...o });
+    const nuits = P.nuitsDAppelAuChat([appel(1), appel(1), appel(2), appel(3, { author: { isGM: false } }), appel(4, { whisper: ["u1"] }),
+      { ...appel(5), flags: { "lakour-mj-ia": { [P.APPEL_DES_CHARMES]: { partie: "p0", tour: 5 } } } }, { author: { isGM: true }, flags: {} }], { partie: "p1", ecritParUnMJ: mj });
+    assert.deepEqual([...nuits].sort(), [1, 2], "deux nuits : ni un joueur, ni un chuchotement, ni une autre partie");
+    assert.match(P.texteAppelDesCharmes("fr"), /^Les charmés, ouvrez les yeux/);
+    assert.match(P.texteAppelDesCharmes("en"), /^The charmed ones, open your eyes/);
+    // Le jour des solitaires, pour le narrateur seul.
+    const roles = { c: { name: "Chasseur de primes", system: { cle: "chasseur-de-primes", camp: "solitaire" } }, r: { name: "Revenant", system: { cle: "revenant", camp: "solitaire" } } };
+    const api = { logique: { JOUR_DU_REVENANT: 3, JOUR_LIMITE_DE_LA_PRIME: 2 }, villageois: () => [{ id: "c", name: "Colin", system: { vivant: true } }, { id: "r", name: "Rose", system: { vivant: true } }],
+      roleDe: a => roles[a.id], campDe: a => roles[a.id].system.camp };
+    let l = P.etatPacteLoups(api, { tour: 1, primes: { c: "x" } }, id => (id === "x" ? "Xavier" : id)).join("\n");
+    assert.match(l, /la cible de Colin \(Chasseur de primes\) est Xavier ; elle doit tomber au vote au plus tard le jour 2/);
+    assert.match(l, /Rose \(Revenant\) ne gagne qu'exécuté au vote à partir du jour 3/);
+    l = P.etatPacteLoups(api, { tour: 3, primes: { c: "x" } }, id => id).join("\n");
+    assert.doesNotMatch(l, /la cible de Colin/, "passé le jour 2, la prime n'est plus à redire");
+    roles.c.system.camp = "village";
+    assert.match(P.etatPacteLoups(api, { tour: 3, primes: { c: "x" } }).join("\n"), /la prime de Colin a échoué/);
+    assert.deepEqual(P.reglesDesSolitaires({ ...api, logique: {} }, { tour: 1, primes: { c: "x" } }), [], "un système sans ces règles");
+  },
+  async "étape 6c : les outils de partie connaissent la carte de plus (composer, distribuer, rejouer, le réglage du monde)"(M) {
+    let api = pacte();
+    let c = await outil(M, "loups_composer").executer({ nombre_joueurs: 10, niveau: "classique", inclure: [], exclure: [], peste: "", village: "", variantes: ["double-visage-petite", "allegeance-loup"] });
+    assert.match(c.contenu, /petite complication, une allégeance loup de plus/);
+    assert.match(c.contenu, /donne la partie à la meute/, "hors de sa taille : le narrateur est prévenu");
+    c = await outil(M, "loups_composer").executer({ nombre_joueurs: 12, niveau: "classique", inclure: [], exclure: [], peste: "", village: "", variantes: ["double-visage-grande"] });
+    assert.match(c.contenu, /propose-la à la table/, "à sa taille : proposée");
+    sansClesBrutes(c.contenu, "loups_composer (Double visage)");
+    api = pacte();
+    let r = await outil(M, "loups_distribuer").executer({ joueurs: [], mode: "auto", niveau: "classique", roles: [], batiments: [], inclure: [], exclure: [],
+      composition: "", compagnons: 8, peste: "", glas: 0, format: "", village: "", variantes: ["double-visage-petite", "allegeance-loup"], gazette: "" });
+    assert.equal(api.appels.distribuer[0].variantes.allegeanceLoup, true, "transmise au système");
+    assert.match(r.contenu, /donne la partie à la meute/);
+    // Sans choix explicite : les réglages du monde, la carte de plus comprise (le choix de Double visage ne l'efface plus).
+    api = pacte();
+    Object.assign(reglagesLoups, { doubleVisage: "petite", allegeanceLoupEnPlus: true });
+    try {
+      r = await outil(M, "loups_distribuer").executer({ joueurs: [], mode: "auto", niveau: "classique", roles: [], batiments: [], inclure: [], exclure: [],
+        composition: "", compagnons: 14, peste: "", glas: 0, format: "", village: "", variantes: [], gazette: "" });
+      assert.equal(api.appels.distribuer[0].variantes.allegeanceLoup, true, "le réglage du monde gardé");
+      assert.doesNotMatch(r.contenu, /donne la partie à la meute/, "16 joueurs : sa taille");
+    } finally { delete reglagesLoups.doubleVisage; delete reglagesLoups.allegeanceLoupEnPlus; }
+    api = pacte();
+    game.modules.get("lakour-mj-ia").api = { moteur: { nouvellePartie() {} } };
+    try {
+      await outil(M, "loups_rejouer").executer({ niveau: "", roles: [], composition: "", peste: "", glas: 0, format: "", village: "", variantes: ["double-visage-grande", "allegeance-loup"], gazette: "" });
+      assert.equal(api.appels.nouvellePartie[0].variantes.allegeanceLoup, true);
+    } finally { game.modules.get("lakour-mj-ia").api = {}; }
+    // Un système qui ne la connaît pas : ni transmise comme acquise, ni annoncée.
+    api = pacte({ ancien: true });
+    r = await outil(M, "loups_distribuer").executer({ joueurs: [], mode: "auto", niveau: "classique", roles: [], batiments: [], inclure: [], exclure: [],
+      composition: "", compagnons: 8, peste: "", glas: 0, format: "", village: "", variantes: ["double-visage-petite", "allegeance-loup"], gazette: "" });
+    assert.equal(api.appels.distribuer[0].variantes.allegeanceLoup, false);
+    assert.doesNotMatch(r.contenu, /allégeance loup de plus/);
+  },
+  async "étape 6c : le loup de moins des débutants, dit au narrateur seul (un système qui ne le compte pas : rien)"(M) {
+    let api = pacte();
+    let c = await outil(M, "loups_composer").executer({ nombre_joueurs: 8, niveau: "debutants", inclure: [], exclure: [], peste: "non", village: "", variantes: [] });
+    assert.match(c.contenu, /Niveau débutants : un loup de moins que le barème .* déjà compté par le système ; n'en retire pas un autre/);
+    c = await outil(M, "loups_composer").executer({ nombre_joueurs: 8, niveau: "classique", inclure: [], exclure: [], peste: "non", village: "", variantes: [] });
+    assert.doesNotMatch(c.contenu, /un loup de moins/);
+    api = pacte();
+    const r = await outil(M, "loups_distribuer").executer({ joueurs: [], mode: "auto", niveau: "debutants", roles: [], batiments: [], inclure: [], exclure: [],
+      composition: "", compagnons: 6, peste: "non", glas: 0, format: "", village: "", variantes: [], gazette: "" });
+    assert.match(r.contenu, /Niveau débutants : un loup de moins/);
+    assert.equal(api.appels.composer[0].niveau, "debutants", "le générateur du système le compte");
+    pacte({ ancien: true });
+    c = await outil(M, "loups_composer").executer({ nombre_joueurs: 8, niveau: "debutants", inclure: [], exclure: [], peste: "non", village: "", variantes: [] });
+    assert.doesNotMatch(c.contenu, /un loup de moins/);
+  },
+  async "étape 6c : le narrateur appelle les charmés à voix haute (chat public, avant leur réveil, sans nommer personne)"(M) {
+    const api = pacte();
+    const ordre = api.ordreDeNuit;
+    api.ordreDeNuit = () => [...ordre(), { roleCle: "charmes", acteurIds: ["v1", "v3"] }];
+    const reveiller = api.reveiller;
+    let auReveil = -1;
+    api.reveiller = async (cle, o) => { if (cle === "charmes") auReveil = chat.length; return reveiller(cle, o); };
+    const avant = chat.length;
+    try {
+      const r = await outil(M, "loups_nuit").executer({ delai_secondes: 30, peste_victime: "" });
+      assert.ok(!r.erreur, r.contenu);
+      const appels = chat.slice(avant).filter(m => m.flags?.["lakour-mj-ia"]?.appelDesCharmes);
+      assert.equal(appels.length, 1, "un appel, une fois");
+      const [m] = appels;
+      assert.equal(auReveil, chat.indexOf(m) + 1, "dit avant leur réveil");
+      assert.ok(!m.whisper?.length, "à tous");
+      assert.match(m.content, /Les charmés, ouvrez les yeux/);
+      assert.doesNotMatch(m.content, /vielle|Berthe|Denise/i, "ni le Joueur de vielle ni un charmé nommés");
+      assert.deepEqual(m.flags["lakour-mj-ia"].appelDesCharmes, { partie: "p1", tour: 2 });
+      assert.equal(m.flags["lakour-mj-ia"].narration && m.flags["lakour-mj-ia"].final, true, "lu par la voix du narrateur");
+      assert.match(r.contenu, /les charmés \(Berthe, Denise\) → ils se sont reconnus .* appelés à voix haute/);
+      assert.match(outil(M, "loups_nuit").description, /charmés .* appelés à voix haute/);
+      sansClesBrutes(r.contenu, "loups_nuit (charmés)");
+      // Une nuit sans charmés : aucun appel.
+      pacte();
+      const n = chat.length;
+      await outil(M, "loups_nuit").executer({ delai_secondes: 30, peste_victime: "" });
+      assert.equal(chat.slice(n).filter(x => x.flags?.["lakour-mj-ia"]?.appelDesCharmes).length, 0);
+    } finally { chat.length = avant; }
+  },
+  async "étape 6c : les compagnons comptent les nuits d'appel des charmés (le hook, le chat du MJ ; jamais un message de joueur)"(M) {
+    const api = pacte();
+    const recus = [];
+    api.logique.savoirDuJoueur = o => { recus.push(o.charmesAppeles); return { moi: o.moi, camp: o.camp, allies: [], loups: [], innocents: [], soupcons: {}, utiles: [], menteurs: [] }; };
+    api.logique.politiqueDeNuit = o => [o.candidats[0].id];
+    M.jeu.reinitialiserPrive();
+    const berthe = game.actors.get("v1");
+    const vue = M.jeu.vueVeillees(berthe, { api, messages: [] });
+    const decider = () => M.jeu.decisionParPolitique(api, berthe, vue, { type: "demande", id: `d${recus.length}`, invite: "Sauver ou empoisonner ?",
+      candidats: [{ id: "v3", nom: "Denise" }], nombre: 1 }, "nuit", "g");
+    const avant = chat.length;
+    const appel = (tour, o = {}) => ({ content: "Les charmés, ouvrez les yeux…", author: { isGM: true }, flags: { "lakour-mj-ia": { ia: true, appelDesCharmes: { partie: "p1", tour } } }, ...o });
+    try {
+      await decider();
+      assert.equal(recus.at(-1), 0, "personne n'a été appelé");
+      chat.push(appel(1));
+      await decider();
+      assert.equal(recus.at(-1), 1, "l'appel du MJ IA, au chat");
+      chat.push(appel(2, { author: { isGM: false } }), appel(3, { whisper: ["u1"] }));
+      chat.push({ ...appel(4), flags: { "lakour-mj-ia": { appelDesCharmes: { partie: "autre", tour: 4 } } } });
+      await decider();
+      assert.equal(recus.at(-1), 1, "ni un message de joueur, ni un chuchotement, ni une autre partie");
+      // Le hook du système (la nuit menée par la Table d'un MJ humain) : une nuit de plus ; la même nuit ne compte qu'une fois.
+      api._etat.tour = 2;
+      for (const f of reveils) f({ roleCle: "charmes", enCours: true });
+      for (const f of reveils) f({ roleCle: "charmes", enCours: false });
+      for (const f of reveils) f({ roleCle: "meute", enCours: true });
+      await decider();
+      assert.equal(recus.at(-1), 2, "le hook : une nuit de plus");
+      api._etat.tour = 1;
+      for (const f of reveils) f({ roleCle: "charmes", enCours: true });
+      await decider();
+      assert.equal(recus.at(-1), 2, "la nuit 1, déjà au chat");
+      M.jeu.reinitialiserPrive();
+      await decider();
+      assert.equal(recus.at(-1), 1, "la mémoire oubliée avec la partie ; le chat reste");
+    } finally { chat.length = avant; M.jeu.reinitialiserPrive(); }
+  },
+  "étape 6b : le jour de la victoire du Revenant et du Chasseur de primes (narrateur seul, compagnons) ; un système ancien : rien"(M) {
+    const sauves = { v3: ROLES.v3, v4: ROLES.v4 };
+    const chasseur = role("Chasseur de primes", "chasseur-de-primes", "solitaire");
+    chasseur.system.victoireCle = "cible-executee";
+    ROLES.v3 = chasseur;
+    ROLES.v4 = role("Revenant", "revenant", "solitaire");
+    try {
+      const api = pacte();
+      api._etat.primes = { v3: "v0" };
+      let lignes = M.contexte.etatPartieLoups(api).join("\n");
+      assert.match(lignes, /Pour toi seul \(SECRET\) : la cible de Denise \(Chasseur de primes\) est Aubin ; elle doit tomber au vote au plus tard le jour 2/);
+      assert.match(lignes, /Ernest \(Revenant\) ne gagne qu'exécuté au vote à partir du jour 3/);
+      sansClesBrutes(lignes, "contexte (solitaires)");
+      let fiche = M.jeu.vueVeillees(game.actors.get("v3"), { api, messages: [] }).fiche;
+      assert.match(fiche, /Ta cible \(ton carnet\) doit tomber au vote du village au plus tard le jour 2 \(nous sommes au jour 1\)/);
+      assert.match(M.jeu.vueVeillees(game.actors.get("v4"), { api, messages: [] }).fiche, /Ne te fais pas exécuter avant le jour 3/);
+      // La prime échue (le système l'a fait villageois) : il joue pour le Village.
+      api._etat.tour = 3;
+      chasseur.system.camp = "village";
+      lignes = M.contexte.etatPartieLoups(api).join("\n");
+      assert.match(lignes, /la prime de Denise a échoué/);
+      assert.doesNotMatch(lignes, /la cible de Denise/);
+      fiche = M.jeu.vueVeillees(game.actors.get("v3"), { api, messages: [] }).fiche;
+      assert.match(fiche, /Ta prime a échoué : tu n'es plus qu'un simple villageois/);
+      assert.match(M.jeu.vueVeillees(game.actors.get("v4"), { api, messages: [] }).fiche, /Le jour 3 est venu/);
+      const ancien = pacte({ ancien: true });
+      ancien._etat.primes = { v3: "v0" };
+      assert.doesNotMatch(M.contexte.etatPartieLoups(ancien).join("\n"), /SECRET\) : la cible|ne gagne qu'exécuté/);
+      assert.doesNotMatch(M.jeu.vueVeillees(game.actors.get("v4"), { api: ancien, messages: [] }).fiche, /Ne te fais pas exécuter/);
+    } finally { Object.assign(ROLES, sauves); }
   }
 };
 
@@ -639,7 +849,29 @@ const MUTATIONS = [
   ["compagnons-jeu.js", "  if (pouvoirsTentes.has(cle)) return null;", "", "jour : un pouvoir à chaque réplique"],
   ["compagnons-jeu.js", "  prive = null;\n  oublierLesPolitiques();", "  prive = null;", "mémoire remise à zéro : les politiques gardées"],
   ["compagnons.js", "  if (vue.jeu === \"loups\" && vue.annonce?.nom) return", "  if (false) return", "repli : l'annonce jamais dite"],
-  ["compagnons.js", "export const ADRESSE_DES_TEMPERAMENTS = { prudent: 0.9,", "export const ADRESSE_DES_TEMPERAMENTS = { prudent: 0.5,", "adresse : le prudent pas plus adroit"]
+  ["compagnons.js", "export const ADRESSE_DES_TEMPERAMENTS = { prudent: 0.9,", "export const ADRESSE_DES_TEMPERAMENTS = { prudent: 0.5,", "adresse : le prudent pas plus adroit"],
+  // Étapes 6b et 6c.
+  ["veillees-pacte.js", "    else if (x === \"allegeance-loup\") v.allegeanceLoup = true;\n", "", "6c : la carte de plus non demandable"],
+  ["veillees-pacte.js", "  if (!v.doubleVisage) v.allegeanceLoup = false;\n  return v;", "  return v;", "6c : la carte de plus sans Double visage"],
+  ["veillees-pacte.js", "  v.allegeanceLoup = Boolean(v.doubleVisage && v.allegeanceLoup && connaitLAllegeance(logique));", "  v.allegeanceLoup = Boolean(v.allegeanceLoup);", "6c : la carte de plus d'un système qui l'ignore"],
+  ["veillees-pacte.js", "      p.allegeanceLoup = Boolean(p.doubleVisage && p.allegeanceLoup);\n", "", "6c : la carte de plus gardée quand Double visage tombe"],
+  ["veillees-pacte.js", "doubleVisage: \"doubleVisage\", allegeanceLoup: \"allegeanceLoupEnPlus\",", "doubleVisage: \"doubleVisage\",", "6c : le réglage du monde ignoré"],
+  ["veillees-pacte.js", "  return mode === \"grande\" ? n >= 12 : mode === \"petite\" ? n >= 16 || n === 13 : false;", "  return mode === \"grande\" ? n >= 10 : mode === \"petite\" ? n >= 14 : false;", "6c : le conseil de l'étape 6b"],
+  ["veillees-pacte.js", "    + `${v.allegeanceLoup ? \", une allégeance loup de plus\" : \"\"})`);", "    + \")\");", "6c : la carte de plus non annoncée"],
+  ["outils.js", "          + `loups_distribuer en mode « auto », avec les mêmes variantes.${conseil ? `\\n${conseil}` : \"\"}` };", "          + \"loups_distribuer en mode « auto ».\" };", "6c : le conseil tu à la composition"],
+  ["outils.js", "        + (allegeance ? `${allegeance}\\n` : \"\")\n", "", "6c : la carte de plus hors de sa taille, tue"],
+  ["veillees-pacte.js", "  if (moins <= 0) return \"\";\n", "  return \"\";\n", "6c : le loup de moins des débutants tu"],
+  ["outils.js", "    const appeles = roleCle === \"charmes\" ? await appelerLesCharmes(api) : false;", "    const appeles = false;", "6c : les charmés appelés en silence"],
+  ["outils.js", "      flags: { [ID]: { ia: true, narration: true, final: true, [APPEL_DES_CHARMES]:", "      whisper: [\"mj\"], flags: { [ID]: { ia: true, narration: true, final: true, [APPEL_DES_CHARMES]:", "6c : l'appel chuchoté"],
+  ["veillees-pacte.js", "    if (!f || m.whisper?.length || !ecritParUnMJ(m)) continue;", "    if (!f) continue;", "6c : un joueur fait croire à un appel"],
+  ["veillees-pacte.js", "    if (partie && f.partie && String(f.partie) !== String(partie)) continue;\n", "", "6c : les appels d'une autre partie comptés"],
+  ["compagnons-jeu.js", " charmesAppeles: charmesAppeles(),", "", "6c : les compagnons sourds à l'appel"],
+  ["compagnons-jeu.js", "try { globalThis.Hooks?.on?.(\"lakourLoups.reveil\", noterUnReveil); } catch { /* hors Foundry */ }", "", "6c : le hook du système ignoré"],
+  ["compagnons-jeu.js", "  appelsDesCharmes.clear();\n", "", "6c : les appels d'avant gardés"],
+  ["veillees-pacte.js", "  lignes.push(...reglesDesSolitaires(api, e, nom));\n", "", "6b : le narrateur ignore le jour des solitaires"],
+  ["veillees-pacte.js", "      if (camp === \"solitaire\" && cible && Number(e.tour) <= jours.prime) {", "      if (cible) {", "6b : la prime échue redite"],
+  ["compagnons-jeu.js", "  fiche.push(...jourDeSaVictoire(api, acteur, pub, role));\n", "", "6b : les compagnons ignorent le jour de leur victoire"],
+  ["compagnons-jeu.js", "    if (camp === \"village\") return [\"Ta prime a échoué", "    if (false) return [\"Ta prime a échoué", "6b : le chasseur échu se croit solitaire"]
 ];
 
 test("Le Pacte (MJ IA) : chaque règle cassée est détectée", async () => {

@@ -14,14 +14,14 @@
 import { ID } from "./constantes.js";
 import { adaptateur } from "./adaptateurs.js";
 import { contenuNomme, packDeContenu, drapeauxDuContenu, langueDuMonde } from "./contenus.js";
-import { versHTML, roleLoups, campLoups, secretsVeilleesEnAttente } from "./utilitaires.js";
+import { versHTML, roleLoups, campLoups, secretsVeilleesEnAttente, ecritParUnMJ } from "./utilitaires.js";
 import { vuePubliqueDepuisApi } from "./survie-logique.js";
 import { ligneHistoireActeur } from "./histoire-logique.js";
 import {
   CerveauxCompagnons, BAVARDAGE, normaliserPersonnalite, texteBrut, choisirOrateurs, repliReplique, criePeste, declarationAuRegistre, accusationDans,
   formulesReplique, adresseDe, hasard
 } from "./compagnons.js";
-import { appelSur, texteDesVariantes, variantesActives } from "./veillees-pacte.js";
+import { appelSur, texteDesVariantes, variantesActives, nuitsDAppelAuChat, victoireDuRole, joursDesSolitaires } from "./veillees-pacte.js";
 
 // Réglage du MJ IA, sans erreur s'il n'est pas enregistré (essais, système sans MJ IA).
 const reglageSur = (cle, defaut) => {
@@ -235,6 +235,7 @@ function pacteDuCompagnon(api, acteur, pub = {}, role = null, nom = id => id) {
     fiche.push(`Ta personnalité du village (PUBLIQUE) : ${perso.titre}${perso.batiment ? `, tu tiens ${perso.batiment}` : ""}. ${texteBrut(perso.aide)}`
       + (perso.personnalite === "cabaretier" ? " Ton vote est annoncé à tous : vote en le sachant." : ""));
   }
+  fiche.push(...jourDeSaVictoire(api, acteur, pub, role));
   if (role?.system?.envoute) fiche.push("Tu es ENVOÛTÉ : ta carte n'a plus aucun pouvoir (ni la nuit, ni le jour, ni à ta mort). N'agis plus comme si tu l'avais.");
   const g = appelSur(api, "gazette");
   if (g?.crieur?.acteurId === id) {
@@ -271,6 +272,27 @@ function pacteDuCompagnon(api, acteur, pub = {}, role = null, nom = id => id) {
   const traits = appelSur(api, "traits");
   if (traits && Object.keys(traits).length) scene.push(`Traits visibles (publics) : ${Object.entries(traits).map(([i, t]) => `${nom(i)} — ${t.texte}`).join(" ; ")}.`);
   return { fiche, scene };
+}
+
+// Le Revenant et le Chasseur de primes (Le Pacte, étape 6b) : leur victoire a un jour (veillees-pacte.js, joursDesSolitaires) ; la
+// prime échouée (le système l'a fait villageois, son carnet le lui dit) : il joue pour le Village. Un système sans ces règles : rien.
+function jourDeSaVictoire(api, acteur, pub = {}, role = null) {
+  const jours = joursDesSolitaires(api?.logique);
+  const victoire = victoireDuRole(role, api?.logique);
+  const camp = campLoups(acteur, api);
+  const tour = Number(pub.tour) || 0;
+  if (victoire === "execute" && jours.revenant && camp === "solitaire") {
+    return [tour < jours.revenant ? `Ne te fais pas exécuter avant le jour ${jours.revenant}${tour >= 1 ? ` (nous sommes au jour ${tour})` : ""} : ce serait mourir sans gagner. `
+      + "D'ici là, reste discret ; ensuite, attire sur toi les soupçons du village." : `Le jour ${jours.revenant} est venu : être exécuté au vote, maintenant, te fait gagner.`];
+  }
+  if (victoire === "cible-executee" && jours.prime) {
+    if (camp === "village") return ["Ta prime a échoué : tu n'es plus qu'un simple villageois, tu gagnes avec le Village. Oublie ta cible et chasse les loups."];
+    if (camp === "solitaire" && tour <= jours.prime) {
+      return [`Ta cible (ton carnet) doit tomber au vote du village au plus tard le jour ${jours.prime}${tour >= 1 ? ` (nous sommes au jour ${tour})` : ""} : sinon ta prime `
+        + "échoue et tu deviens simple villageois. Pousse le village à la condamner vite, sans te trahir."];
+    }
+  }
+  return [];
 }
 
 // Le Banc des accusés et le Glas du deuil (système 0.8.0 ; publics) : les accusations du jour, comment accuser, le compte du glas.
@@ -574,7 +596,28 @@ const annoncesDeLaPartie = () => annoncesDesCompagnons.filter(a => a.partie === 
 function oublierLesPolitiques() {
   annoncesDesCompagnons.length = 0;
   pouvoirsTentes.clear();
+  appelsDesCharmes.clear();
   contenuDesPolitiques = { partie: null, roles: {}, nomsDesRoles: {} };
+}
+// Les nuits où les charmés ont été appelés à voix haute (Le Pacte, étape 6c) : comme à la table, tout le village l'entend, et sait dès
+// lors qu'un Joueur de vielle joue (charmesAppeles des politiques). Le système annonce chaque réveil au hook lakourLoups.reveil du MJ
+// actif (roleCle « charmes »), que la nuit soit menée par le MJ IA ou par la Table d'un MJ humain ; l'appel du MJ IA est aussi au chat
+// public (veillees-pacte.js, nuitsDAppelAuChat : il survit à un rechargement du navigateur du MJ). « partie|tour ».
+const appelsDesCharmes = new Set();
+function noterUnReveil(x) {
+  if (x?.roleCle !== "charmes" || !x.enCours) return;
+  try { appelsDesCharmes.add(`${partieEnCours()}|${Number(game.lakourLoups?.etat?.().tour) || 0}`); } catch { /* sans partie */ }
+}
+try { globalThis.Hooks?.on?.("lakourLoups.reveil", noterUnReveil); } catch { /* hors Foundry */ }
+// Le nombre de nuits d'appel de la partie en cours (le hook et le chat public).
+export function charmesAppeles(messages = globalThis.game?.messages?.contents ?? []) {
+  const partie = partieEnCours();
+  const nuits = nuitsDAppelAuChat(messages, { partie, id: ID, ecritParUnMJ });
+  for (const c of appelsDesCharmes) {
+    const i = c.lastIndexOf("|");
+    if (c.slice(0, i) === String(partie)) nuits.add(Number(c.slice(i + 1)) || 0);
+  }
+  return nuits.size;
 }
 // Le contenu de la partie (l'équilibre : camp, information, protection de chaque rôle ; les noms des rôles), gardé par partie.
 let contenuDesPolitiques = { partie: null, roles: {}, nomsDesRoles: {} };
@@ -607,7 +650,7 @@ async function savoirDuCompagnon(api, acteur, vue) {
   const textes = [...(api.carnet?.(acteur.id) ?? []).map(e => texteBrut(e.html ?? e.texte)), ...privesDe(acteur.id)];
   return L.savoirDuJoueur({ moi: acteur.id, camp: vue.camp || "village", allies: vue.allies ?? [], textes, publics: textesPublics(),
     villageois, gabarits, nomsDesRoles: contenu.nomsDesRoles, nomsDesCamps, annonces: annoncesDeLaPartie(), roles: contenu.roles,
-    registre: pub.registre ?? [], role: vue.roleCle ?? "", groupes: pub.ambigus?.groupes ?? null,
+    registre: pub.registre ?? [], role: vue.roleCle ?? "", groupes: pub.ambigus?.groupes ?? null, charmesAppeles: charmesAppeles(),
     voisins: id => { const v = appelSur(api, "voisins", id); return [v?.gauche, v?.droite].filter(Boolean); } });
 }
 // L'effet d'un réveil de nuit : celui de son rôle quand l'invite est la sienne (l'Herboriste : la sienne, précédée des proies) ; un loup
