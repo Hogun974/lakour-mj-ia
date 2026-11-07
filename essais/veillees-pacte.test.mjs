@@ -479,6 +479,8 @@ const VERIFICATIONS = {
     const api = pacte();
     api._etat.village = [{ cle: "cabaret", nom: "Le Cabaret", personnalite: "cabaretier", titre: "Cabaretier", aide: "Il vote à découvert.", acteurId: "v2", occupant: "Colin", disponible: true }];
     api._etat.variantes = { chandelles: true, angoissante: false, chaine: true, mur: false, doubleVisage: "", vendanges: false, envoutement: false };
+    const ambigus = api.ambigus;
+    api.ambigus = () => ({ ...ambigus(), groupes: { critere: "rive", a: [{ id: "v0", nom: "Aubin" }, { id: "v2", nom: "Colin" }], b: [{ id: "v1", nom: "Berthe" }] } });
     const colin = game.actors.get("v2");
     ROLES.v2.system.envoute = true;
     try {
@@ -489,6 +491,11 @@ const VERIFICATIONS = {
       assert.match(vue.scene, /Variantes de la veillée \(publiques\) : la Veillée aux chandelles, la Chaîne des innocents/);
       assert.match(vue.scene, /Le Village \(public\) : Colin, Cabaretier/);
       assert.doesNotMatch(vue.scene, /Loup de Brumecombe/, "le centre du Chapardeur n'est pas pour lui");
+      // Les cartes du Bateleur et les deux bords de l'Illuminé, comme le chat les annonce : sans nommer le rôle qui les met en jeu (la
+      // composition ne s'annonce pas ; trouvé par l'essai d'intégration des Veillées, verifierSavoirDesCompagnons).
+      assert.match(vue.scene, /Cartes posées face visible au milieu de la table \(une nuit, quelqu'un pourra jouer l'une d'elles\) : Liseuse de cendres\./);
+      assert.match(vue.scene, /Le village est partagé en deux bords \(annoncé\) : Aubin, Colin \| Berthe\./);
+      assert.doesNotMatch(vue.scene, /Bateleur|Illuminé/, "un rôle nommé dans la vue publique");
     } finally { delete ROLES.v2.system.envoute; }
     const ancien = pacte({ ancien: true });
     const v = M.jeu.vueVeillees(game.actors.get("v1"), { api: ancien, messages: [] });
@@ -511,6 +518,13 @@ const VERIFICATIONS = {
     await c.reagir({ max: 3, mentions: "Berthe" });
     assert.equal(api.appels.agir.length, 1, "un pouvoir de jour par jour");
     assert.ok(vus.at(-1).some(a => a.par === "v1" && a.cible === "v0"), "l'annonce retenue nourrit le savoir de chacun");
+    // Une mémoire remise à zéro (une partie rejouée sous le même identifiant : la doublure des Veillées) : ni annonce ni pouvoir tenté
+    // de la précédente (trouvé par l'essai d'intégration des Veillées : une partie rejouée ne se rejouait pas à l'identique).
+    M.jeu.reinitialiserPrive();
+    vus.length = 0;
+    await new M.jeu.Compagnons({ graine: "g" }).reagir({ max: 3, mentions: "Berthe" });
+    assert.ok(vus.length && !vus[0].some(a => a.par === "v1"), "les annonces de la partie d'avant oubliées");
+    assert.equal(api.appels.agir.length, 2, "le pouvoir de jour se tente de nouveau");
   },
   "les textes purs du Pacte : variantes demandées et du monde, sans clé brute ; un appel sûr"(M) {
     const P = M.pacte;
@@ -613,6 +627,8 @@ const MUTATIONS = [
   ["compagnons-jeu.js", "      + (perso.personnalite === \"cabaretier\" ? \" Ton vote est annoncé à tous", "      + (false ? \" Ton vote est annoncé à tous", "vue : le Cabaretier l'ignore"],
   ["compagnons-jeu.js", "  if (role?.system?.envoute) fiche.push(", "  if (false) fiche.push(", "vue : l'envoûté se croit armé"],
   ["compagnons-jeu.js", "    ...pacte.scene,\n", "", "vue : le public du Pacte tu"],
+  ["compagnons-jeu.js", "scene.push(`Cartes posées face visible au milieu de la table (une nuit, quelqu'un pourra jouer l'une d'elles) : ", "scene.push(`Cartes du Bateleur, face visible : ", "vue : le Bateleur nommé"],
+  ["compagnons-jeu.js", "scene.push(`Le village est partagé en deux bords (annoncé) : ", "scene.push(`Les deux groupes de l'Illuminé : ", "vue : l'Illuminé nommé"],
   ["compagnons.js", "    case \"marche\": return { cibles: soi && h() < 0.35 ? [soi.id] : [] };", "    case \"marche\": return { cibles: soi ? [soi.id] : [] };", "repli : le marché toujours accepté"],
   ["compagnons.js", "    case \"crieur-annonce\": return { cibles: candidats.length && h() < 0.5 ? un(candidats) : [] };", "    case \"crieur-annonce\": return { cibles: un(candidats) };", "repli : le Crieur lit toujours"],
   ["compagnons.js", "    case \"defiance\": return { cibles: melanger(", "    case \"defiance_\": return { cibles: melanger(", "repli : la Défiance à une voix"],
@@ -621,6 +637,7 @@ const MUTATIONS = [
   ["compagnons-jeu.js", "      if (sansModele && c.vue.jeu === \"loups\") c.vue.annonce = await annonceDuCompagnon(", "      if (false) c.vue.annonce = await annonceDuCompagnon(", "débat : le compagnon tait ce qu'il sait"],
   ["compagnons-jeu.js", "r.texte.includes(c.vue.annonce.nom)) retenirAnnonce(", "r.texte.includes(c.vue.annonce.nom)) void (", "débat : l'annonce oubliée"],
   ["compagnons-jeu.js", "  if (pouvoirsTentes.has(cle)) return null;", "", "jour : un pouvoir à chaque réplique"],
+  ["compagnons-jeu.js", "  prive = null;\n  oublierLesPolitiques();", "  prive = null;", "mémoire remise à zéro : les politiques gardées"],
   ["compagnons.js", "  if (vue.jeu === \"loups\" && vue.annonce?.nom) return", "  if (false) return", "repli : l'annonce jamais dite"],
   ["compagnons.js", "export const ADRESSE_DES_TEMPERAMENTS = { prudent: 0.9,", "export const ADRESSE_DES_TEMPERAMENTS = { prudent: 0.5,", "adresse : le prudent pas plus adroit"]
 ];

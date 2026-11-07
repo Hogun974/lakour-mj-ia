@@ -88,15 +88,18 @@ export async function oublierPrive(acteurId) {
   try { await game.settings.set(ID, "compagnonsPrive", m); } catch { /* idem */ }
 }
 
-// Pour les essais : repartir d'une mémoire vide.
+// Pour les essais : repartir d'une mémoire vide (celle des politiques du Pacte comprise : une partie rejouée sous le même identifiant,
+// comme dans la doublure des Veillées, ne doit pas retrouver les annonces ni les pouvoirs de jour de la précédente).
 export function reinitialiserPrive() {
   prive = null;
+  oublierLesPolitiques();
 }
 
 // Une nouvelle partie des Veillées : tous les compagnons oublient la précédente (mémoire et réglage « client » vidés).
 export async function effacerPrive() {
   prive = {};
   paroles.length = 0;
+  oublierLesPolitiques();
   try { await game.settings.set(ID, "compagnonsPrive", {}); } catch { /* sans stockage local : la mémoire suffit */ }
 }
 
@@ -248,8 +251,10 @@ function pacteDuCompagnon(api, acteur, pub = {}, role = null, nom = id => id) {
   if (p?.votants?.ids?.length && Number(p.votants.tour) === Number(pub.tour)) scene.push(`Aujourd'hui, seuls votent à l'exécution : ${p.votants.ids.map(nom).join(", ")}.`);
   if (p?.plume?.cible && Number(p.plume.tour) === Number(pub.tour)) scene.push(`La plume noire désigne ${nom(p.plume.cible)} : deux voix contre lui au premier vote du jour.`);
   const a = appelSur(api, "ambigus");
-  if (a?.bateleur?.length) scene.push(`Cartes du Bateleur, face visible : ${a.bateleur.map(c => c.nom).join(", ")}.`);
-  if (a?.groupes?.a?.length && a.groupes.b?.length) scene.push(`Les deux groupes de l'Illuminé : ${a.groupes.a.map(x => x.nom).join(", ")} | ${a.groupes.b.map(x => x.nom).join(", ")}.`);
+  // Les cartes du Bateleur et les deux bords de l'Illuminé : ce que la table a vu, dit comme le chat les annonce, sans nommer le rôle qui
+  // les a mis en jeu (la composition ne s'annonce pas ; le système non plus ne les nomme pas au chat).
+  if (a?.bateleur?.length) scene.push(`Cartes posées face visible au milieu de la table (une nuit, quelqu'un pourra jouer l'une d'elles) : ${a.bateleur.map(c => c.nom).join(", ")}.`);
+  if (a?.groupes?.a?.length && a.groupes.b?.length) scene.push(`Le village est partagé en deux bords (annoncé) : ${a.groupes.a.map(x => x.nom).join(", ")} | ${a.groupes.b.map(x => x.nom).join(", ")}.`);
   if (a?.devouements?.length) scene.push(`Dévouements de la Chambrière : ${a.devouements.map(d => `${nom(d.acteurId)} a pris la carte de ${nom(d.de)}`).join(", ")}.`);
   if (a?.commenceParLeJour && Number(pub.tour) < 1) scene.push("La veillée commence par un jour : débat et vote d'exécution avant la première nuit.");
   const v = appelSur(api, "village");
@@ -565,6 +570,12 @@ function retenirAnnonce(par, cible, tour = 0) {
   while (annoncesDesCompagnons.length > 200) annoncesDesCompagnons.shift();
 }
 const annoncesDeLaPartie = () => annoncesDesCompagnons.filter(a => a.partie === partieEnCours()).map(({ par, cible, camp }) => ({ par, cible, camp }));
+// Tout oublier (reinitialiserPrive, effacerPrive) : les annonces, les pouvoirs de jour tentés, le contenu gardé.
+function oublierLesPolitiques() {
+  annoncesDesCompagnons.length = 0;
+  pouvoirsTentes.clear();
+  contenuDesPolitiques = { partie: null, roles: {}, nomsDesRoles: {} };
+}
 // Le contenu de la partie (l'équilibre : camp, information, protection de chaque rôle ; les noms des rôles), gardé par partie.
 let contenuDesPolitiques = { partie: null, roles: {}, nomsDesRoles: {} };
 async function contenuPourPolitiques(api) {

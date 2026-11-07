@@ -2505,7 +2505,7 @@ OUTILS.push(
           const cles = cartes.map(c => cleDeRole(c, contenu.noms));
           if (cles.some(c => !c)) return { erreur: true, contenu: `Rôles inconnus : ${cartes.filter((_, i) => !cles[i]).join(", ")}.` };
           const posees = await api.cartesDuBateleur(cles);
-          return { contenu: `Cartes du Bateleur, face visible (annoncées) : ${posees.map(c => c.nom).join(", ")}.` };
+          return { contenu: `Cartes du Bateleur, face visible (annoncées sans nommer le Bateleur : ne le nomme pas) : ${posees.map(c => c.nom).join(", ")}.` };
         }
         if (action === "installer") {
           const v = api.village();

@@ -89,9 +89,9 @@ export function miseEnPlaceLoups(api, { nom = id => id, variantes = null } = {})
   }
   const a = appelSur(api, "ambigus");
   if (a) {
-    if (a.bateleur?.length) lignes.push(`Cartes du Bateleur, face visible (PUBLIQUES, annoncées) : ${a.bateleur.map(c => c.nom).join(", ")}.`);
+    if (a.bateleur?.length) lignes.push(`Cartes du Bateleur, face visible (PUBLIQUES, annoncées sans nommer le Bateleur : ne le nomme pas) : ${a.bateleur.map(c => c.nom).join(", ")}.`);
     if (a.groupes?.a?.length && a.groupes?.b?.length) {
-      lignes.push(`Les deux groupes de l'Illuminé (PUBLICS, annoncés) : ${a.groupes.a.map(x => x.nom ?? nom(x.id ?? x)).join(", ")} | `
+      lignes.push(`Les deux groupes de l'Illuminé (PUBLICS, annoncés comme « deux bords » sans nommer l'Illuminé : ne le nomme pas) : ${a.groupes.a.map(x => x.nom ?? nom(x.id ?? x)).join(", ")} | `
         + `${a.groupes.b.map(x => x.nom ?? nom(x.id ?? x)).join(", ")}.`);
     }
     if (a.commenceParLeJour) {
@@ -142,7 +142,7 @@ export function etatPacteLoups(api, e = {}, nom = id => id) {
   }
   const a = appelSur(api, "ambigus");
   if (a?.devouements?.length) lignes.push(`Dévouements de la Chambrière (publics) : ${a.devouements.map(d => `${nom(d.acteurId)} a pris la carte de ${nom(d.de)}`).join(" ; ")}.`);
-  if (a?.groupes?.a?.length) lignes.push(`Groupes de l'Illuminé (publics) : ${a.groupes.a.map(x => x.nom ?? nom(x.id)).join(", ")} | ${a.groupes.b.map(x => x.nom ?? nom(x.id)).join(", ")}.`);
+  if (a?.groupes?.a?.length) lignes.push(`Groupes de l'Illuminé (publics, sans le nommer) : ${a.groupes.a.map(x => x.nom ?? nom(x.id)).join(", ")} | ${a.groupes.b.map(x => x.nom ?? nom(x.id)).join(", ")}.`);
   if (a?.commenceParLeJour && e.phase === "preparation") lignes.push("Feu follet : la veillée commence par un jour (débat et vote d'exécution avant la première nuit).");
   const village = appelSur(api, "village");
   if (village?.actif) {
