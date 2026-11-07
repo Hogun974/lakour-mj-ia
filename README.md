@@ -91,7 +91,7 @@ aucune clé ; les compagnons passent alors en mode simple (sans IA) et la partie
 | Foundry VTT | **14** (testé avec 14.370) | [foundryvtt.com](https://foundryvtt.com) |
 | Un navigateur récent pour le MJ | Chrome, Edge ou Firefox à jour | Le coffre utilise WebCrypto, la voix WebAudio et AudioWorklet. |
 | Une clé d'API | facultatif | [Anthropic](https://console.anthropic.com) pour Claude ; [OpenAI](https://platform.openai.com) pour ChatGPT, et dans tous les cas pour la voix, l'écoute et les images. |
-| La voix intégrée de Foundry (A/V) | facultatif | Mode *Audio seulement*, pour l'écoute des joueurs et les salons vocaux des Veillées. |
+| La voix intégrée de Foundry (A/V) | facultatif | Mode *Audio seulement*, pour l'écoute des joueurs et les salons vocaux des Veillées ; *Audio et vidéo* pour montrer les caméras des joueurs (réglage « Caméras des joueurs permises »). |
 
 Modules **facultatifs**, reconnus par le MJ IA s'ils sont actifs, jamais requis : **Sequencer** et **JB2A** (animations),
 **FXMaster** (météo), **Calendaria** (date, heure et météo du jour, D&D 5e et Imperium Maledictum), **Item Piles** (butin et marchands,
@@ -190,6 +190,18 @@ dans l'ordre du chat, abrégé vocal réglable). L'**écoute** transcrit la paro
 Foundry, seulement quand une IA doit entendre, avec une pastille visible chez chacun. Aux Veillées, qui entend qui
 dépend de la phase (les loups entre eux la nuit, les morts entre eux). Chaque joueur règle chez lui s'il entend les IA
 et à quel volume. Détails : [`docs/voix-et-ecoute.md`](docs/voix-et-ecoute.md).
+
+### Caméras des joueurs
+
+Avec la vidéo intégrée de Foundry, le MJ permet ou coupe les caméras des joueurs d'un geste : réglage **Caméras des
+joueurs permises** (coché par défaut), ou bouton de la console du MJ IA (bloc « Caméras des joueurs », qui propose aussi
+d'ajouter la vidéo à un monde en audio seul et de donner aux joueurs le droit de diffuser leur caméra). Coupées : le
+navigateur de chaque joueur ferme sa caméra (Foundry ne la demande plus au système), et aucun autre navigateur ne
+l'affiche, même s'il la rallumait dans sa console ; le MJ garde la sienne, et **le micro n'est jamais touché**. Un système
+de jeu peut aussi remplacer une caméra par une image quand il le faut (`api.cameras.regle(fn)`, règle publique calculée
+pareil dans chaque navigateur) : aux Veillées, la nuit, les morts et les absents montrent un loup-garou à la place de leur
+vignette, et leur navigateur n'envoie plus une image de la caméra. Sans audio ni vidéo dans le monde, rien ne change.
+Contrat et code de Foundry v14 lu : [`docs/voix-et-ecoute.md`](docs/voix-et-ecoute.md) §4.
 
 ### Coffre et secrets
 

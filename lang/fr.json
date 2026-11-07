@@ -191,6 +191,10 @@
         "Nom": "Modèle de transcription (OpenAI)",
         "Aide": "Vide : le moins cher (gpt-4o-mini-transcribe, environ 0,3 centime par minute de parole). Exemples : gpt-4o-transcribe, whisper-1."
       },
+      "CamerasJoueurs": {
+        "Nom": "Caméras des joueurs permises",
+        "Aide": "Coché : chaque joueur peut montrer sa caméra, si le monde a la vidéo (Configurer l'audio et la vidéo). Décoché : les caméras des joueurs sont coupées pour tous (le navigateur de chacun ferme la sienne, et aucun autre ne l'affiche, même rallumée) ; le MJ garde la sienne et le micro n'est pas touché."
+      },
       "TranscriptionAuMJ": {
         "Nom": "Montrer les transcriptions au MJ",
         "Aide": "Chaque phrase transcrite est aussi montrée aux MJ : chuchotée dans le chat (jamais montrée aux joueurs) ; aux Veillées, affichée dans le chat des seuls MJ sans y être enregistrée (un chuchotement y serait livré à tous les navigateurs)."
@@ -518,6 +522,25 @@
       "Micro": "Donner le micro aux joueurs",
       "MicroAide": "Accorde « Diffuser l'audio » au rôle Joueur (par défaut, seuls les joueurs de confiance l'ont).",
       "MicroDonne": "Les joueurs peuvent maintenant diffuser leur micro."
+    },
+    "Cameras": {
+      "Titre": "Caméras des joueurs",
+      "Permises": "permises",
+      "Coupees": "coupées pour tous les joueurs (le micro reste)",
+      "Couper": "Couper les caméras",
+      "CouperAide": "Ferme la caméra de chaque joueur, dans son navigateur, et la cache chez tous les autres ; la vôtre et les micros ne bougent pas.",
+      "Permettre": "Permettre les caméras",
+      "PermettreAide": "Chaque joueur peut de nouveau montrer sa caméra (s'il l'a choisie dans Configurer l'audio et la vidéo › Client).",
+      "Coupe": "Caméras des joueurs coupées.",
+      "Permis": "Caméras des joueurs permises.",
+      "SansVideo": "Le monde est en audio seul : aucune caméra ne s'affiche.",
+      "AjouterVideo": "Ajouter la vidéo",
+      "AjouterVideoAide": "Passe le monde en « Audio et vidéo », en gardant le serveur relais ; chacun recharge ensuite la page (Foundry le propose).",
+      "VideoAjoutee": "Vidéo ajoutée au monde : chacun choisit sa caméra dans Configurer l'audio et la vidéo › Client.",
+      "SansDroit": "Sans droit de caméra : {noms}.",
+      "Donner": "Donner la caméra aux joueurs",
+      "DonnerAide": "Accorde « Diffuser la vidéo » au rôle Joueur (par défaut, seuls les joueurs de confiance l'ont).",
+      "Donnee": "Les joueurs peuvent maintenant montrer leur caméra."
     },
     "Carnet": {
       "Titre": "Carnet de campagne",

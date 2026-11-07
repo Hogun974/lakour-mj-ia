@@ -85,7 +85,7 @@ a simple mode (no AI) and the game is never blocked.
 | Foundry VTT | **14** (tested with 14.370) | [foundryvtt.com](https://foundryvtt.com) |
 | A recent browser for the GM | up-to-date Chrome, Edge or Firefox | The vault uses WebCrypto, the voice WebAudio and AudioWorklet. |
 | An API key | optional | [Anthropic](https://console.anthropic.com) for Claude; [OpenAI](https://platform.openai.com) for ChatGPT and, in every case, for voice, listening and images. |
-| Foundry's built-in voice (A/V) | optional | *Audio only* mode, for listening to players and the Veillées voice rooms. |
+| Foundry's built-in voice (A/V) | optional | *Audio only* mode, for listening to players and the Veillées voice rooms; *Audio & Video* to show the players' cameras ("Players' cameras allowed" setting). |
 
 **Optional** modules, recognised by the AI GM when active, never required: **Sequencer** and **JB2A** (animations),
 **FXMaster** (weather), **Calendaria** (date, time and weather of the day; D&D 5e and Imperium Maledictum), **Item Piles** (loot and
@@ -185,6 +185,18 @@ adjustable spoken digest). **Listening** transcribes the players' speech capture
 an AI must hear, with a badge visible to everyone. In the Veillées, who hears whom depends on the phase (wolves among
 themselves at night, the dead among themselves). Every player sets whether they hear the AIs and at what volume.
 Details: [`docs/voix-et-ecoute.md`](docs/voix-et-ecoute.md).
+
+### Players' cameras
+
+With Foundry's built-in video, the GM allows or cuts the players' cameras in one gesture: the **Players' cameras allowed**
+setting (checked by default), or a button in the AI GM console ("Players' cameras" block, which also offers to add video
+to an audio-only world and to give players the right to broadcast their camera). Cut: each player's browser closes their
+camera (Foundry no longer asks the system for it), and no other browser shows it, even if they switched it back on in
+their console; the GM keeps theirs, and **microphones are never touched**. A game system can also replace a camera with
+a picture when needed (`api.cameras.regle(fn)`, a public rule computed alike in every browser): in the Veillées, at night,
+the dead and the absent show a werewolf instead of their camera tile, and their browser no longer sends a single camera
+frame. Without audio or video in the world, nothing changes. Contract and the Foundry v14 code read:
+[`docs/voix-et-ecoute.md`](docs/voix-et-ecoute.md) §4.
 
 ### Vault and secrets
 

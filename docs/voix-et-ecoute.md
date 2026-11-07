@@ -68,6 +68,36 @@ voix Foundry de chaque navigateur, choisir les destinataires de la voix des IA (
   MJ humain et la Table des Veillées seule. Seule la transcription (§2) et la voix des IA (§1) dépendent d'une séance du MJ IA.
 - Le moteur du MJ IA consulte `audibilite` s'il existe ; dans les autres mondes (40k, Warcraft), tout le monde entend tout le monde.
 
+## 4. Caméras des joueurs (moteur `lakour-mj-ia`, tous les mondes)
+
+Demande de Jordan (07/11/2026, étape 10 du Pacte des Veillées) : le MJ permet ou non les caméras des joueurs, simplement, et un
+système de jeu peut remplacer une caméra par une image quand il le faut (aux Veillées : la nuit, les morts, les absents).
+
+- **Réglage du monde** `lakour-mj-ia.camerasJoueurs` (« Caméras des joueurs permises », vrai par défaut : Foundry décide comme
+  d'habitude). Décoché : dans le navigateur de chaque joueur, `AVMaster#canUserBroadcastVideo(lui)` est faux, Foundry redemande
+  son flux local (`updateLocalStream`, comme quand ses droits changent) et `getUserMedia` ne demande plus la caméra ; dans tous
+  les navigateurs, `canUserShareVideo(lui)` est faux : sa vignette garde son `<video>` caché (le son y passe toujours) et montre
+  son avatar. Le MJ n'est jamais coupé ; le micro jamais touché (après un flux redemandé, `broadcast(broadcasting)` remet le micro
+  dans l'état voulu : appuyer pour parler relâché, « toujours »…). Console du MJ IA : bloc « Caméras des joueurs » (dès que l'A/V
+  est actif) : couper / permettre d'un clic ; « Ajouter la vidéo » si le monde est en audio seul (mode « Audio et vidéo », relais
+  TURN gardé, Foundry propose le rechargement) ; « Donner la caméra aux joueurs » (droit « Diffuser la vidéo » au rôle Joueur).
+- **Règles d'un système** : `api.cameras.regle(fn)` (dès le crochet `init` du moteur ; un système la pose à son `setup`, avant la
+  connexion A/V), `fn(utilisateur) -> null | true | { image, repli, raison }`, la première qui remplace l'emporte, une règle en
+  panne remplace (prudence). Remplacée : la caméra reste ouverte (pas de renégociation à chaque phase) mais sa piste vidéo est
+  éteinte à la source (`canUserShareVideo` faux, `toggleVideo(false)`, `enabled = false` réappliqué à chaque rendu des caméras,
+  `toggleVideo` du client enveloppé : personne ne la rallume) ; chaque navigateur, le sien compris, pose l'image sur l'avatar de sa
+  vignette (`.camera-view[data-user]`, barre et fenêtres détachées ; image absente : le repli, puis l'avatar). Levée : la piste est
+  rendue au choix du joueur (`toggleVideo(canUserShareVideo(moi))`).
+- **Le secret** : une règle ne lit que ce que TOUS les navigateurs savent (état public), pour que tous calculent la même chose ;
+  c'est aussi ce qui empêche de tricher : un joueur qui rallumerait sa caméra dans sa console n'est affiché par aucun autre
+  navigateur (son flux arrive, mais leur `canUserShareVideo(lui)` est faux). Rien ne transite par ce mécanisme (ni socket, ni
+  réglage écrit) : chacun le calcule chez soi.
+- Tolérance : sans A/V (mode « Désactivé », pas de `game.webrtc`, pas de vignettes), rien ne casse.
+- Code client v14 lu (14.370) : `client/av/master.mjs`, `client/av/clients/simplepeer.mjs`, `applications/apps/av/cameras.mjs`,
+  `camera-popout.mjs`, `templates/apps/av/camera.hbs`, `client/game.mjs` (`initializeRTC` après `setup`). Essais :
+  `essais/cameras.test.mjs` (doublures d'AVMaster, du client et des vignettes ; mutations de la logique). À vérifier en vrai :
+  le voyant de la caméra (Chrome, Firefox) quand la piste est éteinte, la caméra qui revient au jour, les fenêtres détachées.
+
 ## Mise en œuvre (MJ IA 0.28.0) : §1 et §2
 
 ### Voix en direct

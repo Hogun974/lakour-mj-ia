@@ -25,6 +25,9 @@
 }
 .lakour-mj-ia .lakour-mjia-voix-monde p { margin: 4px 0; }
 .lakour-mj-ia .lakour-mjia-voix-monde button { width: auto; margin-left: 4px; }
+.lakour-mj-ia .lakour-mjia-cameras { border-left-color: #5b7fb8; background: rgba(91, 127, 184, 0.1); }
+/* Une caméra coupée par le MJ IA ou par une règle du jeu (cameras.js) : l'image de la règle à la place de l'avatar, entière. */
+.camera-view.lakour-camera-remplacee .video-container .user-avatar { object-fit: contain; background: #0b1020; }
 .lakour-mj-ia .lakour-mjia-console .actif {
   color: var(--color-level-success, #3a3);
   font-weight: bold;

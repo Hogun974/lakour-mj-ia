@@ -28,9 +28,15 @@ import * as fetes from "./fetes.js";
 import { lireArchive } from "./fils.js";
 import { ouvrirCoffre as ouvrirFenetreCoffre, brancherRappelSecours } from "./apps/coffre.js";
 import { ouvrirCarnet, ouvrirHorloges, rafraichirCarnet } from "./apps/carnet.js";
+import { brancherCameras, api as apiCameras } from "./cameras.js";
 
 Hooks.once("init", () => {
   enregistrerReglages();
+  // Caméras des joueurs (cameras.js) : AVMaster enveloppé avant que Foundry ne crée game.webrtc (après « setup ») ; l'API des
+  // caméras est là dès « init », pour qu'un système y pose sa règle avant la connexion A/V (aux Veillées : au « setup »).
+  brancherCameras();
+  const module = game.modules.get(ID);
+  if (module) module.api = { ...(module.api ?? {}), cameras: apiCameras };
 });
 
 Hooks.once("ready", () => {
@@ -50,6 +56,9 @@ Hooks.once("ready", () => {
     tour,
     tourParTour: () => ouvrirPanneau(),
     console: () => new ConsoleMJ().render({ force: true }),
+    // Caméras des joueurs (cameras.js, README « Caméras des joueurs ») : regle(fn) pour un système de jeu, actualiser(), video(userId),
+    // permises(), permettre(oui), diagnostic(), activerVideo(), donnerCamera().
+    cameras: apiCameras,
     // Une IA doit-elle entendre les joueurs (transcription de la parole, docs/voix-et-ecoute.md §2) ?
     ecouteActive: () => ecouteActive({ seanceIA: moteur.actif, compagnonsVivants: compagnonsPresents().length, moduleActif: true }),
     ecoute,

@@ -6,6 +6,7 @@ import { reinitialiserCampagne } from "../reinitialiser.js";
 import { voixDuMonde, activerAudio, donnerMicro } from "../voix-monde.js";
 import { horlogesDisponibles } from "../horloges-logique.js";
 import { libelleModele } from "../utilitaires.js";
+import * as cameras from "../cameras.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -41,6 +42,22 @@ export class ConsoleMJ extends HandlebarsApplicationMixin(ApplicationV2) {
         ui.notifications.info(game.i18n.localize("LAKOUR_MJIA.VoixMonde.MicroDonne"));
         this.render();
       },
+      // Les caméras des joueurs (cameras.js) : permises ou coupées d'un clic ; la vidéo du monde et le droit des joueurs réparés.
+      camerasBasculer: async function () {
+        const permises = await cameras.permettre(!cameras.camerasPermises());
+        ui.notifications.info(game.i18n.localize(permises ? "LAKOUR_MJIA.Cameras.Permis" : "LAKOUR_MJIA.Cameras.Coupe"));
+        this.render();
+      },
+      camerasVideo: async function () {
+        await cameras.activerVideo();
+        ui.notifications.info(game.i18n.localize("LAKOUR_MJIA.Cameras.VideoAjoutee"));
+        this.render();
+      },
+      camerasDroit: async function () {
+        await cameras.donnerCamera();
+        ui.notifications.info(game.i18n.localize("LAKOUR_MJIA.Cameras.Donnee"));
+        this.render();
+      },
       horloges: () => game.modules.get(ID).api.carnet(),
       config: () => new ConfigIA().render({ force: true }),
       personnalites: () => new EditeurPersonnalites().render({ force: true })
@@ -64,8 +81,11 @@ export class ConsoleMJ extends HandlebarsApplicationMixin(ApplicationV2) {
     const etatPilote = pilote?.resume();
     const relancable = Boolean(pilote && !etatPilote.enMarche && pilote.suspendu && pilote.conditions().ok);
     const voix = voixDuMonde();
+    // Les caméras : montrées dès que la voix de Foundry marche (sans A/V, le bloc de la voix suffit).
+    const cam = cameras.diagnostic();
     return {
       voix: voix.pret ? null : { ...voix, muets: voix.muets.join(", ") },
+      cameras: cam.desactive ? null : { ...cam, sansDroit: cam.permises && cam.video ? cam.sansDroit.join(", ") : "" },
       pilote: etatPilote?.enMarche || relancable ? { ...etatPilote, relancable } : null,
       seance,
       enCours: this.moteur?.enCours,

@@ -29,6 +29,24 @@
       {{/if}}
     </div>
     {{/if}}
+    {{#if cameras}}
+    <div class="lakour-mjia-voix-monde lakour-mjia-cameras">
+      <strong><i class="fa-solid fa-camera-web"></i> {{localize "LAKOUR_MJIA.Cameras.Titre"}}</strong> :
+      {{#if cameras.permises}}{{localize "LAKOUR_MJIA.Cameras.Permises"}}
+      <button type="button" data-action="camerasBasculer" data-tooltip="{{localize 'LAKOUR_MJIA.Cameras.CouperAide'}}"><i class="fa-solid fa-camera-web-slash"></i> {{localize "LAKOUR_MJIA.Cameras.Couper"}}</button>
+      {{else}}{{localize "LAKOUR_MJIA.Cameras.Coupees"}}
+      <button type="button" data-action="camerasBasculer" data-tooltip="{{localize 'LAKOUR_MJIA.Cameras.PermettreAide'}}"><i class="fa-solid fa-camera-web"></i> {{localize "LAKOUR_MJIA.Cameras.Permettre"}}</button>
+      {{/if}}
+      {{#if cameras.permises}}{{#unless cameras.video}}
+      <p>{{localize "LAKOUR_MJIA.Cameras.SansVideo"}}
+        <button type="button" data-action="camerasVideo" data-tooltip="{{localize 'LAKOUR_MJIA.Cameras.AjouterVideoAide'}}"><i class="fa-solid fa-video"></i> {{localize "LAKOUR_MJIA.Cameras.AjouterVideo"}}</button></p>
+      {{/unless}}{{/if}}
+      {{#if cameras.sansDroit}}
+      <p>{{localize "LAKOUR_MJIA.Cameras.SansDroit" noms=cameras.sansDroit}}
+        <button type="button" data-action="camerasDroit" data-tooltip="{{localize 'LAKOUR_MJIA.Cameras.DonnerAide'}}"><i class="fa-solid fa-user-check"></i> {{localize "LAKOUR_MJIA.Cameras.Donner"}}</button></p>
+      {{/if}}
+    </div>
+    {{/if}}
     {{#if pilote}}
     <p class="lakour-mjia-pilote">
       <strong>{{localize "LAKOUR_MJIA.Pilote.Titre"}}</strong> :

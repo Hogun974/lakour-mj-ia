@@ -255,6 +255,13 @@ export function enregistrerReglages() {
     name: "LAKOUR_MJIA.Reglages.TranscriptionAuMJ.Nom", hint: "LAKOUR_MJIA.Reglages.TranscriptionAuMJ.Aide",
     scope: "world", config: true, type: Boolean, default: false
   });
+  // --- Caméras des joueurs (cameras.js) : permises (par défaut, Foundry décide comme d'habitude) ou coupées pour tous les joueurs
+  // (jamais le MJ) : chaque navigateur ferme la caméra de son joueur et cache celle des autres ; le micro n'est pas touché.
+  game.settings.register(ID, "camerasJoueurs", {
+    name: "LAKOUR_MJIA.Reglages.CamerasJoueurs.Nom", hint: "LAKOUR_MJIA.Reglages.CamerasJoueurs.Aide",
+    scope: "world", config: true, type: Boolean, default: true,
+    onChange: () => game.modules.get(ID)?.api?.cameras?.actualiser({ forcer: true })
+  });
   // L'écoute tourne (écrit par le MJ actif) : chaque navigateur affiche l'icône « ta voix est transcrite ».
   game.settings.register(ID, "ecouteEnCours", {
     scope: "world", config: false, type: Boolean, default: false,

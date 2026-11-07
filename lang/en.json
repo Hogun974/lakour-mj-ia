@@ -191,6 +191,10 @@
         "Nom": "Transcription model (OpenAI)",
         "Aide": "Empty: the cheapest (gpt-4o-mini-transcribe, about 0.3 cent per minute of speech). Examples: gpt-4o-transcribe, whisper-1."
       },
+      "CamerasJoueurs": {
+        "Nom": "Players' cameras allowed",
+        "Aide": "Checked: each player may show their camera, if the world has video (Configure Audio/Video). Unchecked: players' cameras are cut for everyone (each player's browser closes their own, and no other browser shows it, even switched back on); the GM keeps theirs and microphones are not touched."
+      },
       "TranscriptionAuMJ": {
         "Nom": "Show transcriptions to the GM",
         "Aide": "Each transcribed sentence is also shown to the GMs: whispered in the chat (never shown to players); in the Veillées, shown in the GMs' chat only without being saved (a whisper there would reach every browser)."
@@ -518,6 +522,25 @@
       "Micro": "Give players the microphone",
       "MicroAide": "Grants \"Broadcast Audio\" to the Player role (by default only trusted players have it).",
       "MicroDonne": "Players can now broadcast their microphone."
+    },
+    "Cameras": {
+      "Titre": "Players' cameras",
+      "Permises": "allowed",
+      "Coupees": "cut for every player (microphones stay on)",
+      "Couper": "Cut the cameras",
+      "CouperAide": "Closes each player's camera in their own browser and hides it in everyone else's; yours and the microphones are left alone.",
+      "Permettre": "Allow the cameras",
+      "PermettreAide": "Each player may show their camera again (if they picked one in Configure Audio/Video › Client).",
+      "Coupe": "Players' cameras cut.",
+      "Permis": "Players' cameras allowed.",
+      "SansVideo": "The world is audio only: no camera is shown.",
+      "AjouterVideo": "Add video",
+      "AjouterVideoAide": "Switches the world to \"Audio & Video\", keeping the relay server; everyone then reloads the page (Foundry offers it).",
+      "VideoAjoutee": "Video added to the world: everyone picks a camera in Configure Audio/Video › Client.",
+      "SansDroit": "No camera permission: {noms}.",
+      "Donner": "Give players the camera",
+      "DonnerAide": "Grants \"Broadcast Video\" to the Player role (by default only trusted players have it).",
+      "Donnee": "Players can now show their camera."
     },
     "Carnet": {
       "Titre": "Campaign notebook",
