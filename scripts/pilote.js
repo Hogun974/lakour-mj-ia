@@ -26,6 +26,7 @@ import { ID } from "./constantes.js";
 import { estCompagnon, compagnonsPresents } from "./compagnons-jeu.js";
 import { voixAuRepos } from "./voix.js";
 import { texteJoueurs } from "./utilitaires.js";
+import { avertirLesMJ } from "./canal.js";
 import { ORDRE_D_APPEL } from "./veillees-pacte.js";
 
 export const ETAPES_MAX = 60;
@@ -517,14 +518,11 @@ export class PiloteAutomatique {
 }
 
 // ------------------------------------------------------------------ Foundry
+// L'avis du pilote au MJ : jamais par le chat (un chuchotement est livré à tous les navigateurs) ; une notification ici et chez les
+// autres MJ, par le canal du module (canal.js, avertirLesMJ).
 function avisAuMJ(texte) {
-  try { ui.notifications?.info(texte); } catch { /* sans interface */ }
   try {
-    return ChatMessage.implementation.create({
-      content: `<p><strong>${texteJoueurs("LAKOUR_MJIA.Nom", "MJ IA")}</strong> — ${foundry.utils.escapeHTML(texte)}</p>`,
-      whisper: game.users.filter(u => u.isGM).map(u => u.id),
-      flags: { [ID]: { ia: true, pilote: true } }
-    }).catch(e => console.error(`${ID} | avis du pilote`, e));
+    return avertirLesMJ(`${texteJoueurs("LAKOUR_MJIA.Nom", "MJ IA")} — ${texte}`, { niveau: "info" });
   } catch (e) {
     console.error(`${ID} | avis du pilote`, e);
   }

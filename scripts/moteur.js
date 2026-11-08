@@ -15,6 +15,7 @@ import { Compagnons, effacerPrive, compagnonsPresents } from "./compagnons-jeu.j
 import { peuventReagir, estAnnonceDuSysteme, interpellesDans } from "./compagnons.js";
 import { PiloteAutomatique, attendreFinVoix } from "./pilote.js";
 import { miseEnPlaceLoups, appelSur } from "./veillees-pacte.js";
+import { avertirLesMJ } from "./canal.js";
 
 const MAX_TOURS_OUTILS = 12;
 const HORS_SEANCE_VIDE = { cout: 0, appels: 0, depuis: 0 };
@@ -789,15 +790,12 @@ export class MoteurMJ {
     await ecrire("compagnonsHorsSeance", { ...HORS_SEANCE_VIDE, depuis: Date.now() });
   }
 
-  // Les chuchotements aux MJ (cet avis, une bulle chuchotée) sont masqués aux joueurs par leur client, mais livrés à tous les
-  // navigateurs (Foundry 14.370 diffuse chaque document de chat à tous : outils.js, aube des Veillées) : rien de secret n'y va.
+  // Un avis aux MJ (une erreur, un texte d'erreur d'outil qui peut citer un rôle) : jamais par le chat. Un chuchotement de Foundry est
+  // masqué aux joueurs par leur client, mais livré à tous les navigateurs (Foundry 14.370 diffuse chaque document de chat à tous) :
+  // une notification ici, et aux autres MJ par le canal du module, à eux seuls (canal.js, avertirLesMJ).
   async prevenirMJ(texte) {
-    ui.notifications.error(texte);
-    await ChatMessage.implementation.create({
-      content: `<p><strong>${texteJoueurs("LAKOUR_MJIA.Nom", "MJ IA")}</strong> — ${foundry.utils.escapeHTML(texte)}</p>`,
-      whisper: game.users.filter(u => u.isGM).map(u => u.id),
-      flags: { [ID]: { ia: true } }
-    });
+    console.warn(`${ID} | avis au MJ : ${texte}`);
+    avertirLesMJ(`${texteJoueurs("LAKOUR_MJIA.Nom", "MJ IA")} — ${texte}`, { niveau: "error" });
   }
 }
 

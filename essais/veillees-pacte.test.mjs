@@ -18,7 +18,7 @@
 // - étapes 6b et 6c : « une allégeance loup de plus » demandable (avec Double visage seulement, le réglage du monde, son conseil de
 //   taille, ignorée d'un système qui ne la connaît pas), le loup de moins des débutants dit au narrateur, l'appel des charmés à voix
 //   haute (chat public, avant leur réveil, sans nommer personne), les nuits d'appel comptées pour les compagnons (charmesAppeles : le
-//   hook du système et le chat, jamais un message de joueur), le jour de la victoire du Revenant et du Chasseur de primes (narrateur,
+//   seul chat public, l'appel du MJ IA ou celui du système ; jamais le hook local du MJ, ni un message de joueur), le jour de la victoire du Revenant et du Chasseur de primes (narrateur,
 //   compagnons).
 // Chaque règle est cassée à son tour dans une copie du script : la batterie doit alors échouer.
 // Hors de Foundry, sans appel payant.  Lancer : npm run essais
@@ -686,7 +686,7 @@ const VERIFICATIONS = {
       assert.equal(chat.slice(n).filter(x => x.flags?.["lakour-mj-ia"]?.appelDesCharmes).length, 0);
     } finally { chat.length = avant; }
   },
-  async "étape 6c : les compagnons comptent les nuits d'appel des charmés (le hook, le chat du MJ ; jamais un message de joueur)"(M) {
+  async "étape 6c : les compagnons comptent les nuits d'appel des charmés (le chat public seul : MJ IA ou système ; jamais le hook, ni un message de joueur)"(M) {
     const api = pacte();
     const recus = [];
     api.logique.savoirDuJoueur = o => { recus.push(o.charmesAppeles); return { moi: o.moi, camp: o.camp, allies: [], loups: [], innocents: [], soupcons: {}, utiles: [], menteurs: [] }; };
@@ -708,20 +708,26 @@ const VERIFICATIONS = {
       chat.push({ ...appel(4), flags: { "lakour-mj-ia": { appelDesCharmes: { partie: "autre", tour: 4 } } } });
       await decider();
       assert.equal(recus.at(-1), 1, "ni un message de joueur, ni un chuchotement, ni une autre partie");
-      // Le hook du système (la nuit menée par la Table d'un MJ humain) : une nuit de plus ; la même nuit ne compte qu'une fois.
+      // Le hook local du MJ (un réveil que personne n'a entendu, un MJ humain qui appelle de vive voix) : rien de plus (relecture adverse :
+      // les compagnons sauraient ce que les humains ignorent).
       api._etat.tour = 2;
       for (const f of reveils) f({ roleCle: "charmes", enCours: true });
       for (const f of reveils) f({ roleCle: "charmes", enCours: false });
-      for (const f of reveils) f({ roleCle: "meute", enCours: true });
       await decider();
-      assert.equal(recus.at(-1), 2, "le hook : une nuit de plus");
-      api._etat.tour = 1;
-      for (const f of reveils) f({ roleCle: "charmes", enCours: true });
+      assert.equal(recus.at(-1), 1, "le hook seul ne compte pas");
+      // L'appel posté par le système (la nuit menée par la Table d'un MJ humain) : une nuit de plus ; la même nuit ne compte qu'une fois.
+      chat.push({ content: "Les charmés, ouvrez les yeux…", author: { isGM: true }, flags: { "lakour-loups": { appelDesCharmes: { partie: "p1", tour: 2 } } } });
       await decider();
-      assert.equal(recus.at(-1), 2, "la nuit 1, déjà au chat");
+      assert.equal(recus.at(-1), 2, "l'appel du système : une nuit de plus");
+      chat.push(appel(2));
+      await decider();
+      assert.equal(recus.at(-1), 2, "la même nuit, dite par le MJ IA aussi : comptée une fois");
+      chat.push({ content: "Les charmés, ouvrez les yeux…", author: { isGM: false }, flags: { "lakour-loups": { appelDesCharmes: { partie: "p1", tour: 5 } } } });
+      await decider();
+      assert.equal(recus.at(-1), 2, "jamais un message de joueur, même sous le drapeau du système");
       M.jeu.reinitialiserPrive();
       await decider();
-      assert.equal(recus.at(-1), 1, "la mémoire oubliée avec la partie ; le chat reste");
+      assert.equal(recus.at(-1), 2, "le chat reste");
     } finally { chat.length = avant; M.jeu.reinitialiserPrive(); }
   },
   "étape 6b : le jour de la victoire du Revenant et du Chasseur de primes (narrateur seul, compagnons) ; un système ancien : rien"(M) {
@@ -867,8 +873,8 @@ const MUTATIONS = [
   ["veillees-pacte.js", "    if (!f || m.whisper?.length || !ecritParUnMJ(m)) continue;", "    if (!f) continue;", "6c : un joueur fait croire à un appel"],
   ["veillees-pacte.js", "    if (partie && f.partie && String(f.partie) !== String(partie)) continue;\n", "", "6c : les appels d'une autre partie comptés"],
   ["compagnons-jeu.js", " charmesAppeles: charmesAppeles(),", "", "6c : les compagnons sourds à l'appel"],
-  ["compagnons-jeu.js", "try { globalThis.Hooks?.on?.(\"lakourLoups.reveil\", noterUnReveil); } catch { /* hors Foundry */ }", "", "6c : le hook du système ignoré"],
-  ["compagnons-jeu.js", "  appelsDesCharmes.clear();\n", "", "6c : les appels d'avant gardés"],
+  ["compagnons-jeu.js", "  for (const n of nuitsDAppelAuChat(messages, { partie, id: SYSTEME_DES_VEILLEES, ecritParUnMJ })) nuits.add(n);\n", "", "6c : l'appel du système ignoré"],
+  ["compagnons-jeu.js", "{ partie, id: SYSTEME_DES_VEILLEES, ecritParUnMJ }", "{ partie, id: SYSTEME_DES_VEILLEES }", "6c : un joueur sous le drapeau du système"],
   ["veillees-pacte.js", "  lignes.push(...reglesDesSolitaires(api, e, nom));\n", "", "6b : le narrateur ignore le jour des solitaires"],
   ["veillees-pacte.js", "      if (camp === \"solitaire\" && cible && Number(e.tour) <= jours.prime) {", "      if (cible) {", "6b : la prime échue redite"],
   ["compagnons-jeu.js", "  fiche.push(...jourDeSaVictoire(api, acteur, pub, role));\n", "", "6b : les compagnons ignorent le jour de leur victoire"],

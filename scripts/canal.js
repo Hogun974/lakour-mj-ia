@@ -56,6 +56,30 @@ export function traiter(message, emetteur) {
   return r.fn(message, qui);
 }
 
+// ------------------------------------------------------------------ les avis aux MJ
+// Un avis pour les MJ (une erreur d'outil, l'avis du pilote, le budget…) : jamais par le chat. Un ChatMessage chuchoté est livré à
+// TOUS les navigateurs (Foundry 14.370 diffuse chaque document de chat ; le client du joueur le masque seulement), et un texte d'erreur
+// d'outil peut citer un rôle. Ici : une notification dans ce navigateur (le MJ actif), et le même avis aux autres MJ connectés par ce
+// canal (recipients : eux seuls), où il s'affiche en notification. niveau : "info" | "warn" | "error".
+const NIVEAUX_D_AVIS = ["info", "warn", "error"];
+function afficherAvis(texte, niveau = "info") {
+  try { ui.notifications?.[NIVEAUX_D_AVIS.includes(niveau) ? niveau : "info"]?.(String(texte ?? "")); } catch { /* sans interface */ }
+}
+export function avertirLesMJ(texte, { niveau = "info" } = {}) {
+  afficherAvis(texte, niveau);
+  try {
+    const autres = game.users.filter(u => u.isGM && u.active && u.id !== game.user.id).map(u => u.id);
+    if (autres.length) envoyer({ type: "avisMJ", texte: String(texte ?? ""), niveau }, autres);
+  } catch (e) { console.warn(`${ID} | avis aux MJ`, e); }
+  return true;
+}
+// Reçu d'un MJ (traiter le vérifie), affiché seulement chez un MJ.
+recevoir("avisMJ", message => {
+  if (!game.user?.isGM) return false;
+  afficherAvis(message.texte, message.niveau);
+  return true;
+});
+
 // Une seule écoute par socket.
 let ecoute = null;
 export function ecouterCanal() {

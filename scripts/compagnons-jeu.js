@@ -621,27 +621,19 @@ const annoncesDeLaPartie = () => annoncesDesCompagnons.filter(a => a.partie === 
 function oublierLesPolitiques() {
   annoncesDesCompagnons.length = 0;
   pouvoirsTentes.clear();
-  appelsDesCharmes.clear();
   contenuDesPolitiques = { partie: null, roles: {}, nomsDesRoles: {} };
 }
 // Les nuits où les charmés ont été appelés à voix haute (Le Pacte, étape 6c) : comme à la table, tout le village l'entend, et sait dès
-// lors qu'un Joueur de vielle joue (charmesAppeles des politiques). Le système annonce chaque réveil au hook lakourLoups.reveil du MJ
-// actif (roleCle « charmes »), que la nuit soit menée par le MJ IA ou par la Table d'un MJ humain ; l'appel du MJ IA est aussi au chat
-// public (veillees-pacte.js, nuitsDAppelAuChat : il survit à un rechargement du navigateur du MJ). « partie|tour ».
-const appelsDesCharmes = new Set();
-function noterUnReveil(x) {
-  if (x?.roleCle !== "charmes" || !x.enCours) return;
-  try { appelsDesCharmes.add(`${partieEnCours()}|${Number(game.lakourLoups?.etat?.().tour) || 0}`); } catch { /* sans partie */ }
-}
-try { globalThis.Hooks?.on?.("lakourLoups.reveil", noterUnReveil); } catch { /* hors Foundry */ }
-// Le nombre de nuits d'appel de la partie en cours (le hook et le chat public).
+// lors qu'un Joueur de vielle joue (charmesAppeles des politiques). Seul compte l'appel POSTÉ au chat public — celui du MJ IA
+// (veillees-pacte.js, drapeau APPEL_DES_CHARMES de ce module) ou celui du système quand la Table d'un MJ humain mène la nuit (le même
+// drapeau, sous lakour-loups) : un compagnon ne sait que ce que les humains peuvent entendre. (Relecture adverse : le réveil, vu par un
+// hook local du MJ, ne compte plus ; avec un MJ humain qui appelle de vive voix sans la Table, les compagnons ne l'entendent pas.)
+const SYSTEME_DES_VEILLEES = "lakour-loups";
+// Le nombre de nuits d'appel de la partie en cours (le chat public).
 export function charmesAppeles(messages = globalThis.game?.messages?.contents ?? []) {
   const partie = partieEnCours();
   const nuits = nuitsDAppelAuChat(messages, { partie, id: ID, ecritParUnMJ });
-  for (const c of appelsDesCharmes) {
-    const i = c.lastIndexOf("|");
-    if (c.slice(0, i) === String(partie)) nuits.add(Number(c.slice(i + 1)) || 0);
-  }
+  for (const n of nuitsDAppelAuChat(messages, { partie, id: SYSTEME_DES_VEILLEES, ecritParUnMJ })) nuits.add(n);
   return nuits.size;
 }
 // Le contenu de la partie (l'équilibre : camp, information, protection de chaque rôle ; les noms des rôles), gardé par partie.
