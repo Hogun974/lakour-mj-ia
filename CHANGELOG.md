@@ -12,6 +12,9 @@ vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici
   change plus à la fin d'une partie), plus d'étape de mise en place aux Veillées, points de cache d'une heure sur les outils et le
   prompt système. Warcraft, 40k et Fénoir gardent leur prompt au caractère près. Mesure : `node outils/mesurer-prompt.mjs`,
   méthode dans `docs/cout.md` ; journal des derniers appels dans `api.moteur.journalAppels`.
+- Secrets : les avis aux MJ (erreurs d'outil, refus) ne passent plus par un message chuchoté du chat, livré à tous les
+  navigateurs, mais par une notification locale et un socket aux seuls MJ ; les compagnons IA ne comptent plus que les appels
+  des charmés postés au chat public (plus le crochet local du MJ, qui leur apprenait ce que les humains ignorent).
 
 ## 0.42.0 — 2026-11-05
 
