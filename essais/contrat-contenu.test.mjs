@@ -88,3 +88,44 @@ test("plans et scènes : plan absent, différent, orphelin ou vide, image manqua
   contient(apres(m => m.effacer("assets/cartes/place.svg")), /modules\/lakour-essai\/assets\/cartes\/place\.svg absent/);
   contient(apres(m => m.effacer("assets/cartes/3d/place.svg")), /carte en relief assets\/cartes\/3d\/place\.svg absente/);
 });
+
+// Jetons peints (assets/jetons/ia/<clé>.webp) : acceptés à plat dans index.json et comme « image » d'un figurant, s'ils existent
+// et sont de vraies images ; jamais en relief.
+const WEBP = Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4), Buffer.from("WEBPVP8 "), Buffer.alloc(8)]);
+const ecrireOctets = (m, chemin, octets) => { mkdirSync(join(m.racine, chemin, ".."), { recursive: true }); writeFileSync(join(m.racine, chemin), octets); };
+test("jeton peint à plat dans index.json et image peinte de figurant : acceptés", () => {
+  const erreurs = apres(m => {
+    ecrireOctets(m, "assets/jetons/ia/joueurs/guerrier.webp", WEBP);
+    ecrireOctets(m, "assets/jetons/ia/paysan.webp", WEBP);
+    const index = m.lireJson("assets/jetons/index.json");
+    m.ecrire("assets/jetons/index.json", { ...index, guerrier: `modules/${ID}/assets/jetons/ia/joueurs/guerrier.webp` });
+    const fig = m.lireJson("assets/jetons/figurants.json");
+    m.ecrire("assets/jetons/figurants.json", { ...fig, paysan: { ...fig.paysan, image: "ia/paysan.webp" } });
+  });
+  assert.deepEqual(erreurs, []);
+});
+test("jeton peint absent, faux WebP, hors de ia/ ou en relief : refusés", () => {
+  const absent = apres(m => {
+    const fig = m.lireJson("assets/jetons/figurants.json");
+    m.ecrire("assets/jetons/figurants.json", { ...fig, paysan: { ...fig.paysan, image: "ia/paysan.webp" } });
+  });
+  assert.ok(absent.some(e => /paysan.*absent/.test(e)), absent.join("\n"));
+  const faux = apres(m => {
+    m.ecrire("assets/jetons/ia/joueurs/guerrier.webp", "pas une image");
+    const index = m.lireJson("assets/jetons/index.json");
+    m.ecrire("assets/jetons/index.json", { ...index, guerrier: `modules/${ID}/assets/jetons/ia/joueurs/guerrier.webp` });
+  });
+  assert.ok(faux.some(e => /WebP valable/.test(e)), faux.join("\n"));
+  const dehors = apres(m => {
+    ecrireOctets(m, "assets/jetons/joueurs/guerrier.webp", WEBP);
+    const index = m.lireJson("assets/jetons/index.json");
+    m.ecrire("assets/jetons/index.json", { ...index, guerrier: `modules/${ID}/assets/jetons/joueurs/guerrier.webp` });
+  });
+  assert.ok(dehors.some(e => /n'est pas un jeton peint/.test(e)), dehors.join("\n"));
+  const relief = apres(m => {
+    ecrireOctets(m, "assets/jetons/ia/3d/guerrier.webp", WEBP);
+    const index = m.lireJson("assets/jetons/index-3d.json");
+    m.ecrire("assets/jetons/index-3d.json", { ...index, guerrier: `modules/${ID}/assets/jetons/ia/3d/guerrier.webp` });
+  });
+  assert.ok(relief.length > 0, "un jeton peint en relief est refusé");
+});

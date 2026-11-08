@@ -4,6 +4,7 @@
 // - assets/jetons/figurants.json : types de figurants { type: { libelle, jeton } }, chaque jeton présent à plat
 //   (assets/jetons/<jeton>.svg) et en relief (assets/jetons/3d/<jeton>.svg), SVG autonomes et bien formés ;
 // - assets/jetons/index.json et index-3d.json : mêmes clés, chaque chemin « modules/<id>/… » existe, le relief est en …/3d/… ;
+//   à plat, un jeton peint (assets/jetons/ia/<clé>.webp) peut remplacer le SVG ; un figurant peut aussi avoir une « image » peinte ;
 // - assets/cartes/plans.json et src/scenes/*.json : chaque scène qui porte un plan (flags.<id>.plan) a le même plan sous
 //   sa clé dans plans.json, et chaque plan de plans.json a sa scène ; chaque plan a des pièces et des éléments (repères) ;
 //   les images citées par les scènes existent, et une carte de assets/cartes/ a sa version en relief (assets/cartes/3d/).
@@ -38,6 +39,17 @@ export function verifierModuleDeContenu(dossierDuModule, { minFigurants = 1, min
     svgControles.add(chemin);
     erreurs.push(...erreursSvg(readFileSync(chemin, "utf8"), `${nom} (${basename(chemin)})`));
   };
+  // Jeton peint (assets/jetons/ia/<clé>.webp, ou .png) : présent, dans ia/, et vraiment une image WebP ou PNG.
+  const controlerPeint = (chemin, nom) => {
+    const relatif = chemin.slice(racine.length + 1).replace(/\\/g, "/");
+    if (!/^assets\/jetons\/ia\/[^/]+(\/[^/]+)?\.(webp|png)$/.test(relatif)) { erreurs.push(`${nom} : ${relatif} n'est pas un jeton peint (assets/jetons/ia/<clé>.webp)`); return; }
+    if (!existsSync(chemin)) { erreurs.push(`${nom} : ${relatif} absent`); return; }
+    const tete = readFileSync(chemin).subarray(0, 12);
+    const webp = tete.toString("latin1", 0, 4) === "RIFF" && tete.toString("latin1", 8, 12) === "WEBP";
+    const png = tete[0] === 0x89 && tete.toString("latin1", 1, 4) === "PNG";
+    if (!(relatif.endsWith(".webp") ? webp : png)) erreurs.push(`${nom} : ${relatif} n'est pas une image ${relatif.endsWith(".webp") ? "WebP" : "PNG"} valable`);
+  };
+  const estPeint = chemin => /\.(webp|png)$/i.test(chemin);
 
   // ---------------------------------------------------------------- Figurants
   const figurants = lireJson(join(racine, "assets/jetons/figurants.json"), erreurs, "figurants.json");
@@ -51,6 +63,11 @@ export function verifierModuleDeContenu(dossierDuModule, { minFigurants = 1, min
         if (typeof f.jeton !== "string" || !/^[a-z0-9-]+$/.test(f.jeton)) { erreurs.push(`figurants.json : ${type} sans jeton valable`); continue; }
         controlerSvg(join(racine, "assets/jetons", `${f.jeton}.svg`), `figurant ${type}`);
         controlerSvg(join(racine, "assets/jetons/3d", `${f.jeton}.svg`), `figurant ${type} (3D)`);
+        // Jeton peint facultatif (plat seulement) : « image », chemin sous assets/jetons/ (« ia/<clé>.webp »).
+        if (f.image !== undefined) {
+          if (typeof f.image !== "string" || !estPeint(f.image)) erreurs.push(`figurants.json : ${type} : image « ${f.image} » invalide (attendu ia/<clé>.webp)`);
+          else controlerPeint(join(racine, "assets/jetons", f.image), `figurant ${type} (peint)`);
+        }
       }
     }
   }
@@ -68,7 +85,8 @@ export function verifierModuleDeContenu(dossierDuModule, { minFigurants = 1, min
       if (!disque) { erreurs.push(`${nom} : ${cle} -> ${chemin} hors du module (attendu ${prefixe}…)`); continue; }
       if (style === "3d" && !chemin.includes("/3d/")) erreurs.push(`${nom} : ${cle} -> ${chemin} n'est pas un jeton en relief (…/3d/…)`);
       if (style === "2d" && chemin.includes("/3d/")) erreurs.push(`${nom} : ${cle} -> ${chemin} est un jeton en relief`);
-      controlerSvg(disque, `${nom} : ${cle}`);
+      if (style === "2d" && estPeint(chemin)) controlerPeint(disque, `${nom} : ${cle}`);
+      else controlerSvg(disque, `${nom} : ${cle}`);
     }
   }
   if (index["2d"] && index["3d"]) {

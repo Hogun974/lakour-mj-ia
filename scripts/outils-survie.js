@@ -4,7 +4,7 @@
 // du monde, pour le narrateur seul). Les outils qui écrivent passent TOUS par l'API, qui refuse hors du MJ actif ou tant que le
 // monde n'est pas ouvert (coffre) : le refus revient à l'IA, rien n'est écrit en douce. Ajoutés à OUTILS par outils.js.
 import { versHTML } from "./utilitaires.js";
-import { packDeContenu, CONTENUS } from "./contenus.js";
+import { packDeContenu, CONTENUS, jetonJoueur } from "./contenus.js";
 import {
   CLES_COMPETENCES, RESSOURCES, DIFFICULTES_SURVIE, convertirDifficulte, apiSurvie, fonctionSurvie, lireSurvie, messageErreurSurvie,
   trouverFiche, listeDe, nomDe, voisinsDe, texteQuand, texteStocks, texteVariations, texteTest, ligneRenseignement, ligneReel,
@@ -782,8 +782,10 @@ const trouverJoueur = nom => {
   if (typeof users?.find !== "function") return null;
   return users.find(u => n(u.name) === x) ?? users.find(u => n(u.character?.name) === x) ?? null;
 };
-// Le jeton d'un passé, au même chemin que le système (api.mjs : JETON_PASSE, dans le module de contenu de base).
+// Le jeton d'un passé, comme le système (api.mjs) : celui que désigne l'index des jetons de joueur du module de contenu actif
+// (assets/jetons/index.json : un jeton peint ia/…webp s'il existe), sinon le SVG du passé dans le module de contenu de base.
 const JETON_PASSE = cle => `modules/${CONTENUS[SURVIE[0]]}/assets/jetons/joueurs/${cle}.svg`;
+const jetonDuPasse = async cle => (await jetonJoueur(cle, "2d").catch(() => null)) ?? JETON_PASSE(cle);
 // La fiche devient le personnage du joueur, sauf s'il en joue déjà un autre, vivant (il garde le sien ; la nouvelle lui appartient
 // aussi). -> le nom du personnage gardé, ou "".
 async function confier(utilisateur, acteur) {
@@ -964,7 +966,7 @@ OUTILS_SURVIE.push(outil({
       } else {
         // Le jeton du passé, comme le système ; sinon celui par défaut de Foundry.
         const passeConnu = trouverFiche(lire("contenu")?.passes, clePasse)?.cle ?? sp.cle ?? "";
-        const jeton = passeConnu ? JETON_PASSE(passeConnu) : null;
+        const jeton = passeConnu ? await jetonDuPasse(passeConnu) : null;
         acteur = await globalThis.Actor.implementation.create({
           name: nom, type: "survivant", ...(jeton ? { img: jeton } : {}), system: { ...systeme, vivant: true, livide: false },
           ...(graine ? { flags: { [SURVIE[0]]: { graine }, [ID_MJIA]: { graineHistoire: graine } } } : {}),

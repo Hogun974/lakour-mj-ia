@@ -1,5 +1,6 @@
 // Modules de contenu La Kour, un par système de jeu. Chacun fournit les mêmes fichiers, que le MJ IA lit de la même façon :
-// - assets/jetons/figurants.json : types de figurants { type: { libelle, jeton } } (jeton = assets/jetons/<jeton>.svg) ;
+// - assets/jetons/figurants.json : types de figurants { type: { libelle, jeton, image? } } (jeton = assets/jetons/<jeton>.svg ;
+//   image, facultative = jeton peint assets/jetons/<image>, « ia/<clé>.webp », préféré à plat) ;
 // - assets/jetons/index.json et index-3d.json : jeton d'un personnage joueur, par clé (rôle en 40k, peuple en Warcraft) ;
 // - assets/cartes/plans.json et le plan dans les drapeaux des scènes (repères pour placer les jetons).
 // Ce qu'on ajoute à l'un s'ajoute à l'autre : on écrit ici ce qui est commun, une seule fois.

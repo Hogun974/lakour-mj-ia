@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { listeSalles, trouverSalle, salleDeLaCase, centreSalle, casesLibres, casesOccupees, TYPES_FIGURANTS, jetonFigurant, resumerFigurants,
-  casesDispersees, casesInterdites, reperesDuPlan, trouverRepere, casesAutour, carteTexte, carteDeScene }
+  casesDispersees, casesInterdites, reperesDuPlan, trouverRepere, casesAutour, carteTexte, carteDeScene, definirFigurants }
   from "../scripts/placement.js";
 
 // Grille de 100 px, scène décalée de 200 px (marge de Foundry). Deux pièces et un couloir dans la nef.
@@ -350,4 +350,15 @@ test("placer_jetons : une case donnée sur un obstacle (le puits) → la case li
   scene.tokens[0].x = 200 + 700; scene.tokens[0].y = 200 + 700;
   await outil("placer_jetons").executer({ jetons: [{ personnage: "Lazar Vosk", salle: "", pres_de: "puits central", x: -1, y: -1, cache: false }] });
   assert.notDeepEqual({ x: scene.tokens[0].x, y: scene.tokens[0].y }, { x: 900, y: 900 });
+});
+
+test("jeton de figurant : l'image peinte passe avant le SVG à plat, jamais en relief", () => {
+  const avant = { ...TYPES_FIGURANTS };
+  try {
+    definirFigurants({ refugie: { libelle: "Réfugié", jeton: "figurant-refugie", image: "ia/figurant-refugie.webp" },
+      garde: { libelle: "Garde", jeton: "garde" } }, "lakour-essai");
+    assert.equal(jetonFigurant("refugie", "2d"), "modules/lakour-essai/assets/jetons/ia/figurant-refugie.webp");
+    assert.equal(jetonFigurant("refugie", "3d"), "modules/lakour-essai/assets/jetons/3d/figurant-refugie.svg");
+    assert.equal(jetonFigurant("garde", "2d"), "modules/lakour-essai/assets/jetons/garde.svg");
+  } finally { definirFigurants(avant, null); }
 });

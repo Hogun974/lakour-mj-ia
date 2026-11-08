@@ -113,9 +113,14 @@ export function definirFigurants(types, module) {
   moduleFigurants = module;
 }
 
-// Jeton d'un type de figurant, plat ou en relief (type inconnu : le premier type de la liste).
-export const jetonFigurant = (type, style) =>
-  `modules/${moduleDesFigurants()}/assets/jetons/${style === "3d" ? "3d/" : ""}${(TYPES_FIGURANTS[type] ?? Object.values(TYPES_FIGURANTS)[0]).jeton}.svg`;
+// Jeton d'un type de figurant, plat ou en relief (type inconnu : le premier type de la liste). À plat, le jeton peint du type
+// (« image » : ia/<clé>.webp) passe avant le SVG ; le relief reste en SVG.
+export const jetonFigurant = (type, style) => {
+  const f = TYPES_FIGURANTS[type] ?? Object.values(TYPES_FIGURANTS)[0];
+  const base = `modules/${moduleDesFigurants()}/assets/jetons/`;
+  if (style !== "3d" && typeof f?.image === "string" && f.image) return `${base}${f.image}`;
+  return `${base}${style === "3d" ? "3d/" : ""}${f?.jeton}.svg`;
+};
 
 // Résumé des figurants d'une scène pour l'IA : un groupe par ligne, avec effectif et comportement.
 // figurants : [{ groupe, comportement, salle }]

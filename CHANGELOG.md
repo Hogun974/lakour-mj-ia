@@ -4,6 +4,15 @@ Versions du moteur MJ IA de La Kour (les modules de contenu des mondes tiennent 
 suivent `module.json` ; chaque release GitHub `v<version>` reprend la section correspondante. Avant la 0.26, le moteur
 vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici.
 
+## 0.46.0 — 2026-11-09
+
+- Jetons peints acceptés partout : un module de contenu peut fournir des jetons peints (`assets/jetons/ia/<clé>.webp`).
+  À plat, l'index des jetons de joueur (`index.json`) peut les désigner à la place du SVG, et un type de figurant peut avoir
+  une « image » peinte (`figurants.json`), préférée au SVG quand le MJ IA place des figurants ; le relief reste en SVG.
+  Les survivants créés par le MJ IA à Fénoir prennent le jeton de leur passé dans cet index (le peint s'il existe).
+- Contrat commun des modules de contenu : un jeton peint doit être dans `assets/jetons/ia/`, exister et être une vraie image
+  WebP (ou PNG) ; jamais en relief.
+
 ## 0.45.0 — 2026-11-07
 
 - Coût du narrateur aux Veillées divisé par deux environ (modèle hors ligne : 3,40 $ → 1,67 $ pour la partie du 7 novembre) :
