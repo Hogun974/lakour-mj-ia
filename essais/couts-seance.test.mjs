@@ -25,7 +25,8 @@ const mj = { id: "mj", name: "Hogun", isGM: true, active: true };
 globalThis.foundry = { applications: { api: { ApplicationV2: class {}, HandlebarsApplicationMixin: c => c } }, utils: { deepClone: o => structuredClone(o), escapeHTML: s => String(s) } };
 globalThis.DOMParser = class { parseFromString(h) { return { querySelectorAll: () => [], body: { textContent: String(h).replace(/<[^>]*>/g, " ").trim() } }; } };
 globalThis.Hooks = { on() {}, callAll() {}, once() {} };
-globalThis.ui = { notifications: { info() {}, warn() {}, error() {} } };
+const avis = [];
+globalThis.ui = { notifications: { info: t => avis.push(t), warn: t => avis.push(t), error: t => avis.push(t) } };
 globalThis.CONST = { DOCUMENT_OWNERSHIP_LEVELS: { NONE: 0, LIMITED: 1, OWNER: 3 } };
 globalThis.ChatMessage = { implementation: { create: async d => { chat.push(d); return { ...d, update: async () => {}, delete: async () => {} }; } } };
 globalThis.game = {
@@ -117,7 +118,8 @@ test("le budget compte ce qui attend : au-delà, ni le narrateur ni les compagno
   for (let i = 0; i < 4; i++) await moteur.tour(`Tour ${i}`, { outils: [], sauver: false, miseEnPlace: true });
   assert.equal(appels.length, 2, "1,01 $ par appel, budget 2 $ : le troisième ne part pas");
   assert.ok(moteur.budgetDepasse());
-  assert.ok(chat.some(m => /LAKOUR_MJIA\.Erreurs\.Budget/.test(m.content)), "le MJ est prévenu");
+  assert.ok(avis.some(t => /LAKOUR_MJIA\.Erreurs\.Budget/.test(t)), "le MJ est prévenu (notification, jamais le chat)");
+  assert.ok(!chat.some(m => /LAKOUR_MJIA\.Erreurs\.Budget/.test(m.content)), "rien au chat");
   const r = await moteur.compagnons.cerveaux.parler({ id: "c1", nom: "Odile", jeu: "loups", personnalite: { temperament: "bavard" }, peutParler: true, autres: [], tour: 2, partie: "p1" });
   assert.equal(appels.length, 2, "le compagnon non plus");
   assert.equal(r.source, "repli");
