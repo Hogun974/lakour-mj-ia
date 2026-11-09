@@ -360,7 +360,12 @@ const AN = { id: "an-neuf", fete: "nouvel-an", nom: "An neuf" };
 const classesDuBody = () => [...document.body.classList].sort();
 const couche = () => document.getElementById("lakour-fete-decor");
 const crochetsFete = () => etat.crochets.filter(([n]) => n === `${ID}.fete`).map(([, a, b]) => [a?.id ?? null, b?.id ?? null]);
-const attendre = () => new Promise(r => setTimeout(r, 5));
+// Laisse passer la revue différée (setTimeout 0, puis des écritures asynchrones) : jusqu'à ce que « fini » soit vrai, 1 s au plus
+// (une machine d'intégration lente dépassait les 5 ms d'avant).
+const attendre = async (fini = () => true, max = 1000) => {
+  const limite = Date.now() + max;
+  do await new Promise(r => setTimeout(r, 5)); while (!fini() && Date.now() < limite);
+};
 
 const BATTERIE_API = {
   "enregistrer : rend une copie ; fête inconnue et doublons refusés ; lister": async F => {
@@ -474,7 +479,7 @@ const BATTERIE_API = {
     await F.demarrer({ date: new Date(), programmer: false });
     etat.reglages.fete = "halloween";
     F.enregistrer(NUIT);
-    await attendre();
+    await attendre(() => etat.messages.length > 0);
     assert.equal(F.active()?.id, "nuit-des-masques");
     assert.ok(classesDuBody().includes("lakour-fete-halloween"));
     assert.equal(etat.messages.length, 1);
