@@ -4,6 +4,17 @@ Versions du moteur MJ IA de La Kour (les modules de contenu des mondes tiennent 
 suivent `module.json` ; chaque release GitHub `v<version>` reprend la section correspondante. Avant la 0.26, le moteur
 vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici.
 
+## 0.47.0 — 2026-11-09
+
+- Jetons des personnages joueurs déjà créés : le MJ actif leur redonne le jeton de leur peuple (Warcraft), de leur rôle (40k)
+  ou de leur passé (Fénoir), sur la fiche, le jeton type et les jetons posés sur les cartes (`scripts/jetons-joueurs.js`). Fait
+  seul une fois par version du module de contenu (réglage caché `jetonsJoueurs`), et à la demande :
+  `game.modules.get("lakour-mj-ia").api.jetonsJoueurs.rafraichir()`. Seules les images posées par La Kour (dossier
+  `assets/jetons/` d'un module `lakour-*`) ou l'image par défaut sont remplacées ; une image choisie reste. Pas aux Veillées :
+  le rôle d'un villageois est secret.
+- Le jeton peint passe avant le SVG dans les deux styles, plat et relief : jeton de joueur (`index.json` lu d'abord, puis
+  `index-3d.json` s'il n'y a pas de jeton peint), figurants et personnages gardés par « Réinitialiser la campagne ».
+
 ## 0.46.0 — 2026-11-09
 
 - Jetons peints acceptés partout : un module de contenu peut fournir des jetons peints (`assets/jetons/ia/<clé>.webp`).

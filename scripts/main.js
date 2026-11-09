@@ -29,6 +29,7 @@ import { lireArchive } from "./fils.js";
 import { ouvrirCoffre as ouvrirFenetreCoffre, brancherRappelSecours } from "./apps/coffre.js";
 import { ouvrirCarnet, ouvrirHorloges, rafraichirCarnet } from "./apps/carnet.js";
 import { brancherCameras, api as apiCameras } from "./cameras.js";
+import { rafraichirJetonsJoueurs, signatureJetons } from "./jetons-joueurs.js";
 
 Hooks.once("init", () => {
   enregistrerReglages();
@@ -59,6 +60,9 @@ Hooks.once("ready", () => {
     // Caméras des joueurs (cameras.js, README « Caméras des joueurs ») : regle(fn) pour un système de jeu, actualiser(), video(userId),
     // permises(), permettre(oui), diagnostic(), activerVideo(), donnerCamera().
     cameras: apiCameras,
+    // Jetons des personnages joueurs existants (jetons-joueurs.js) : rafraichir() leur redonne le jeton de leur peuple, rôle ou
+    // passé (images posées par La Kour seulement) et rend le nombre de personnages changés. Fait seul une fois par version du contenu.
+    jetonsJoueurs: { rafraichir: () => rafraichirJetonsJoueurs({ style: lire("styleVisuel") }) },
     // Une IA doit-elle entendre les joueurs (transcription de la parole, docs/voix-et-ecoute.md §2) ?
     ecouteActive: () => ecouteActive({ seanceIA: moteur.actif, compagnonsVivants: compagnonsPresents().length, moduleActif: true }),
     ecoute,
@@ -238,8 +242,18 @@ Hooks.once("ready", () => {
     migrerReglages().then(reparerMonde).catch(e => console.error(`${ID} | migration et réparations`, e));
     // Guide d'utilisation (journaux du MJ et des joueurs), installé ou mis à jour une fois par version du guide.
     installerGuide({ id: ID, versHTML }).catch(e => console.error(`${ID} | guide d'utilisation`, e));
+    // Jetons des personnages joueurs, une fois par version du module de contenu (nouveaux jetons peints, par exemple).
+    rafraichirAuChargement().catch(e => console.error(`${ID} | jetons des joueurs`, e));
   }
 });
+
+async function rafraichirAuChargement() {
+  const signature = signatureJetons();
+  if (!signature || lire("jetonsJoueurs") === signature) return;
+  const n = await rafraichirJetonsJoueurs({ style: lire("styleVisuel") });
+  await game.settings.set(ID, "jetonsJoueurs", signature);
+  if (n) ui.notifications.info(game.i18n.format("LAKOUR_MJIA.JetonsJoueurs.Rafraichis", { n }));
+}
 
 // Un joueur se connecte en pleine séance sans personnage : le MJ IA lui propose d'en créer un (parenthèse).
 Hooks.on("userConnected", (utilisateur, connecte) => {

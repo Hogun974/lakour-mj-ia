@@ -27,6 +27,8 @@ export function enregistrerReglages() {
   game.settings.register(ID, "modeleImage", { scope: "world", config: false, type: String, default: MODELE_IMAGE_DEFAUT });
   // Réparations déjà faites dans ce monde (une seule fois chacune), ex. { munitions: true }.
   game.settings.register(ID, "reparations", { scope: "world", config: false, type: Object, default: {} });
+  // Jetons des personnages joueurs redonnés pour ce contenu (jetons-joueurs.js) : « module@version » ; vide = jamais fait.
+  game.settings.register(ID, "jetonsJoueurs", { scope: "world", config: false, type: String, default: "" });
   // Compositions des dernières parties de loup-garou ({ roles, batiments, quand }) : le générateur évite de les répéter.
   game.settings.register(ID, "historiqueLoups", { scope: "world", config: false, type: Array, default: [] });
   // La composition de la partie EN COURS (historique-loups.js) : dans le navigateur du MJ seul, jusqu'à la fin de la partie (le

@@ -337,6 +337,9 @@
     "Style": {
       "Redessinees": "{n} map(s) redrawn in the new style."
     },
+    "JetonsJoueurs": {
+      "Rafraichis": "{n} player character(s) received the token of their race, role or background."
+    },
     "Reinit": {
       "Titre": "Reset the campaign",
       "Aide": "Start from scratch: erases chat, scenes, journals, NPCs, combats and the AI GM memory, then reinstalls the content fresh. Ticked characters are kept.",

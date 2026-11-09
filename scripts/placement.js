@@ -113,12 +113,12 @@ export function definirFigurants(types, module) {
   moduleFigurants = module;
 }
 
-// Jeton d'un type de figurant, plat ou en relief (type inconnu : le premier type de la liste). À plat, le jeton peint du type
-// (« image » : ia/<clé>.webp) passe avant le SVG ; le relief reste en SVG.
+// Jeton d'un type de figurant, plat ou en relief (type inconnu : le premier type de la liste). Le jeton peint du type
+// (« image » : ia/<clé>.webp) passe avant le SVG dans les deux styles, comme celui d'un PNJ ; sans lui, le SVG du style.
 export const jetonFigurant = (type, style) => {
   const f = TYPES_FIGURANTS[type] ?? Object.values(TYPES_FIGURANTS)[0];
   const base = `modules/${moduleDesFigurants()}/assets/jetons/`;
-  if (style !== "3d" && typeof f?.image === "string" && f.image) return `${base}${f.image}`;
+  if (typeof f?.image === "string" && f.image) return `${base}${f.image}`;
   return `${base}${style === "3d" ? "3d/" : ""}${f?.jeton}.svg`;
 };
 

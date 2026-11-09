@@ -3,7 +3,7 @@ import { lire, ecrire } from "./reglages.js";
 import { ecrireJSON } from "./utilitaires.js";
 import { consignerComposition } from "./historique-loups.js";
 import { viderCarnet } from "./coffre.js";
-import { moduleDeContenu } from "./contenus.js";
+import { moduleDeContenu, jetonJoueur } from "./contenus.js";
 
 // Remise à zéro de la campagne, dans le navigateur du MJ, par l'API de Foundry (qui défait proprement
 // tous les liens) : chat, combats, scènes, journaux, objets, tables, dossiers, brouillard, horloges, enquêtes, contacts, acteurs — sauf les
@@ -64,11 +64,8 @@ async function jetonDuRole(acteur) {
     cle = nomRole && pack ? (await pack.getIndex({ fields: ["flags"] })).find(e => e.type === "role" && e.name === nomRole)?.flags?.[module]?.cle : null;
   }
   if (!cle) return null;
-  const fichier = lire("styleVisuel") === "3d" ? "index-3d.json" : "index.json";
-  try {
-    const index = await (await fetch(foundry.utils.getRoute(`modules/${module}/assets/jetons/${fichier}`), { cache: "no-store" })).json();
-    return index[cle] ?? null;
-  } catch { return null; }
+  // Le jeton peint passe avant le SVG du style, comme à la création (contenus.js, jetonJoueur).
+  return jetonJoueur(cle, lire("styleVisuel"));
 }
 
 export async function reinitialiserCampagne(moteur) {

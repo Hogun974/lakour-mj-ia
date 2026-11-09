@@ -47,14 +47,19 @@ export function drapeauxDuContenu(flags, module = moduleDeContenu()) {
   return undefined;
 }
 
-// Jeton de personnage joueur fourni par le module de contenu pour cette clé, dans le style voulu ; null sinon.
+// Jeton peint (images des modules de contenu, assets/jetons/ia/…webp ou .png) : il sert dans les deux styles, plat et relief.
+export const estJetonPeint = chemin => typeof chemin === "string" && /\/assets\/jetons\/ia\/.+\.(webp|png)$/i.test(chemin);
+
+// Jeton de personnage joueur fourni par le module de contenu pour cette clé, dans le style voulu ; null sinon. Le jeton peint de
+// index.json passe avant tout, même en relief ; sinon le SVG du style (index-3d.json en relief).
 export async function jetonJoueur(cle, style) {
   const module = moduleDeContenu();
   if (!module || !cle) return null;
+  const lireIndex = async fichier => (await (await fetch(foundry.utils.getRoute(`modules/${module}/assets/jetons/${fichier}`), { cache: "no-store" })).json())[cle] ?? null;
   try {
-    const fichier = style === "3d" ? "index-3d.json" : "index.json";
-    const index = await (await fetch(foundry.utils.getRoute(`modules/${module}/assets/jetons/${fichier}`), { cache: "no-store" })).json();
-    return index[cle] ?? null;
+    const plat = await lireIndex("index.json").catch(() => null);
+    if (style !== "3d" || estJetonPeint(plat)) return plat;
+    return await lireIndex("index-3d.json");
   } catch { return null; } // pas de jetons fournis : image par défaut
 }
 

@@ -352,13 +352,14 @@ test("placer_jetons : une case donnée sur un obstacle (le puits) → la case li
   assert.notDeepEqual({ x: scene.tokens[0].x, y: scene.tokens[0].y }, { x: 900, y: 900 });
 });
 
-test("jeton de figurant : l'image peinte passe avant le SVG à plat, jamais en relief", () => {
+test("jeton de figurant : l'image peinte passe avant le SVG, à plat comme en relief", () => {
   const avant = { ...TYPES_FIGURANTS };
   try {
     definirFigurants({ refugie: { libelle: "Réfugié", jeton: "figurant-refugie", image: "ia/figurant-refugie.webp" },
       garde: { libelle: "Garde", jeton: "garde" } }, "lakour-essai");
     assert.equal(jetonFigurant("refugie", "2d"), "modules/lakour-essai/assets/jetons/ia/figurant-refugie.webp");
-    assert.equal(jetonFigurant("refugie", "3d"), "modules/lakour-essai/assets/jetons/3d/figurant-refugie.svg");
+    assert.equal(jetonFigurant("refugie", "3d"), "modules/lakour-essai/assets/jetons/ia/figurant-refugie.webp");
+    assert.equal(jetonFigurant("garde", "3d"), "modules/lakour-essai/assets/jetons/3d/garde.svg");
     assert.equal(jetonFigurant("garde", "2d"), "modules/lakour-essai/assets/jetons/garde.svg");
   } finally { definirFigurants(avant, null); }
 });

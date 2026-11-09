@@ -337,6 +337,9 @@
     "Style": {
       "Redessinees": "{n} carte(s) redessinée(s) dans le nouveau style."
     },
+    "JetonsJoueurs": {
+      "Rafraichis": "{n} personnage(s) joueur(s) ont reçu le jeton de leur peuple, rôle ou passé."
+    },
     "Reinit": {
       "Titre": "Réinitialiser la campagne",
       "Aide": "Repart de zéro : efface chat, scènes, journaux, PNJ, combats et mémoire du MJ IA, puis réinstalle le contenu à neuf. Les personnages cochés sont gardés.",
