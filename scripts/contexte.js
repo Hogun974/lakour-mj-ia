@@ -155,7 +155,7 @@ export async function promptSysteme(personnalite, { mission } = {}) {
   const aventure = lignes => (veillees ? [] : lignes);
   const fiches = personnagesJoueurs().map(a => {
     const joueur = game.users.find(u => u.character === a)?.name;
-    return `- ${sys.resumer(a)}${secretHistoire(a)}${joueur ? ` [joué par ${joueur}]` : ""}`;
+    return `- ${sys.resumer(a, { secret: true })}${secretHistoire(a)}${joueur ? ` [joué par ${joueur}]` : ""}`;
   }).join("\n") || "(aucun personnage joueur assigné)";
   const competences = personnagesJoueurs()[0] ? sys.competences(personnagesJoueurs()[0]) : sys.competences(null);
   const cartes = veillees ? [] : await cartesPretes().catch(() => []);
@@ -259,7 +259,7 @@ export async function promptSysteme(personnalite, { mission } = {}) {
     fiches,
     "",
     "Compagnons IA (des joueurs comme les autres, joués par une IA qui ne sait que ce que sait leur personnage) :",
-    compagnonsDuMonde().map(a => `- ${sys.resumer(a)}${secretHistoire(a)} [compagnon IA, ${TEMPERAMENTS[personnaliteDe(a).temperament].libelle}]`).join("\n") || "(aucun)",
+    compagnonsDuMonde().map(a => `- ${sys.resumer(a, { secret: true })}${secretHistoire(a)} [compagnon IA, ${TEMPERAMENTS[personnaliteDe(a).temperament].libelle}]`).join("\n") || "(aucun)",
     "",
     "Mémoire de campagne :",
     // Aux Veillées, chaque partie repart de zéro : rien des parties précédentes (seul l'historique des compositions reste, pour varier).

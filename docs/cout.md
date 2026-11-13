@@ -139,3 +139,21 @@ Veillées, aucun outil d'aventure dans la liste envoyée et tout outil nommé pa
 appel à l'autre pendant une partie, fin comprise ; morceaux des variantes absentes hors du prompt, tous présents sans partie
 connue ; consignes de secret présentes ; état du jeu sans carte ; points de cache ; prix des écritures d'une heure ; et
 quinze mutations du moteur, chacune détectée.
+
+## Fénoir : le marché, les savoirs, le moral (lots du 2026-11-13)
+
+`node outils/mesurer-prompt.mjs --avant bd0248b` : douze outils de plus, regroupés par `action` (un outil par famille, pas un par
+fonction de l'API : 40 fonctions du système derrière 12 outils), descriptions et schémas resserrés (un troc : une seule liste de
+biens signés, + reçu, − donné ; le sens moral s'ajuste par `survie_acte_moral`, pas par `survie_esprit`).
+
+| Fénoir | Outils | Jetons outils | Jetons système | Préfixe |
+|---|---|---|---|---|
+| avant (`bd0248b`) | 71 | 26 597 | 4 506 | 31 103 |
+| après | 83 | 31 773 | 4 809 | 36 582 (+18 %) |
+
+Les autres mondes gardent leur préfixe au caractère près (Veillées, Warcraft, 40k : « identique »). Le préfixe se garde une heure
+au cache : à la partie type (79 appels), environ 0,09 $ de lecture et 0,04 $ d'écriture de plus, soit de l'ordre de 0,13 $.
+
+L'état du jeu de chaque tour ne dit les nouveautés que quand elles existent (une ligne se tait quand elle n'a rien à dire) : sur la
+doublure des essais, 664 jetons avant, 708 après sans rien de neuf en jeu, 1 152 avec tout en jeu (marché, porte, tributs, votes,
+savoirs, cyclone vécu, préjugés des PNJ présents).

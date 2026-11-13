@@ -272,7 +272,7 @@ test("loups_composer : compositions.json, equilibre.json et les compendiums role
 });
 
 // ------------------------------------------------------------------ outils-survie.js : creer_survivant (compendiums de Fénoir)
-const CREER = { action: "creer", nombre: 0, verrous: { nom: "", age: 0, enfance: "", passe: "", traits: [] }, favoriser: [], tirage: "", statut: "pnj",
+const CREER = { action: "creer", nombre: 0, verrous: { nom: "", age: 0, enfance: "", passe: "", traits: [], regard: "", religion: "", religions: [], pratique: "", ancrage: "" }, favoriser: [], tirage: "", statut: "pnj",
   nom: "Josette", joueur: "", acteur_existant: "", passe: "Infirmière", competences: [], equipement: [], age: 70, lien: "", description: "" };
 // Fénoir installé (doublure), ses compendiums renommés sous le module voulu, et ce module actif.
 function fenoir(moduleDesPacks, moduleActif) {

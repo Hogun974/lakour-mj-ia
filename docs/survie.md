@@ -68,6 +68,27 @@ abri, réserves, état du groupe, alertes, renseignement de leur région). `api.
   les joueurs choisissent la leur), un compagnon arrivé en cours de partie (`survie_ajouter_membre`).
 - **Pilote automatique** : le chemin « aventure » du pilote vaut à Fénoir (plus aucun joueur présent, des compagnons) ; sa
   consigne de scène ajoute que le temps passe par les outils `survie_*`.
+- **Le marché** (§12 du contrat) : troc au cours en parts (`survie_troquer`, biens signés : + reçu, − donné), carnet de crédit
+  (`survie_carnet`), marché forain sous trêve et foire (`survie_marche_forain`), le Ladi Lafé (`survie_rumeur` : la rumeur publique,
+  sa vérité au secret), les préjugés des PNJ (`survie_prejuge`). C'est le narrateur qui dit quels préjugés s'éveillent (`cibles`),
+  d'après la façon dont le PNJ voit le groupe, jamais d'après une origine (le système ne connaît l'origine de personne) ; puis les
+  faits les démentent. Les préjugés ne vivent que dans la bouche des personnages : ils vont au secret, jamais au connu.
+- **Les deux savoirs et l'île en mouvement** (§13) : `survie_veillee` (préparer le cyclone, apprendre, la confiance d'une gramoune,
+  sa dictée, le chien errant), les fouilles `jardins` et `livres`, une gramoune en recrue (`survie_recrue` avec `gramoune`).
+- **L'esprit, le sens moral, la communauté** (§14, §15) : la porte (`survie_porte`), le vote (`survie_vote` : les compagnons IA
+  peuvent donner leur voix), l'acte moral (`survie_acte_moral`, dont « colporter »), la communauté (`survie_communaute` : chef,
+  parole, entente, séparer, fusionner, signe, tribut), l'esprit d'un survivant (`survie_esprit`), une menace du jour réglée par
+  `survie_assaut` (`menace`, `issue` : assaut, ecarter, ultimatum, rejoindre). La couleur (sens moral) d'un survivant, d'un visiteur,
+  du groupe reste au secret ; la création guidée garde les verrous de l'esprit et dit la couleur tirée au seul joueur concerné.
+  Consignes : jamais de miracle ; « un matin, il n'est plus là », aucune scène de suicide.
+- **L'état du jeu** dit en plus, au connu : chef, autorité, entente, réputation, qui attend à la porte, la liste à la porte, les
+  tributs, les derniers votes, les groupes partis, le jour de marché, les dettes du groupe, les rumeurs vivantes, les savoirs du
+  groupe par arbre, les installations en secours, le chien en cours d'apprivoisement ; au secret : la couleur réelle du groupe, la
+  vraie couleur des visiteurs, la vérité des rumeurs, les préjugés des PNJ présents (membres du groupe, survivants sur la scène
+  affichée), le cyclone vécu quart par quart et ses malus dehors, l'identifiant de chaque menace du jour et la décision de son chef.
+  Chaque ligne se tait quand elle n'a rien à dire. **Le résumé d'un survivant** dit son regard, sa foi (en faute ou non), les signes
+  de qui lâche, sa réputation, son autorité, s'il est chef, sa confiance et son apprentissage ; pour le narrateur seul (`resumer(acteur,
+  { secret: true })`), une ligne « [secret MJ] » : sens moral, chance, projet d'un enfant, préjugés. Un compagnon IA n'en reçoit rien.
 - **Remise à zéro** d'un monde : réglages `lakour-survie.partie`, `coffre`, `mondeClair` et `monde` (client) à leur défaut,
   acteurs non gardés effacés (les survivants sont proposés à la conservation), contenu `lakour-fenoir` réinstallé.
 
@@ -88,7 +109,7 @@ abri, réserves, état du groupe, alertes, renseignement de leur région). `api.
 | `survie_ajuster` | troc, don, perte, fatigue, moral (variations) | `ajuster` |
 | `survie_blessure` | blesser (morsure), soigner, infecter | `blesser`, `soigner`, `infecter` |
 | `survie_marquer` | marque de progression après une scène marquante | `marquer` |
-| `survie_assaut` | une menace attaque l'abri | `assaut` |
+| `survie_assaut` | une menace attaque l'abri ; une menace du jour réglée (assaut, ecarter, ultimatum, rejoindre) | `assaut`, `resoudreMenace` |
 | `survie_rencontre` | tirer une rencontre selon le réel (au secret) | `rencontre` |
 | `survie_renseigner` | ce que le groupe apprend sans y aller (radio, rumeur) | `renseigner` |
 | `survie_bilan` | les comptes de l'abri | `bilan` |
@@ -103,6 +124,18 @@ abri, réserves, état du groupe, alertes, renseignement de leur région). `api.
 | `survie_recrue` | une recrue qui comble les manques, avec son prix ; la recruter | `genererRecrue`, `recruter` (supposées, §10) |
 | `survie_assigner` | tâche du jour d'un compagnon ou d'une recrue, ou répartition automatique | `assigner`, `besoins` (supposées, §10) |
 | `survie_ajouter_membre` | un survivant existant rejoint le groupe | `ajouterMembre` (supposée, §10) |
+| `survie_marche` | lire (cours, stades, carnets, marchés, rumeurs ; vérité au secret), tirer un événement de marché | `marche`, `coursDuJour`, `stadesDuMarche`, `evenementDeMarche`, `monde` |
+| `survie_troquer` | évaluer, troquer (PNJ, préjugés éveillés, faction, marché, accepter, prejuge) | `evaluerTroc`, `troquer` |
+| `survie_carnet` | ouvrir une boutique, prendre à crédit, rendre, effacer, solder | `ouvrirBoutique`, `crediter`, `rendre`, `effacerDette`, `solderCarnet` |
+| `survie_marche_forain` | ouvrir, fermer, accueillir ou rendre l'accueil, rompre ou rétablir la trêve | `ouvrirMarche`, `fermerMarche`, `accueillir`, `rompreTreve`, `retablirTreve` |
+| `survie_rumeur` | lancer, démentir | `rumeur`, `dementir` |
+| `survie_prejuge` | démentir un préjugé, écrire ceux d'un PNJ, créer un des gens du marché | `dementirPrejuge`, `prejuges`, `creerMarchand` |
+| `survie_veillee` | préparer le cyclone, apprendre, confiance, dicter, apprivoiser | `preparerCyclone`, `apprendre`, `gagnerConfiance`, `dicter`, `apprivoiser` |
+| `survie_porte` | frapper, accueillir, refuser, trahir (vote, circonstances) | `frapper`, `porte` |
+| `survie_vote` | voter, décider | `voter`, `decider` |
+| `survie_acte_moral` | un acte (dont colporter) ou un déplacement libre, avec un vote | `acteMoral` |
+| `survie_communaute` | chef, parole, entente, séparer, fusionner, signe, tribut | `chef`, `parole`, `entente`, `separer`, `fusionner`, `lireSigne`, `tribut` |
+| `survie_esprit` | lire (sens moral au secret), ajuster, tirer | `ajusterEsprit`, `tirerEsprit` |
 | `histoire_personnage` | l'histoire d'un personnage (commun 40k, Warcraft, Fénoir) | journaux Foundry (`scripts/histoire.js`) |
 
 Outils génériques gardés à Fénoir : `demander_jet`, `lancer_des`, compagnons (`compagnon_ajouter`, `compagnon_retirer`,
@@ -129,7 +162,13 @@ absente de l'API donne une erreur claire (`ne fournit pas game.lakourSurvie.x()`
   `quand()` rend en plus `lune: { phase, eclairee, age }`, `clarte` (0 à 3 la nuit, null le jour), `couvert`, `chaleur`, `signes`, `dateExacte`,
   `dateLue` ; l'état public porte `morts`, `souvenirs`, `liens`, `participations`, `releves`, `ciel`, `calendrier`. L'état du jeu du narrateur
   les dit (`texteQuand`, `lignesTempsDeLIle` de `scripts/survie-logique.js`).
-- Les menaces du jour : `monde().menaces` (ou `menacesDuJour`) si le système les garde.
+- Les menaces du jour : `monde().menaces` (ou `menacesDuJour`) si le système les garde ; leur `id` et la décision de leur chef
+  (`chef: { decision, sensMoral }`) sont lus pour `resoudreMenace`.
+- Lots du 2026-11-13 (marché, savoirs, moral ; lus dans `api.mjs` et `api-marche.mjs` de la branche `fusion-lots`) : les noms appelés
+  sont vérifiés contre le code du système par `essais/survie-api-fenoir.test.mjs` quand le dépôt `lakour-fenoir` est à côté.
+  `communaute()` -> `{ chef, entente, reputation, couleur, porte, tributs, votes, communautes, liste }` ; `cyclone()` -> `{ nom, alerte, force,
+  arrivee, region, quarts: [{ moment, vent, dehors }] }` ou null ; `savoirsDuGroupe()` -> `{ complete, moderne, lontan, manque }` ;
+  `etat().marche` (boutiques, marchés, rumeurs) et `monde().marche.rumeurs` (leur vérité) ; `monde().porte` (la vraie couleur des visiteurs).
 - `test` appelable depuis le navigateur du joueur propriétaire (bouton de `demander_jet`).
 - §10 : `generer({ verrous: { nom, age, enfance, passe, traits }, statut, region, favoriser: { competence: poids } })` -> `{ nom, age,
   enfance, passe, competences: { cle: niveau | { niveau } }, passions, traits, incapacites, equipement, savoirs, graine }` ;
@@ -141,6 +180,8 @@ absente de l'API donne une erreur claire (`ne fournit pas game.lakourSurvie.x()`
 
 ## Essais
 
-`essais/survie-adaptateur.test.mjs`, `essais/survie-outils.test.mjs`, `essais/survie-secret.test.mjs` (contexte, non-fuite vers
+`essais/survie-adaptateur.test.mjs`, `essais/survie-outils.test.mjs`, `essais/survie-nouveautes.test.mjs` (marché, savoirs, moral :
+schémas, appels, refus, secret), `essais/survie-api-fenoir.test.mjs` (noms exacts et listes, contre le code du système), `essais/survie-secret.test.mjs` (contexte, non-fuite vers
 les compagnons, fêtes, remise à zéro, appels radio, pilote ; batterie de mutations), doublure `essais/doublures/foundry-survie.mjs`
-(API conforme au §5, monde réel balisé de marqueurs secrets).
+(API conforme au §5, monde réel balisé de marqueurs secrets ; `installerFenoir({ nouveautes: true })` pose le marché, la porte,
+la communauté, l'esprit, les savoirs et le cyclone vécu).

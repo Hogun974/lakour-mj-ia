@@ -245,7 +245,7 @@ export const OUTILS = [
       let texte;
       if (doc.documentName === "JournalEntry") texte = doc.pages.contents.map(p => `## ${p.name}\n${versTexte(p.text?.content)}`).join("\n\n");
       else if (doc.documentName === "JournalEntryPage") texte = versTexte(doc.text?.content);
-      else if (doc.documentName === "Actor") texte = `${adaptateur().resumer(doc)}\nObjets et capacités : ${doc.items.map(i => i.name).join(", ")}`;
+      else if (doc.documentName === "Actor") texte = `${adaptateur().resumer(doc, { secret: true })}\nObjets et capacités : ${doc.items.map(i => i.name).join(", ")}`;
       else if (doc.documentName === "RollTable") texte = `${doc.name} (${doc.formula})\n${doc.results.map(r => `${r.range.join("-")} : ${versTexte(r.description ?? r.text ?? r.name)}`).join("\n")}`;
       else texte = `${doc.name} (${doc.type ?? doc.documentName})\n${versTexte(doc.system?.description?.value ?? doc.system?.notes?.player ?? "")}`;
       // Objets : les données mécaniques aussi (choix d'une origine, table de factions, talents d'un rôle…),
@@ -3494,7 +3494,7 @@ OUTILS.push(
       const sys = adaptateur();
       return { contenu: `Compagnons IA (pour toi seul) :\n${tous.map(a => {
         const p = personnaliteDe(a);
-        return `- ${sys.resumer(a)} — ${TEMPERAMENTS[p.temperament].libelle}, ${p.parler}${p.histoire ? ` ; ${p.histoire}` : ""} — ${presents.has(a.id) ? "présent" : "absent"}`;
+        return `- ${sys.resumer(a, { secret: true })} — ${TEMPERAMENTS[p.temperament].libelle}, ${p.parler}${p.histoire ? ` ; ${p.histoire}` : ""} — ${presents.has(a.id) ? "présent" : "absent"}`;
       }).join("\n")}` };
     }
   },

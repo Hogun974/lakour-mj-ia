@@ -120,6 +120,36 @@ const VERIFICATIONS = {
   },
   "pilote automatique : à Fénoir, la consigne de scène parle du temps (outils survie_*)"(M) {
     assert.match(M.p.CONSIGNE_PILOTE_SURVIE, /survie_avancer/);
+  },
+  "nouveautés (§12 à §15) : vérité des rumeurs, vraies couleurs, préjugés, cyclone vécu au secret seulement ; un compagnon n'en reçoit rien"(M) {
+    installerFenoir({ nouveautes: true });
+    const texte = M.L.contexteSurvie(game.lakourSurvie, { acteur: id => game.actors.get(id) }).join("\n");
+    const [connu, secret] = coupe(texte, M.L.SECRET);
+    assert.deepEqual(fuites(connu), [], "fuite dans le connu");
+    assert.doesNotMatch(connu, /Vraie couleur|Couleur réelle|Cyclone vécu|Vérité des rumeurs|son chef veut/);
+    for (const m of ["AUTEUR-SECRET", "PREJUGE-SECRET", "Vraie couleur à la porte", "Couleur réelle du groupe", "Cyclone vécu", "son chef veut"]) assert.ok(secret.includes(m), `${m} absent du secret`);
+    const a = game.actors.get("s2");
+    Object.assign(a.system, { regard: "vivre", sensMoral: -4, prejuges: [{ cible: "zoreils", poids: 2, dit: "PREJUGE-SECRET" }] });
+    const vue = JSON.stringify(M.c.vueAventure(a, { messages: [] }));
+    assert.deepEqual(fuites(vue), [], "fuite dans la vue du compagnon");
+    assert.ok(!vue.includes("sens moral") && !vue.includes(M.L.SECRET), "le compagnon lit son sens moral");
+    assert.match(M.a.adaptateur().resumer(a, { secret: true }), /\[secret MJ\] sens moral -4/);
+  },
+  async "outils des nouveautés : vraie couleur, vérité des rumeurs, sens moral, préjugés au secret seulement"(M) {
+    installerFenoir({ nouveautes: true });
+    const o = nom => M.o.OUTILS.find(x => x.nom === nom);
+    const textes = [
+      (await o("survie_marche").executer({ action: "lire", region: "", stade: "" })).contenu,
+      (await o("survie_porte").executer({ action: "frapper", visiteur: "", profil: "dur", vote: "", circonstances: false })).contenu,
+      (await o("survie_acte_moral").executer({ personnages: ["Lucie"], acte: "colporter", delta: 0, circonstances: false, temoins: true, vote: "vote1", journal: false })).contenu,
+      (await o("survie_troquer").executer({ action: "evaluer", biens: [{ ressource: "eau", n: 1 }], pnj: "Madame Chane", cibles: ["zoreils"], faction: "", marche: "", accepter: false, prejuge: "" })).contenu
+    ];
+    for (const t of textes) {
+      const [connu, secret] = coupe(t, M.L.SECRET);
+      assert.deepEqual(fuites(connu), [], t);
+      assert.doesNotMatch(connu, /sens moral|vraie couleur|FAUSSE|Première confiance/i, t);
+      assert.ok(secret, `rien au secret :\n${t}`);
+    }
   }
 };
 
@@ -140,7 +170,15 @@ const MUTATIONS = [
   ["contexte.js", "  if (game.lakourSurvie) lignes.push(", "  if (false) lignes.push(", "état du jeu sans Fénoir"],
   ["fetes-logique.js", "  if (systeme === \"lakour-survie\") return ligneSurvie(d);\n", "", "ligne des fêtes de Fénoir"],
   ["reinitialiser.js", "export const REGLAGES_SURVIE = [\"partie\", \"coffre\", \"mondeClair\", \"monde\"];", "export const REGLAGES_SURVIE = [\"partie\", \"mondeClair\", \"monde\"];", "coffre remis à zéro"],
-  ["tirages.js", "  const { contrat, appel, ...autres } = drapeaux;", "  const { contrat, ...autres } = drapeaux; const appel = null;", "appel radio lu"]
+  ["tirages.js", "  const { contrat, appel, ...autres } = drapeaux;", "  const { contrat, ...autres } = drapeaux; const appel = null;", "appel radio lu"],
+  // Les nouveautés (§12 à §15).
+  ["survie-logique.js", "    if (verites.length) secret.push(`· Vérité des rumeurs", "    if (verites.length) connu.push(`· Vérité des rumeurs", "vérité des rumeurs au connu"],
+  ["survie-logique.js", "    if (vrais.length) secret.push(`· Vraie couleur à la porte", "    if (vrais.length) connu.push(`· Vraie couleur à la porte", "vraie couleur au connu"],
+  ["survie-logique.js", "  for (const x of nouveautes) connu.push(...x.connu);", "  for (const x of nouveautes) connu.push(...x.connu, ...x.secret);", "secrets des nouveautés au connu"],
+  ["survie-logique.js", "    secret ? ligneSecreteSurvivant(s, nomContenu) : \"\"", "    ligneSecreteSurvivant(s, nomContenu)", "ligne secrète dans tout résumé"],
+  ["compagnons-jeu.js", "fiche: [sys.resumer(acteur), ", "fiche: [sys.resumer(acteur, { secret: true }), ", "compagnon : résumé du narrateur"],
+  ["outils-survie.js", "    secret: vrai ? [`Sa vraie couleur", "    connu2: 0, secret: [], connu: vrai ? [`Sa vraie couleur", "porte : vraie couleur au connu"],
+  ["outils-survie.js", "N'A PAS SUIVI\"} le vote.` : \"\"], secret: lignesSens(r) }) };", "N'A PAS SUIVI\"} le vote.` : \"\", ...lignesSens(r)] }) };", "acte moral : sens au connu"]
 ];
 
 const RACINE = fileURLToPath(new URL("../", import.meta.url));

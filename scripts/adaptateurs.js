@@ -395,6 +395,14 @@ const survie = {
     + "croiser et propose des PNJ qui complètent les compétences manquantes (survie_recrue generer), toujours avec un prix ou un "
     + "défaut (ce qu'ils demandent, une méfiance, un proche à sauver, un trait gênant) ; les recruter demande un test de parole "
     + "(survie_recrue recruter). Un compagnon IA arrivé en cours de partie rejoint le groupe par survie_ajouter_membre. "
+    + "LE MARCHÉ : troc au cours en parts, carnet de crédit, marché forain sous trêve, le Ladi Lafé (rumeurs, leur vérité au secret). Les "
+    + "PRÉJUGÉS sont ceux des PNJ : c'est toi qui dis lesquels s'éveillent (cibles), d'après la façon dont le PNJ voit le groupe (ce qu'il "
+    + "porte, comment il parle, ce qu'on dit de lui), JAMAIS d'après une origine : le système ne connaît l'origine de personne et aucune ne "
+    + "donne de bonus ni de malus. Ils ne vivent que dans la bouche des personnages ; puis laisse les faits les démentir (survie_prejuge "
+    + "dementir). LES SAVOIRS : moderne et lontan ; les gramounes les transmettent aux veillées (survie_veillee), le cyclone se prépare. "
+    + "L'ESPRIT : regard, foi ou ancrage nourrissent le moral, JAMAIS de miracle : un personnage peut voir un signe, le jeu ne confirme rien. "
+    + "Celui qui lâche : « un matin, il n'est plus là », aucune scène de suicide. Le sens moral (la couleur) reste au secret ; la porte, les "
+    + "votes, les actes le déplacent (survie_porte, survie_vote, survie_acte_moral) ; les compagnons IA peuvent donner leur voix dans un vote. "
     + `Les dix compétences : ${COMPETENCES_SURVIE.map(c => `${c.cle} (${c.aide})`).join(", ")}.`,
   competences() { return COMPETENCES_SURVIE.map(({ cle, libelle }) => ({ cle, libelle })); },
   // Le test du système, sans fenêtre (il n'en a pas) : dés au chat, bouton « forcer » sur la carte, marque si le test compte.
@@ -405,12 +413,15 @@ const survie = {
     return { total: Number(r.succes ?? 0), reussite: Boolean(r.reussite), marge: Number(r.marge ?? 0), requis: r.requis,
       texte: texteTestSurvie(acteur.name, cle, r) };
   },
-  resumer(acteur) {
+  // secret : pour le narrateur seul (prompt système, lire_document, compagnons) : sens moral, chance, préjugés (§12, §14). Sans lui
+  // (la fiche d'un compagnon IA, ce qu'il sait de lui-même), rien de cela.
+  resumer(acteur, { secret = false } = {}) {
     // Le nom d'un passé, d'une enfance, d'un trait du contenu (registre du système) ; une clé inconnue ou un texte libre restent tels quels.
-    let contenu = null;
+    let contenu = null, chef = "";
     try { contenu = globalThis.game?.lakourSurvie?.contenu?.() ?? null; } catch { contenu = null; }
+    try { chef = globalThis.game?.lakourSurvie?.etat?.()?.groupe?.chef ?? ""; } catch { chef = ""; }
     const nomContenu = (collection, cle, genre = "") => nomDe(contenu?.[collection], cle, genre);
-    return resumerSurvivant(acteur, { nomDe: nomContenu });
+    return resumerSurvivant(acteur, { nomDe: nomContenu, chef: Boolean(chef) && chef === acteur?.id, secret });
   }
 };
 
@@ -749,10 +760,13 @@ const TOUR_DND5E = {
 // journal d'histoire, tirée des pages PUBLIQUES seulement (jamais « Ses secrets »).
 for (const sys of [impmal, dnd5e, survie]) {
   const resumer = sys.resumer;
-  sys.resumer = function (acteur) {
-    const base = resumer.call(this, acteur);
+  // options (Fénoir : { secret }) passent au résumé du système ; la ligne secrète du narrateur reste la dernière.
+  sys.resumer = function (acteur, options) {
+    const base = resumer.call(this, acteur, options);
     const histoire = ligneHistoireActeur(acteur);
-    return histoire ? `${base} — ${histoire}` : base;
+    if (!histoire) return base;
+    const i = base.indexOf(" — [secret MJ]");
+    return i < 0 ? `${base} — ${histoire}` : `${base.slice(0, i)} — ${histoire}${base.slice(i)}`;
   };
 }
 

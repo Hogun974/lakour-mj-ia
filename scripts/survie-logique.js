@@ -31,8 +31,31 @@ export const libelleCompetence = cle => COMPETENCES_SURVIE.find(c => c.cle === c
 // Ressources du groupe (§1.6), dans l'ordre où on les montre.
 export const RESSOURCES = ["eau", "nourriture", "carburant", "medicaments", "munitions", "materiaux", "pieces", "graines", "energie"];
 const LIBELLES_RESSOURCES = { eau: "eau", nourriture: "nourriture", carburant: "carburant", medicaments: "médicaments", munitions: "munitions",
-  materiaux: "matériaux", pieces: "pièces", graines: "graines", energie: "énergie (kWh)" };
+  materiaux: "matériaux", pieces: "pièces", graines: "graines", energie: "énergie (kWh)", plantes: "plantes médicinales", gaz: "gaz (kg)",
+  boutures: "boutures", biocarburant: "biocarburant" };
 export const libelleRessource = r => LIBELLES_RESSOURCES[r] ?? r;
+
+// Les nouveautés du 2026-11-13 (contrat §12 à §15 du dépôt lakour-fenoir) : listes recopiées de la logique du système (logique/
+// marche.mjs, moralite.mjs, porte.mjs, esprit.mjs, savoirs.mjs ; essais/survie-api-fenoir.test.mjs les compare au code du système
+// quand son dépôt est à côté). Les schémas des outils les donnent en choix fermés.
+// Le troc (marche.mjs, RESSOURCES_TROC) : tout ce qui a un cours, plantes médicinales comprises ; ni énergie, ni gaz, ni boutures, ni biocarburant.
+export const RESSOURCES_TROC = [...RESSOURCES.filter(r => r !== "energie"), "plantes"];
+export const STADES_MARCHE = ["troc", "boutique", "forain", "foire"];
+export const PORTEES_RUMEUR = ["quartier", "region", "voisins", "ile"];
+export const PREUVES = ["marque", "temoin", "fait"];
+export const REGARDS = ["epreuve", "refaire", "vivre"];
+export const ACTES_MORAUX = ["exclure", "colporter", "mentir", "abandonner", "attaquer", "trahir", "accueillir", "aider", "partager", "epargner", "rendre"];
+export const VOIX = ["pour", "contre", "abstention"];
+export const PROFILS_VISITEUR = ["refugie", "famille", "blesse", "dur"];
+export const SOURCES_APPRENTISSAGE = ["livre", "cahier", "maitre"];
+export const CIBLES_SAVOIRS = ["jardins", "livres"];
+export const GROUPE = "groupe";
+const LIBELLES_REGARDS = { epreuve: "l'épreuve (il endure)", refaire: "refaire (bâtir, accueillir)", vivre: "vivre (les petits plaisirs)" };
+// Les bandes du sens moral et de la réputation (moralite.mjs, BANDES_SENS_MORAL), du rouge (exclure, trahir) au bleu (accueillir).
+const BANDES_SENS_MORAL = [[-6, "rouge"], [-2, "rougeâtre"], [1, "neutre"], [5, "bleutée"], [Infinity, "bleue"]];
+export const bandeSensMoral = v => BANDES_SENS_MORAL.find(([max]) => Number(v) <= max)?.[1] ?? "neutre";
+// Les signes de celui qui lâche (esprit.lacher, 1 à 3 : à 2, 4 et 6 jours au fond).
+const SIGNES_LACHER = ["mange moins (le repas ne lui rend plus de moral)", "parle moins (−1 dé en parole)", "donne ses affaires"];
 
 export const MOMENTS = { matin: "matin", "apres-midi": "après-midi", soir: "soir", nuit: "nuit" };
 const PHASES = { "jour-zero": "jour zéro", panique: "panique", effondrement: "effondrement", silence: "silence", apres: "l'après" };
@@ -210,7 +233,9 @@ export function texteVariations(v = {}) {
 // Résumé d'un acteur « survivant » pour l'IA (adaptateur, compagnons) : PUBLIC (les acteurs sont publics, §4) ; rien du monde.
 // nomPasse(cle) : le nom d'un passé du contenu (facultatif).
 // nomDe(collection, cle, genre) reçoit le genre du survivant (system.genre) : les libellés genrés s'accordent.
-export function resumerSurvivant(acteur, { nomPasse = null, nomDe: nomContenu = (_c, cle) => cle } = {}) {
+// chef : il mène le groupe (etat.groupe.chef). secret : le narrateur seul le lit (jamais un compagnon IA, ni le chat) : on ajoute
+// une ligne « [secret MJ] » avec le sens moral, la chance, le projet d'un enfant et les préjugés (champs réservés au MJ, §12, §14).
+export function resumerSurvivant(acteur, { nomPasse = null, nomDe: nomContenu = (_c, cle) => cle, chef = false, secret = false } = {}) {
   const s = acteur?.system ?? {};
   const genre = s.genre ?? "";
   const compagnon = Boolean(acteur?.flags?.[ID_MJIA]?.compagnon);
@@ -241,8 +266,72 @@ export function resumerSurvivant(acteur, { nomPasse = null, nomDe: nomContenu = 
     savoirs.length ? `savoirs : ${savoirs.join(", ")}` : "",
     equipement.length ? `équipement : ${equipement.join(", ")}` : "",
     entier(s.charge) ? `charge ${entier(s.charge)}` : "",
-    vie
+    ...lignesEspritPubliques(s, { nomContenu, chef }),
+    ...lignesSavoirsDuSurvivant(s, nomContenu),
+    vie,
+    secret ? ligneSecreteSurvivant(s, nomContenu) : ""
   ].filter(Boolean).join(" — ");
+}
+
+// L'esprit d'un survivant, ce que tout le groupe en voit (§14) : regard, foi ou ancrage, pratique, en faute, signes de qui lâche,
+// réputation, autorité, chef. Rien pour une fiche d'avant (regard vide : esprit pas tiré), sauf le chef.
+function lignesEspritPubliques(s, { nomContenu = (_c, cle) => cle, chef = false } = {}) {
+  const l = chef ? [`CHEF du groupe (autorité ${borner(entier(s.autorite ?? 2), 0, 5)}/5)`] : [];
+  if (!REGARDS.includes(s?.regard)) return l;
+  const e = s.esprit ?? {};
+  const foi = texteFoi(s, nomContenu);
+  const lacher = borner(entier(e.lacher), 0, 3);
+  l.push(`regard : ${LIBELLES_REGARDS[s.regard]}`,
+    foi ? `${foi}${e.enFaute ? " — EN FAUTE (observance manquée : moral plafonné un cran plus bas jusqu'à la prochaine)" : ""}`
+      + `${e.ancragePerdu ? " — a perdu ce qui le faisait tenir" : ""}` : "",
+    lacher ? `IL LÂCHE : ${SIGNES_LACHER.slice(0, lacher).join(", ")} (le groupe, l'entente, une présence le retiennent)` : "",
+    entier(s.reputation) ? `réputation ${signe(entier(s.reputation))} (${bandeSensMoral(entier(s.reputation))})` : "",
+    chef ? "" : `autorité ${borner(entier(s.autorite ?? 2), 0, 5)}/5`);
+  return l.filter(Boolean);
+}
+// « foi : islam, pratiquant », « sans religion, tient par : la photo des siens », « foi : plusieurs (catholique, tamoul) ».
+function texteFoi(s, nomContenu) {
+  const pratique = s.pratique ? ", pratiquant" : "";
+  if (s.religion === "plusieurs") return `foi : plusieurs (${(s.religions ?? []).map(r => nomContenu("religions", r)).join(", ") || "?"})${pratique}`;
+  if (s.religion && s.religion !== "aucune") return `foi : ${nomContenu("religions", s.religion)}${pratique}`;
+  if (s.ancrage) return `sans religion, tient par : ${nomContenu("ancrages", s.ancrage)}${pratique}`;
+  return s.religion === "aucune" ? "sans religion" : "";
+}
+// Les savoirs en train (§13) : la confiance d'une gramoune envers le groupe, l'apprentissage et la dictée en cours.
+function lignesSavoirsDuSurvivant(s, nomContenu) {
+  const a = s?.apprentissage, d = s?.dictee;
+  return [
+    entier(s?.confiance) ? `confiance envers le groupe ${borner(entier(s.confiance), 0, 5)}/5` : "",
+    a?.savoir ? `apprend ${nomContenu("savoirs", a.savoir)} (${a.source ?? "?"}, ${entier(a.fait)}/${entier(a.requis)} veillées)` : "",
+    d ? `dicte son cahier (${entier(d.fait)}/${entier(d.requis)} veillées)` : ""
+  ].filter(Boolean);
+}
+// Ce qu'un préjugé pèse encore (marche.mjs, poidsPrejuge : un cran de moins par 3 échanges honnêtes, par fête partagée, par démenti).
+export function poidsPrejuge(p = {}) {
+  return Math.max(0, borner(entier(p.poids ?? 1), 0, 3) - Math.floor(Math.max(0, entier(p.echanges)) / 3) - Math.max(0, entier(p.fetes)) - Math.max(0, entier(p.dementis)));
+}
+// « zoreils (poids 2) : « … » » ; un préjugé tombé est tu.
+export function textePrejuges(prejuges = [], nomContenu = (_c, cle) => cle) {
+  return (prejuges ?? []).filter(p => p?.cible && poidsPrejuge(p) > 0)
+    .map(p => `${nomContenu("communautes", p.cible)} [${p.cible}] (poids ${poidsPrejuge(p)})${texteBrut(p.dit) ? ` : « ${couper(texteBrut(p.dit), 120)} »` : ""}`).join(" ; ");
+}
+// La ligne du narrateur seul : sens moral (couleur), chance, projet d'un enfant, préjugés.
+function ligneSecreteSurvivant(s, nomContenu) {
+  const t = secretDuSurvivant({ system: s }, { nomDe: nomContenu });
+  return t ? `${SECRET} ${t}` : "";
+}
+// Le même, sans en-tête (les outils le mettent dans leur bloc « [secret MJ] »). acteur : un acteur survivant.
+export function secretDuSurvivant(acteur, { nomDe: nomContenu = (_c, cle) => cle } = {}) {
+  const s = acteur?.system ?? {};
+  const e = s?.esprit ?? {};
+  const prejuges = textePrejuges(s?.prejuges, nomContenu);
+  const morceaux = [
+    REGARDS.includes(s?.regard) || entier(s?.sensMoral) ? `sens moral ${signe(entier(s?.sensMoral))} (${bandeSensMoral(entier(s?.sensMoral))})` : "",
+    entier(e.chance) ? `chance ${entier(e.chance)} (un dé de plus au prochain test qui compte)` : "",
+    e.projet ? `projet : ${texteBrut(e.projet)}` : "",
+    prejuges ? `préjugés (à faire dire par lui, jamais confirmés) : ${prejuges}` : ""
+  ].filter(Boolean);
+  return morceaux.join(", ");
 }
 
 // Passions (§10.1) : 1 intérêt, 2 passion (marques plus rapides, moral).
@@ -335,7 +424,10 @@ function ligneCoupures(coupures, jour) {
 // ------------------------------------------------------------------ l'état du jeu (contexte de l'IA, à chaque tour)
 // lire : { etat, quand, bilan, monde, contenu } (déjà lus de l'API) ; acteur(id) -> l'acteur Foundry. Rend { connu, secret },
 // deux listes de lignes ; le secret ne lit QUE monde. Court : quelques centaines de mots au plus.
-export function lignesSurvie({ etat, quand, bilan, monde, contenu, besoins } = {}, { acteur = () => null } = {}) {
+// Les nouveautés du 2026-11-13 (facultatives : un système d'avant les tait) : communaute (api.communaute()), cyclone (api.cyclone()),
+// autonomie (api.savoirsDuGroupe()), presents (les acteurs dont on lit les préjugés : membres du groupe, PNJ en scène).
+export function lignesSurvie({ etat, quand, bilan, monde, contenu, besoins, communaute = null, cyclone = null, autonomie = null } = {},
+  { acteur = () => null, presents = [] } = {}) {
   const connu = [], secret = [];
   if (!etat) return { connu: ["Fénoir : état de la partie illisible (système lakour-survie absent ou pas prêt)."], secret };
   if (!etat.demarree) {
@@ -372,6 +464,14 @@ export function lignesSurvie({ etat, quand, bilan, monde, contenu, besoins } = {
   if (manques.length) connu.push(`Manques du groupe : ${manques.join(" ; ")}.`);
   const alertes = (etat.alertes ?? []).slice(-4);
   if (alertes.length) connu.push(`Alertes connues : ${alertes.map(a => `${couper(texteBrut(a.texte), 140)} (jour ${jourDuQuart(a.quart)})`).join(" ; ")}.`);
+  // Le marché, la communauté, les savoirs (§12 à §14) : leurs lignes connues ici, leur secret à la fin.
+  const nouveautes = [
+    lignesCommunaute({ etat, communaute, monde, jour }, { acteur }),
+    lignesMarche({ marche: etat.marche, secret: monde?.marche, quand: quand ?? { jour }, contenu }, { presents }),
+    lignesSavoirs({ etat, bilan, contenu, membres, autonomie, cyclone })
+  ];
+  for (const x of nouveautes) connu.push(...x.connu);
+  const secretsNouveaux = nouveautes.flatMap(x => x.secret);
   // Renseignements de la région du groupe et de ses voisines : ce que le groupe CROIT, daté.
   const regions = ici ? [ici, ...voisinsDe(contenu, ici)] : [];
   if (regions.length) {
@@ -380,7 +480,7 @@ export function lignesSurvie({ etat, quand, bilan, monde, contenu, besoins } = {
   }
   // ---------------- SECRET : le réel, de monde() seulement.
   if (!monde) {
-    secret.push("Monde réel indisponible (coffre pas encore ouvert chez le MJ actif) : ne devine pas le réel, raconte seulement le connu.");
+    secret.push("Monde réel indisponible (coffre pas encore ouvert chez le MJ actif) : ne devine pas le réel, raconte seulement le connu.", ...secretsNouveaux);
     return { connu, secret };
   }
   if (ici) {
@@ -388,7 +488,7 @@ export function lignesSurvie({ etat, quand, bilan, monde, contenu, besoins } = {
     const c = ligneCoupures(monde.coupures?.[ici], jour);
     if (c) secret.push(`· Réseaux à ${nomRegion(ici)} : ${c}.`);
   }
-  secret.push(...lignesMenaces({ monde, contenu, ici, jour }));
+  secret.push(...lignesMenaces({ monde, contenu, ici, jour }), ...secretsNouveaux);
   return { connu, secret };
 }
 
@@ -413,12 +513,142 @@ export function lignesMenaces({ monde, contenu, ici, jour, depuisJour = entier(j
     secret.push(`· Éruption de la Fournaise : du jour ${er.debut ?? "?"} au jour ${er.fin ?? "?"} (${(er.regions ?? []).map(nomRegion).join(", ") || "?"}).`);
   }
   // Les menaces tirées pour l'abri (monde.menaces, si le système les garde) et ce qui s'est passé hors champ ces derniers jours.
-  const menaces = (monde.menaces ?? monde.menacesDuJour ?? []).map(m => (typeof m === "string" ? m : couper(texteBrut(m.texte ?? m.description ?? m.type ?? ""), 140)))
-    .filter(Boolean);
+  // Avec leur identifiant et, pour une bande ou une visite, la décision de son chef (§14.4, menaces[].chef) : survie_assaut les règle.
+  const menaces = (monde.menaces ?? monde.menacesDuJour ?? []).map(m => (typeof m === "string" ? m : texteMenace(m))).filter(Boolean);
   if (menaces.length) secret.push(`· Menaces du jour pour l'abri : ${menaces.join(" ; ")}.`);
   const horsChamp = (monde.journalSecret ?? []).filter(e => entier(e.jour) >= entier(depuisJour)).slice(-4).map(e => `jour ${e.jour} : ${couper(texteBrut(e.texte), 140)}`);
   if (horsChamp.length) secret.push(`· Hors champ : ${horsChamp.join(" ; ")}.`);
   return secret;
+}
+
+const DECISIONS_CHEF = { attaquer: "attaquer", negocier: "négocier", passer: "passer son chemin", ultimatum: "ULTIMATUM (un tribut, ou la guerre)",
+  rejoindre: "demander à REJOINDRE le groupe" };
+// « m3 [bande, force 4 ; son chef veut : ULTIMATUM, bande rougeâtre] Les Récupérateurs s'intéressent à l'abri ».
+export function texteMenace(m = {}) {
+  const texte = couper(texteBrut(m.texte ?? m.description ?? m.type ?? ""), 140);
+  const chef = m.chef?.decision ? `son chef veut : ${DECISIONS_CHEF[m.chef.decision] ?? m.chef.decision}${m.chef.bande ? `, bande ${bandeSensMoral(entier(m.chef.sensMoral))}` : ""}` : "";
+  const tete = [m.type, Number(m.force) ? `force ${entier(m.force)}` : "", chef].filter(Boolean).join(" ; ");
+  return m.id ? `${m.id}${tete ? ` [${tete}]` : ""} ${texte}`.trim() : texte;
+}
+
+// ------------------------------------------------------------------ la communauté (§14) : chef, entente, porte, tributs, votes
+// communaute : api.communaute() ({ chef, entente, reputation, couleur (MJ), porte, tributs, votes, communautes, liste }) ; monde :
+// api.monde() (la vraie couleur des visiteurs, monde.porte). -> { connu, secret }
+export function lignesCommunaute({ etat, communaute, monde, jour } = {}, { acteur = () => null } = {}) {
+  const connu = [], secret = [];
+  const c = communaute;
+  if (!c || !etat?.demarree) return { connu, secret };
+  const chef = c.chef ? acteur(c.chef) : null;
+  const rep = Number(c.reputation?.moyenne) || 0;
+  // Rien à dire d'un groupe sans chef, d'entente nulle et sans réputation : la ligne se tait (chaque ligne se paie à chaque tour).
+  if (chef || entier(c.entente) || rep) {
+    connu.push(`Communauté : ${chef ? `chef ${chef.name} (autorité ${borner(entier(chef.system?.autorite ?? 2), 0, 5)}/5)` : "sans chef"} ; entente ${signe(entier(c.entente))}`
+      + `${rep ? ` ; réputation ${signe(rep)} (${bandeSensMoral(rep)})` : ""}.`);
+  }
+  const porte = c.porte ?? [];
+  if (porte.length) {
+    connu.push(`À la porte : ${porte.map(v => `${v.id} ${v.nom ?? "?"} (${[entier(v.age) ? `${entier(v.age)} ans` : "", v.profil, entier(v.bouches) ? `+${entier(v.bouches)} bouches` : ""].filter(Boolean).join(", ")})`
+      + `${v.revient ? " REVENU" : ""}${texteBrut(v.demande?.texte ?? v.demande) ? ` : « ${couper(texteBrut(v.demande?.texte ?? v.demande), 100)} »` : ""}`
+      + `${Object.keys(v.apporte ?? {}).length ? ` ; apporte ${texteVariations(v.apporte).replace(/\+/g, "")}` : ""}`).join(" ; ")}.`);
+    const vrais = porte.map(v => [v, monde?.porte?.[v.id]?.survivant]).filter(([, s]) => s);
+    if (vrais.length) secret.push(`· Vraie couleur à la porte : ${vrais.map(([v, s]) => `${v.id} ${bandeSensMoral(entier(s.sensMoral))} (${signe(entier(s.sensMoral))})`).join(" ; ")}.`);
+  }
+  if ((c.liste ?? []).length) connu.push(`Liste à la porte (ce qui manque) : ${c.liste.map(x => `${libelleRessource(x.ressource)} ${entier(x.manque)}`).join(", ")}.`);
+  const actifs = (c.tributs ?? []).filter(t => t.etat === "actif");
+  if (actifs.length) {
+    connu.push(`Tributs : ${actifs.map(t => `${t.id} (${t.bande ?? t.faction ?? "?"}) ${texteVariations(t.demande).replace(/\+/g, "")} tous les ${entier(t.tousLes)} j`
+      + `${Number.isFinite(Number(t.prochain)) && entier(t.prochain) <= entier(jour) ? " — DÛ AUJOURD'HUI" : `, prochain jour ${t.prochain ?? "?"}`}`).join(" ; ")}.`);
+  }
+  const votes = (c.votes ?? []).slice(-2);
+  if (votes.length) {
+    connu.push(`Derniers votes : ${votes.map(v => `${v.id} « ${couper(texteBrut(v.question || v.acte), 80)} » (${v.acte}) : ${virgule(Number(v.resultat?.pour ?? 0))} pour, `
+      + `${virgule(Number(v.resultat?.contre ?? 0))} contre, ${virgule(Number(v.resultat?.abstention ?? 0))} abst.${v.decide === null || v.decide === undefined ? ", le chef n'a pas tranché" : ""}`).join(" ; ")}.`);
+  }
+  if ((c.communautes ?? []).length) connu.push(`Groupes partis : ${c.communautes.map(x => `${x.id} ${x.nom} (${(x.membres ?? []).length})`).join(", ")}.`);
+  if (c.couleur) secret.push(`· Couleur réelle du groupe : ${bandeSensMoral(Number(c.couleur.moyenne) || 0)} (${signe(Number(c.couleur.moyenne) || 0)}).`);
+  return { connu, secret };
+}
+
+// ------------------------------------------------------------------ le marché (§12) : jour de marché, carnet, Ladi Lafé
+// Le jour de la semaine d'une date « AAAA-MM-JJ » (0 = dimanche), comme le système (temps.mjs, dateDuJour().semaine).
+const jourSemaine = iso => (/^\d{4}-\d{2}-\d{2}$/.test(String(iso ?? "")) ? new Date(`${iso}T00:00:00Z`).getUTCDay() : null);
+const JOURS_SEMAINE = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+export const detteDuGroupe = boutique => (boutique?.entrees ?? []).filter(e => e.debiteur === GROUPE).reduce((s, e) => s + Math.max(0, Number(e.reste) || 0), 0);
+// Un marché tient-il séance ce jour ? (marche.mjs, estJourDeMarche).
+export function estJourDeMarche(m, { jour, date } = {}) {
+  if (!m || m.treve?.rompue) return false;
+  if (m.foire) return entier(jour) >= entier(m.ouvertLe) && (m.jusqua === null || m.jusqua === undefined || entier(jour) <= entier(m.jusqua));
+  return jourSemaine(date) === entier(m.jourSemaine);
+}
+const nomFaction = (contenu, cle) => (cle === GROUPE ? "le groupe" : nomDe(contenu?.factions, cle));
+export function texteMarche(m, { contenu, jour, date, marquer = true } = {}) {
+  return `${m.nom ?? m.cle} [${m.cle}]${m.foire ? ` (foire jusqu'au jour ${m.jusqua ?? "?"})` : ` (${JOURS_SEMAINE[entier(m.jourSemaine)] ?? "?"})`}`
+    + `${m.region ? ` à ${nomDe(contenu?.regions, m.region)}` : ""}${(m.bastions ?? []).length ? `, conseil : ${m.bastions.map(b => nomFaction(contenu, b)).join(", ")}` : ""}`
+    + `${m.hote ? `, accueilli par ${nomFaction(contenu, m.hote)}` : ""}${m.treve?.rompue ? `, TRÊVE ROMPUE${m.treve.par ? ` par ${nomFaction(contenu, m.treve.par)}` : ""}` : ""}`
+    + `${marquer && estJourDeMarche(m, { jour, date }) ? " — JOUR DE MARCHÉ AUJOURD'HUI" : ""}`;
+}
+// Les rumeurs vivantes (marche.mjs, rumeurActive : ni démenties, ni éteintes ; 90 jours, une trêve rompue 365).
+export const rumeurVivante = (r, jour) => Boolean(r) && !r.dementie && entier(jour) - entier(r.jour) < (r.source === "treve" ? 365 : 90);
+export const texteRumeur = r => `${r.id} (${r.sujet === GROUPE ? "le groupe" : r.sujet || "?"}, ${r.portee ?? "region"}${r.contre ? ", contre" : ""}) : « ${couper(texteBrut(r.texte), 140)} »`;
+// marche : etat.marche ; secret : monde.marche ; presents : acteurs (membres du groupe, PNJ en scène) dont on lit les préjugés.
+export function lignesMarche({ marche, secret: secretMarche, quand, contenu } = {}, { presents = [] } = {}) {
+  const connu = [], secret = [];
+  const nomContenu = (collection, cle, genre = "") => nomDe(contenu?.[collection], cle, genre);
+  const jour = quand?.jour ?? 0, date = quand?.date;
+  const marches = marche?.marches ?? [];
+  const aujourdhui = marches.filter(m => estJourDeMarche(m, { jour, date }));
+  if (aujourdhui.length) connu.push(`Jour de marché aujourd'hui : ${aujourdhui.map(m => texteMarche(m, { contenu, jour, date, marquer: false })).join(" ; ")}.`);
+  else if (marches.length) connu.push(`Marchés : ${marches.map(m => texteMarche(m, { contenu, jour, date })).join(" ; ")}.`);
+  const dettes = (marche?.boutiques ?? []).filter(b => detteDuGroupe(b) > 0);
+  if (dettes.length) connu.push(`Dettes du groupe au carnet : ${dettes.map(b => `${b.nom ?? b.cle} ${virgule(detteDuGroupe(b))} part(s)`).join(", ")}.`);
+  const vivantes = (marche?.rumeurs ?? []).filter(r => rumeurVivante(r, jour));
+  if (vivantes.length) {
+    connu.push(`Ce qui se dit : ${vivantes.slice(-4).map(texteRumeur).join(" ; ")}.`);
+    const verites = vivantes.slice(-4).map(r => [r, secretMarche?.rumeurs?.[r.id]]).filter(([, v]) => v);
+    if (verites.length) secret.push(`· Vérité des rumeurs : ${verites.map(([r, v]) => `${r.id} ${v.vraie ? "VRAIE" : "FAUSSE"}${v.malveillant ? ", malveillante" : ""}${v.auteur ? `, de ${v.auteur === GROUPE ? "le groupe" : v.auteur}` : ""}`).join(" ; ")}.`);
+  }
+  const porteurs = presents.filter(a => (a?.system?.prejuges ?? []).some(p => p?.cible && poidsPrejuge(p) > 0)).slice(0, 6);
+  if (porteurs.length) {
+    secret.push(`· Préjugés des PNJ présents (à toi de dire lesquels s'éveillent, jamais d'après une origine) : ${porteurs.map(a => `${a.name} : ${textePrejuges(a.system.prejuges, nomContenu)}`).join(" | ")}.`);
+  }
+  return { connu, secret };
+}
+
+// ------------------------------------------------------------------ les deux savoirs et l'île en mouvement (§13)
+// Les savoirs du groupe rangés par arbre (moderne, lontan) : objets « savoir » et system.savoirs des membres ; l'arbre vient du contenu.
+export function savoirsParArbre(membres = [], contenu = {}) {
+  const sortie = { moderne: new Set(), lontan: new Set(), autres: new Set() };
+  const fiches = listeDe(contenu?.savoirs);
+  for (const a of membres) {
+    const refs = [...(a?.system?.savoirs ?? []), ...[...(a?.items ?? [])].filter(i => i?.type === "savoir").map(i => i.system?.cle || i.name)];
+    for (const ref of refs.filter(Boolean)) {
+      const f = trouverFiche(fiches, ref);
+      (sortie[f?.arbre] ?? sortie.autres).add(f?.nom ?? ref);
+    }
+  }
+  return { moderne: [...sortie.moderne], lontan: [...sortie.lontan], autres: [...sortie.autres] };
+}
+const LIBELLES_VENT = { rafales: "rafales", accalmie: "accalmie", oeil: "L'ŒIL (calme trompeur)", retour: "retour du vent" };
+const texteDehors = d => [Number(d?.des) ? `dés ${signe(Number(d.des))}` : "", Number(d?.vigilance) ? `vigilance ${signe(Number(d.vigilance))}` : "",
+  Number(d?.discretion) ? `discrétion ${signe(Number(d.discretion))}` : ""].filter(Boolean).join(", ");
+// etat, bilan (secours), contenu, membres (acteurs), autonomie (api.savoirsDuGroupe()), cyclone (api.cyclone() : MJ actif seulement).
+export function lignesSavoirs({ etat, bilan, contenu, membres = [], autonomie, cyclone } = {}) {
+  const connu = [], secret = [];
+  const p = savoirsParArbre(membres, contenu);
+  if (p.moderne.length || p.lontan.length) {
+    const manque = autonomie?.manque;
+    connu.push(`Savoirs : moderne ${p.moderne.join(", ") || "aucun"} ; lontan ${p.lontan.join(", ") || "aucun"}`
+      + `${autonomie?.complete ? " (AUTONOMIE COMPLÈTE)" : manque && (manque.moderne || manque.lontan) ? ` (autonomie complète : il manque ${[manque.moderne ? `${manque.moderne} moderne` : "", manque.lontan ? `${manque.lontan} lontan` : ""].filter(Boolean).join(" et ")})` : ""}.`);
+  }
+  const secours = bilan?.secours ?? [];
+  if (secours.length) connu.push(`En secours (une sœur du même rôle tourne) : ${secours.map(s => `${nomDe(contenu?.installations, s.cle)} (${s.role ?? "?"})`).join(", ")}.`);
+  const chien = etat?.groupe?.chienErrant;
+  if (chien) connu.push(`Chien errant${chien.region ? ` à ${nomDe(contenu?.regions, chien.region)}` : ""} : confiance ${entier(chien.confiance)} (survie_veillee apprivoiser).`);
+  if (cyclone && (cyclone.quarts ?? []).length) {
+    secret.push(`· Cyclone vécu à ${nomDe(contenu?.regions, cyclone.region)} (jour ${cyclone.arrivee ?? "?"}), malus dehors : `
+      + `${cyclone.quarts.map(q => `${momentTexte(q.moment)} ${LIBELLES_VENT[q.vent] ?? q.vent}${texteDehors(q.dehors) ? ` (${texteDehors(q.dehors)})` : ""}`).join(" ; ")}.`);
+  }
+  return { connu, secret };
 }
 
 // Le temps avancé hors de l'IA (crochet « lakourSurvie.avance » du système : quand, faits publics), signalé au narrateur.
@@ -450,11 +680,19 @@ export function rendu({ connu = [], secret = [] } = {}, { enteteSecret = `${SECR
 }
 
 // Les lignes de l'état du jeu de Fénoir (contexte.js) : l'API est lue ici, défensivement.
-export function contexteSurvie(api, { acteur = () => null } = {}) {
+export function contexteSurvie(api, { acteur = () => null, presents = null } = {}) {
   const lire = nom => lireSurvie(api, nom);
-  const donnees = { etat: lire("etat"), quand: lire("quand"), bilan: lire("bilan"), monde: lire("monde"), contenu: lire("contenu"), besoins: lire("besoins") };
-  const { connu, secret } = lignesSurvie(donnees, { acteur });
+  const donnees = { etat: lire("etat"), quand: lire("quand"), bilan: lire("bilan"), monde: lire("monde"), contenu: lire("contenu"), besoins: lire("besoins"),
+    communaute: lire("communaute"), cyclone: lire("cyclone"), autonomie: lire("savoirsDuGroupe") };
+  const { connu, secret } = lignesSurvie(donnees, { acteur, presents: presents ?? presentsDuMarche(donnees.etat, acteur) });
   return [`${CONNU}`, ...connu, ...(secret.length ? [ENTETE_SECRET, ...secret] : [])];
+}
+
+// Ceux dont le narrateur lit les préjugés : les membres du groupe et les survivants posés sur la scène affichée (PNJ du marché).
+export function presentsDuMarche(etat, acteur = () => null, scene = globalThis.game?.scenes?.viewed ?? globalThis.game?.scenes?.active) {
+  const ids = new Set(etat?.groupe?.membres ?? []);
+  for (const t of [...(scene?.tokens?.contents ?? scene?.tokens ?? [])]) { const id = t?.actor?.id ?? t?.actorId; if (id) ids.add(id); }
+  return [...ids].map(id => acteur(id)).filter(a => a && (a.type === "survivant" || !a.type));
 }
 
 // ------------------------------------------------------------------ la vue d'un compagnon IA (PUBLIC SEULEMENT)
@@ -514,8 +752,16 @@ export function resumerTirage(d = {}, lettre = "?", { nomDe: nomContenu = (_c, c
     (d.traits ?? []).length ? `traits : ${d.traits.map(t => nomContenu("traits", t)).join(", ")}` : "",
     (d.incapacites ?? []).length ? `INCAPABLE de : ${d.incapacites.join(", ")}` : "",
     (d.equipement ?? []).length ? `sur lui : ${d.equipement.map(e => nomContenu("equipements", e)).join(", ")}` : "",
+    texteEspritTirage(d, nomContenu),
     texteBrut(graine) ? `histoire : ${couper(texteBrut(graine), 220)}` : ""
   ].filter(Boolean).join(" — ");
+}
+// L'esprit d'un tirage (§14.1 : le générateur le tire ; regard, foi, pratique, autorité ; la couleur au seul joueur concerné).
+function texteEspritTirage(d, nomContenu) {
+  if (!REGARDS.includes(d?.regard)) return "";
+  const foi = texteFoi(d, nomContenu);
+  return `esprit : regard ${LIBELLES_REGARDS[d.regard]}${foi ? ` ; ${foi}` : ""} ; autorité ${borner(entier(d.autorite ?? 2), 0, 5)}/5 ; `
+    + `couleur ${bandeSensMoral(entier(d.sensMoral))} (sens moral ${signe(entier(d.sensMoral))} : À NE DIRE QU'AU JOUEUR CONCERNÉ, en privé par message_prive, jamais devant les autres)`;
 }
 
 // Les besoins du groupe, quelle que soit leur forme (tableau, ou objet indexé par tâche) : [{ tache, competence, meilleur,
@@ -559,7 +805,13 @@ export function repartirTaches(besoins, membres = []) {
 // Une recrue proposée (genererRecrue), pour le narrateur : qui, pourquoi là, son prix ou son défaut.
 export function resumerRecrue(d = {}, id = "?", options = {}) {
   const prix = d.prix ? (typeof d.prix === "string" ? d.prix : texteBrut(d.prix.texte ?? d.prix.description ?? JSON.stringify(d.prix))) : "";
-  return `${resumerTirage(d, id, options)}${d.raison ? ` — pourquoi il est là : ${texteBrut(d.raison)}` : ""}${prix ? ` — SON PRIX : ${prix}` : ""}`;
+  const nomContenu = options.nomDe ?? ((_c, cle) => cle);
+  const savoirs = (d.savoirs ?? []).map(s => nomContenu("savoirs", s)).join(", ");
+  const prejuges = textePrejuges(d.prejuges, nomContenu);
+  return `${resumerTirage(d, id, options)}${d.gramoune ? " — GRAMOUNE (ses savoirs lontan se transmettent aux veillées, si on gagne sa confiance)" : ""}`
+    + `${savoirs ? ` — savoirs : ${savoirs}` : ""}${entier(d.confiance) ? ` — confiance de départ ${entier(d.confiance)}/5` : ""}`
+    + `${d.raison ? ` — pourquoi il est là : ${texteBrut(d.raison)}` : ""}${prix ? ` — SON PRIX : ${prix}` : ""}`
+    + `${prejuges ? ` — préjugés (dans sa bouche seulement, démentis par les faits) : ${prejuges}` : ""}`;
 }
 
 // ------------------------------------------------------------------ véhicules et montures (§9 : équipement à `transport`)

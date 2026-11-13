@@ -269,11 +269,11 @@ test("survie_marquer, survie_assaut (force bornée, blessés nommés), survie_re
   const { api } = installerFenoir();
   assert.match((await executer("survie_marquer", { personnage: "Lucie", competence: "soins", raison: "l'accouchement" })).contenu, /soins : niveau 3, 2 marque/);
   assert.deepEqual(derniersArgs(api), ["marquer", { acteurId: "s1", competence: "soins" }]);
-  const a = await executer("survie_assaut", { force: 6, type: "horde", description: "La horde du Port déferle." });
+  const a = await executer("survie_assaut", { force: 6, type: "horde", description: "La horde du Port déferle.", menace: "", issue: "assaut" });
   assert.deepEqual(derniersArgs(api), ["assaut", { force: 6, type: "horde", description: "La horde du Port déferle." }]);
   assert.match(a.contenu, /installation endommagée \(marge -1\)/);
   assert.match(a.contenu, /Blessés : Lucie Hoarau/);
-  assert.equal((await executer("survie_assaut", { force: 0, type: "", description: "" })).erreur, true);
+  assert.equal((await executer("survie_assaut", { force: 0, type: "", description: "", menace: "", issue: "assaut" })).erreur, true);
   const r = await executer("survie_rencontre", { region: "", type: "humains" });
   assert.deepEqual(derniersArgs(api), ["rencontre", { region: "saint-paul", type: "humains" }]);
   assert.ok(!r.contenu.includes(CONNU) && r.contenu.startsWith(SECRET), "une rencontre tirée est pour le MJ seul");
@@ -333,7 +333,7 @@ test("hors du MJ actif : chaque outil qui écrit est refusé avec le message du 
     survie_ajuster: { stocks: { ...ZERO, eau: 1 }, personnage: "", etat: { blessures: 0, fatigue: 0, moral: 0, faim: 0, soif: 0 }, raison: "" },
     survie_blessure: { action: "blesser", personnage: "Lucie", n: 1, morsure: false, soigneur: "" },
     survie_marquer: { personnage: "Lucie", competence: "soins", raison: "" },
-    survie_assaut: { force: 3, type: "chiens", description: "" },
+    survie_assaut: { force: 3, type: "chiens", description: "", menace: "", issue: "assaut" },
     survie_renseigner: { region: "le-port", source: "radio", infestation: "", pillage: "", electricite: "", eau: "", routes: [], factions: [], notes: "x" },
     survie_demarrer: { region: "saint-paul", membres: [], pnj: [], date_depart: "" },
     survie_fabriquer: { recette: "filtre-portatif", artisan: "Eddy", membres: [] },
@@ -342,7 +342,7 @@ test("hors du MJ actif : chaque outil qui écrit est refusé avec le message du 
     survie_participer: { fete: "dipavali", communaute: "malbars", faction: "", membres: [] },
     survie_releve: { action: "reprendre", mort: "Lucie", candidat: "Eddy", joueur: "" },
     survie_autel: { action: "honorer", mort: "" },
-    survie_recrue: { action: "generer", region: "", recrue: "", parleur: "", attitude: "" },
+    survie_recrue: { action: "generer", region: "", gramoune: "", recrue: "", parleur: "", attitude: "" },
     survie_assigner: { personnage: "Eddy", tache: "garde", repartir: false },
     survie_ajouter_membre: { personnage: "Bellemène", statut: "pnj" }
   };
@@ -360,16 +360,16 @@ test("système absent ou fonction absente : refus clair, jamais une exception", 
   assert.match(r.contenu, /survie_bilan : Le système lakour-survie n'est pas chargé/);
   installerFenoir();
   delete game.lakourSurvie.assaut;
-  assert.match((await executer("survie_assaut", { force: 2, type: "", description: "" })).contenu, /ne fournit pas game\.lakourSurvie\.assaut\(\)/);
+  assert.match((await executer("survie_assaut", { force: 2, type: "", description: "", menace: "", issue: "assaut" })).contenu, /ne fournit pas game\.lakourSurvie\.assaut\(\)/);
 });
 
 // creer_survivant : arguments complets (schéma strict), pour les essais.
-const CREER = { action: "creer", nombre: 0, verrous: { nom: "", age: 0, enfance: "", passe: "", traits: [] }, favoriser: [], tirage: "", statut: "joueur",
+const CREER = { action: "creer", nombre: 0, verrous: { nom: "", age: 0, enfance: "", passe: "", traits: [], regard: "", religion: "", religions: [], pratique: "", ancrage: "" }, favoriser: [], tirage: "", statut: "joueur",
   rejoindre: true, nom: "", joueur: "", acteur_existant: "", passe: "", competences: [], equipement: [], age: 0, lien: "", description: "" };
 
 test("creer_survivant, tirer : trois tirages du générateur, verrous résolus, hors budget relancé, résumés pour le joueur", async () => {
   const { cadre } = installerFenoir();
-  const r = await executer("creer_survivant", { ...CREER, action: "tirer", verrous: { nom: "", age: 0, enfance: "Gamin du Port", passe: "", traits: ["Main verte"] },
+  const r = await executer("creer_survivant", { ...CREER, action: "tirer", verrous: { nom: "", age: 0, enfance: "Gamin du Port", passe: "", traits: ["Main verte"], regard: "", religion: "", religions: [], pratique: "", ancrage: "" },
     favoriser: ["soins"] });
   assert.ok(!r.erreur, r.contenu);
   assert.equal(cadre.generes.length, 4, "le premier tirage, hors budget (17), est relancé");
@@ -486,11 +486,11 @@ test("survie_besoins : les manques, urgences d'abord ; tous = avec les tâches c
 
 test("survie_recrue : generer (au secret, avec son prix), recruter par le test de parole ; identifiant inconnu refusé", async () => {
   const { api, acteurs } = installerFenoir();
-  const g = await executer("survie_recrue", { action: "generer", region: "", recrue: "", parleur: "", attitude: "" });
+  const g = await executer("survie_recrue", { action: "generer", region: "", gramoune: "", recrue: "", parleur: "", attitude: "" });
   assert.deepEqual(derniersArgs(api), ["genererRecrue", { region: "saint-paul" }]);
   assert.ok(g.contenu.startsWith(SECRET), "une recrue tirée est pour le MJ");
   assert.match(g.contenu, /R1 — Gilles Técher, 52 ans — enfance : Enfant des Hauts de Salazie.*pourquoi il est là : Il garde seul la caserne vide — SON PRIX : Il veut qu'on aille chercher sa fille/);
-  const r = await executer("survie_recrue", { action: "recruter", region: "", recrue: "r1", parleur: "Lucie", attitude: "mefiante" });
+  const r = await executer("survie_recrue", { action: "recruter", region: "", gramoune: "", recrue: "r1", parleur: "Lucie", attitude: "mefiante" });
   assert.equal(derniersArgs(api)[0], "recruter");
   assert.equal(derniersArgs(api)[1].parleurId, "s1");
   assert.equal(derniersArgs(api)[1].attitude, "mefiante", "l'attitude règle la difficulté du test (API recruter)");
@@ -498,9 +498,9 @@ test("survie_recrue : generer (au secret, avec son prix), recruter par le test d
   assert.match(r.contenu, /Lucie Hoarau, Parole : 1 succès pour 1 requis — réussite/);
   assert.match(r.contenu, /Gilles Técher rejoint le groupe \(recrue\)/);
   assert.ok(acteurs.find(x => x.name === "Gilles Técher"));
-  assert.match((await executer("survie_recrue", { action: "recruter", region: "", recrue: "R1", parleur: "Lucie", attitude: "" })).contenu, /recrue « R1 » inconnue/);
-  await executer("survie_recrue", { action: "generer", region: "", recrue: "", parleur: "", attitude: "" });
-  await executer("survie_recrue", { action: "recruter", region: "", recrue: "R2", parleur: "Lucie", attitude: "" });
+  assert.match((await executer("survie_recrue", { action: "recruter", region: "", gramoune: "", recrue: "R1", parleur: "Lucie", attitude: "" })).contenu, /recrue « R1 » inconnue/);
+  await executer("survie_recrue", { action: "generer", region: "", gramoune: "", recrue: "", parleur: "", attitude: "" });
+  await executer("survie_recrue", { action: "recruter", region: "", gramoune: "", recrue: "R2", parleur: "Lucie", attitude: "" });
   assert.equal("attitude" in derniersArgs(api)[1], false, "attitude vide : celle par défaut du système (neutre)");
 });
 

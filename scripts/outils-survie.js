@@ -11,7 +11,9 @@ import {
   trouverFiche, listeDe, nomDe, voisinsDe, texteQuand, texteStocks, texteVariations, texteTest, ligneRenseignement, ligneReel,
   lignesSurvie, lignesMenaces, rendu, resumerSurvivant, etatCourt, jourDuQuart, libelleRessource, TACHES, STATUTS,
   dansLeBudget, sommeNiveaux, resumerTirage, lignesBesoins, repartirTaches, resumerRecrue,
-  resoudreTransport, vehiculesDu, ligneVehicule, ligneTransport, portentVehicule
+  resoudreTransport, vehiculesDu, ligneVehicule, ligneTransport, portentVehicule,
+  RESSOURCES_TROC, STADES_MARCHE, PORTEES_RUMEUR, PREUVES, REGARDS, ACTES_MORAUX, VOIX, PROFILS_VISITEUR, SOURCES_APPRENTISSAGE, CIBLES_SAVOIRS,
+  GROUPE, bandeSensMoral, detteDuGroupe, texteMarche, texteRumeur, rumeurVivante, textePrejuges, secretDuSurvivant
 } from "./survie-logique.js";
 
 const SURVIE = ["lakour-survie"];
@@ -96,7 +98,9 @@ function cleDe(collection, reference, genre, { defaut = undefined } = {}) {
   }
   return f.cle;
 }
-const LIBELLES_COLLECTIONS = { regions: "régions", sites: "sites", installations: "installations", recettes: "recettes", afflictions: "afflictions" };
+const LIBELLES_COLLECTIONS = { regions: "régions", sites: "sites", installations: "installations", recettes: "recettes", afflictions: "afflictions",
+  factions: "factions", communautes: "communautés", marchands: "gens du marché", marches: "marchés", foires: "foires", savoirs: "savoirs",
+  religions: "religions", ancrages: "ancrages", gramounes: "gramounes" };
 const regionDuGroupe = () => lire("etat")?.groupe?.region ?? "";
 const nomRegion = cle => nomDe(lire("contenu")?.regions, cle);
 const quandTexte = () => texteQuand(lire("quand"));
@@ -333,8 +337,9 @@ export const OUTILS_SURVIE = [
     schema: objet({
       region: chaine("Région fouillée (clé ou nom) ; vide = celle du groupe."),
       site: chaine("Site précis (clé ou nom d'un site du contenu) ; vide = la région en général."),
-      cible: choix(["", ...RESSOURCES_PILLABLES, ...NATURE], "Ressource cherchée en priorité dans les maisons et commerces, ou la nature alentour "
-        + "(cueillette, gibier, peche : nourriture ; bois : matériaux) ; vide = tout ce qui se trouve."),
+      cible: choix(["", ...RESSOURCES_PILLABLES, "gaz", ...NATURE, ...CIBLES_SAVOIRS], "Ressource cherchée en priorité dans les maisons et commerces, ou la nature "
+        + "alentour (cueillette, gibier, peche : nourriture ; bois : matériaux), ou jardins (les jardins créoles des cases : plantes, boutures), livres "
+        + "(un livre qui apprend un savoir, au premier fouilleur) ; vide = tout ce qui se trouve."),
       membres: MEMBRES,
       quarts: entier("Durée en quarts (1 en général ; 0 = 1)."),
       prudence: choix(["discret", "normal", "rapide"], "Façon de fouiller.")
@@ -353,6 +358,8 @@ export const OUTILS_SURVIE = [
         connu: [
           `${ids.map(nomActeur).join(", ")} fouillent ${cleSite ? nomDe(lire("contenu")?.sites, cleSite) : nomRegion(cle)} (${prudence}) ; maintenant : ${quandTexte()}.`,
           `Butin : ${butin.join(", ") || "rien de valable"}.`, Number(r?.bruit) ? `Bruit fait : ${r.bruit}.` : "",
+          r?.livre ? `Un livre trouvé : ${nomDe(lire("contenu")?.savoirs, r.livre)}, porté par ${nomActeur(ids[0])} ; il s'apprend en veillées de lecture `
+            + "(survie_veillee apprendre, source livre)." : "",
           ...lignePubliques("Faits perçus", publics)
         ],
         secret: [r?.rencontre ? `${RENCONTRE}${texteRencontre(r.rencontre)}` : "", `Réel après la fouille : ${reelDe(cle)}`, ...lignePubliques("Hors de leur vue", secrets)]
@@ -588,24 +595,22 @@ export const OUTILS_SURVIE = [
     nom: "survie_assaut",
     description: "Fénoir : une menace attaque l'abri (horde de passage, bande armée, chiens) : défense de l'abri et meilleure vigilance de la "
       + "garde contre la force de la menace. Issue : repoussée, une installation endommagée et un blessé, ou BRÈCHE (scène de combat, "
-      + "fuite possible). Raconte l'assaut d'après le résultat.",
+      + "fuite possible). Raconte l'assaut d'après le résultat. Une MENACE DU JOUR (identifiant « m3 » au secret de l'état du jeu) se règle "
+      + "par menace et issue : assaut, ecarter, ultimatum (le groupe accepte le tribut de la bande), rejoindre (son chef frappe à la porte).",
     schema: objet({
-      force: entier("Force de la menace en d6 (1 à 10 : une poignée de Livides 2, une horde 6 à 10, une bande armée 4 à 7)."),
+      force: entier("Force de la menace en d6 (1 à 10 : une poignée de Livides 2, une horde 6 à 10, une bande armée 4 à 7) ; 0 avec une menace du jour."),
       type: chaine("Nature de la menace (« horde », « bande », « chiens »…) ; vide = inconnue."),
-      description: chaine("Ce qui arrive, en une phrase (inscrit à la chronique) ; vide = rien de plus.")
+      description: chaine("Ce qui arrive, en une phrase (inscrit à la chronique) ; vide = rien de plus."),
+      menace: chaine("Identifiant d'une menace du jour à régler (« m3 ») ; vide = un assaut libre (force, type)."),
+      issue: choix(["assaut", "ecarter", "ultimatum", "rejoindre"], "Avec une menace : ce qu'il en advient ; sans : assaut.")
     }),
     sensible: true,
-    async executer({ force, type, description }) {
+    async executer({ force, type, description, menace = "", issue = "assaut" }) {
       api();
+      if (String(menace ?? "").trim()) return reglerMenace(String(menace).trim(), issue);
       if (!Number.isInteger(force) || force < 1 || force > 10) throw new Refus("force : de 1 à 10 dés.");
       const r = await appeler("assaut", { force, type: type.trim(), description: description.trim() });
-      const blesses = (r?.blesses ?? []).map(b => (typeof b === "string" ? nomActeur(b) : b?.nom ?? nomActeur(b?.acteurId ?? b?.id)));
-      const degats = Array.isArray(r?.degats) ? r.degats.map(d => (typeof d === "string" ? d : d?.nom ?? d?.installation ?? "?")).join(", ") : r?.degats;
-      return { contenu: rendu({ connu: [
-        `Assaut (${type.trim() || "?"}, force ${force}) : ${ISSUES_ASSAUT[r?.issue] ?? r?.issue ?? "?"} (marge ${r?.marge ?? "?"}).`,
-        degats ? `Dégâts : ${degats}.` : "", blesses.length ? `Blessés : ${blesses.join(", ")}.` : "",
-        r?.issue === "breche" || Number(r?.marge) <= -2 ? "BRÈCHE : joue la scène (combat simple, §1.7) ; la fuite est une vraie option." : ""
-      ] }) };
+      return { contenu: rendu({ connu: lignesAssaut(r, `${type.trim() || "?"}, force ${force}`) }) };
     }
   }),
   outil({
@@ -891,6 +896,30 @@ export const OUTILS_SURVIE = [
     }
   })
 ];
+// Le texte d'un assaut résolu (api.assaut, api.resoudreMenace « assaut »).
+function lignesAssaut(r, libelle) {
+  const blesses = (r?.blesses ?? []).map(b => (typeof b === "string" ? nomActeur(b) : b?.nom ?? nomActeur(b?.acteurId ?? b?.id)));
+  const degats = Array.isArray(r?.degats) ? r.degats.map(d => (typeof d === "string" ? d : d?.nom ?? d?.installation ?? "?")).join(", ") : r?.degats;
+  return [
+    `Assaut (${libelle}) : ${ISSUES_ASSAUT[r?.issue] ?? r?.issue ?? "?"} (marge ${r?.marge ?? "?"}).`,
+    degats ? `Dégâts : ${degats}.` : "", blesses.length ? `Blessés : ${blesses.join(", ")}.` : "",
+    r?.issue === "breche" || Number(r?.marge) <= -2 ? "BRÈCHE : joue la scène (combat simple, §1.7) ; la fuite est une vraie option." : ""
+  ];
+}
+// Une menace du jour réglée (api.resoudreMenace, §14.5) : assaut, écartée, ultimatum accepté (un tribut), rejoindre (on frappe).
+async function reglerMenace(id, issue) {
+  const m = (lire("monde")?.menaces ?? []).find(x => x.id === id);
+  const r = await appeler("resoudreMenace", { id, action: issue });
+  if (issue === "assaut" && r && !r.ecartee) return { contenu: rendu({ connu: lignesAssaut(r, `menace ${id}${m ? `, ${m.type ?? "?"}, force ${m.force ?? "?"}` : ""}`) }) };
+  if (r?.tribut) {
+    const t = r.tribut;
+    return { contenu: rendu({ connu: [`Ultimatum accepté : tribut ${t.id} à ${t.bande ?? t.faction ?? "?"} : ${texteBiensTroc(t.demande)} tous les ${t.tousLes ?? "?"} jours, `
+      + `premier dû le jour ${t.prochain ?? "?"} (survie_communaute tribut, payé ou refusé : refuser, c'est la guerre).`] }) };
+  }
+  if (r?.visiteur) return { contenu: rendu(texteVisiteur(r.visiteur, "Le chef de la bande vient frapper à la porte, il demande à rejoindre")) };
+  return { contenu: rendu({ connu: [`Menace ${id} écartée : elle ne vient pas (raconte pourquoi, ou laisse-la hors champ).`] }) };
+}
+
 // Un survivant repris par la relève : un acteur (nom), sinon le nom d'un PNJ léger (le système le résout).
 function trouverCandidat(nom) {
   try { return survivant(nom); } catch { return null; }
@@ -940,7 +969,12 @@ const nomContenu = (collection, cle, genre = "") => nomDe(lire("contenu")?.[coll
 const VERROUS = objet({
   nom: chaine("Nom gardé (vide = tiré)."), age: entier("Âge gardé, 16 à 75 (0 = tiré)."),
   enfance: chaine("Enfance gardée (clé ou nom ; vide = tirée)."), passe: chaine("Passé gardé (clé ou nom ; vide = tiré)."),
-  traits: liste(chaine("Trait gardé (clé ou nom)."), "Traits gardés (vide = tirés).")
+  traits: liste(chaine("Trait gardé (clé ou nom)."), "Traits gardés (vide = tirés)."),
+  regard: choix(["", ...REGARDS], "Regard sur la catastrophe gardé (epreuve : endurer ; refaire : bâtir ; vivre : les petits plaisirs) ; vide = tiré."),
+  religion: chaine("Religion gardée (clé ou nom du contenu, « aucune », « plusieurs ») ; vide = tirée."),
+  religions: liste(chaine("Religion (clé ou nom)."), "Avec « plusieurs » : deux ou trois religions ; vide sinon."),
+  pratique: choix(["", "oui", "non"], "Pratiquant (sa religion ou son ancrage) ; vide = tiré."),
+  ancrage: chaine("Ce qui fait tenir un non-croyant (clé ou nom d'un ancrage du contenu) ; vide = tiré.")
 });
 // Les verrous non vides, résolus dans le contenu quand c'est possible.
 function verrousDe(v = {}) {
@@ -950,7 +984,11 @@ function verrousDe(v = {}) {
   return Object.fromEntries([
     ["nom", v.nom?.trim()], ["age", v.age > 0 ? v.age : null],
     ["enfance", v.enfance?.trim() ? cle("enfances", v.enfance) : null], ["passe", v.passe?.trim() ? cle("passes", v.passe) : null],
-    ["traits", traits.length ? traits.map(t => cle("traits", t)) : null]
+    ["traits", traits.length ? traits.map(t => cle("traits", t)) : null],
+    // L'esprit choisi par le joueur (§14.1 : generer({ verrous: { regard, religion, religions, pratique, ancrage } })).
+    ["regard", REGARDS.includes(v.regard) ? v.regard : null], ["religion", v.religion?.trim() ? cle("religions", v.religion) : null],
+    ["religions", (v.religions ?? []).filter(r => r.trim()).length ? v.religions.filter(r => r.trim()).map(r => cle("religions", r)) : null],
+    ["pratique", v.pratique === "oui" ? true : v.pratique === "non" ? false : null], ["ancrage", v.ancrage?.trim() ? cle("ancrages", v.ancrage) : null]
   ].filter(([, x]) => x !== null && x !== undefined && x !== ""));
 }
 // Un tirage dans le budget (§10.2 : somme des niveaux entre 10 et 16) : jusqu'à cinq relances, verrous gardés.
@@ -967,7 +1005,8 @@ OUTILS_SURVIE.push(outil({
   nom: "creer_survivant",
   description: "Fénoir : création d'un survivant « tiré au sort mais cohérent » par le générateur du système (enfance, passé, "
     + "compétences, passions, traits, incapacités, équipement, graine d'histoire). D'abord « tirer » : deux ou trois tirages résumés à "
-    + "proposer au joueur (verrous : ce qu'il garde — nom, âge, enfance, passé, traits — pour relancer le reste). Puis « creer » avec la "
+    + "proposer au joueur (verrous : ce qu'il garde — nom, âge, enfance, passé, traits, et son esprit : regard, religion, pratique, ancrage — "
+    + "pour relancer le reste ; la couleur tirée ne se dit qu'à lui, en privé). Puis « creer » avec la "
     + "lettre du tirage choisi (et ses ajustements) : le SYSTÈME crée la fiche (creerSurvivant : jeton du passé, genre, graine, objets), "
     + "la confie au joueur nommé (joueur ; vide = personne : PNJ, compagnon IA) et, rejoindre = true, la fait entrer au groupe avec son "
     + "statut. Sans tirage (lettre vide), même chose d'après un passé du compendium. Pour un compagnon IA, statut « compagnon » "
@@ -1154,21 +1193,24 @@ OUTILS_SURVIE.push(
     description: "Fénoir : une recrue qui comble les manques du groupe. « generer » : le système tire un survivant qui penche vers les "
       + "compétences manquantes, avec une raison d'être là et un PRIX (ce qu'il demande, un défaut, une méfiance, un proche à sauver) : "
       + "fais-le rencontrer au groupe (rencontre, appel radio), sans dévoiler son prix d'emblée. « recruter » : quand les joueurs lui "
-      + "proposent de les rejoindre, le test de parole du parleur décide ; réussi, il entre au groupe (statut recrue).",
+      + "proposent de les rejoindre, le test de parole du parleur décide ; réussi, il entre au groupe (statut recrue). Une GRAMOUNE (une ancienne "
+      + "aux savoirs lontan, du contenu) se présente aussi en recrue : generer avec gramoune.",
     schema: objet({
       action: choix(["generer", "recruter"], "generer une recrue, ou la recruter."),
       region: chaine("generer : région où on la croise (clé ou nom) ; vide = celle du groupe."),
+      gramoune: chaine("generer : clé ou nom d'une gramoune du contenu ; vide = une recrue tirée selon les manques."),
       recrue: chaine("recruter : identifiant de la recrue rendu par generer (« R1 ») ; vide sinon."),
       parleur: chaine("recruter : le survivant qui la convainc (test de parole) ; vide sinon."),
       attitude: choix(["", "amicale", "neutre", "mefiante", "hostile"], "recruter : l'attitude de la recrue envers le groupe (elle règle la difficulté "
         + "du test : amicale facile, neutre normale, méfiante difficile, hostile extrême ; un cran de moins si elle comble un manque) ; vide = neutre.")
     }),
     sensible: true,
-    async executer({ action, region, recrue, parleur, attitude }) {
+    async executer({ action, region, gramoune = "", recrue, parleur, attitude }) {
       api();
       if (action === "generer") {
         const cle = cleDe("regions", region, "une région", { defaut: regionDuGroupe() });
-        const d = await appeler("genererRecrue", { region: cle });
+        const g = String(gramoune ?? "").trim() ? cleDe("gramounes", gramoune, "une gramoune") : "";
+        const d = await appeler("genererRecrue", { region: cle, ...(g ? { gramoune: g } : {}) });
         if (!d) throw new Refus("le système n'a proposé aucune recrue.");
         const id = `R${++compteurRecrues}`;
         recrues.set(id, d);
@@ -1238,3 +1280,568 @@ OUTILS_SURVIE.push(
   })
 );
 
+
+// ------------------------------------------------------------------ le marché, les savoirs, la communauté (§12 à §15, 2026-11-13)
+// Les fonctions de l'API (scripts/api.mjs et api-marche.mjs du système) : marche, coursDuJour, stadesDuMarche, evenementDeMarche,
+// evaluerTroc, troquer, ouvrirBoutique, crediter, rendre, effacerDette, solderCarnet, ouvrirMarche, fermerMarche, accueillir,
+// rompreTreve, retablirTreve, rumeur, dementir, dementirPrejuge, prejuges, creerMarchand ; preparerCyclone, apprendre,
+// gagnerConfiance, dicter, apprivoiser ; frapper, porte, voter, decider, acteMoral, chef, parole, entente, separer, fusionner,
+// lireSigne, tribut, ajusterEsprit, tirerEsprit, resoudreMenace (essais/survie-api-fenoir.test.mjs les cherche dans le code du système).
+// Le sens moral, la vraie couleur, la vérité des rumeurs et les préjugés vont au bloc secret, jamais au connu.
+const BIENS = liste(objet({ ressource: choix(RESSOURCES_TROC, "Le bien."), n: entier("Quantité.") }), "Les biens ; vide = aucun.");
+// signe : 1 = les quantités positives ; -1 = les négatives, en valeur absolue (un troc : + reçu, − donné).
+const biensDe = (l, signe = 1) => {
+  const o = {};
+  for (const b of l ?? []) { const q = Math.floor(Number(b?.n) * signe); if (q > 0) o[b.ressource] = (o[b.ressource] ?? 0) + q; }
+  return o;
+};
+function texteBiensTroc(o) {
+  return Object.entries(o ?? {}).filter(([, v]) => Number(v) > 0).map(([k, v]) => `${libelleRessource(k)} ${v}`).join(", ") || "rien";
+}
+const parts = v => String(Math.round(Number(v || 0) * 100) / 100).replace(".", ",");
+const ref = x => String(x ?? "").trim();
+const estGroupe = x => ["groupe", "le groupe"].includes(n(x));
+// Une communauté visée par un préjugé (contenu « communautes ») : sa clé ; une cible hors du contenu reste telle quelle.
+const ciblesDe = l => (l ?? []).map(ref).filter(Boolean).map(c => trouverFiche(lire("contenu")?.communautes, c)?.cle ?? c);
+const factionDe = f => (ref(f) ? cleDe("factions", f, "une faction") : "");
+const pnjDe = nom => (ref(nom) ? survivant(nom).id : "");
+// Qui porte un acte du marché ou d'une rumeur : « groupe », un survivant (son id), sinon le nom tel quel (un PNJ inconnu ne porte rien).
+function porteurDe(qui) {
+  const x = ref(qui);
+  if (!x) return "";
+  if (estGroupe(x)) return GROUPE;
+  return survivant(x, { requis: false })?.id ?? x;
+}
+const nomPorteur = qui => (qui === GROUPE ? "le groupe" : acteurDe(qui)?.name ?? qui);
+const signeDe = v => `${Number(v) > 0 ? "+" : ""}${Number(v) || 0}`;
+// Ce que l'acte a fait au sens moral (retour de porterActe : { membres: [{ nom, delta, deltaReputation }], enfants }) : au secret.
+function lignesSens(sens) {
+  if (!sens?.membres?.length) return [];
+  return [`Sens moral : ${sens.membres.map(m => `${m.nom} ${signeDe(m.delta)}${Number(m.deltaReputation) ? ` (réputation ${signeDe(m.deltaReputation)})` : ""}`).join(", ")}.`,
+    ...((sens.enfants ?? []).length ? [`Les enfants ont vu : ${sens.enfants.map(e => `${e.nom} ${e.reaction ?? ""}${e.projet ? ` (projet : ${e.projet})` : ""}`).join(", ")}.`] : [])];
+}
+// Une boutique ou un marché de l'état public, par clé ou nom ; vide = le seul qui existe.
+function lieuDuMarche(genre, reference, { requis = true } = {}) {
+  const liste = lire("etat")?.marche?.[genre] ?? [];
+  const libelle = genre === "boutiques" ? "boutique" : "marché";
+  const connus = () => liste.map(x => `${x.nom ?? x.cle} [${x.cle}]`).join(", ") || "aucun pour l'instant";
+  if (!ref(reference)) {
+    if (liste.length === 1) return liste[0].cle;
+    if (!requis) return "";
+    throw new Refus(`dis quel ${libelle} (${connus()}).`);
+  }
+  const f = trouverFiche(liste, reference);
+  if (!f) throw new Refus(`${libelle} introuvable : « ${reference} » (${connus()}).`);
+  return f.cle;
+}
+// La première confiance d'un PNJ (évaluer, troquer, crédit) : au secret, le narrateur la joue.
+function ligneConfiance(c) {
+  if (!c) return "";
+  const credit = { plein: "plein crédit", moitie: "crédit de moitié", refuse: "pas de crédit" }[c.credit] ?? c.credit;
+  return `Première confiance${c.pnj ? ` de ${c.pnj}` : ""} : poids ${c.poids ?? 0}${(c.enJeu ?? []).length ? ` (préjugés éveillés : ${c.enJeu.join(", ")})` : ""}`
+    + `${Number(c.rumeurs) ? ` ; rumeurs contre le groupe : ${c.rumeurs}` : ""} → majoration +${Math.round(Number(c.majoration || 0) * 100)} %, ${credit}`
+    + `${Number(c.parole) ? `, −${c.parole} dé(s) en parole avec lui` : ""}${(c.dits ?? []).length ? `. Ce qu'il en dit (dans sa bouche) : ${c.dits.map(d => `« ${brut(d)} »`).join(" ; ")}` : ""}.`;
+}
+// Quelqu'un à la porte (api.frapper, resoudreMenace « rejoindre ») : ce que le groupe voit, et au secret sa vraie couleur.
+function texteVisiteur(v, tete = "On frappe à la porte") {
+  const vrai = lire("monde")?.porte?.[v?.id]?.survivant;
+  const demande = brut(v?.demande?.texte ?? v?.demande);
+  return {
+    connu: [`${tete} : ${v?.id ?? "?"} ${v?.nom ?? "?"}${Number(v?.age) ? `, ${v.age} ans` : ""} (${v?.profil ?? "?"}${Number(v?.bouches) ? `, ${v.bouches} bouche(s) en plus` : ""})`
+      + `${demande ? ` : « ${demande} »` : ""}. Le groupe décide : survie_porte (accueillir, refuser, trahir), après un vote s'il le veut (survie_vote).`],
+    secret: vrai ? [`Sa vraie couleur : ${bandeSensMoral(vrai.sensMoral)} (sens moral ${signeDe(vrai.sensMoral)}) ; ne la dis pas, montre-la par ses gestes.`] : []
+  };
+}
+// Le résumé d'un survivant pour le narrateur : le public au connu, sens moral et préjugés au secret.
+function resumeEnDeux(a, { nomContenu }) {
+  return { connu: [resumerSurvivant(a, { nomDe: nomContenu, chef: lire("etat")?.groupe?.chef === a.id })], secret: [secretDuSurvivant(a, { nomDe: nomContenu })] };
+}
+
+OUTILS_SURVIE.push(
+  outil({
+    nom: "survie_marche",
+    description: "Fénoir, le marché (troc seulement, en parts : une part = un jour de nourriture). « lire » : le cours du jour, les stades "
+      + "possibles, les carnets, les marchés, ce qui se dit ; au secret, la vérité des rumeurs. « evenement » : un événement de marché à jouer.",
+    schema: objet({
+      action: choix(["lire", "evenement"], "lire, ou tirer un événement."),
+      region: chaine("lire : région des stades ; vide = celle du groupe."),
+      stade: choix(["", ...STADES_MARCHE], "evenement : le stade ; vide = forain.")
+    }),
+    sensible: false,
+    async executer({ action, region, stade }) {
+      api();
+      const contenu = lire("contenu");
+      if (action === "evenement") {
+        const e = await appeler("evenementDeMarche", { stade: stade || "forain" });
+        if (!e) return { contenu: rendu({ connu: ["Aucun événement de marché pour ce stade, cette saison, cette phase."] }) };
+        const effets = Object.entries(e.effets ?? {}).map(([k, v]) => `${k} : ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" ; ");
+        return { contenu: rendu({ secret: [`Événement de marché à jouer au bon moment : ${e.nom ?? e.cle} — ${brut(e.texte)}.`,
+          effets ? `Effets : ${effets}${e.effets?.dementi ? " (un démenti : survie_prejuge dementir quand les faits l'ont montré)" : ""}.` : ""] }) };
+      }
+      const cle = cleDe("regions", region, "une région", { defaut: regionDuGroupe() });
+      const m = await appeler("marche", {});
+      const cours = await appeler("coursDuJour", {});
+      const stades = await appeler("stadesDuMarche", { region: cle });
+      const quand = lire("quand") ?? {};
+      const jour = quand.jour ?? 0;
+      const vivantes = (m?.rumeurs ?? []).filter(r => rumeurVivante(r, jour));
+      const verites = lire("monde")?.marche?.rumeurs ?? {};
+      return { contenu: rendu({
+        connu: [
+          `Cours du jour (parts) : ${Object.entries(cours ?? {}).map(([k, v]) => `${libelleRessource(k)} ${parts(v)}`).join(", ") || "?"}.`,
+          `Stades à ${nomRegion(cle)} : ${(stades ?? []).map(s => `${s.stade} ${s.ouvert ? "oui" : "non"}${brut(s.texte ?? s.motif?.texte) ? ` (${brut(s.texte ?? s.motif?.texte)})` : ""}`).join(" ; ")}.`,
+          (m?.boutiques ?? []).length ? `Boutiques et carnets : ${m.boutiques.map(b => `${b.nom ?? b.cle} [${b.cle}]${b.tenancier ? `, tenue par ${nomActeur(b.tenancier)}` : ""} : `
+            + `dette du groupe ${parts(detteDuGroupe(b))} part(s)`).join(" ; ")}.` : "Aucune boutique ouverte (survie_carnet ouvrir).",
+          (m?.marches ?? []).length ? `Marchés : ${m.marches.map(x => texteMarche(x, { contenu, jour, date: quand.date })).join(" ; ")}.` : "",
+          vivantes.length ? `Ce qui se dit : ${vivantes.map(texteRumeur).join(" ; ")}.` : "",
+          m?.signe ? `Signe du groupe (ses objets marqués) : ${m.signe}.` : ""
+        ],
+        secret: vivantes.filter(r => verites[r.id]).map(r => `Rumeur ${r.id} : ${verites[r.id].vraie ? "VRAIE" : "FAUSSE"}${verites[r.id].malveillant ? ", malveillante" : ""}`
+          + `${verites[r.id].auteur ? `, lancée par ${nomPorteur(verites[r.id].auteur)}` : ""}.`)
+      }) };
+    }
+  }),
+  outil({
+    nom: "survie_troquer",
+    description: "Fénoir : un troc au cours du jour avec un PNJ ou une faction. Il demande sa valeur MAJORÉE par sa première confiance : les "
+      + "préjugés que TU dis éveillés (cibles), les rumeurs contre le groupe, la réputation de sa faction. « evaluer » ne change rien ; "
+      + "« troquer » (refusé s'il n'y trouve pas son compte, sauf accepter). Un échange honnête use ses préjugés.",
+    schema: objet({
+      action: choix(["evaluer", "troquer"], "evaluer, ou troquer."),
+      biens: liste(objet({ ressource: choix(RESSOURCES_TROC, "Le bien."), n: entier("+ reçu par le groupe, − donné.") }), "L'échange."),
+      pnj: chaine("Le PNJ (nom d'un acteur) ; vide = aucun."),
+      cibles: liste(chaine("Communauté (clé ou nom)."), "Ses préjugés éveillés devant le groupe ; vide = aucun."),
+      faction: chaine("Sa faction (clé ou nom) ; vide = aucune."),
+      marche: chaine("Le marché (une foire : sa récolte vaut moins) ; vide = aucun."),
+      accepter: booleen("troquer : true = passer outre un refus."),
+      prejuge: chaine("troquer : qui joue d'un préjugé pour le prix (« groupe », un survivant : il porte « colporter ») ; vide = personne.")
+    }),
+    sensible: true,
+    async executer({ action, biens, pnj, cibles, faction, marche, accepter, prejuge }) {
+      api();
+      const args = { donne: biensDe(biens, -1), recoit: biensDe(biens, 1), pnjId: pnjDe(pnj), cibles: ciblesDe(cibles), faction: factionDe(faction),
+        marche: ref(marche) ? lieuDuMarche("marches", marche) : "" };
+      if (!Object.keys(args.recoit).length && !Object.keys(args.donne).length) throw new Refus("rien à échanger (donne et recoit vides).");
+      const troc = action === "troquer";
+      const r = await appeler(troc ? "troquer" : "evaluerTroc", troc ? { ...args, accepter, prejuge: porteurDe(prejuge) } : args);
+      const abri = acteurDe(lire("etat")?.groupe?.abri);
+      return { contenu: rendu({
+        connu: [
+          `Le groupe donne ${texteBiensTroc(args.donne)} (${parts(r?.valeurDonnee)} parts) contre ${texteBiensTroc(args.recoit)} (${parts(r?.valeurRecue)} parts) ; `
+            + `${args.pnjId ? nomActeur(args.pnjId) : "l'autre"} en demande ${parts(r?.demandee)}.`,
+          !troc ? `Évaluation : ${r?.accepte ? "il accepterait" : "il refuserait"}${r?.equitable ? " (échange équitable au cours)" : ""}.`
+            : r?.ok ? `Troc fait.${abri ? ` Stocks : ${texteStocks(abri.system?.stocks)}.` : ""}` : `Refusé : ${brut(r?.raison) || "il n'y trouve pas son compte"}.`
+        ],
+        secret: [ligneConfiance(r?.confiance), (r?.usure?.uses ?? []).length ? `Ses préjugés s'usent : ${r.usure.uses.join(", ")}${(r.usure.tombes ?? []).length ? ` ; TOMBÉS : ${r.usure.tombes.join(", ")}` : ""}.` : "",
+          ...lignesSens(r?.sens)]
+      }) };
+    }
+  }),
+  outil({
+    nom: "survie_carnet",
+    description: "Fénoir : une boutique et son carnet de crédit (en parts, au cours). « ouvrir » (nom, tenancier) ; « prendre » à crédit "
+      + "(plafond 10 parts, moins si le tenancier se méfie) ; « rendre » ; « effacer » (le tenancier efface la dette : un cyclone, un deuil) ; "
+      + "« solder » (au Nouvel An chinois). Une dette qui traîne 30 jours fait courir une rumeur.",
+    schema: objet({
+      action: choix(["ouvrir", "prendre", "rendre", "effacer", "solder"], "Ce qu'on fait."),
+      boutique: chaine("La boutique (ouvrir : son nom) ; vide = la seule ouverte."),
+      tenancier: chaine("ouvrir : le commerçant (un acteur) ; prendre : qui fait crédit, si ce n'est lui ; vide sinon."),
+      biens: BIENS,
+      cibles: liste(chaine("Communauté."), "prendre, rendre : ses préjugés éveillés ; vide = aucun."),
+      faction: chaine("prendre : sa faction ; vide = aucune."),
+      remise: booleen("solder : true = effacer ce que le groupe doit encore.")
+    }),
+    sensible: true,
+    async executer({ action, boutique, tenancier, biens, cibles, faction, remise }) {
+      api();
+      if (action === "ouvrir") {
+        if (!ref(boutique)) throw new Refus("donne le nom de la boutique.");
+        const t = pnjDe(tenancier);
+        const r = await appeler("ouvrirBoutique", { nom: ref(boutique), tenancier: t });
+        return { contenu: rendu({ connu: [`Boutique ouverte : ${r?.boutique?.nom ?? boutique} [${r?.boutique?.cle ?? "?"}]${t ? `, tenue par ${nomActeur(t)}` : ""}, avec son carnet.`] }) };
+      }
+      const cle = lieuDuMarche("boutiques", boutique);
+      const b = biensDe(biens);
+      if (["prendre", "rendre"].includes(action) && !Object.keys(b).length) throw new Refus("dis quels biens (biens).");
+      let r, ligne;
+      if (action === "prendre") {
+        r = await appeler("crediter", { boutique: cle, biens: b, ...(ref(tenancier) ? { pnjId: pnjDe(tenancier) } : {}), cibles: ciblesDe(cibles), faction: factionDe(faction) });
+        ligne = r?.ok ? `Pris à crédit : ${texteBiensTroc(b)} (${parts(r.entree?.valeur)} parts) ; le groupe doit ${parts(r.dette)} part(s) sur un plafond de ${parts(r.plafond)}.`
+          : `Pas de crédit : ${brut(r?.raison) || "refusé"}.`;
+      } else if (action === "rendre") {
+        r = await appeler("rendre", { boutique: cle, biens: b, cibles: ciblesDe(cibles) });
+        ligne = `Rendu : ${texteBiensTroc(b)} (${parts(r?.paye)} parts payées) ; reste dû : ${parts(r?.reste)} part(s).`;
+      } else if (action === "effacer") {
+        r = await appeler("effacerDette", { boutique: cle, debiteur: GROUPE });
+        ligne = `Le tenancier efface la dette du groupe (${parts(r?.efface)} part(s)).`;
+      } else {
+        r = await appeler("solderCarnet", { boutique: cle, remises: remise ? [GROUPE] : [] });
+        const impaye = (r?.impayees ?? []).some(x => x.debiteur === GROUPE);
+        ligne = r?.deja ? "Le carnet est déjà soldé cette année."
+          : `Carnet soldé : ${(r?.remises ?? []).length ? "la dette du groupe est effacée" : impaye ? "le groupe doit encore : la dette traîne, la rumeur suivra"
+            : (r?.soldes ?? []).includes(GROUPE) ? "le groupe a tout rendu (parole tenue : son plafond monte)" : "rien au nom du groupe"}.`;
+      }
+      return { contenu: rendu({ connu: [ligne], secret: [ligneConfiance(r?.confiance)] }) };
+    }
+  }),
+  outil({
+    nom: "survie_marche_forain",
+    description: "Fénoir : un marché forain (jour fixe, conseil d'une voix par bastion, sous TRÊVE) ou une foire (trois jours, une récolte). "
+      + "« ouvrir » (du contenu, ou le sien), « fermer », « accueillir » à l'abri (bruit, l'abri se voit, réputation auprès des bastions) ou "
+      + "« rendre » l'accueil, « rompre » la trêve (toute l'île le sait ; le groupe : −3 de réputation par bastion, acte « attaquer »), « retablir ».",
+    schema: objet({
+      action: choix(["ouvrir", "fermer", "accueillir", "rendre", "rompre", "retablir"], "Ce qu'on fait."),
+      marche: chaine("Le marché ; ouvrir : un marché du contenu ; vide = le seul ouvert."),
+      foire: chaine("ouvrir : une foire du contenu ; vide sinon."),
+      nom: chaine("ouvrir un marché à soi : son nom ; vide sinon."),
+      jour_semaine: entier("ouvrir un marché à soi : 0 dimanche … 6 samedi."),
+      bastions: liste(chaine("Faction, ou « groupe »."), "ouvrir : son conseil ; vide = aucun."),
+      par: chaine("rompre : qui rompt (« groupe », un survivant, une faction) ; vide = le groupe.")
+    }),
+    sensible: true,
+    async executer({ action, marche, foire, nom, jour_semaine, bastions, par }) {
+      api();
+      const contenu = lire("contenu");
+      if (action === "ouvrir") {
+        const f = ref(foire) ? cleDe("foires", foire, "une foire") : "";
+        const modele = !f && ref(marche) ? cleDe("marches", marche, "un marché du contenu") : "";
+        if (!f && !modele && !ref(nom)) throw new Refus("dis quel marché du contenu (marche), quelle foire, ou le nom d'un marché à soi.");
+        const conseil = (bastions ?? []).map(ref).filter(Boolean).map(b => (estGroupe(b) ? GROUPE : trouverFiche(contenu?.factions, b)?.cle ?? b));
+        const jour = Number.isInteger(jour_semaine) && jour_semaine >= 0 && jour_semaine <= 6 ? jour_semaine : 6;
+        const r = await appeler("ouvrirMarche", { ...(f ? { foire: f } : modele ? { modele } : { nom: ref(nom), jourSemaine: jour }), bastions: conseil });
+        const q = lire("quand") ?? {};
+        return { contenu: rendu({ connu: [`Ouvert : ${r?.marche ? texteMarche(r.marche, { contenu, jour: q.jour ?? 0, date: q.date }) : ref(nom) || modele || f}.`] }) };
+      }
+      const cle = lieuDuMarche("marches", marche);
+      if (action === "fermer") { await appeler("fermerMarche", { marche: cle }); return { contenu: rendu({ connu: [`Le marché ${cle} ferme.`] }) }; }
+      if (action === "retablir") { await appeler("retablirTreve", { marche: cle }); return { contenu: rendu({ connu: [`La trêve du marché ${cle} est rétablie.`] }) }; }
+      if (action === "accueillir" || action === "rendre") {
+        const r = await appeler("accueillir", { marche: cle, hote: action === "accueillir" ? GROUPE : "" });
+        return { contenu: rendu({ connu: [action === "accueillir" ? `Le groupe accueille le marché ${cle} à son abri : du bruit le jour du marché, l'abri se voit `
+          + `(signature ${r?.signature ?? "?"}), un point de réputation par mois tenu auprès de chaque bastion.` : `Le groupe n'accueille plus le marché ${cle}.`] }) };
+      }
+      const qui = !ref(par) || estGroupe(par) ? GROUPE : survivant(par, { requis: false })?.id ?? trouverFiche(contenu?.factions, par)?.cle ?? ref(par);
+      const r = await appeler("rompreTreve", { marche: cle, par: qui });
+      const rep = Object.entries(r?.reputation ?? {}).map(([f, v]) => `${nomDe(contenu?.factions, f)} ${v}`).join(", ");
+      return { contenu: rendu({ connu: [`TRÊVE ROMPUE au marché ${cle} par ${nomPorteur(qui)} : toute l'île le saura.${rep ? ` Réputation : ${rep}.` : ""}`], secret: lignesSens(r?.sens) }) };
+    }
+  }),
+  outil({
+    nom: "survie_rumeur",
+    description: "Fénoir, le Ladi Lafé : « lancer » une rumeur (publique ; sa VÉRITÉ au secret) : qui colporte du mal porte l'acte « colporter » ; "
+      + "contre le groupe, elle pèse sur la première confiance des PNJ. « dementir » par une preuve : une rumeur vraie ne se dément pas ; un "
+      + "mensonge malveillant démenti se retourne contre son auteur.",
+    schema: objet({
+      action: choix(["lancer", "dementir"], "lancer, ou dementir."),
+      sujet: chaine("lancer : de qui on parle ; vide = le groupe."),
+      texte: chaine("lancer : ce qui se dit ; vide sinon."),
+      vraie: booleen("lancer : c'est vrai."),
+      malveillant: booleen("lancer : pour nuire."),
+      auteur: chaine("lancer : qui la lance (« groupe », un survivant, un PNJ) ; vide = inconnu."),
+      portee: choix(PORTEES_RUMEUR, "lancer : jusqu'où elle court."),
+      contre: booleen("lancer : elle dessert son sujet."),
+      rumeur: chaine("dementir : la rumeur (« r3 ») ; vide sinon."),
+      preuve: choix(PREUVES, "dementir : la marque d'un objet, un témoin, les faits.")
+    }),
+    sensible: true,
+    async executer({ action, sujet, texte, vraie, malveillant, auteur, portee, contre, rumeur, preuve }) {
+      api();
+      if (action === "dementir") {
+        if (!ref(rumeur)) throw new Refus("dis quelle rumeur (rumeur : « r3 »).");
+        const r = await appeler("dementir", { id: ref(rumeur), preuve });
+        if (!r?.ok) return { contenu: rendu({ connu: [`Démenti impossible : ${brut(r?.raison) || "?"}.`] }) };
+        return { contenu: rendu({ connu: [`La rumeur ${ref(rumeur)} est démentie (${preuve}) : elle cesse de peser.`],
+          secret: [r.menteur ? `Le mensonge se retourne contre ${nomPorteur(r.menteur)} : une rumeur vraie court sur lui.` : "", ...lignesSens(r.sens)] }) };
+      }
+      if (!ref(texte)) throw new Refus("dis ce qui se dit (texte).");
+      const s = !ref(sujet) || estGroupe(sujet) ? GROUPE : ref(sujet);
+      const qui = porteurDe(auteur);
+      const r = await appeler("rumeur", { sujet: s, texte: ref(texte), vraie, malveillant, auteur: qui, portee, contre });
+      return { contenu: rendu({
+        connu: [`Rumeur ${r?.id ?? "?"} (${portee}) sur ${nomPorteur(s)} : « ${ref(texte)} ». Fais-la entendre par la bouche des gens.`],
+        secret: [`Elle est ${vraie ? "VRAIE" : "FAUSSE"}${malveillant ? ", malveillante" : ""}${qui ? `, lancée par ${nomPorteur(qui)}` : ""}.`, ...lignesSens(r?.sens)]
+      }) };
+    }
+  }),
+  outil({
+    nom: "survie_prejuge",
+    description: "Fénoir : les préjugés, traits d'un PNJ. « dementir » : les faits démentent un préjugé sous ses yeux (un cran de moins ; pnj "
+      + "vide = tous ceux qui le portent). « ecrire » les préjugés d'un PNJ. « marchand » : un des gens du marché du contenu entre en jeu.",
+    schema: objet({
+      action: choix(["dementir", "ecrire", "marchand"], "Ce qu'on fait."),
+      cible: chaine("dementir : la communauté visée ; marchand : qui (clé ou nom) ; vide sinon."),
+      pnj: liste(chaine("Un acteur."), "dementir : ceux qui ont vu (vide = tous) ; ecrire : le PNJ (un seul)."),
+      prejuges: liste(objet({ cible: chaine("Communauté."), poids: entier("1 à 3."), dit: chaine("Ce qu'il en dit.") }), "ecrire : ses préjugés (remplacent les anciens).")
+    }),
+    sensible: true,
+    async executer({ action, cible, pnj, prejuges }) {
+      api();
+      const contenu = lire("contenu");
+      const nomContenu = (collection, cle, genre = "") => nomDe(contenu?.[collection], cle, genre);
+      if (action === "marchand") {
+        const cle = cleDe("marchands", cible, "un des gens du marché");
+        const r = await appeler("creerMarchand", { cle });
+        const a = acteurDe(r?.acteurId);
+        const resume = a ? resumeEnDeux(a, { nomContenu }) : { connu: [], secret: [] };
+        return { contenu: rendu({ connu: [`${a?.name ?? cle} ${r?.deja ? "existe déjà" : "entre en jeu"} (PNJ du marché).`, ...resume.connu], secret: resume.secret }) };
+      }
+      const ids = (pnj ?? []).map(ref).filter(Boolean).map(x => survivant(x).id);
+      if (action === "ecrire") {
+        if (ids.length !== 1) throw new Refus("ecrire : un PNJ, et un seul (pnj).");
+        const liste = (prejuges ?? []).filter(p => ref(p.cible)).map(p => ({ cible: ciblesDe([p.cible])[0], poids: Math.max(1, Math.min(3, Number(p.poids) || 1)), dit: ref(p.dit) }));
+        await appeler("prejuges", { acteurId: ids[0], prejuges: liste });
+        return { contenu: rendu({ secret: [`Préjugés de ${nomActeur(ids[0])} : ${textePrejuges(liste, nomContenu) || "aucun"}. Dans sa bouche seulement ; les faits les démentiront.`] }) };
+      }
+      const c = ciblesDe([cible])[0];
+      if (!c) throw new Refus("dis quel préjugé les faits démentent (cible).");
+      const r = await appeler("dementirPrejuge", { cible: c, pnj: ids });
+      return { contenu: rendu({ secret: [`Les faits démentent le préjugé contre ${nomContenu("communautes", c)} : ${(r?.pnj ?? []).join(", ") || "personne ne le portait plus"} en rabat un cran. `
+        + "Montre-le par un geste, un silence, une phrase qui change ; jamais par une leçon."] }) };
+    }
+  }),
+  outil({
+    nom: "survie_veillee",
+    description: "Fénoir, les savoirs et le cyclone (le temps passe). « preparer_cyclone » (rentrer, fixer : quarts × bras, valable 5 jours) ; "
+      + "« apprendre » un savoir (le soir à l'abri : livre, cahier de gramoune, maître du groupe) ; « confiance » d'une gramoune (test de "
+      + "parole) ; « dicter » : la gramoune dicte son cahier (six veillées : ses savoirs lontan lui survivent) ; « apprivoiser » le chien errant.",
+    schema: objet({
+      action: choix(["preparer_cyclone", "apprendre", "confiance", "dicter", "apprivoiser"], "Ce qu'on fait."),
+      personnage: chaine("apprendre : l'élève ; confiance, dicter : la gramoune ; apprivoiser : qui ; vide sinon."),
+      autre: chaine("apprendre : le maître ; confiance : qui lui parle ; dicter : le scribe ; vide sinon."),
+      savoir: chaine("apprendre : le savoir ; vide sinon."),
+      source: choix(["", ...SOURCES_APPRENTISSAGE], "apprendre : d'où."),
+      membres: MEMBRES,
+      quarts: entier("preparer_cyclone : quarts (1 à 8).")
+    }),
+    sensible: false,
+    async executer({ action, personnage, autre, savoir, source, membres: noms, quarts }) {
+      api();
+      const nomSavoir = cle => nomDe(lire("contenu")?.savoirs, cle);
+      if (action === "preparer_cyclone") {
+        const ids = membres(noms);
+        const r = await appeler("preparerCyclone", { membres: ids, quarts: Math.max(1, quarts || 1) });
+        return { contenu: rendu({ connu: [`${ids.map(nomActeur).join(", ")} préparent l'abri au cyclone : ${r?.fait ?? "?"}/${r?.requis ?? "?"} quarts-personne`
+          + `${r?.prete ? " — PRÊT (valable cinq jours)" : ""} ; maintenant : ${quandTexte()}.`] }) };
+      }
+      const a = survivant(personnage);
+      const b = ref(autre) ? survivant(autre) : null;
+      if (action === "apprendre") {
+        const cle = cleDe("savoirs", savoir, "un savoir");
+        const src = source || (b ? "maitre" : "livre");
+        if (src === "maitre" && !b) throw new Refus("apprendre d'un maître : dis qui (autre).");
+        const r = await appeler("apprendre", { acteurId: a.id, savoir: cle, source: src, ...(src === "maitre" ? { maitreId: b.id } : {}) });
+        return { contenu: rendu({ connu: [`${a.name} apprend ${nomSavoir(cle)} (${src}${src === "maitre" ? `, avec ${b.name}` : ""}) : ${r?.termine ? "APPRIS" : `${r?.fait ?? "?"}/${r?.requis ?? "?"} veillées`}`
+          + `${r?.lumiere === "energie" ? " ; une unité d'énergie pour la lumière" : r?.lumiere === "bougie" ? " ; à la bougie (l'abri se voit un peu ce soir)" : ""} ; maintenant : ${quandTexte()}.`] }) };
+      }
+      if (action === "apprivoiser") {
+        const r = await appeler("apprivoiser", { acteurId: a.id });
+        return { contenu: rendu({ connu: [r?.apprivoise ? `Le chien suit ${a.name} : il est au groupe.`
+          : `${a.name} pose à manger au chien : confiance ${r?.confiance ?? "?"}${r?.morsure ? " ; il a MORDU (une blessure)" : ""} ; maintenant : ${quandTexte()}.`] }) };
+      }
+      if (!b) throw new Refus(`${action} : dis qui ${action === "dicter" ? "écrit (le scribe)" : "lui parle"} (autre).`);
+      if (action === "confiance") {
+        const r = await appeler("gagnerConfiance", { acteurId: a.id, parleurId: b.id });
+        return { contenu: rendu({ connu: [`Veillée de ${b.name} avec ${a.name} : confiance ${r?.confiance ?? "?"}/5 (${signeDe(r?.delta)}, ${r?.reussite ? "réussite" : "échec"}) ; `
+          + `maintenant : ${quandTexte()}.`] }) };
+      }
+      const r = await appeler("dicter", { gramouneId: a.id, scribeId: b.id });
+      return { contenu: rendu({ connu: [r?.termine ? `Le cahier de ${a.name} est écrit (porté par ${b.name}) : il apprend ${(r.enseigne ?? []).map(nomSavoir).join(", ") || "ses savoirs"}.`
+        : `${a.name} dicte, ${b.name} écrit : ${r?.fait ?? "?"}/${r?.requis ?? "?"} veillées ; maintenant : ${quandTexte()}.`] }) };
+    }
+  }),
+  outil({
+    nom: "survie_porte",
+    description: "Fénoir : la porte de l'abri (l'état du jeu dit qui attend). « frapper » : quelqu'un frappe maintenant. « accueillir » (recrue, "
+      + "avec sa famille), « refuser » (exclure), « trahir » (prendre ce qu'il apporte, le chasser) : le groupe présent porte l'acte ; avec un "
+      + "vote, qui a voté contre ne le porte pas, et le chef suit ou non.",
+    schema: objet({
+      action: choix(["frapper", "accueillir", "refuser", "trahir"], "Ce qui se passe."),
+      visiteur: chaine("Le visiteur (« v2 » ou son nom) ; vide pour frapper."),
+      profil: choix(["", ...PROFILS_VISITEUR], "frapper : son profil ; vide = selon la couleur du groupe."),
+      vote: chaine("Le vote qui a précédé (« vote3 ») ; vide = aucun."),
+      circonstances: booleen("Les témoins savent les circonstances (moitié moins).")
+    }),
+    sensible: true,
+    async executer({ action, visiteur, profil, vote, circonstances }) {
+      api();
+      if (action === "frapper") return { contenu: rendu(texteVisiteur(await appeler("frapper", { profil }))) };
+      const porte = lire("etat")?.porte ?? [];
+      const v = porte.find(x => x.id === ref(visiteur)) ?? trouverFiche(porte.map(x => ({ ...x, cle: x.id })), visiteur);
+      if (!v) throw new Refus(`visiteur introuvable : « ${visiteur} » (à la porte : ${porte.map(x => `${x.id} ${x.nom}`).join(", ") || "personne"}).`);
+      const r = await appeler("porte", { visiteurId: v.id, decision: action, voteId: ref(vote), circonstances });
+      return { contenu: rendu({
+        connu: [action === "accueillir" ? `${v.nom} entre au groupe (recrue)${Number(r?.bouches) ? ` avec ${r.bouches} proche(s) à nourrir` : ""} : donne-lui une tâche (survie_assigner).`
+          : action === "trahir" ? `Le groupe prend ce que ${v.nom} apportait (${texteBiensTroc(r?.pris)}) puis le chasse.` : `${v.nom} est refusé à la porte.`,
+          r?.vote ? `Le chef ${r.vote.suivi ? "suit" : "N'A PAS SUIVI"} le vote${r.vote.suivi ? "" : " (l'entente baisse)"}.` : ""],
+        secret: [r?.suite ? `Suite du refus : ${r.suite === "feu" ? "il reviendra mettre le FEU" : r.suite === "revient" ? "il reviendra, avec de quoi se faire accepter" : "il s'en va pour de bon"} (ne l'annonce pas).` : "",
+          ...lignesSens(r)]
+      }) };
+    }
+  }),
+  outil({
+    nom: "survie_vote",
+    description: "Fénoir : le groupe vote sur un acte. « voter » : les voix données (joueurs, compagnons IA qui donnent la leur) ; les autres "
+      + "selon leur sens moral ; un jeune de 16 à 18 ans, une demi-voix. « decider » : le chef suit le vote ou non, sans autre acte. L'acte "
+      + "lui-même : survie_porte ou survie_acte_moral avec le vote.",
+    schema: objet({
+      action: choix(["voter", "decider"], "voter, ou decider."),
+      question: chaine("voter : la question ; vide = l'acte."),
+      acte: choix(["", ...ACTES_MORAUX], "voter : l'acte mis au vote."),
+      voix: liste(objet({ personnage: chaine("Le votant."), voix: choix(VOIX, "Sa voix.") }), "voter : les voix données ; vide = selon leur jauge."),
+      circonstances: booleen("voter : les circonstances pèsent (danger, faim)."),
+      vote: chaine("decider : le vote (« vote3 ») ; vide sinon."),
+      decision: choix(["pour", "contre"], "decider : pour = le chef fait ce que le vote a choisi.")
+    }),
+    sensible: true,
+    async executer({ action, question, acte, voix, circonstances, vote, decision }) {
+      api();
+      if (action === "decider") {
+        if (!ref(vote)) throw new Refus("dis quel vote (vote).");
+        const r = await appeler("decider", { voteId: ref(vote), decision });
+        return { contenu: rendu({ connu: [`Le chef ${r?.suivi === false ? "N'A PAS SUIVI le vote (l'entente baisse)" : "suit le vote"}${Number(r?.delta) ? ` (autorité ${signeDe(r.delta)})` : ""}.`] }) };
+      }
+      if (!acte) throw new Refus("dis quel acte est mis au vote (acte).");
+      const donnees = Object.fromEntries((voix ?? []).filter(x => ref(x.personnage)).map(x => [survivant(x.personnage).id, x.voix]));
+      const r = await appeler("voter", { question: ref(question), acte, voix: donnees, circonstances });
+      const res = r?.resultat ?? {};
+      const parVoix = Object.entries(r?.voix ?? {}).map(([id, v]) => `${nomActeur(id)} ${v}`).join(", ");
+      return { contenu: rendu({ connu: [`Vote ${r?.id ?? "?"} « ${ref(question) || acte} » : pour ${res.pour ?? "?"}, contre ${res.contre ?? "?"}, abstention ${res.abstention ?? "?"}`
+        + `${parVoix ? ` (${parVoix})` : ""}. Puis l'acte (survie_porte, survie_acte_moral avec ce vote) ou survie_vote decider.`] }) };
+    }
+  }),
+  outil({
+    nom: "survie_acte_moral",
+    description: "Fénoir, le sens moral (du rouge : exclure, trahir, au bleu : accueillir, aider) : un acte porté par des survivants, vu par des "
+      + "témoins (réputation) et par les enfants ; « colporter » : dire du mal de quelqu'un ; sans acte, un déplacement libre (delta). Avec un "
+      + "vote, qui a voté contre ne le porte pas. Le résultat est au secret.",
+    schema: objet({
+      personnages: liste(chaine("Un survivant."), "Ceux qui portent l'acte."),
+      acte: choix(["", ...ACTES_MORAUX], "L'acte ; vide = delta."),
+      delta: entier("Sans acte : −3 à +3 ; 0 sinon."),
+      circonstances: booleen("Les témoins savent les circonstances (moitié moins)."),
+      temoins: booleen("Quelqu'un a vu (la réputation suit)."),
+      vote: chaine("Le vote qui l'a décidé ; vide = aucun."),
+      journal: booleen("L'inscrire à la chronique publique.")
+    }),
+    sensible: true,
+    async executer({ personnages, acte, delta, circonstances, temoins, vote, journal }) {
+      api();
+      const ids = [...new Set((personnages ?? []).map(ref).filter(Boolean).map(x => survivant(x).id))];
+      if (!ids.length) throw new Refus("dis qui porte l'acte (personnages).");
+      if (!acte && !Number(delta)) throw new Refus("un acte, ou un delta non nul.");
+      const r = await appeler("acteMoral", { acteurs: ids, ...(acte ? { acte } : { delta: Math.max(-3, Math.min(3, delta)) }), circonstances, temoins, voteId: ref(vote), journal });
+      return { contenu: rendu({ connu: [`Acte noté : ${ids.map(nomActeur).join(", ")} — ${acte || `déplacement ${signeDe(delta)}`}`
+        + `${(r?.epargnes ?? []).length ? ` (épargnés, ils avaient voté contre : ${r.epargnes.map(nomActeur).join(", ")})` : ""}.`,
+        r?.vote ? `Le chef ${r.vote.suivi ? "suit" : "N'A PAS SUIVI"} le vote.` : ""], secret: lignesSens(r) }) };
+    }
+  }),
+  outil({
+    nom: "survie_communaute",
+    description: "Fénoir, la communauté : « chef » (pas un jeune de 16 à 18 ans) ; « parole » du chef tenue ou manquée (autorité ±1) ; "
+      + "« entente » (−3 à +3, sur le moral de chacun) ; « separer » (des partants avec leur part) ; « fusionner » un groupe parti ; « signe » : "
+      + "un objet du cyclone, une coïncidence, que chacun lit selon sa foi ; « tribut » dû à une bande : payé, ou refusé (elle attaquera).",
+    schema: objet({
+      action: choix(["chef", "parole", "entente", "separer", "fusionner", "signe", "tribut"], "Ce qu'on fait."),
+      qui: liste(chaine("Un survivant."), "chef : le chef (vide = personne) ; separer : les partants."),
+      oui: booleen("parole : tenue ; tribut : payé."),
+      delta: entier("entente : variation ; 0 sinon."),
+      raison: chaine("parole, entente : pourquoi ; vide sinon."),
+      cible: chaine("fusionner : le groupe parti (« c1 ») ; tribut : « t1 » ou la bande ; vide sinon."),
+      nom: chaine("separer : nom du groupe qui part ; vide = tiré."),
+      abri_aux: choix(["restants", "partants"], "separer : à qui va l'abri.")
+    }),
+    sensible: true,
+    async executer({ action, qui, oui, delta, raison, cible, nom, abri_aux }) {
+      api();
+      const ids = (qui ?? []).map(ref).filter(Boolean).map(x => survivant(x).id);
+      const etat = lire("etat");
+      if (action === "chef") {
+        await appeler("chef", { acteurId: ids[0] ?? "" });
+        return { contenu: rendu({ connu: [ids[0] ? `${nomActeur(ids[0])} mène le groupe.` : "Le groupe n'a plus de chef."] }) };
+      }
+      if (action === "parole") {
+        const r = await appeler("parole", { tenue: oui, raison: ref(raison) });
+        return { contenu: rendu({ connu: [`Parole du chef ${oui ? "tenue" : "manquée"} : autorité ${r?.autorite ?? "?"}/5.`] }) };
+      }
+      if (action === "entente") {
+        if (!Number(delta)) throw new Refus("entente : une variation non nulle (delta).");
+        const r = await appeler("entente", { delta: Math.max(-3, Math.min(3, delta)), raison: ref(raison) });
+        return { contenu: rendu({ connu: [`Entente du groupe : ${r?.entente ?? "?"} (de −3 à +3).`] }) };
+      }
+      if (action === "separer") {
+        if (!ids.length) throw new Refus("separer : dis qui part (qui).");
+        const r = await appeler("separer", { partants: ids, abriVaAux: abri_aux, nom: ref(nom) });
+        return { contenu: rendu({ connu: [`${ids.map(nomActeur).join(", ")} partent : « ${r?.communaute?.nom ?? ref(nom)} » [${r?.communaute?.id ?? "?"}], avec leur part des stocks`
+          + `${abri_aux === "partants" ? " et l'abri" : ""} ; tous gardent les plans.`] }) };
+      }
+      if (action === "fusionner") {
+        const groupes = etat?.communautes ?? [];
+        const g = groupes.find(x => x.id === ref(cible)) ?? trouverFiche(groupes.map(x => ({ ...x, cle: x.id })), cible);
+        if (!g) throw new Refus(`groupe introuvable : « ${cible} » (${groupes.map(x => `${x.id} ${x.nom}`).join(", ") || "aucun groupe parti"}).`);
+        const r = await appeler("fusionner", { communauteId: g.id });
+        return { contenu: rendu({ connu: [`« ${g.nom} » rejoint le groupe : stocks et plans mis ensemble ; entente ${r?.entente ?? "?"}.`] }) };
+      }
+      if (action === "signe") {
+        const r = await appeler("lireSigne", {});
+        const l = r?.lectures ?? [];
+        return { contenu: rendu({ connu: [`Chacun le lit selon sa foi : ${l.map(x => `${x.nom} ${({ signe: "y voit un SIGNE (+1 moral)", doute: "doute", rien: "n'y voit rien" })[x.lecture] ?? x.lecture}`).join(" ; ") || "personne"}. `
+          + "Le jeu ne confirme ni ne dément rien : fais-le dire par eux."] }) };
+      }
+      const tributs = etat?.tributs ?? [];
+      const actifs = tributs.filter(x => x.etat === "actif");
+      const t = tributs.find(x => x.id === ref(cible)) ?? (ref(cible) ? trouverFiche(tributs.map(x => ({ ...x, cle: x.id, nom: x.bande })), cible) : actifs.length === 1 ? actifs[0] : null);
+      if (!t) throw new Refus(`tribut introuvable : « ${cible} » (${tributs.map(x => `${x.id} ${x.bande}`).join(", ") || "aucun"}).`);
+      const r = await appeler("tribut", { tributId: t.id, paye: oui });
+      const issues = { paye: "payé", hausse: "payé, mais la bande AUGMENTE sa demande", alliance: "payé : la bande devient ALLIÉE", revolte: "REFUSÉ : la bande attaquera (une menace de sa force)" };
+      return { contenu: rendu({ connu: [`Tribut ${t.id} à ${t.bande} : ${issues[r?.issue] ?? r?.issue ?? (oui ? "payé" : "refusé")}.`] }) };
+    }
+  }),
+  outil({
+    nom: "survie_esprit",
+    description: "Fénoir, l'esprit d'un survivant. « lire » : son résumé, au secret son sens moral et ses préjugés. « ajuster » (vide ou 0 = "
+      + "inchangé ; nombres : variations ; le sens moral passe par survie_acte_moral). « tirer » l'esprit d'une fiche qui n'en a pas (forcer : "
+      + "le retirer). Rien de magique : la foi agit par le moral.",
+    schema: objet({
+      action: choix(["lire", "ajuster", "tirer"], "Ce qu'on fait."),
+      personnage: chaine("Le survivant."),
+      regard: choix(["", ...REGARDS], "Son regard."),
+      religion: liste(chaine("Religion (clé ou nom)."), "Sa religion, « aucune », ou deux ou trois (plusieurs)."),
+      pratique: choix(["", "oui", "non"], "Pratiquant."),
+      ancrage: chaine("Ce qui fait tenir un non-croyant (clé ou nom)."),
+      ancrage_perdu: choix(["", "oui", "non"], "A perdu son ancrage (la photo, le carnet)."),
+      reputation: entier("Réputation."),
+      autorite: entier("Autorité."),
+      chance: entier("Chance."),
+      forcer: booleen("tirer : retirer un esprit déjà tiré.")
+    }),
+    sensible: true,
+    async executer(a) {
+      api();
+      const s = survivant(a.personnage);
+      const contenu = lire("contenu");
+      const nomContenu = (collection, cle, genre = "") => nomDe(contenu?.[collection], cle, genre);
+      const resume = tete => { const r = resumeEnDeux(acteurDe(s.id) ?? s, { nomContenu }); return { connu: [tete, ...r.connu], secret: r.secret }; };
+      if (a.action === "lire") return { contenu: rendu(resume("")) };
+      if (a.action === "tirer") {
+        const r = await appeler("tirerEsprit", { acteurId: s.id, forcer: a.forcer });
+        return { contenu: rendu(resume(r?.deja ? `${s.name} a déjà un esprit (forcer pour le retirer).` : `Esprit tiré pour ${s.name}.`)) };
+      }
+      const sys = s.system ?? {};
+      const borne = (v, min, max) => Math.max(min, Math.min(max, Math.round(v)));
+      // Une religion (ou « aucune ») ; deux ou trois : « plusieurs » et la liste (espritDuTirage du système).
+      const religions = (a.religion ?? []).filter(ref).map(r => cleDe("religions", r, "une religion"));
+      const foi = religions.length > 1 ? { religion: "plusieurs", religions: religions.slice(0, 3) } : religions.length ? { religion: religions[0], religions: [] } : {};
+      const champs = Object.fromEntries([
+        ["regard", a.regard || undefined], ...Object.entries(foi),
+        ["pratique", a.pratique ? a.pratique === "oui" : undefined], ["ancrage", ref(a.ancrage) ? cleDe("ancrages", a.ancrage, "un ancrage") : undefined],
+        ["ancragePerdu", a.ancrage_perdu ? a.ancrage_perdu === "oui" : undefined],
+        ["reputation", a.reputation ? borne((Number(sys.reputation) || 0) + a.reputation, -10, 10) : undefined],
+        ["autorite", a.autorite ? borne((Number(sys.autorite ?? 2) || 0) + a.autorite, 0, 5) : undefined],
+        ["chance", a.chance ? borne((Number(sys.esprit?.chance) || 0) + a.chance, 0, 3) : undefined]
+      ].filter(([, v]) => v !== undefined));
+      if (!Object.keys(champs).length) throw new Refus("rien à changer (tous les champs vides ou à 0).");
+      await appeler("ajusterEsprit", { acteurId: s.id, ...champs });
+      return { contenu: rendu(resume(`Esprit de ${s.name} ajusté (${Object.keys(champs).join(", ")}).`)) };
+    }
+  })
+);

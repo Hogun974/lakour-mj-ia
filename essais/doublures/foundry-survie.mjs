@@ -14,7 +14,10 @@ export class Collection extends Map {
 
 // Ce qui n'existe que dans le monde réel (secret) : aucun ne doit fuir.
 export const MARQUEURS_SECRETS = ["HORDE-SECRETE", "CYCLONE-SECRET", "JOURNAL-SECRET", "faction-secrete", "MENACE-SECRETE", "crue-secrete",
-  "RENCONTRE-SECRETE", "FAIT-SECRET", "ERUPTION-SECRETE"];
+  "RENCONTRE-SECRETE", "FAIT-SECRET", "ERUPTION-SECRETE",
+  // Le marché (§12, monde « nouveautes ») : la vérité d'une rumeur, un préjugé de PNJ. La vraie couleur et le cyclone vécu sont des mots
+  // ordinaires : les essais les vérifient à part.
+  "AUTEUR-SECRET", "PREJUGE-SECRET"];
 
 export const CONTENU = {
   regions: [
@@ -32,7 +35,15 @@ export const CONTENU = {
     { cle: "case-du-lagon", region: "saint-paul", nom: "Case créole du lagon" }
   ],
   installations: [{ cle: "citerne", nom: "Citerne de pluie" }, { cle: "potager", nom: "Potager" }],
-  savoirs: [{ cle: "premiers-secours", nom: "Premiers secours avancés" }], factions: [], evenements: [],
+  savoirs: [{ cle: "premiers-secours", nom: "Premiers secours avancés", arbre: "moderne" }, { cle: "tisanes", nom: "Tisanes lontan", arbre: "lontan" }],
+  factions: [{ cle: "recuperateurs", nom: "Les Récupérateurs" }, { cle: "planteurs", nom: "Les Planteurs des Hauts" }], evenements: [],
+  // Le marché (§12), l'esprit (§14), les gramounes (§13) : comme le registre du système.
+  communautes: [{ cle: "zoreils", nom: "Zoreils" }, { cle: "malbars", nom: "Malbars" }, { cle: "gens-d-en-bas", nom: "Gens d'en bas" }],
+  marchands: [{ cle: "madame-chane", nom: "Madame Chane" }], marches: [{ cle: "marche-saint-paul", nom: "Marché forain de Saint-Paul" }],
+  foires: [{ cle: "foire-letchis", nom: "Foire aux letchis" }],
+  religions: [{ cle: "catholique", nom: "Catholique" }, { cle: "islam", nom: "Islam" }, { cle: "hindouisme-tamoul", nom: "Hindouisme tamoul" },
+    { cle: "aucune", nom: "Aucune", special: "aucune" }, { cle: "plusieurs", nom: "Plusieurs", special: "plusieurs" }],
+  ancrages: [{ cle: "photo", nom: "La photo des siens" }], gramounes: [{ cle: "gramoune-ida", nom: "Gramoune Ida" }],
   passes: [{ cle: "infirmiere", nom: "Infirmière" }],
   recettes: [{ cle: "arc-et-fleches", nom: "Arc et flèches", competence: "bricolage" }, { cle: "filtre-portatif", nom: "Filtre portatif" }],
   afflictions: [{ cle: "leptospirose", nom: "Leptospirose" }, { cle: "fracture", nom: "Fracture" }],
@@ -243,7 +254,11 @@ export function apiDoublure(cadre) {
       { tache: "garde", competence: "vigilance", meilleur: 0, couverture: "manquant", urgence: "pas de garde la nuit", profil: "ancien gendarme, vigile" },
       { tache: "chantier", competence: "bricolage", meilleur: 2, couverture: "faible" }
     ],
-    genererRecrue: enregistrer("genererRecrue", async ({ region }) => ({ nom: "Gilles Técher", age: 52, enfance: "hauts-de-salazie", passe: "gendarme",
+    // Une gramoune du registre (§13, recrueGramoune) : ses savoirs lontan, sa confiance, son esprit et ses préjugés (§15).
+    genererRecrue: enregistrer("genererRecrue", async ({ region, gramoune = "" }) => (gramoune ? { nom: "Gramoune Ida", age: 78, enfance: "hauts-de-salazie", passe: "",
+      competences: { survie: 3, soins: 2 }, traits: [], savoirs: ["tisanes"], confiance: 1, region, gramoune, statut: "recrue", regard: "epreuve", religion: "catholique",
+      pratique: true, sensMoral: 4, autorite: 3, raison: "Elle garde la case de son défunt mari.", prix: "Elle ne quittera pas Salazie sans son coq.",
+      prejuges: [{ cible: "gens-d-en-bas", poids: 1, dit: "PREJUGE-SECRET : ceux d'en bas ne savent rien planter." }] } : { nom: "Gilles Técher", age: 52, enfance: "hauts-de-salazie", passe: "gendarme",
       competences: { vigilance: 3, tir: 2, parole: 1 }, traits: ["insomniaque"], region,
       raison: "Il garde seul la caserne vide.", prix: "Il veut qu'on aille chercher sa fille à Saint-Denis." })),
     recruter: enregistrer("recruter", async ({ recrue }) => ({ test: { succes: 1, requis: 1, reussite: true, marge: 0 }, reussite: true,
@@ -277,12 +292,174 @@ export function apiDoublure(cadre) {
       return { acteurId: a.id, nom: a.name, membre };
     }),
     ajouterMembre: enregistrer("ajouterMembre", async ({ acteurId }) => { cadre.etat.groupe.membres.push(acteurId); }),
-    renseigner: enregistrer("renseigner", async args => { cadre.etat.renseignements[args.region] = { ...cadre.etat.renseignements[args.region], ...args }; })
+    renseigner: enregistrer("renseigner", async args => { cadre.etat.renseignements[args.region] = { ...cadre.etat.renseignements[args.region], ...args }; }),
+
+    // ---------------- le marché (§12, scripts/api-marche.mjs) : mêmes noms, mêmes arguments, retours de même forme.
+    marche: () => structuredClone(cadre.etat.marche ?? { boutiques: [], marches: [], rumeurs: [], signe: "", prochain: 1 }),
+    coursDuJour: () => ({ ...COURS }),
+    stadesDuMarche: ({ region = "" } = {}) => [{ stade: "troc", ouvert: true, texte: "De la main à la main, dès le premier jour.", region },
+      { stade: "boutique", ouvert: true, texte: "Un commerçant tient boutique, avec son carnet." },
+      { stade: "forain", ouvert: false, texte: "Il faut deux communautés dans la région et une route ouverte entre elles (1 pour l'instant)." },
+      { stade: "foire", ouvert: false, texte: "Pas de récolte à fêter en ce moment." }],
+    evenementDeMarche: ({ stade = "forain" } = {}) => ({ cle: "vieux-qui-rend", nom: "Le vieux qui rend la monnaie", texte: `Au ${stade}, un vieux rend ce qu'on lui a trop donné.`,
+      effets: { dementi: "zoreils" } }),
+    evaluerTroc: args => evaluation(args),
+    troquer: enregistrer("troquer", async args => {
+      const e = evaluation(args);
+      if (!e.accepte && !args.accepter) return { ok: false, ...e, raison: `Il demande ${e.demandee} parts, on lui en donne ${e.valeurDonnee}.` };
+      return { ok: true, ...e, stocks: {}, usure: { uses: args.cibles ?? [], tombes: [] }, sens: args.prejuge ? sensDe(args.prejuge, "colporter") : null };
+    }),
+    ouvrirBoutique: enregistrer("ouvrirBoutique", async ({ nom }) => ({ boutique: { cle: "boutique-neuve", nom } })),
+    crediter: enregistrer("crediter", async ({ biens = {}, cibles = [] }) => (cibles.length >= 2
+      ? { ok: false, raison: "pas de crédit pour le groupe", confiance: confiance({ cibles }) }
+      : { ok: true, entree: { id: "d2", valeur: valeur(biens) }, dette: 4 + valeur(biens), plafond: 10, confiance: confiance({ cibles }) })),
+    rendre: enregistrer("rendre", async ({ biens = {} }) => ({ ok: true, paye: valeur(biens), reste: Math.max(0, 4 - valeur(biens)), surplus: 0 })),
+    effacerDette: enregistrer("effacerDette", async () => ({ efface: 4 })),
+    solderCarnet: enregistrer("solderCarnet", async ({ remises = [] }) => ({ deja: false, soldes: [], impayees: remises.length ? [] : [{ debiteur: "groupe", reste: 4 }],
+      remises: remises.map(d => ({ debiteur: d, reste: 4 })) })),
+    ouvrirMarche: enregistrer("ouvrirMarche", async ({ modele = "", foire = "", nom = "", jourSemaine = 6, bastions = [] }) => ({
+      marche: { cle: modele || foire || "marche-neuf", nom: nom || (foire ? "Foire aux letchis" : "Marché forain de Saint-Paul"), region: "saint-paul", jourSemaine,
+        bastions, hote: "", treve: { rompue: false }, ouvertLe: 3, foire: Boolean(foire), jusqua: foire ? 5 : null } })),
+    fermerMarche: enregistrer("fermerMarche", async ({ marche }) => ({ ferme: marche })),
+    accueillir: enregistrer("accueillir", async ({ marche, hote }) => ({ marche, hote, signature: hote ? 2 : 0 })),
+    rompreTreve: enregistrer("rompreTreve", async ({ marche, par }) => ({ marche, reputation: par === "groupe" ? { planteurs: -3 } : {}, sens: sensDe(par, "attaquer") })),
+    retablirTreve: enregistrer("retablirTreve", async ({ marche }) => ({ marche })),
+    rumeur: enregistrer("rumeur", async ({ auteur = "", contre = true }) => ({ id: "r2", colporteur: contre ? auteur : "", sens: contre && auteur ? sensDe(auteur, "colporter") : null })),
+    dementir: enregistrer("dementir", async ({ id }) => (id === "r1" ? { ok: true, menteur: "", sens: null } : { ok: false, raison: "une rumeur vraie ne se dément pas" })),
+    dementirPrejuge: enregistrer("dementirPrejuge", async ({ cible, pnj = [] }) => ({ cible, pnj: pnj.length ? pnj.map(id => globalThis.game.actors.get(id)?.name ?? id) : ["Madame Chane"] })),
+    prejuges: enregistrer("prejuges", async ({ acteurId, prejuges = [] }) => { const a = globalThis.game.actors.get(acteurId); if (a) a.system.prejuges = prejuges; return { prejuges }; }),
+    creerMarchand: enregistrer("creerMarchand", async ({ cle }) => {
+      const deja = globalThis.game.actors.find(a => a.flags?.["lakour-survie"]?.marchand === cle);
+      if (deja) return { acteurId: deja.id, deja: true };
+      const a = await globalThis.Actor.implementation.create({ name: "Madame Chane", type: "survivant", flags: { "lakour-survie": { marchand: cle } },
+        system: { statut: "pnj", regard: "refaire", religion: "aucune", ancrage: "photo", sensMoral: 2, autorite: 2,
+          prejuges: [{ cible: "zoreils", poids: 2, dit: "PREJUGE-SECRET : les zoreils paient mal." }] } });
+      return { acteurId: a.id, deja: false };
+    }),
+
+    // ---------------- les deux savoirs et l'île en mouvement (§13).
+    preparerCyclone: enregistrer("preparerCyclone", async ({ membres = [], quarts = 1 }) => ({ fait: membres.length * quarts, requis: 4, prete: membres.length * quarts >= 4 })),
+    apprendre: enregistrer("apprendre", async ({ source }) => ({ fait: 2, requis: source === "livre" ? 14 : 7, termine: false, lumiere: "bougie" })),
+    gagnerConfiance: enregistrer("gagnerConfiance", async () => ({ confiance: 2, delta: 1, reussite: true })),
+    dicter: enregistrer("dicter", async () => ({ fait: 6, requis: 6, termine: true, enseigne: ["tisanes"] })),
+    apprivoiser: enregistrer("apprivoiser", async () => ({ confiance: 2, delta: 1, apprivoise: false, morsure: false, reussite: true })),
+    cyclone: () => (cadre.mjActif && cadre.mondeOuvert && cadre.cyclone ? structuredClone(cadre.cyclone) : null),
+    savoirsDuGroupe: () => ({ complete: false, moderne: 1, lontan: 0, manque: { moderne: 1, lontan: 2 } }),
+
+    // ---------------- l'esprit, le sens moral, la communauté (§14, §15).
+    communaute: () => ({ chef: cadre.etat.groupe.chef ?? "", entente: cadre.etat.groupe.entente ?? 0, reputation: { moyenne: cadre.nouveautes ? 1.5 : 0, bande: "neutre" },
+      couleur: { moyenne: cadre.nouveautes ? -2.5 : 0, bande: cadre.nouveautes ? "rougeatre" : "neutre" }, porte: structuredClone(cadre.etat.porte ?? []),
+      tributs: structuredClone(cadre.etat.tributs ?? []), votes: structuredClone(cadre.etat.votes ?? []), communautes: structuredClone(cadre.etat.communautes ?? []),
+      liste: cadre.nouveautes ? [{ ressource: "eau", manque: 4 }, { ressource: "medicaments", manque: 2 }] : [] }),
+    acteMoral: enregistrer("acteMoral", async ({ acteurId = "", acteurs = [], acte = "", voteId = "" }) => ({ ...sensDe([acteurId, ...acteurs].filter(Boolean)[0], acte),
+      epargnes: voteId ? ["s2"] : [], vote: voteId ? { delta: 0, suivi: true } : null })),
+    ajusterEsprit: enregistrer("ajusterEsprit", async ({ acteurId, ...champs }) => { const a = globalThis.game.actors.get(acteurId); Object.assign(a.system, champs); return { acteurId, ...champs }; }),
+    tirerEsprit: enregistrer("tirerEsprit", async ({ acteurId, forcer = false }) => {
+      const a = globalThis.game.actors.get(acteurId);
+      if (a.system.regard && !forcer) return { acteurId, deja: true };
+      Object.assign(a.system, { regard: "vivre", religion: "islam", pratique: true, sensMoral: 1, autorite: 2 });
+      return { acteurId, regard: "vivre" };
+    }),
+    entente: enregistrer("entente", async ({ delta = 0 }) => { cadre.etat.groupe.entente = Math.max(-3, Math.min(3, (cadre.etat.groupe.entente ?? 0) + delta)); return { entente: cadre.etat.groupe.entente }; }),
+    chef: enregistrer("chef", async ({ acteurId = "" }) => { cadre.etat.groupe.chef = acteurId; return { chef: acteurId }; }),
+    parole: enregistrer("parole", async ({ tenue = true }) => ({ autorite: tenue ? 4 : 2, delta: tenue ? 1 : -1 })),
+    voter: enregistrer("voter", async ({ question = "", acte, voix = {} }) => {
+      const v = { s1: voix.s1 ?? "abstention", s2: voix.s2 ?? "contre" };
+      const compte = x => Object.values(v).filter(y => y === x).length;
+      return { id: "vote2", quart: cadre.etat.horloge.quart, question, acte, voix: v, resultat: { pour: compte("pour"), contre: compte("contre"), abstention: compte("abstention") }, decide: null };
+    }),
+    decider: enregistrer("decider", async ({ voteId, decision }) => ({ vote: { id: voteId }, delta: decision === "pour" ? 0 : -1, suivi: decision === "pour" })),
+    porte: enregistrer("porte", async ({ decision, voteId = "" }) => ({ decision, acte: { accueillir: "accueillir", refuser: "exclure", trahir: "trahir" }[decision],
+      acteurId: decision === "accueillir" ? "n-recrue" : "", bouches: 2, pris: decision === "trahir" ? { nourriture: 2 } : {}, suite: decision === "refuser" ? "feu" : "",
+      ...sensDe("s1", decision === "accueillir" ? "accueillir" : "exclure"), vote: voteId ? { delta: 0, suivi: false } : null })),
+    frapper: enregistrer("frapper", async ({ profil = "" }) => {
+      const v = { id: "v2", jour: 3, nom: "Teddy Fontaine", age: 44, genre: "m", profil: profil || "dur", bouches: 0, demande: { texte: "J'ai de quoi payer ma place." }, apporte: {}, revient: false };
+      cadre.etat.porte = [...(cadre.etat.porte ?? []), v];
+      cadre.monde.porte = { ...(cadre.monde.porte ?? {}), v2: { survivant: { sensMoral: -8 }, profil: v.profil, bouches: 0 } };
+      return structuredClone(v);
+    }),
+    tribut: enregistrer("tribut", async ({ tributId, paye = true }) => ({ tribut: { ...(cadre.etat.tributs ?? []).find(t => t.id === tributId) }, issue: paye ? "paye" : "revolte" })),
+    resoudreMenace: enregistrer("resoudreMenace", async ({ id, action = "assaut" }) => {
+      if (action === "assaut") return { marge: 1, issue: "repoussee", degats: [], blesses: [] };
+      if (action === "ultimatum") return { tribut: { id: "t2", bande: "Les Récupérateurs", faction: "recuperateurs", demande: { nourriture: 3, carburant: 1 }, tousLes: 7, prochain: 10, etat: "actif" } };
+      if (action === "rejoindre") {
+        const v = { id: "v3", jour: 3, nom: "Le Grand Raymond", age: 50, profil: "dur", bouches: 0, demande: { texte: "Ma bande et moi, on voudrait entrer." } };
+        cadre.monde.porte = { ...(cadre.monde.porte ?? {}), v3: { survivant: { sensMoral: -5 } } };
+        return { visiteur: v, menace: id };
+      }
+      return { ecartee: true };
+    }),
+    separer: enregistrer("separer", async ({ partants = [], nom = "" }) => ({ communaute: { id: "c1", nom: nom || "Les autres (1)", membres: partants }, restants: ["s1"] })),
+    fusionner: enregistrer("fusionner", async ({ communauteId }) => ({ membres: ["s1", "s2"], plans: ["citerne"], entente: -1, communauteId })),
+    lireSigne: enregistrer("lireSigne", async () => ({ lectures: [{ acteurId: "s1", nom: "Lucie Hoarau", lecture: "signe" }, { acteurId: "s2", nom: "Eddy Payet", lecture: "rien" }] }))
   };
 }
 
+// Le cours de la doublure (parts), une valeur au cours, la première confiance d'un PNJ (cibles : ses préjugés éveillés ; ce qu'il en dit).
+const COURS = { eau: 0.5, nourriture: 1, carburant: 4, medicaments: 7.5, munitions: 4.5, materiaux: 2, pieces: 3, graines: 2 };
+const valeur = (biens = {}) => Object.entries(biens).reduce((s, [r, q]) => s + (COURS[r] ?? 0) * q, 0);
+function confiance({ pnjId = "", cibles = [] } = {}) {
+  const a = pnjId ? globalThis.game.actors.get(pnjId) : null;
+  const enJeu = (a?.system?.prejuges ?? []).filter(p => cibles.includes(p.cible));
+  const poids = Math.min(3, enJeu.reduce((s, p) => s + (p.poids ?? 1), 0) + (cibles.length && !a ? cibles.length : 0));
+  return { poids, majoration: [0, 0.25, 0.5, 1][poids], credit: ["plein", "moitie", "refuse", "refuse"][poids], parole: [0, 1, 1, 2][poids], enJeu: enJeu.map(p => p.cible),
+    dits: enJeu.map(p => p.dit), rumeurs: 0, pnj: a?.name ?? "" };
+}
+function evaluation({ donne = {}, recoit = {}, pnjId = "", cibles = [] } = {}) {
+  const c = confiance({ pnjId, cibles });
+  const valeurDonnee = valeur(donne), valeurRecue = valeur(recoit), demandee = valeurRecue * (1 + c.majoration);
+  return { valeurDonnee, valeurRecue, demandee, ecart: valeurDonnee - demandee, accepte: valeurRecue > 0 && valeurDonnee >= demandee, equitable: valeurDonnee === valeurRecue,
+    confiance: c, cours: { ...COURS } };
+}
+// Ce que porterActe rend (le sens moral de qui porte l'acte) ; qui : « groupe » ou un id.
+function sensDe(qui, acte) {
+  if (!qui) return null;
+  const ids = qui === "groupe" ? ["s1", "s2"] : [qui];
+  const delta = ["accueillir", "aider", "partager", "epargner", "rendre"].includes(acte) ? 1 : -1;
+  return { membres: ids.map(id => ({ acteurId: id, nom: globalThis.game.actors.get(id)?.name ?? id, sensMoral: delta, reputation: delta, delta, deltaReputation: delta })),
+    porteurs: ids, epargnes: [], enfants: [] };
+}
+
+// Le monde des nouveautés (marché, porte, communauté, esprit, savoirs, cyclone vécu) : posé sur la doublure par installerFenoir({ nouveautes }).
+function poserNouveautes(cadre, acteurs) {
+  cadre.nouveautes = true;
+  Object.assign(cadre.etat.groupe, { chef: "s1", entente: 1, chienErrant: { confiance: 1, region: "saint-paul" } });
+  cadre.etat.marche = {
+    boutiques: [{ cle: "chane", nom: "Boutique Chane", tenancier: "pnj-chane", region: "saint-paul", parole: {}, soldeLe: null, prochain: 2,
+      entrees: [{ id: "d1", debiteur: "groupe", pris: { nourriture: 4 }, valeur: 4, reste: 4, jour: 1, nouvelAn: null, rumeur: false, rendus: [] }] }],
+    // Le doublure dit le 7 décembre 2026 au jour 3 : un lundi (jourSemaine 1).
+    marches: [{ cle: "marche-saint-paul", nom: "Marché forain de Saint-Paul", region: "saint-paul", lieu: "", jourSemaine: 1, bastions: ["planteurs", "groupe"],
+      hote: "", treve: { rompue: false, par: "", jour: null }, ouvertLe: 0, joursTenus: 0, recolte: null, foire: false, jusqua: null, litiges: 0 }],
+    rumeurs: [{ id: "r1", sujet: "groupe", texte: "On dit que le groupe du collège cache des médicaments.", portee: "region", source: "colporte", contre: true, jour: 2, dementie: false },
+      { id: "r0", sujet: "groupe", texte: "Une vieille histoire, démentie.", portee: "region", source: "colporte", contre: true, jour: 1, dementie: true }],
+    signe: "", prochain: 2
+  };
+  cadre.monde.marche = { rumeurs: { r1: { vraie: false, auteur: "AUTEUR-SECRET", malveillant: true }, r0: { vraie: false, auteur: "AUTEUR-SECRET", malveillant: false } } };
+  cadre.etat.porte = [{ id: "v1", jour: 3, nom: "Maëva Grondin", age: 31, genre: "f", profil: "famille", bouches: 2, demande: { texte: "Laissez-nous entrer, mes enfants ont faim." },
+    apporte: { nourriture: 1 }, revient: false }];
+  cadre.monde.porte = { v1: { survivant: { sensMoral: -7 }, profil: "famille", bouches: 2 } };
+  cadre.etat.tributs = [{ id: "t1", bande: "Les Récupérateurs", faction: "recuperateurs", demande: { nourriture: 3 }, tousLes: 7, depuis: 0, prochain: 3, payes: 0, etat: "actif" }];
+  cadre.etat.votes = [{ id: "vote1", quart: 12, question: "Faut-il ouvrir à la famille ?", acte: "accueillir", voix: { s1: "pour", s2: "contre" },
+    resultat: { pour: 1, contre: 1, abstention: 0 }, decide: null }];
+  cadre.etat.communautes = [{ id: "c1", nom: "Ceux du Maïdo", membres: ["x1"], statuts: {}, plans: [], region: "hauts-ouest", abri: "", depuis: 2, entente: 0 }];
+  cadre.monde.menaces = [{ id: "m1", type: "bande", force: 4, faction: "recuperateurs", texte: "MENACE-SECRETE : les Récupérateurs rôdent près du collège.",
+    chef: { decision: "ultimatum", sensMoral: -4, bande: "rougeatre" } }];
+  cadre.cyclone = { nom: "CYCLONE-SECRET", alerte: "rouge", force: 2, arrivee: 3, region: "saint-paul", quarts: [
+    { moment: "matin", vent: "rafales", dehors: { des: -2, vigilance: -3, discretion: 2 } }, { moment: "apres-midi", vent: "oeil", dehors: { des: 0, vigilance: 0, discretion: 0 } },
+    { moment: "soir", vent: "retour", dehors: { des: -2, vigilance: -3, discretion: 2 } }, { moment: "nuit", vent: "accalmie", dehors: { des: -1, vigilance: -1, discretion: 1 } }] };
+  // L'esprit de Lucie (la cheffe), un savoir lontan d'Eddy en train, la commerçante et ses préjugés, posée sur la scène.
+  Object.assign(acteurs.get("s1").system, { regard: "refaire", religion: "catholique", religions: [], pratique: true, ancrage: "", sensMoral: 3, reputation: 2, autorite: 3,
+    esprit: { enFaute: true, lacher: 2, chance: 1, projet: "" } });
+  Object.assign(acteurs.get("s2").system, { apprentissage: { savoir: "tisanes", source: "maitre", fait: 2, requis: 7 }, confiance: 0 });
+  acteurs.set("pnj-chane", acteur({ id: "pnj-chane", name: "Madame Chane", type: "survivant", system: { statut: "pnj", prejuges: [
+    { cible: "zoreils", poids: 2, dit: "PREJUGE-SECRET : les zoreils paient mal.", echanges: 0, fetes: 0, dementis: 0 },
+    { cible: "malbars", poids: 1, dit: "Préjugé tombé", echanges: 3, fetes: 0, dementis: 0 }] } }));
+  globalThis.game.scenes.active = { name: "Marché de Saint-Paul", tokens: { contents: [{ name: "Madame Chane", actor: acteurs.get("pnj-chane"), hidden: false, disposition: 0 }] } };
+}
+
 // Installe le monde Fénoir de la doublure dans globalThis. -> { cadre, api, chat, acteurs }
-export function installerFenoir({ mjActif = true, mondeOuvert = true, systeme = "lakour-survie", avecApi = true } = {}) {
+// nouveautes : le marché, la porte, la communauté, l'esprit, les savoirs et le cyclone vécu (§12 à §15) posés sur le monde.
+export function installerFenoir({ mjActif = true, mondeOuvert = true, systeme = "lakour-survie", avecApi = true, nouveautes = false } = {}) {
   const cadre = { mjActif, mondeOuvert, etat: etatDeDepart(), monde: mondeDeDepart(), derniersArgs: [], generes: [], feteDuJour: "noel" };
   const chat = [];
   const acteurs = new Collection(acteursDeDepart().map(a => [a.id, a]));
@@ -324,5 +501,6 @@ export function installerFenoir({ mjActif = true, mondeOuvert = true, systeme = 
     modules: new Map([["lakour-mj-ia", { api: {} }]]),
     ...(avecApi ? { lakourSurvie: api } : {})
   };
+  if (nouveautes) poserNouveautes(cadre, acteurs);
   return { cadre, api, chat, acteurs, reglages };
 }
