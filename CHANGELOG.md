@@ -4,6 +4,25 @@ Versions du moteur MJ IA de La Kour (les modules de contenu des mondes tiennent 
 suivent `module.json` ; chaque release GitHub `v<version>` reprend la section correspondante. Avant la 0.26, le moteur
 vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici.
 
+## 0.48.0 — 2026-11-13
+
+- **Fêtes « sur demande »** : ramadan et Aïd el-Kebir (calendrier hégirien), Nouvel An tamoul, marche sur le feu. Seul un monde
+  qui les décline les voit ; rien ne change pour les autres mondes.
+- **Fénoir : le temps de l'île et la relève.** Nouveaux outils `survie_participer`, `survie_releve` et `survie_autel` ;
+  `survie_feter` étendu (choix, vœux, cadeau, abri voisin) ; l'état du jeu dit la lune, la date lue dans la nature, l'autel et
+  les liens entre communautés.
+- **Fénoir : le marché, les deux savoirs, l'esprit et la communauté.** Douze outils, réservés aux mondes Fénoir : le marché
+  (`survie_marche`, `survie_troquer`, `survie_carnet`, `survie_marche_forain`, `survie_rumeur`, `survie_prejuge`), les veillées
+  (`survie_veillee` : préparer le cyclone, apprendre, gagner la confiance d'une gramoune, sa dictée, le chien errant), la porte,
+  le vote, l'acte moral, la communauté et l'esprit (`survie_porte`, `survie_vote`, `survie_acte_moral`, `survie_communaute`,
+  `survie_esprit`). Fouille des jardins et des livres, une gramoune en recrue, une menace du jour réglée (ultimatum, rejoindre),
+  les verrous de l'esprit à la création.
+- L'état du jeu dit le marché, la communauté et les savoirs ; la vérité des rumeurs, les vraies couleurs, les préjugés des PNJ et
+  le cyclone vécu restent au narrateur, et un compagnon IA n'en sait rien. Le narrateur dit lui-même quels préjugés s'éveillent,
+  jamais d'après une origine, et laisse les faits les démentir. Jamais de miracle.
+- Prompt de Fénoir : préfixe de 31 103 à 36 582 jetons (12 outils de plus, regroupés par action) ; Veillées, Warcraft et 40k
+  identiques au caractère près.
+
 ## 0.47.0 — 2026-11-09
 
 - Jetons des personnages joueurs déjà créés : le MJ actif leur redonne le jeton de leur peuple (Warcraft), de leur rôle (40k)
