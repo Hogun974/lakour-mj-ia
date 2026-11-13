@@ -159,10 +159,10 @@ const BATTERIE_LOGIQUE = {
     assert.throws(() => L.normaliserDecor({ palette: "fluo" }, "noel"), /palette inconnue/);
     assert.throws(() => L.normaliserDecor({ ornements: ["neige", "etoiles", "bougies", "guirlandes"] }, "noel"), /au plus/);
     for (const [fete, decor] of Object.entries(L.DECORS_PAR_DEFAUT)) {
-      assert.ok(L.IDS_FETES.includes(fete));
+      assert.ok(L.IDS_DECLINABLES.includes(fete));
       assert.deepEqual(L.normaliserDecor(undefined, fete), decor);
     }
-    assert.deepEqual(Object.keys(L.DECORS_PAR_DEFAUT).sort(), [...L.IDS_FETES].sort(), "chaque fête a son décor");
+    assert.deepEqual(Object.keys(L.DECORS_PAR_DEFAUT).sort(), [...L.IDS_DECLINABLES].sort(), "chaque fête a son décor (sur demande comprises)");
   },
   "effets : coupés par le réglage client, sans chute en mouvement réduit": L => {
     const decor = { palette: "sapin", ornements: ["neige", "guirlandes"] };
@@ -249,16 +249,16 @@ const MUTATIONS_LOGIQUE = {
   "Halloween finit le 1er novembre": ["numero(a, 11, 2), numero(a, 10, 31)", "numero(a, 11, 1), numero(a, 10, 31)"],
   "Noël commence le 2 décembre": ["fenetre: a => [numero(a, 12, 1),", "fenetre: a => [numero(a, 12, 2),"],
   "Noël sans cœur": ["numero(a, 12, 24), numero(a, 12, 26)]", "numero(a, 12, 25), numero(a, 12, 25)]"],
-  "Nouvel An oublié en janvier": ["for (const a of [annee - 1, annee])", "for (const a of [annee])"],
-  "fenêtre ouverte à droite": ["if (n >= debut && n <= fin)", "if (n >= debut && n < fin)"],
+  "Nouvel An oublié en janvier": ["[annee - 1, annee].flatMap(a => fenetresDe(f, a))", "[annee].flatMap(a => fenetresDe(f, a))"],
+  "fenêtre ouverte à droite": ["find(([debut, fin]) => n >= debut && n <= fin)", "find(([debut, fin]) => n >= debut && n < fin)"],
   "cœur ignoré dans le tri": ["Number(y.coeur) - Number(x.coeur) || ", ""],
   "priorité inversée": ["|| y.priorite - x.priorite", "|| x.priorite - y.priorite"],
   "jour en temps universel": ["const numeroLocal = date => numero(date.getFullYear(), date.getMonth() + 1, date.getDate());",
     "const numeroLocal = date => numero(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());"],
   "« aucune » ignoré": ["if (reglage === REGLAGE_AUCUNE) return null;", ""],
   "fête forcée sans déclinaison": ["return ok.has(reglage) ? reglage : null;", "return reglage;"],
-  "automatique sans regarder les déclinaisons": ["return fetesDuJour(date).find(f => ok.has(f.id))?.id ?? null;", "return fetesDuJour(date)[0]?.id ?? null;"],
-  "fête inconnue acceptée": ["if (!IDS_FETES.includes(def.fete)) throw", "if (false) throw"],
+  "automatique sans regarder les déclinaisons": ["return fetesDuJour(date, { aussi: declinees }).find(f => ok.has(f.id))?.id ?? null;", "return fetesDuJour(date)[0]?.id ?? null;"],
+  "fête inconnue acceptée": ["if (!IDS_DECLINABLES.includes(def.fete)) throw", "if (false) throw"],
   "id en double accepté": ["if (deja.some(d => d.id === id)) throw", "if (false) throw"],
   "fête déclinée deux fois": ["if (meme) throw", "if (false) throw"],
   "uuid non vérifié": ["if (!UUID_VALIDE.test(uuid)) throw", "if (false) throw"],

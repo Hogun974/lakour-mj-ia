@@ -715,7 +715,11 @@
         "halloween": "Halloween",
         "saint-valentin": "Saint-Valentin",
         "fete-nationale": "Fête nationale (14 juillet)",
-        "musique": "Fête de la musique"
+        "musique": "Fête de la musique",
+        "ramadan": "Ramadan",
+        "aid-el-kebir": "Aïd el-Kebir",
+        "nouvel-an-tamoul": "Nouvel An tamoul",
+        "marche-sur-le-feu": "Marche sur le feu"
       },
       "Forcee": "MJ IA — {nom} est forcée, mais ce monde ne la décline pas : aucune fête en cours."
     },

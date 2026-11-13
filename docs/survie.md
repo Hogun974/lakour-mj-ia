@@ -94,7 +94,10 @@ abri, réserves, état du groupe, alertes, renseignement de leur région). `api.
 | `survie_bilan` | les comptes de l'abri | `bilan` |
 | `survie_fabriquer` | l'atelier, d'après une recette | `fabriquer` (supposée, §9) |
 | `survie_affliction` | donner ou soigner une maladie, une blessure persistante | `affliction` (supposée, §9) |
-| `survie_feter` | fêter une fête au camp | `feter` (supposée, §9) |
+| `survie_feter` | fêter une fête au camp (gain et coût de chaque fête ; choix, vœux, cadeau, abri voisin) ; un vœu tenu ou rompu | `feter`, `voeu` |
+| `survie_participer` | aller à la fête d'une autre communauté : liens (point d'accroche des préjugés des PNJ) | `participer` |
+| `survie_releve` | à la mort du survivant d'un joueur : les candidats, reprendre un survivant du groupe (16 ans au moins), ou un nouveau tirage | `candidatsReleve`, `releve` ; `confier` |
+| `survie_autel` | les morts du groupe : la liste, honorer l'autel, donner le repos, retrouver, inscrire | `morts`, `autel` |
 | `creer_survivant` | création guidée (tirer, puis creer), compagnon | `generer`, `creerSurvivant` (repli : `Actor.create`, `ajouterMembre`) ; compendiums `lakour-fenoir.passes`, `.savoirs`, `.equipements` |
 | `survie_besoins` | ce qui manque au groupe, le profil à chercher | `besoins` (supposée, §10) |
 | `survie_recrue` | une recrue qui comble les manques, avec son prix ; la recruter | `genererRecrue`, `recruter` (supposées, §10) |
@@ -118,6 +121,14 @@ absente de l'API donne une erreur claire (`ne fournit pas game.lakourSurvie.x()`
 - `renseigner` : reçoit `{ region, source, vu: jour du jour, … }`, `electricite`/`eau` en booléens, `routes: { voisine: état }`.
 - `demarrer({ pnj })` : `[{ nom, passe }]`.
 - `fabriquer({ recette, acteurId, membres })` (membres : l'artisan compris), `affliction({ acteurId, cle, action: "donner" | "soigner" })`, `feter({ fete })`.
+- Lot « fetes » (2026-11-13, lu dans `systems/lakour-survie/scripts/api.mjs`) : `feter({ fete, option, pour: [ids], avec: faction })` -> `{ ok, fete,
+  option, cout, gain, bruit, quarts, attaches, voeux, reposes, restent, refugies, texte }` ; `voeu({ acteurId, issue: "tenu" | "rompu" })` ;
+  `participer({ fete, communaute, faction, membres })` -> `{ ok, fete, communaute, faction, qui, liens }` ; `candidatsReleve({ mortId })` ->
+  `[{ id, nom, source: "membre" | "pnj", statut, age, jeune, tache }]` ; `releve({ mortId, candidat, userId, action: "reprendre" | "tirage" })` ->
+  `{ ok, acteurId, source, tacheLaissee, jeune, joueur }` ; `morts()` ; `autel({ action: "honorer" | "repos" | "retrouver" | "inscrire", mort, nom })`.
+  `quand()` rend en plus `lune: { phase, eclairee, age }`, `clarte` (0 à 3 la nuit, null le jour), `couvert`, `chaleur`, `signes`, `dateExacte`,
+  `dateLue` ; l'état public porte `morts`, `souvenirs`, `liens`, `participations`, `releves`, `ciel`, `calendrier`. L'état du jeu du narrateur
+  les dit (`texteQuand`, `lignesTempsDeLIle` de `scripts/survie-logique.js`).
 - Les menaces du jour : `monde().menaces` (ou `menacesDuJour`) si le système les garde.
 - `test` appelable depuis le navigateur du joueur propriétaire (bouton de `demander_jet`).
 - §10 : `generer({ verrous: { nom, age, enfance, passe, traits }, statut, region, favoriser: { competence: poids } })` -> `{ nom, age,

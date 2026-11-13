@@ -29,7 +29,7 @@ const ZERO = { eau: 0, nourriture: 0, carburant: 0, medicaments: 0, munitions: 0
 
 const NOMS = ["survie_etat", "survie_demarrer", "survie_avancer", "survie_test", "survie_explorer", "survie_fouiller", "survie_installer",
   "survie_construire", "survie_voyager", "survie_demenager", "survie_ajuster", "survie_blessure", "survie_marquer", "survie_assaut",
-  "survie_rencontre", "survie_renseigner", "survie_bilan", "survie_fabriquer", "survie_affliction", "survie_feter", "creer_survivant", "survie_besoins", "survie_recrue", "survie_assigner", "survie_ajouter_membre"];
+  "survie_rencontre", "survie_renseigner", "survie_bilan", "survie_fabriquer", "survie_affliction", "survie_feter", "survie_participer", "survie_releve", "survie_autel", "creer_survivant", "survie_besoins", "survie_recrue", "survie_assigner", "survie_ajouter_membre"];
 
 test("outils proposés à Fénoir : les survie_*, demander_jet, lancer_des, compagnons, horloges ; ni loups_*, ni xp, ni tour par tour", () => {
   const ici = new Set(outilsDuSysteme("lakour-survie").map(o => o.nom));
@@ -307,13 +307,14 @@ test("survie_fabriquer, survie_affliction, survie_feter (§9) : arguments suppos
   assert.match((await executer("survie_affliction", { action: "soigner", personnage: "Lucie", affliction: "fracture" })).contenu, /Fracture soigné/);
   // Fête vide : c'est le SYSTÈME qui la trouve, à la date de jeu (jamais la fête du calendrier réel des joueurs, fetes.js).
   game.modules.set("lakour-mj-ia", { api: { fetes: { active: () => ({ id: "halloween-fenoir", fete: "halloween" }) } } });
-  const t = await executer("survie_feter", { fete: "" });
+  const FETE = { action: "feter", option: "", pour: [], avec: "" };
+  const t = await executer("survie_feter", { ...FETE, fete: "" });
   assert.deepEqual(derniersArgs(api), ["feter", { fete: "" }], "vide : le système cherche la fête du jour de jeu");
   assert.ok(t.contenu.includes("Le groupe fête noel au camp") && t.contenu.includes("Moral +1 pour chacun"), t.contenu);
-  await executer("survie_feter", { fete: "liberte" });
+  await executer("survie_feter", { ...FETE, fete: "liberte" });
   assert.deepEqual(derniersArgs(api), ["feter", { fete: "liberte" }]);
   cadre.feteDuJour = "";
-  const sans = await executer("survie_feter", { fete: "" });
+  const sans = await executer("survie_feter", { ...FETE, fete: "" });
   assert.equal(sans.erreur, true);
   assert.match(sans.contenu, /AucuneFete/);
 });
@@ -337,7 +338,10 @@ test("hors du MJ actif : chaque outil qui écrit est refusé avec le message du 
     survie_demarrer: { region: "saint-paul", membres: [], pnj: [], date_depart: "" },
     survie_fabriquer: { recette: "filtre-portatif", artisan: "Eddy", membres: [] },
     survie_affliction: { action: "donner", personnage: "Lucie", affliction: "fracture" },
-    survie_feter: { fete: "liberte" },
+    survie_feter: { action: "feter", fete: "liberte", option: "", pour: [], avec: "" },
+    survie_participer: { fete: "dipavali", communaute: "malbars", faction: "", membres: [] },
+    survie_releve: { action: "reprendre", mort: "Lucie", candidat: "Eddy", joueur: "" },
+    survie_autel: { action: "honorer", mort: "" },
     survie_recrue: { action: "generer", region: "", recrue: "", parleur: "", attitude: "" },
     survie_assigner: { personnage: "Eddy", tache: "garde", repartir: false },
     survie_ajouter_membre: { personnage: "Bellemène", statut: "pnj" }
@@ -519,4 +523,85 @@ test("survie_ajouter_membre : un compagnon arrivé en cours de partie ; déjà m
   assert.deepEqual(derniersArgs(api), ["ajouterMembre", { acteurId: nouveau.id, statut: "compagnon" }]);
   assert.match((await executer("survie_ajouter_membre", { personnage: "Lucie", statut: "joueur" })).contenu, /fait déjà partie du groupe/);
   assert.ok(acteurs.get(nouveau.id));
+});
+
+// ------------------------------------------------------------------ lot « fetes » de Fénoir (2026-11-13)
+test("survie_feter : choix, vœux, cadeau, abri voisin passés à l'API ; gain et coût dits ; un vœu tenu ou rompu", async () => {
+  const { api } = installerFenoir();
+  const r = await executer("survie_feter", { action: "feter", fete: "noel", option: "", pour: ["Eddy"], avec: "" });
+  assert.deepEqual(derniersArgs(api), ["feter", { fete: "noel", pour: ["s2"] }]);
+  assert.ok(r.contenu.includes("Le cadeau attache au groupe : Eddy Payet"), r.contenu);
+  await executer("survie_feter", { action: "feter", fete: "musique", option: "silence", pour: [], avec: "" });
+  assert.deepEqual(derniersArgs(api), ["feter", { fete: "musique", option: "silence" }]);
+  const h = await executer("survie_feter", { action: "feter", fete: "halloween", option: "", pour: [], avec: "" });
+  assert.ok(h.contenu.includes("Ils reposent : Gilberte") && h.contenu.includes("Pas encore retrouvés (leur deuil pèse encore) : Ti Paul"), h.contenu);
+  const faction = (await import("./doublures/foundry-survie.mjs")).CONTENU?.factions?.[0];
+  if (faction) {
+    await executer("survie_feter", { action: "feter", fete: "nouvel-an-chinois", option: "", pour: [], avec: faction.nom });
+    assert.equal(derniersArgs(api)[1].avec, faction.cle);
+  }
+  const v = await executer("survie_feter", { action: "voeu_tenu", fete: "", option: "", pour: ["Lucie"], avec: "" });
+  assert.deepEqual(derniersArgs(api), ["voeu", { acteurId: "s1", issue: "tenu" }]);
+  assert.match(v.contenu, /Vœu tenu : Lucie Hoarau/);
+  assert.equal((await executer("survie_feter", { action: "voeu_rompu", fete: "", option: "", pour: [], avec: "" })).erreur, true, "de qui ?");
+});
+
+test("survie_participer : la fête d'une autre communauté, les liens ; un mot au secret pour les préjugés des PNJ", async () => {
+  const { api } = installerFenoir();
+  const r = await executer("survie_participer", { fete: "dipavali", communaute: "malbars", faction: "", membres: ["Lucie"] });
+  assert.deepEqual(derniersArgs(api), ["participer", { fete: "dipavali", communaute: "malbars", faction: "", membres: ["s1"] }]);
+  const { connu, secret } = blocs(r.contenu);
+  assert.ok(connu.includes("Lucie Hoarau vont à la fête dipavali chez malbars") && connu.includes("malbars 1"), connu);
+  assert.match(secret, /préjugé/);
+});
+
+test("survie_releve : les candidats (16 ans au moins, PNJ légers) ; reprendre un compagnon IA (il cesse d'en être un, le joueur le reçoit) ; un nouveau tirage", async () => {
+  const { api, acteurs } = installerFenoir();
+  const c = await executer("survie_releve", { action: "candidats", mort: "Lucie", candidat: "", joueur: "" });
+  assert.ok(c.contenu.includes("Eddy Payet (17 ans, jeune, chantier)") && c.contenu.includes("Tantine Josette (PNJ du groupe"), c.contenu);
+  acteurs.get("s1").system.vivant = false;
+  const r = await executer("survie_releve", { action: "reprendre", mort: "Lucie", candidat: "Eddy", joueur: "" });
+  assert.deepEqual(derniersArgs(api), ["releve", { mortId: "s1", candidat: "s2", userId: "", action: "reprendre" }]);
+  assert.ok(r.contenu.includes("Eddy Payet prend la relève de Lucie Hoarau") && r.contenu.includes("survie_assigner") && r.contenu.includes("moins de 18 ans")
+    && r.contenu.includes("Ce n'est plus un compagnon IA"), r.contenu);
+  const perso = game.users.get("u1").character;
+  assert.equal(perso?.id ?? perso, "s2", "le joueur reçoit le survivant repris (confier)");
+  const p = await executer("survie_releve", { action: "reprendre", mort: "Lucie", candidat: "Tantine Josette", joueur: "Jordan" });
+  assert.deepEqual(derniersArgs(api)[1], { mortId: "s1", candidat: "Tantine Josette", userId: "u1", action: "reprendre" }, "un PNJ léger : son nom, le système le résout");
+  assert.match(p.contenu, /sa fiche vient d'être tirée/);
+  const t = await executer("survie_releve", { action: "tirage", mort: "Lucie", candidat: "", joueur: "" });
+  assert.deepEqual(derniersArgs(api), ["releve", { mortId: "s1", action: "tirage", userId: "" }]);
+  assert.match(t.contenu, /creer_survivant/);
+  assert.equal((await executer("survie_releve", { action: "reprendre", mort: "Lucie", candidat: "", joueur: "" })).erreur, true);
+});
+
+test("survie_autel : la liste (deuil, pas retrouvé), honorer, le repos, retrouver, inscrire", async () => {
+  const { api } = installerFenoir();
+  const l = await executer("survie_autel", { action: "liste", mort: "" });
+  assert.match(l.contenu, /Gilberte \(en deuil\), Ti Paul \(pas retrouvé\)/);
+  await executer("survie_autel", { action: "honorer", mort: "" });
+  assert.deepEqual(derniersArgs(api), ["autel", { action: "honorer", mort: "" }]);
+  await executer("survie_autel", { action: "repos", mort: "Gilberte" });
+  assert.deepEqual(derniersArgs(api), ["autel", { action: "repos", mort: "Gilberte" }]);
+  await executer("survie_autel", { action: "inscrire", mort: "Gaby" });
+  assert.deepEqual(derniersArgs(api), ["autel", { action: "inscrire", nom: "Gaby" }]);
+  assert.equal((await executer("survie_autel", { action: "repos", mort: "" })).erreur, true);
+});
+
+test("état du jeu de Fénoir : la lune et la clarté au moment, la date lue, l'autel, ce qui soutient le groupe, les liens", async () => {
+  const { texteQuand, lignesTempsDeLIle } = await import("../scripts/survie-logique.js");
+  const q = { jour: 3, moment: "nuit", dateTexte: "7 décembre 2026", phase: "panique", lune: { phase: "pleine", eclairee: 1 }, clarte: 3, couvert: false };
+  assert.match(texteQuand(q), /pleine lune : pleine lumière \(vigilance \+1/);
+  assert.match(texteQuand({ ...q, clarte: 0, couvert: true }), /nuit noire.*ciel couvert/);
+  assert.doesNotMatch(texteQuand({ jour: 3, moment: "nuit", phase: "panique" }), /lune/, "un système d'avant le lot");
+  const etat = { horloge: { quart: 12 }, morts: [{ nom: "Gilberte", retrouve: true, repos: false }], liens: { communautes: { malbars: 2 }, factions: {}, renom: 1 },
+    souvenirs: [{ cle: "voeu", depuis: 1, jusqua: null, qui: ["s1"], voeu: true }, { cle: "lueur", depuis: 0, jusqua: 1, visibilite: 3 }] };
+  const l = lignesTempsDeLIle({ etat, quand: { jour: 3, dateExacte: false, dateLue: "début février, pleine lune", chaleur: true } }, { acteur: id => ({ name: id === "s1" ? "Lucie" : id }) }).join("\n");
+  assert.match(l, /ne savent plus la date exacte.*début février/);
+  assert.match(l, /Chaleur de l'été austral/);
+  assert.match(l, /Autel des morts : Gilberte \(deuil\) — le deuil pèse/);
+  assert.match(l, /vœu \(Lucie\) tant qu'il tient/);
+  assert.doesNotMatch(l, /lueur/, "un souvenir fini ne compte plus");
+  assert.match(l, /malbars 2 ; renom de l'abri 1/);
+  assert.deepEqual(lignesTempsDeLIle({ etat: { horloge: { quart: 0 } }, quand: { jour: 0 } }), []);
 });

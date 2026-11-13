@@ -203,30 +203,69 @@ export const FETES = [
     fenetre: a => [numero(a, 6, 20), numero(a, 6, 22), numero(a, 6, 21), numero(a, 6, 21)] }
 ];
 export const IDS_FETES = FETES.map(f => f.id);
-const fete = id => FETES.find(f => f.id === id) ?? null;
+
+// ------------------------------------------------------------------ fêtes « sur demande » (ajout du 2026-11-13, lot « fetes » de Fénoir)
+// Des fêtes que seul un monde qui les DÉCLINE voit : elles n'entrent ni dans le réglage « fete » (REGLAGES, inchangé), ni dans le
+// calendrier d'un monde qui ne les a pas déclinées (fetesDuJour(date) sans `aussi` rend exactement ce qu'il rendait). Fénoir les
+// décline pour faire vivre le calendrier du métissage réunionnais : Ramadan, Aïd el-Kebir, Nouvel An tamoul, marche sur le feu.
+// - Ramadan et Aïd el-Kebir : calendrier hégirien TABULAIRE (arithmétique, époque civile du 16 juillet 622), qui tombe à un jour
+//   près de l'observation du croissant ; la fenêtre couvre cet écart. Ramadan : du 1er ramadan au 1er chawwal (Aïd el-Fitr, le
+//   cœur, la fin du jeûne) ; Aïd el-Kebir : le 10 dhou al-hijja, de la veille au surlendemain. Une année grégorienne peut voir
+//   commencer deux ramadans (2030, 2063) : une fenêtre peut donc rendre plusieurs fenêtres.
+// - Nouvel An tamoul (Puthandu) : le 14 avril, de la veille au lendemain.
+// - Marche sur le feu : chaque temple a sa date ; les principales tombent au début de janvier (Saint-André le 1er) : fenêtre fixe
+//   du 2 au 12 janvier, cœur le premier dimanche de janvier qui suit le Nouvel An (le Nouvel An passe devant le 1er).
+const HEGIRE_EPOQUE = 1948439.5;   // jour julien du 1er mouharram 1 (calendrier civil tabulaire)
+const JULIEN_EPOQUE_UNIX = 2440587.5;
+// Le numéro du jour (depuis le 1er janvier 1970) d'une date hégirienne tabulaire (année h, mois 1..12, jour 1..30).
+export const numeroHegirien = (h, mois, jour) =>
+  Math.round(jour + Math.ceil(29.5 * (mois - 1)) + (h - 1) * 354 + Math.floor((3 + 11 * h) / 30) + HEGIRE_EPOQUE - 1 - JULIEN_EPOQUE_UNIX);
+// Les dates (numéros de jour) d'un jour hégirien donné qui tombent l'année grégorienne a.
+function hegiriensDeLAnnee(a, mois, jour) {
+  const h0 = Math.floor((a - 622) * 33 / 32);
+  const debut = numero(a, 1, 1), fin = numero(a, 12, 31);
+  return [h0 - 1, h0, h0 + 1, h0 + 2].map(h => numeroHegirien(h, mois, jour)).filter(n => n >= debut && n <= fin);
+}
+// Le premier dimanche de janvier de l'année a, à partir du 2 (numéro de jour).
+const premierDimancheDeJanvier = a => { for (let j = 2; j <= 8; j++) if (new Date(Date.UTC(a, 0, j)).getUTCDay() === 0) return numero(a, 1, j); return numero(a, 1, 2); };
+export const FETES_SUR_DEMANDE = [
+  { id: "ramadan", nom: "Ramadan", periode: "1er ramadan – Aïd el-Fitr (calendrier hégirien ; cœur : l'Aïd el-Fitr)", priorite: 25,
+    fenetre: a => hegiriensDeLAnnee(a, 9, 1).map(d => { const fitr = d + (numeroHegirien(1, 10, 1) - numeroHegirien(1, 9, 1)); return [d, fitr + 1, fitr, fitr + 1]; }) },
+  { id: "aid-el-kebir", nom: "Aïd el-Kebir", periode: "veille – surlendemain du 10 dhou al-hijja (calendrier hégirien)", priorite: 46,
+    fenetre: a => hegiriensDeLAnnee(a, 12, 10).map(d => [d - 1, d + 2, d, d + 1]) },
+  { id: "nouvel-an-tamoul", nom: "Nouvel An tamoul", periode: "13 – 15 avril (cœur : 14)", priorite: 43,
+    fenetre: a => [numero(a, 4, 13), numero(a, 4, 15), numero(a, 4, 14), numero(a, 4, 14)] },
+  { id: "marche-sur-le-feu", nom: "Marche sur le feu", periode: "2 – 12 janvier (cœur : le premier dimanche de janvier)", priorite: 41,
+    fenetre: a => { const d = premierDimancheDeJanvier(a); return [numero(a, 1, 2), numero(a, 1, 12), d, d]; } }
+];
+export const IDS_SUR_DEMANDE = FETES_SUR_DEMANDE.map(f => f.id);
+// Toutes les fêtes qu'un monde peut décliner.
+export const IDS_DECLINABLES = [...IDS_FETES, ...IDS_SUR_DEMANDE];
+const fete = id => FETES.find(f => f.id === id) ?? FETES_SUR_DEMANDE.find(f => f.id === id) ?? null;
 export const nomDeFete = id => fete(id)?.nom ?? null;
+// Les fêtes du calendrier pour un monde : le socle, plus les fêtes sur demande qu'il a demandées (aussi : leurs ids).
+const fetesPour = (aussi = []) => [...FETES, ...FETES_SUR_DEMANDE.filter(f => (aussi ?? []).includes(f.id))];
+// Une fenêtre ou une liste de fenêtres (ramadan) -> liste de fenêtres.
+const fenetresDe = (f, a) => { const x = f.fenetre(a); return !x ? [] : Array.isArray(x[0]) ? x : [x]; };
 
 // Les fenêtres des fêtes qui COMMENCENT l'année donnée : [{ id, nom, debut, fin, coeurDebut, coeurFin }] (dates « AAAA-MM-JJ »).
-export function fenetresDeLAnnee(annee) {
-  return FETES.map(f => {
-    const fenetre = f.fenetre(annee);
-    if (!fenetre) return null;
-    const [debut, fin, cd, cf] = fenetre;
-    return { id: f.id, nom: f.nom, debut: versCle(debut), fin: versCle(fin), coeurDebut: versCle(cd), coeurFin: versCle(cf) };
-  }).filter(Boolean);
+// options.aussi : les fêtes sur demande à compter (ids).
+export function fenetresDeLAnnee(annee, { aussi = [] } = {}) {
+  return fetesPour(aussi).flatMap(f => fenetresDe(f, annee).map(([debut, fin, cd, cf]) =>
+    ({ id: f.id, nom: f.nom, debut: versCle(debut), fin: versCle(fin), coeurDebut: versCle(cd), coeurFin: versCle(cf) })));
 }
 
 // Les fêtes actives ce jour-là (jour local de la date), de la plus prioritaire à la moins : [{ id, nom, debut, fin, coeur }].
-export function fetesDuJour(date = new Date()) {
+// options.aussi : les fêtes sur demande à compter (ids) ; sans elles, le calendrier du socle seul.
+export function fetesDuJour(date = new Date(), { aussi = [] } = {}) {
   const n = numeroLocal(date), annee = date.getFullYear();
   const actives = [];
-  for (const f of FETES) {
-    // Une fenêtre peut chevaucher la fin d'année (Nouvel An) : celles qui commencent l'année d'avant comptent aussi.
-    for (const a of [annee - 1, annee]) {
-      const fenetre = f.fenetre(a);
-      if (!fenetre) continue;
-      const [debut, fin, cd, cf] = fenetre;
-      if (n >= debut && n <= fin) { actives.push({ id: f.id, nom: f.nom, debut: versCle(debut), fin: versCle(fin), coeur: n >= cd && n <= cf, priorite: f.priorite }); break; }
+  for (const f of fetesPour(aussi)) {
+    // Une fenêtre peut chevaucher la fin d'année (Nouvel An, un ramadan de décembre) : celles qui commencent l'année d'avant comptent aussi.
+    const trouvee = [annee - 1, annee].flatMap(a => fenetresDe(f, a)).find(([debut, fin]) => n >= debut && n <= fin);
+    if (trouvee) {
+      const [debut, fin, cd, cf] = trouvee;
+      actives.push({ id: f.id, nom: f.nom, debut: versCle(debut), fin: versCle(fin), coeur: n >= cd && n <= cf, priorite: f.priorite });
     }
   }
   return actives.sort((x, y) => Number(y.coeur) - Number(x.coeur) || y.priorite - x.priorite).map(({ priorite, ...f }) => f);
@@ -245,7 +284,7 @@ export function feteRetenue({ reglage = REGLAGE_AUTO, date = new Date(), decline
   const ok = new Set(declinees);
   if (reglage === REGLAGE_AUCUNE) return null;
   if (IDS_FETES.includes(reglage)) return ok.has(reglage) ? reglage : null;
-  return fetesDuJour(date).find(f => ok.has(f.id))?.id ?? null;
+  return fetesDuJour(date, { aussi: declinees }).find(f => ok.has(f.id))?.id ?? null;
 }
 // Une fête forcée que le monde ne décline pas (pour prévenir le MJ) : son id, sinon null.
 export const forceeSansDeclinaison = (reglage, declinees = []) => (IDS_FETES.includes(reglage) && !declinees.includes(reglage) ? reglage : null);
@@ -295,7 +334,12 @@ export const DECORS_PAR_DEFAUT = {
   halloween: { palette: "braise", ornements: ["citrouilles", "feuilles"] },
   "saint-valentin": { palette: "rose", ornements: ["coeurs"] },
   "fete-nationale": { palette: "nuit", ornements: ["confettis", "etoiles"] },
-  musique: { palette: "soleil", ornements: ["notes"] }
+  musique: { palette: "soleil", ornements: ["notes"] },
+  // Fêtes sur demande.
+  ramadan: { palette: "nuit", ornements: ["lanternes", "etoiles"] },
+  "aid-el-kebir": { palette: "or", ornements: ["etoiles"] },
+  "nouvel-an-tamoul": { palette: "printemps", ornements: ["bougies"] },
+  "marche-sur-le-feu": { palette: "braise", ornements: ["bougies"] }
 };
 
 // Le décor d'une déclinaison : { palette, ornements }. decor absent : celui de la fête ; une chaîne : un ornement (ou « aucun ») ;
@@ -371,7 +415,7 @@ function normaliserLien(lien) {
 export function normaliserDeclinaison(def = {}, deja = []) {
   const id = texte(def.id, 64);
   if (!ID_VALIDE.test(id)) throw new Error(`fête : id manquant ou mal formé (« ${def.id ?? ""} » ; minuscules, chiffres et tirets)`);
-  if (!IDS_FETES.includes(def.fete)) throw new Error(`fête « ${id} » : fête inconnue « ${def.fete ?? ""} » (fêtes : ${IDS_FETES.join(", ")})`);
+  if (!IDS_DECLINABLES.includes(def.fete)) throw new Error(`fête « ${id} » : fête inconnue « ${def.fete ?? ""} » (fêtes : ${IDS_DECLINABLES.join(", ")})`);
   if (deja.some(d => d.id === id)) throw new Error(`fête « ${id} » : déjà enregistrée`);
   const meme = deja.find(d => d.fete === def.fete);
   if (meme) throw new Error(`fête « ${id} » : ${nomDeFete(def.fete)} est déjà déclinée dans ce monde (« ${meme.id} »)`);
@@ -421,16 +465,18 @@ export function ligneContexte(d, systeme, { veillee = null, declinaisonVeillee =
     + (systeme === "lakour-loups" ? " ; la date seule ne change rien aux règles : seule une veillée de fête choisie à la distribution (inscrite au Registre) en ajoute, et tu n'en trahis jamais les secrets." : ".");
 }
 
-// Fénoir (lakour-survie) : la fête vient du calendrier RÉEL des joueurs et tombe pendant la survie. Elle n'existe que dans le
-// récit : ce qu'elle devient dans le monde d'après (un Noël en plein été austral, sans guirlandes électriques ; un 31 décembre
-// sans feux d'artifice, ou avec, au risque du bruit). Jamais de règle cachée : la date ne change rien aux tests, aux stocks ni au
-// monde simulé, et la date de jeu de Fénoir (état du jeu) peut être une autre.
+// Fénoir (lakour-survie) : la fête suit la date de JEU (sourceDeDate) et tombe pendant la survie. Elle vit d'abord dans le récit :
+// ce qu'elle devient dans le monde d'après (un Noël en plein été austral, sans guirlandes électriques ; un 31 décembre sans feux
+// d'artifice, ou avec, au risque du bruit). La date seule ne change rien : seule une fête que le groupe CHOISIT de fêter
+// (survie_feter) ou à laquelle il va chez d'autres (survie_participer) a son gain et son coût, que le système applique et dit.
+// Jamais de magie : la foi agit par le moral.
 export function ligneSurvie(d) {
   const nom = d.nom !== nomDeFete(d.fete) ? `${d.nom} (${nomDeFete(d.fete)})` : d.nom;
-  return `Fête du calendrier des joueurs : ${nom}.${d.consigne ? ` ${phrase(d.consigne)}` : ""} Dans le monde d'après, si c'est naturel, `
+  return `Fête du calendrier du jeu : ${nom}.${d.consigne ? ` ${phrase(d.consigne)}` : ""} Dans le monde d'après, si c'est naturel, `
     + "raconte ce qu'elle devient pour les survivants (un souvenir, un repas pris sur les stocks, un chant créole à voix basse, une bougie, "
-    + "une dispute), sans insister ni en parler à chaque réponse. Ce n'est pas une règle : elle ne change ni les tests, ni les stocks, ni le "
-    + "monde (un vrai repas de fête se décompte avec survie_ajuster), et la date de jeu de Fénoir peut être une autre.";
+    + "une dispute), sans insister ni en parler à chaque réponse. La date seule ne change rien : si les joueurs décident de la fêter "
+    + "(survie_feter) ou d'aller à celle d'une autre communauté (survie_participer), le système applique son gain et son coût ; aucune "
+    + "fête n'a d'effet magique, la foi agit par le moral.";
 }
 
 // La ligne d'une veillée de fête en jeu aux Veillées. v : { cle, nom, aide, fete, neige, defile: { nom } | null } (public) ;

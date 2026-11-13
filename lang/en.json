@@ -715,7 +715,11 @@
         "halloween": "Halloween",
         "saint-valentin": "Valentine's Day",
         "fete-nationale": "National Day (14 July)",
-        "musique": "Music Day"
+        "musique": "Music Day",
+        "ramadan": "Ramadan",
+        "aid-el-kebir": "Eid al-Adha (Aïd el-Kebir)",
+        "nouvel-an-tamoul": "Tamil New Year",
+        "marche-sur-le-feu": "Fire-walking"
       },
       "Forcee": "AI GM — {nom} is forced, but this world has no version of it: no holiday in progress."
     },

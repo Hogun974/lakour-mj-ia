@@ -212,11 +212,22 @@ export function apiDoublure(cadre) {
       test: { competence: "bricolage", succes: 1, requis: 1, reussite: true, marge: 0 }, acteurId })),
     affliction: enregistrer("affliction", async ({ action }) => (action === "soigner" ? { gueri: true } : {})),
     // Fête vide : celle du jour DE JEU (ici Noël, 2026-12-xx) ; LAKOUR_SURVIE.Erreurs.AucuneFete si le cadre n'en a pas.
-    feter: enregistrer("feter", async ({ fete = "" }) => {
+    feter: enregistrer("feter", async ({ fete = "", option = "", pour = [] }) => {
       const cle = fete || cadre.feteDuJour;
       if (!cle) throw new Error("LAKOUR_SURVIE.Erreurs.AucuneFete");
-      return { ok: true, fete: cle, texte: "Moral +1 pour chacun." };
+      return { ok: true, fete: cle, option, texte: "Moral +1 pour chacun.", attaches: cle === "noel" ? pour : [], voeux: cle === "cavadee" ? pour : [],
+        reposes: cle === "halloween" ? ["Gilberte"] : [], restent: cle === "halloween" ? ["Ti Paul"] : [], refugies: cle === "aid-el-kebir" };
     }),
+    // Lot « fetes » (supposées, conformes à l'API du système) : la fête des autres, les vœux, la relève, l'autel.
+    participer: enregistrer("participer", async ({ fete = "", communaute = "", faction = "", membres = [] }) => ({ ok: true, fete: fete || cadre.feteDuJour,
+      communaute: communaute || "malbars", faction, qui: membres, liens: { communautes: { [communaute || "malbars"]: 1 }, factions: faction ? { [faction]: 1 } : {}, renom: 0 } })),
+    voeu: enregistrer("voeu", async ({ acteurId, issue }) => ({ ok: true, acteurId, tenu: issue !== "rompu" })),
+    candidatsReleve: ({ mortId = "" } = {}) => [{ id: "s2", nom: "Eddy Payet", source: "membre", statut: "compagnon", age: 17, jeune: true, tache: "chantier" },
+      { id: "pnj1", nom: "Tantine Josette", source: "pnj", statut: "pnj", age: null, jeune: false, tache: "", passe: "retraitee" }].filter(x => x.id !== mortId),
+    releve: enregistrer("releve", async ({ candidat = "", action = "reprendre", userId = "" }) => (action === "tirage" ? { ok: true, action, joueur: userId || "u1" }
+      : { ok: true, action, acteurId: candidat === "Tantine Josette" ? "s1" : candidat, source: candidat === "Tantine Josette" ? "pnj" : "membre", tacheLaissee: "chantier", jeune: true, joueur: userId || "u1" })),
+    morts: () => [{ id: "m1", nom: "Gilberte", retrouve: true, repos: false }, { id: "m2", nom: "Ti Paul", retrouve: false, repos: false }],
+    autel: enregistrer("autel", async ({ action }) => (action === "repos" ? { ok: true, mort: "Gilberte", deuil: true } : { ok: true })),
     // §10 (supposées) : générateur, besoins, recrues, tâches, membres. generer : le premier tirage hors budget, puis dans le budget.
     generer: async options => {
       cadre.generes.push(structuredClone(options));

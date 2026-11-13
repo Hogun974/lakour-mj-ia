@@ -4,6 +4,7 @@
 // du monde, pour le narrateur seul). Les outils qui écrivent passent TOUS par l'API, qui refuse hors du MJ actif ou tant que le
 // monde n'est pas ouvert (coffre) : le refus revient à l'IA, rien n'est écrit en douce. Ajoutés à OUTILS par outils.js.
 import { versHTML } from "./utilitaires.js";
+import { oublierPrive } from "./compagnons-jeu.js";
 import { packDeContenu, CONTENUS, jetonJoueur } from "./contenus.js";
 import {
   CLES_COMPETENCES, RESSOURCES, DIFFICULTES_SURVIE, convertirDifficulte, apiSurvie, fonctionSurvie, lireSurvie, messageErreurSurvie,
@@ -737,31 +738,163 @@ export const OUTILS_SURVIE = [
       ] }) };
     }
   }),
+  // Les fêtes du métissage (lot « fetes » de Fénoir, 2026-11-13) : chacune a son gain et son coût, que le système applique.
   outil({
     nom: "survie_feter",
-    description: "Fénoir : le groupe fête une fête au camp (Noël en plein été, le 20 décembre, le Nouvel An…) : une ration de plus par "
-      + "personne, +1 de moral pour chacun, une fois par fête (le système refuse la seconde). Seulement si les joueurs le décident ; "
-      + "une fête, ça s'entend (bruit) et ça se voit : raconte-le.",
+    description: "Fénoir : le groupe fête une fête au camp (Noël en plein été, le 20 décembre, la Dipavali, le Nouvel An chinois, le ramadan…), "
+      + "seulement si les joueurs le décident, une fois par fête et par an (le système refuse la seconde). Chaque fête a son GAIN et son "
+      + "COÛT, que le système applique et rend (moral, souvenir de plusieurs jours, rations, bois, bruit, lueur visible, hygiène, sang-froid, "
+      + "liens avec un abri voisin) ; jamais d'effet magique : la foi agit par le moral, ne confirme rien. Raconte-le : une fête s'entend "
+      + "et se voit. action « voeu_tenu » / « voeu_rompu » : dis qu'un vœu du Cavadee (pour : qui) est tenu (+1 moral) ou rompu (−1).",
     schema: objet({
-      fete: chaine("La fête (clé du calendrier de Fénoir : « noel », « liberte », « nouvel-an »…) ; vide = la fête du jour DE JEU, que le "
-        + "système trouve d'après la date de la partie (pas celle des joueurs) ; il refuse s'il n'y en a pas.")
+      action: choix(["feter", "voeu_tenu", "voeu_rompu"], "feter (défaut), ou le sort d'un vœu."),
+      fete: chaine("La fête (clé du calendrier de Fénoir : « noel », « liberte », « dipavali », « ramadan », « marche-sur-le-feu »…) ; vide = la "
+        + "fête du jour DE JEU, que le système trouve d'après la date de la partie (pas celle des joueurs) ; il refuse s'il n'y en a pas."),
+      option: choix(["", "musique", "silence"], "La fête de la musique : en musique (moral, bruit) ou en silence (on dort serrés) ; vide = la première."),
+      pour: liste(chaine("Nom d'un survivant du groupe."), "Cavadee : qui fait le vœu ; Noël : la recrue qu'un cadeau attache ; vœu : de qui ; vide = tous."),
+      avec: chaine("L'abri voisin (faction, clé ou nom) qui reçoit les dons du Nouvel An chinois, l'échange de graines du Nouvel An tamoul, "
+        + "la part de l'Aïd el-Kebir : un lien de plus avec lui ; vide = personne.")
     }),
     sensible: true,
-    async executer({ fete }) {
+    async executer({ action = "feter", fete, option = "", pour = [], avec = "" }) {
       api();
+      const ids = (pour ?? []).filter(x => String(x).trim()).map(nom => survivant(nom).id);
+      if (action === "voeu_tenu" || action === "voeu_rompu") {
+        if (!ids.length) throw new Refus("dis de qui (pour).");
+        const issue = action === "voeu_tenu" ? "tenu" : "rompu";
+        for (const id of ids) await appeler("voeu", { acteurId: id, issue });
+        return { contenu: rendu({ connu: [`Vœu ${issue} : ${ids.map(nomActeur).join(", ")} (${issue === "tenu" ? "+1" : "−1"} de moral). Raconte-le avec pudeur.`] }) };
+      }
+      const faction = String(avec ?? "").trim() ? cleDe("factions", avec, "une faction") : "";
       // Fête vide : le système la cherche à la date DE JEU (api.feter) ; la fête du calendrier réel des joueurs (fetes.js) n'est pas
-      // la bonne : la date de Fénoir est une autre.
-      const r = await appeler("feter", { fete: fete.trim() });
+      // la bonne : la date de Fénoir est une autre. Seuls les arguments donnés partent à l'API.
+      const r = await appeler("feter", { fete: fete.trim(), ...(option ? { option } : {}), ...(ids.length ? { pour: ids } : {}), ...(faction ? { avec: faction } : {}) });
       const abri = acteurDe(lire("etat")?.groupe?.abri);
-      const nom = String(r?.fete || fete.trim() || "la fête du jour");
+      const cle = String(r?.fete || fete.trim() || "");
+      const def = trouverFiche(lire("contenu")?.fetes, cle);
+      const nom = String(def?.nom || cle || "la fête du jour");
       return { contenu: rendu({ connu: [
-        `Le groupe fête ${nom} au camp : une ration de plus chacun, +1 de moral.`,
+        `Le groupe fête ${nom} au camp${r?.option ? ` (${r.option})` : ""}.`,
+        def?.gain ? `Ce qu'elle apporte : ${brut(def.gain)}.` : "",
+        def?.cout ? `Ce qu'elle coûte : ${brut(def.cout)}.` : "",
+        (r?.attaches ?? []).length ? `Le cadeau attache au groupe : ${r.attaches.map(nomActeur).join(", ")} (compagnons désormais).` : "",
+        (r?.voeux ?? []).length ? `Vœu fait : ${r.voeux.map(nomActeur).join(", ")} (dis-moi quand il est tenu ou rompu : action voeu_tenu ou voeu_rompu).` : "",
+        (r?.reposes ?? []).length ? `Ils reposent : ${r.reposes.join(", ")}.` : "",
+        (r?.restent ?? []).length ? `Pas encore retrouvés (leur deuil pèse encore) : ${r.restent.join(", ")}.` : "",
+        r?.refugies ? "La nouvelle de la part donnée court : fais venir des réfugiés dans les jours qui viennent (survie_recrue generer)." : "",
         brut(r?.texte),
         abri ? `Stocks : ${texteStocks(abri.system?.stocks)}.` : ""
       ] }) };
     }
+  }),
+  outil({
+    nom: "survie_participer",
+    description: "Fénoir : des membres du groupe vont à la fête d'une AUTRE communauté de l'île (le feu de la Dipavali chez les Malbars, le "
+      + "dragon du Nouvel An chinois, le kabar du 20 décembre, la rupture du jeûne…), chez un abri voisin ou une faction. Deux quarts ; "
+      + "+1 de moral à ceux qui y vont ; un lien de plus avec la communauté et la faction qui reçoivent (deux liens : on recrute plus "
+      + "facilement chez eux), une fois par fête, par an et par hôte. Les PNJ y portent leurs préjugés, les faits les démentent : "
+      + "joue-le, et monte l'horloge de réputation rep-<faction> si l'accueil le mérite.",
+    schema: objet({
+      fete: chaine("La fête (clé ou nom) ; vide = celle du jour de jeu."),
+      communaute: choix(["", "cafres", "yabs", "zoreils", "malbars", "zarabes", "chinois", "malgaches", "comoriens"],
+        "La communauté qui reçoit ; vide = celle de la fête."),
+      faction: chaine("La faction (abri voisin) qui reçoit, clé ou nom ; vide = aucune."),
+      membres: MEMBRES
+    }),
+    sensible: true,
+    async executer({ fete, communaute, faction, membres: noms }) {
+      api();
+      const f = String(faction ?? "").trim() ? cleDe("factions", faction, "une faction") : "";
+      const r = await appeler("participer", { fete: fete.trim(), communaute, faction: f, membres: membres(noms) });
+      return { contenu: rendu({ connu: [
+        `${(r?.qui ?? []).map(nomActeur).join(", ") || "Le groupe"} vont à la fête ${r?.fete ?? fete} chez ${[r?.communaute, f ? nomDe(lire("contenu")?.factions, f) : ""].filter(Boolean).join(", ")} : `
+          + "deux quarts, +1 de moral chacun, un lien de plus avec ceux qui reçoivent.",
+        r?.liens ? `Liens du groupe : ${Object.entries({ ...(r.liens.communautes ?? {}), ...(r.liens.factions ?? {}) }).map(([k, n]) => `${k} ${n}`).join(", ")}.` : ""
+      ], secret: ["Un PNJ hôte peut y porter un préjugé sur le groupe (ou un membre du groupe sur eux) : fais-le dire, puis démentir par les faits."] }) };
+    }
+  }),
+  // La mort et ce qui reste (famille 6) : la relève et l'autel.
+  outil({
+    nom: "survie_releve",
+    description: "Fénoir : à la mort du survivant d'un joueur, la RELÈVE. « candidats » : qui il peut reprendre (membres vivants du groupe, "
+      + "16 ans au moins, qui ne sont pas déjà le survivant d'un joueur : compagnons, recrues, PNJ, et les PNJ légers du groupe). Propose-lui "
+      + "le choix, ou un nouveau tirage. « reprendre » : le système lui confie le survivant choisi (propriété, personnage), qui CESSE son "
+      + "travail pour le groupe (dis-le : sa tâche est à reprendre ou à confier) ; un compagnon IA cesse d'en être un ; de 16 à 18 ans, il "
+      + "porte moins, travaille moins vite et ne peut pas être chef. « tirage » : le joueur crée le suivant (creer_survivant).",
+    schema: objet({
+      action: choix(["candidats", "reprendre", "tirage"], "candidats, reprendre ou tirage."),
+      mort: chaine("Le survivant mort (nom)."),
+      candidat: chaine("reprendre : le survivant repris (nom, ou celui d'un PNJ léger du groupe) ; vide sinon."),
+      joueur: chaine("Le joueur Foundry qui le reprend (nom) ; vide = celui du mort.")
+    }),
+    sensible: true,
+    async executer({ action, mort, candidat, joueur }) {
+      api();
+      const m = survivant(mort);
+      if (action === "candidats") {
+        const c = await lireSurvie(jeu()?.lakourSurvie, "candidatsReleve", { mortId: m.id });
+        return { contenu: rendu({ connu: [(c ?? []).length
+          ? `Peuvent prendre la relève de ${m.name} : ${c.map(x => `${x.nom}${x.source === "pnj" ? " (PNJ du groupe, sa fiche sera tirée)" : ` (${x.age} ans${x.jeune ? ", jeune" : ""}${x.tache && x.tache !== "repos" ? `, ${x.tache}` : ""})`}`).join(" ; ")}. Ou un nouveau tirage.`
+          : `Personne ne peut prendre la relève de ${m.name} : il reste le nouveau tirage (creer_survivant).`] }) };
+      }
+      const utilisateur = trouverJoueur(joueur);
+      if (String(joueur ?? "").trim() && !utilisateur) throw new Refus(`joueur introuvable : ${joueur}.`);
+      if (action === "tirage") {
+        await appeler("releve", { mortId: m.id, action: "tirage", userId: utilisateur?.id ?? "" });
+        return { contenu: rendu({ connu: [`Le joueur de ${m.name} tire un nouveau survivant : creer_survivant (tirer, puis creer avec joueur), qui rejoint le groupe.`] }) };
+      }
+      if (!String(candidat ?? "").trim()) throw new Refus("dis qui il reprend (candidat), ou action tirage.");
+      const repris = trouverCandidat(candidat);
+      const etaitCompagnon = repris ? Boolean(repris.flags?.[ID_MJIA]?.compagnon) : false;
+      const r = await appeler("releve", { mortId: m.id, candidat: repris?.id ?? candidat.trim(), userId: utilisateur?.id ?? "", action: "reprendre" });
+      const a = acteurDe(r?.acteurId);
+      if (etaitCompagnon && a) await oublierPrive(a.id);
+      const garde = await confier(utilisateur ?? jeu()?.users?.get?.(r?.joueur), a);
+      return { contenu: rendu({ connu: [
+        `${a?.name ?? candidat} prend la relève de ${m.name}${r?.source === "pnj" ? " (sa fiche vient d'être tirée : présente-la)" : ""}.`,
+        r?.tacheLaissee && r.tacheLaissee !== "repos" ? `Il ne fait plus sa tâche pour le groupe (${r.tacheLaissee}) : demande qui la reprend (survie_assigner).` : "",
+        r?.jeune ? "Il a moins de 18 ans : il porte moins, travaille moins vite, ne peut pas être chef." : "",
+        etaitCompagnon ? "Ce n'est plus un compagnon IA : son joueur le joue désormais." : "",
+        garde ? `Le joueur garde ${garde} comme personnage principal.` : "",
+        a ? resumerSurvivant(a) : ""
+      ] }) };
+    }
+  }),
+  outil({
+    nom: "survie_autel",
+    description: "Fénoir : les morts du groupe et l'autel de l'abri. « liste » : les noms, et qui pèse encore (deuil : le moral remonte un "
+      + "cran moins haut tant qu'un mort n'a pas reçu le repos). « honorer » : l'autel des morts de l'abri (installation), une assiette "
+      + "offerte, un quart, une fois par semaine : +1 de moral et un soutien de sept jours. « repos » : donner le repos à un mort RETROUVÉ "
+      + "(un quart ; lève son deuil ; à la Toussaint, survie_feter halloween le fait pour tous). « retrouver » : son corps est retrouvé "
+      + "(ou le Livide qu'il était a reçu le repos). « inscrire » : un nom de plus (un PNJ léger tombé, un proche). Sobriété : le deuil "
+      + "se raconte avec pudeur, jamais comme un spectacle.",
+    schema: objet({
+      action: choix(["liste", "honorer", "repos", "retrouver", "inscrire"], "Ce qu'on fait."),
+      mort: chaine("repos, retrouver : le mort (nom) ; inscrire : le nom à inscrire ; vide sinon.")
+    }),
+    sensible: true,
+    async executer({ action, mort }) {
+      api();
+      const nom = String(mort ?? "").trim();
+      if (action === "liste") {
+        const morts = (await lireSurvie(jeu()?.lakourSurvie, "morts")) ?? lire("etat")?.morts ?? [];
+        return { contenu: rendu({ connu: [morts.length
+          ? `Sur l'autel : ${morts.map(x => `${x.nom} (${x.repos ? "repose" : x.retrouve ? "en deuil" : "pas retrouvé"})`).join(", ")}.`
+          : "Aucun nom sur l'autel."] }) };
+      }
+      if (action !== "honorer" && !nom) throw new Refus("dis de quel mort il s'agit (mort).");
+      const r = await appeler("autel", action === "inscrire" ? { action, nom } : { action, mort: nom });
+      const textes = { honorer: "Le groupe honore l'autel des morts : +1 de moral chacun, un soutien de sept jours. Une scène sobre.",
+        repos: `Le repos est donné à ${r?.mort ?? nom}${r?.deuil === false ? " : le deuil du groupe se lève" : ""}.`,
+        retrouver: `Le corps de ${nom} est retrouvé : on pourra lui donner le repos.`, inscrire: `${nom} est inscrit sur l'autel.` };
+      return { contenu: rendu({ connu: [textes[action]] }) };
+    }
   })
 ];
+// Un survivant repris par la relève : un acteur (nom), sinon le nom d'un PNJ léger (le système le résout).
+function trouverCandidat(nom) {
+  try { return survivant(nom); } catch { return null; }
+}
 
 // ------------------------------------------------------------------ création d'un survivant (création guidée, compagnons)
 // Le passé vient du compendium « passes » du module de contenu (Item « passe » : { cle, competences: { cle: niveau }, savoirs: [cle],

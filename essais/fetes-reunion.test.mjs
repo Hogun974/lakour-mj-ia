@@ -67,3 +67,40 @@ test("les autres mondes ne voient pas les fêtes qu'ils ne déclinent pas", () =
     }
   }
 });
+
+// ------------------------------------------------------------------ fêtes « sur demande » (lot « fetes » de Fénoir, 2026-11-13)
+test("fêtes sur demande : Ramadan et Aïd el-Kebir (hégirien tabulaire), Nouvel An tamoul, marche sur le feu ; deux ramadans en 2030", () => {
+  const aussi = L.IDS_SUR_DEMANDE;
+  assert.deepEqual(aussi, ["ramadan", "aid-el-kebir", "nouvel-an-tamoul", "marche-sur-le-feu"]);
+  const de = (a, id) => L.fenetresDeLAnnee(a, { aussi }).filter(f => f.id === id);
+  // Dates connues (à un jour près de l'observation) : ramadan 2026 dès le 18 février, Aïd el-Fitr le 20 mars ; Aïd el-Kebir le 27 mai.
+  assert.equal(de(2026, "ramadan")[0].debut, "2026-02-18");
+  assert.equal(de(2026, "ramadan")[0].coeurDebut, "2026-03-20");
+  assert.equal(de(2026, "aid-el-kebir")[0].coeurDebut, "2026-05-27");
+  assert.equal(de(2027, "aid-el-kebir")[0].coeurDebut, "2027-05-17");
+  assert.equal(de(2030, "ramadan").length, 2, "janvier et décembre 2030");
+  assert.equal(de(2031, "nouvel-an-tamoul")[0].coeurDebut, "2031-04-14");
+  assert.equal(de(2026, "marche-sur-le-feu")[0].coeurDebut, "2026-01-04", "premier dimanche après le Nouvel An");
+  // Un ramadan qui chevauche la fin d'année (décembre 2030 – janvier 2031).
+  assert.ok(ids(L.fetesDuJour(jour(2031, 1, 10), { aussi })).includes("ramadan"));
+  // Chaque fête sur demande a son nom, son décor et se décline.
+  for (const id of aussi) {
+    assert.ok(L.nomDeFete(id) && L.DECORS_PAR_DEFAUT[id], id);
+    assert.equal(L.normaliserDeclinaison({ id: `essai-${id}`, fete: id }).fete, id);
+  }
+});
+
+test("fêtes sur demande : invisibles d'un monde qui ne les décline pas ; le réglage « fete » ne change pas", () => {
+  for (let j = 1; j <= 31; j++) {
+    for (const [m, a] of [[1, 2026], [2, 2026], [3, 2026], [4, 2027], [5, 2026], [12, 2030]]) {
+      const d = jour(a, m, Math.min(j, 28));
+      for (const f of L.fetesDuJour(d)) assert.ok(L.IDS_FETES.includes(f.id), `${f.id} sans demande`);
+      for (const declinees of Object.values(MONDES)) assert.ok(!L.IDS_SUR_DEMANDE.includes(L.feteRetenue({ date: d, declinees })));
+    }
+  }
+  assert.deepEqual(L.REGLAGES, [L.REGLAGE_AUTO, L.REGLAGE_AUCUNE, ...L.IDS_FETES]);
+  for (const id of L.IDS_SUR_DEMANDE) assert.ok(!L.REGLAGES.includes(id));
+  // Fénoir les décline : le calendrier et la fête du monde les voient.
+  assert.equal(L.feteRetenue({ date: jour(2026, 5, 27), declinees: ["aid-el-kebir", "noel"] }), "aid-el-kebir");
+  assert.equal(L.feteRetenue({ date: jour(2026, 2, 20), declinees: ["ramadan", "nouvel-an-chinois"] }), "nouvel-an-chinois", "le Nouvel An chinois passe devant le long ramadan");
+});

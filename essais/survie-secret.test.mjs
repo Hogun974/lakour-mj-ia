@@ -97,11 +97,12 @@ const VERIFICATIONS = {
     assert.ok(!avancer.contenu.includes("JOURNAL-SECRET-ANCIEN"));
     assert.deepEqual(fuites(coupe(avancer.contenu, M.L.SECRET)[0]), []);
   },
-  "fêtes : la ligne de Fénoir (monde d'après, sans règle cachée)"(M) {
+  "fêtes : la ligne de Fénoir (monde d'après ; la date seule ne change rien, la fête choisie a son gain et son coût, jamais magiques)"(M) {
     const l = M.f.ligneContexte({ id: "noel-austral", fete: "noel", nom: "Noël austral", consigne: "" }, "lakour-survie");
     assert.match(l, /Noël austral \(Noël\)/);
     assert.match(l, /monde d'après/);
-    assert.match(l, /Ce n'est pas une règle/);
+    assert.match(l, /La date seule ne change rien/);
+    assert.match(l, /aucune fête n'a d'effet magique/);
     assert.ok(M.f.IDS_FETES.includes("liberte") && M.f.IDS_FETES.includes("fete-nationale"));
     assert.deepEqual(M.f.fetesDuJour(new Date(2026, 11, 20)).map(x => x.id), ["liberte", "noel"], "le 20 décembre avant Noël");
   },

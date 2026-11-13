@@ -157,10 +157,40 @@ export const momentTexte = m => MOMENTS[m] ?? (Number.isInteger(m) ? Object.valu
 export const phaseTexte = p => PHASES[p] ?? p ?? "?";
 
 // Le moment de jeu en une ligne : « jour 3, soir (2026-12-07, saison des pluies), phase panique ».
+// Lot « fetes » (système lakour-survie, 2026-11-13) : la lune et la clarté de la nuit, quand quand() les donne.
+export const PHASES_LUNE = { nouvelle: "nouvelle lune", "premier-croissant": "premier croissant", "premier-quartier": "premier quartier",
+  "gibbeuse-croissante": "lune gibbeuse croissante", pleine: "pleine lune", "gibbeuse-decroissante": "lune gibbeuse décroissante",
+  "dernier-quartier": "dernier quartier", "dernier-croissant": "dernier croissant" };
+export const CLARTES = ["nuit noire (dehors : −1 dé sauf discrétion +1, rencontres plus rares, chutes plus fréquentes, fouille plus riche)",
+  "nuit sombre", "nuit claire", "pleine lumière (vigilance +1, discrétion −1 : les Livides y voient aussi)"];
 export function texteQuand(q) {
   if (!q) return "date inconnue";
   const date = q.dateTexte || q.date;
-  return `jour ${q.jour ?? "?"}, ${momentTexte(q.moment)}${date ? ` (${date}${q.saison ? `, ${q.saison}` : ""})` : ""}, phase ${phaseTexte(q.phase)}`;
+  const lune = q.lune?.phase ? `, ${PHASES_LUNE[q.lune.phase] ?? q.lune.phase}${Number.isInteger(q.clarte) ? ` : ${CLARTES[q.clarte] ?? ""}${q.couvert ? ", ciel couvert" : ""}` : ""}` : "";
+  return `jour ${q.jour ?? "?"}, ${momentTexte(q.moment)}${date ? ` (${date}${q.saison ? `, ${q.saison}` : ""})` : ""}, phase ${phaseTexte(q.phase)}${lune}`;
+}
+// La lune, le paysage, la date que les joueurs savent, les morts, ce qui soutient le groupe, les liens (lot « fetes ») : des lignes
+// [connu] pour l'état du jeu. Vide pour un système d'avant le lot.
+export function lignesTempsDeLIle({ etat, quand } = {}, { acteur = () => null } = {}) {
+  const l = [];
+  if (quand?.dateExacte === false && quand?.dateLue) l.push(`Sans téléphone ni radio, les joueurs ne savent plus la date exacte : ils la lisent dans la nature (« ${quand.dateLue} ») ; ne leur dis pas la date du calendrier.`);
+  if (quand?.chaleur) l.push("Chaleur de l'été austral dans les Bas, l'après-midi : dehors, un test d'endurance perd un dé.");
+  const morts = etat?.morts ?? [];
+  if (morts.length) {
+    const deuil = morts.filter(m => !m.repos);
+    l.push(`Autel des morts : ${morts.map(m => `${m.nom}${m.repos ? " (repose)" : m.retrouve ? " (deuil)" : " (pas retrouvé)"}`).join(", ")}`
+      + `${deuil.length ? " — le deuil pèse (moral un cran plus bas) tant que le repos n'est pas donné (survie_autel repos ; à la Toussaint, survie_feter halloween)" : ""}.`);
+  }
+  const jour = quand?.jour ?? jourDuQuart(etat?.horloge?.quart);
+  const actifs = (etat?.souvenirs ?? []).filter(x => Number(x.depuis) <= jour && (x.jusqua === null || x.jusqua === undefined || Number(x.jusqua) >= jour));
+  if (actifs.length) {
+    const NOMS = { soutien: "souvenir de fête (moral)", lueur: "lueur visible", hygiene: "abri propre (maladies moitié moins)", "sang-froid": "sang-froid contre les hordes", voeu: "vœu", autel: "autel honoré" };
+    l.push(`Ce qui soutient le groupe : ${actifs.map(x => `${NOMS[x.cle] ?? x.cle}${x.qui?.length ? ` (${x.qui.map(id => acteur(id)?.name ?? id).join(", ")})` : ""}${x.jusqua === null || x.jusqua === undefined ? " tant qu'il tient" : ` jusqu'au jour ${x.jusqua}`}`).join(" ; ")}.`);
+  }
+  const liens = etat?.liens;
+  const tous = { ...(liens?.communautes ?? {}), ...(liens?.factions ?? {}) };
+  if (Object.keys(tous).length || Number(liens?.renom)) l.push(`Liens tissés (fêtes partagées, dons) : ${Object.entries(tous).map(([k, n]) => `${k} ${n}`).join(", ")}${Number(liens?.renom) ? ` ; renom de l'abri ${liens.renom}` : ""}.`);
+  return l;
 }
 // Le jour d'un quart (4 quarts par jour, §1.4).
 export const jourDuQuart = quart => Math.floor(entier(quart) / 4);
@@ -335,6 +365,7 @@ export function lignesSurvie({ etat, quand, bilan, monde, contenu, besoins } = {
       + `visibilité ${bilan.visibilite ?? "?"}, bruit ${abri?.system?.bruit ?? 0} ; jours autonomes d'affilée : ${entier(etat.joursAutonomes)}`
       + `${etat.autonome ? " (AUTONOMES : raconte-le)" : ""}.`);
   }
+  connu.push(...lignesTempsDeLIle({ etat, quand }, { acteur }));
   if ((groupe.plans ?? []).length) connu.push(`Plans (reconstruits plus vite ailleurs) : ${groupe.plans.map(p => nomDe(contenu?.installations, p)).join(", ")}.`);
   // Ce qui manque au groupe (besoins du système, §10.2) : de quoi chercher et proposer des recrues.
   const manques = lignesBesoins(besoins).slice(0, 4);

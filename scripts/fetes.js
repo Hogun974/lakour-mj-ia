@@ -63,8 +63,9 @@ export function dateDuMonde() {
 export function active() {
   return copie(declinaisonDe(courante === undefined ? calculer() : courante));
 }
-// Les fêtes du calendrier ce jour-là (déclinées ou non), de la plus prioritaire à la moins.
-export const calendrier = (date = dateDuMonde()) => L.fetesDuJour(date);
+// Les fêtes du calendrier ce jour-là (déclinées ou non), de la plus prioritaire à la moins ; les fêtes « sur demande »
+// (fetes-logique.js : Ramadan, Aïd el-Kebir, Nouvel An tamoul, marche sur le feu) seulement si ce monde les décline.
+export const calendrier = (date = dateDuMonde()) => L.fetesDuJour(date, { aussi: declinaisons.map(d => d.fete) });
 export const decors = () => ({ palettes: Object.keys(L.PALETTES), ornements: Object.keys(L.ORNEMENTS), parDefaut: structuredClone(L.DECORS_PAR_DEFAUT) });
 
 // La veillée de fête EN JEU aux Veillées (système lakour-loups : game.lakourLoups.fete(), d'après l'état public), ou null.

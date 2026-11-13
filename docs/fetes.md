@@ -65,6 +65,28 @@ décline que Noël garde Noël le 31 décembre.
 
 Pas d'autre fête au calendrier : pas de commémoration historique ou religieuse grave.
 
+**Fêtes « sur demande »** (`FETES_SUR_DEMANDE`, ajout du 13/11/2026 pour Fénoir) : seul un monde qui les **décline** les voit. Elles
+n'entrent ni dans le réglage `fete` (`REGLAGES` inchangé), ni dans le calendrier d'un monde qui ne les a pas déclinées :
+`fetesDuJour(date)` et `fenetresDeLAnnee(annee)` sans l'option `{ aussi: [ids] }` rendent exactement ce qu'ils rendaient, et
+`api.fetes.calendrier` y ajoute seulement les fêtes déclinées par le monde. Les autres mondes (40k, Warcraft, Veillées) ne voient
+donc rien de nouveau (`essais/fetes-reunion.test.mjs`).
+
+| id | Fête | Fenêtre | Cœur | Priorité |
+|---|---|---|---|---|
+| `ramadan` | Ramadan | 1er ramadan – lendemain de l'Aïd el-Fitr (hégirien tabulaire) | l'Aïd el-Fitr (1er chawwal) et son lendemain | 25 |
+| `aid-el-kebir` | Aïd el-Kebir | veille – surlendemain du 10 dhou al-hijja | le jour et le lendemain | 46 |
+| `nouvel-an-tamoul` | Nouvel An tamoul (Puthandu) | 13 – 15 avril | 14 avril | 43 |
+| `marche-sur-le-feu` | Marche sur le feu | 2 – 12 janvier (chaque temple a sa date ; les principales au début de janvier) | premier dimanche de janvier à partir du 2 | 41 |
+
+Le calendrier hégirien **tabulaire** (arithmétique) tombe à un jour près de l'observation du croissant : la fenêtre couvre l'écart
+(ramadan 2026 dès le 18 février, Aïd el-Fitr le 20 mars, Aïd el-Kebir le 27 mai). Une année grégorienne peut voir commencer deux
+ramadans (2030, 2063) : la fenêtre d'une fête peut rendre plusieurs fenêtres. `IDS_DECLINABLES` : le socle et ses fêtes sur demande
+(ce que `normaliserDeclinaison` accepte).
+
+**La ligne du narrateur à Fénoir** (`ligneSurvie`) : la fête suit la date de JEU ; la date seule ne change rien, mais une fête que le
+groupe choisit de fêter (`survie_feter`) ou à laquelle il va chez une autre communauté (`survie_participer`) a son gain et son coût,
+que le système applique (lot « fetes » de Fénoir) ; aucune n'a d'effet magique.
+
 ## 2. Réglages
 
 - **`fete`** (monde, fenêtre des réglages « Fête de saison ») : `auto` (défaut, selon la date), `aucune`, ou l'id d'une fête
