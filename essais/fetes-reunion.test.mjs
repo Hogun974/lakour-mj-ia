@@ -71,7 +71,7 @@ test("les autres mondes ne voient pas les fêtes qu'ils ne déclinent pas", () =
 // ------------------------------------------------------------------ fêtes « sur demande » (lot « fetes » de Fénoir, 2026-11-13)
 test("fêtes sur demande : Ramadan et Aïd el-Kebir (hégirien tabulaire), Nouvel An tamoul, marche sur le feu ; deux ramadans en 2030", () => {
   const aussi = L.IDS_SUR_DEMANDE;
-  assert.deepEqual(aussi, ["ramadan", "aid-el-kebir", "nouvel-an-tamoul", "marche-sur-le-feu"]);
+  assert.deepEqual(aussi, ["ramadan", "aid-el-kebir", "nouvel-an-tamoul", "marche-sur-le-feu", "pongal", "fete-du-miel-vert"]);
   const de = (a, id) => L.fenetresDeLAnnee(a, { aussi }).filter(f => f.id === id);
   // Dates connues (à un jour près de l'observation) : ramadan 2026 dès le 18 février, Aïd el-Fitr le 20 mars ; Aïd el-Kebir le 27 mai.
   assert.equal(de(2026, "ramadan")[0].debut, "2026-02-18");
@@ -81,6 +81,12 @@ test("fêtes sur demande : Ramadan et Aïd el-Kebir (hégirien tabulaire), Nouve
   assert.equal(de(2030, "ramadan").length, 2, "janvier et décembre 2030");
   assert.equal(de(2031, "nouvel-an-tamoul")[0].coeurDebut, "2031-04-14");
   assert.equal(de(2026, "marche-sur-le-feu")[0].coeurDebut, "2026-01-04", "premier dimanche après le Nouvel An");
+  // Pongal (le 14 janvier, de la veille au surlendemain) et le miel vert (le dernier samedi de janvier et le dimanche), lot 12 de Fénoir.
+  assert.deepEqual(de(2027, "pongal").map(f => [f.debut, f.fin, f.coeurDebut]), [["2027-01-13", "2027-01-16", "2027-01-14"]]);
+  assert.deepEqual(de(2027, "fete-du-miel-vert").map(f => [f.debut, f.fin, f.coeurDebut]), [["2027-01-30", "2027-01-31", "2027-01-30"]]);
+  assert.equal(de(2028, "fete-du-miel-vert")[0].coeurDebut, "2028-01-29");
+  assert.ok(!ids(L.fetesDuJour(jour(2027, 1, 14))).includes("pongal"), "sans déclinaison, invisible");
+  assert.ok(ids(L.fetesDuJour(jour(2027, 1, 14), { aussi })).includes("pongal"));
   // Un ramadan qui chevauche la fin d'année (décembre 2030 – janvier 2031).
   assert.ok(ids(L.fetesDuJour(jour(2031, 1, 10), { aussi })).includes("ramadan"));
   // Chaque fête sur demande a son nom, son décor et se décline.

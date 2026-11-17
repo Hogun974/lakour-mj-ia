@@ -77,6 +77,12 @@ donc rien de nouveau (`essais/fetes-reunion.test.mjs`).
 | `aid-el-kebir` | Aïd el-Kebir | veille – surlendemain du 10 dhou al-hijja | le jour et le lendemain | 46 |
 | `nouvel-an-tamoul` | Nouvel An tamoul (Puthandu) | 13 – 15 avril | 14 avril | 43 |
 | `marche-sur-le-feu` | Marche sur le feu | 2 – 12 janvier (chaque temple a sa date ; les principales au début de janvier) | premier dimanche de janvier à partir du 2 | 41 |
+| `pongal` | Pongal (la moisson tamoule ; ajout du 17/11/2026) | 13 – 16 janvier | 14 janvier | 39 |
+| `fete-du-miel-vert` | Fête du miel vert (Plaine des Cafres ; ajout du 17/11/2026) | le dernier samedi de janvier et le dimanche qui suit | le samedi | 38 |
+
+Pongal et le miel vert (lot 12 de Fénoir, contrat §17.4) se datent jusqu'ici dans le contenu de Fénoir (`DATES_HORS_SOCLE` de
+`modules/lakour-fenoir/scripts/fetes.js`) ; leur entrée au socle demande à Fénoir de retirer cette date et de les décliner comme
+le ramadan (son fabricant le signale : « le socle du moteur la connaît désormais, sa date codée en dur doit partir »).
 
 Le calendrier hégirien **tabulaire** (arithmétique) tombe à un jour près de l'observation du croissant : la fenêtre couvre l'écart
 (ramadan 2026 dès le 18 février, Aïd el-Fitr le 20 mars, Aïd el-Kebir le 27 mai). Une année grégorienne peut voir commencer deux

@@ -215,6 +215,8 @@ export const IDS_FETES = FETES.map(f => f.id);
 // - Nouvel An tamoul (Puthandu) : le 14 avril, de la veille au lendemain.
 // - Marche sur le feu : chaque temple a sa date ; les principales tombent au début de janvier (Saint-André le 1er) : fenêtre fixe
 //   du 2 au 12 janvier, cœur le premier dimanche de janvier qui suit le Nouvel An (le Nouvel An passe devant le 1er).
+// - Pongal (ajout du 2026-11-17, lot 12 de Fénoir, contrat §17.4) : la moisson tamoule, le 14 janvier, de la veille au surlendemain.
+// - Fête du miel vert (idem) : à la Plaine des Cafres, le dernier samedi de janvier et le dimanche qui suit (cœur : le samedi).
 const HEGIRE_EPOQUE = 1948439.5;   // jour julien du 1er mouharram 1 (calendrier civil tabulaire)
 const JULIEN_EPOQUE_UNIX = 2440587.5;
 // Le numéro du jour (depuis le 1er janvier 1970) d'une date hégirienne tabulaire (année h, mois 1..12, jour 1..30).
@@ -228,6 +230,8 @@ function hegiriensDeLAnnee(a, mois, jour) {
 }
 // Le premier dimanche de janvier de l'année a, à partir du 2 (numéro de jour).
 const premierDimancheDeJanvier = a => { for (let j = 2; j <= 8; j++) if (new Date(Date.UTC(a, 0, j)).getUTCDay() === 0) return numero(a, 1, j); return numero(a, 1, 2); };
+// Le dernier samedi de janvier de l'année a (numéro de jour).
+const dernierSamediDeJanvier = a => { for (let j = 31; j >= 25; j--) if (new Date(Date.UTC(a, 0, j)).getUTCDay() === 6) return numero(a, 1, j); return numero(a, 1, 25); };
 export const FETES_SUR_DEMANDE = [
   { id: "ramadan", nom: "Ramadan", periode: "1er ramadan – Aïd el-Fitr (calendrier hégirien ; cœur : l'Aïd el-Fitr)", priorite: 25,
     fenetre: a => hegiriensDeLAnnee(a, 9, 1).map(d => { const fitr = d + (numeroHegirien(1, 10, 1) - numeroHegirien(1, 9, 1)); return [d, fitr + 1, fitr, fitr + 1]; }) },
@@ -236,7 +240,11 @@ export const FETES_SUR_DEMANDE = [
   { id: "nouvel-an-tamoul", nom: "Nouvel An tamoul", periode: "13 – 15 avril (cœur : 14)", priorite: 43,
     fenetre: a => [numero(a, 4, 13), numero(a, 4, 15), numero(a, 4, 14), numero(a, 4, 14)] },
   { id: "marche-sur-le-feu", nom: "Marche sur le feu", periode: "2 – 12 janvier (cœur : le premier dimanche de janvier)", priorite: 41,
-    fenetre: a => { const d = premierDimancheDeJanvier(a); return [numero(a, 1, 2), numero(a, 1, 12), d, d]; } }
+    fenetre: a => { const d = premierDimancheDeJanvier(a); return [numero(a, 1, 2), numero(a, 1, 12), d, d]; } },
+  { id: "pongal", nom: "Pongal", periode: "13 – 16 janvier (cœur : 14)", priorite: 39,
+    fenetre: a => [numero(a, 1, 13), numero(a, 1, 16), numero(a, 1, 14), numero(a, 1, 14)] },
+  { id: "fete-du-miel-vert", nom: "Fête du miel vert", periode: "le dernier samedi de janvier et le dimanche qui suit (cœur : le samedi)", priorite: 38,
+    fenetre: a => { const d = dernierSamediDeJanvier(a); return [d, d + 1, d, d]; } }
 ];
 export const IDS_SUR_DEMANDE = FETES_SUR_DEMANDE.map(f => f.id);
 // Toutes les fêtes qu'un monde peut décliner.
@@ -339,7 +347,9 @@ export const DECORS_PAR_DEFAUT = {
   ramadan: { palette: "nuit", ornements: ["lanternes", "etoiles"] },
   "aid-el-kebir": { palette: "or", ornements: ["etoiles"] },
   "nouvel-an-tamoul": { palette: "printemps", ornements: ["bougies"] },
-  "marche-sur-le-feu": { palette: "braise", ornements: ["bougies"] }
+  "marche-sur-le-feu": { palette: "braise", ornements: ["bougies"] },
+  pongal: { palette: "soleil", ornements: [] },
+  "fete-du-miel-vert": { palette: "or", ornements: [] }
 };
 
 // Le décor d'une déclinaison : { palette, ornements }. decor absent : celui de la fête ; une chaîne : un ornement (ou « aucun ») ;

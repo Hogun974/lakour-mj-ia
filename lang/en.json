@@ -719,7 +719,9 @@
         "ramadan": "Ramadan",
         "aid-el-kebir": "Eid al-Adha (Aïd el-Kebir)",
         "nouvel-an-tamoul": "Tamil New Year",
-        "marche-sur-le-feu": "Fire-walking"
+        "marche-sur-le-feu": "Fire-walking",
+        "pongal": "Pongal (Tamil harvest festival)",
+        "fete-du-miel-vert": "Green Honey Festival"
       },
       "Forcee": "AI GM — {nom} is forced, but this world has no version of it: no holiday in progress."
     },
