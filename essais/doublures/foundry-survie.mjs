@@ -17,14 +17,17 @@ export const MARQUEURS_SECRETS = ["HORDE-SECRETE", "CYCLONE-SECRET", "JOURNAL-SE
   "RENCONTRE-SECRETE", "FAIT-SECRET", "ERUPTION-SECRETE",
   // Le marché (§12, monde « nouveautes ») : la vérité d'une rumeur, un préjugé de PNJ. La vraie couleur et le cyclone vécu sont des mots
   // ordinaires : les essais les vérifient à part.
-  "AUTEUR-SECRET", "PREJUGE-SECRET"];
+  "AUTEUR-SECRET", "PREJUGE-SECRET",
+  // Les lots du jeu 3D (monde « troisD ») : la vérité d'une affaire, l'odeur, le vrai mal, un lieu à plans, une bête cachée dans un lieu, le
+  // vrai jour. La chaleur, l'issue d'une morsure, l'infection et l'écart du compte sont des chiffres : les essais les vérifient à part.
+  "VERITE-SECRETE", "ODEUR-SECRETE", "MAL-SECRET", "LIEU-PLANS-SECRET", "BETE-SECRETE", "VRAI-JOUR-SECRET"];
 
 export const CONTENU = {
   regions: [
     { cle: "saint-paul", nom: "Saint-Paul", zone: "littoral", altitude: 50, sites: ["college-hauts-saint-paul", "case-du-lagon"],
       voisins: [{ region: "le-port", route: "RN1", km: 12, terrain: "route", quartsPied: 2, quartsVehicule: 1 },
         { region: "hauts-ouest", route: "route du Maïdo", km: 20, terrain: "route", quartsPied: 3, quartsVehicule: 1 }] },
-    { cle: "le-port", nom: "Le Port et La Possession", zone: "littoral", altitude: 10, sites: [],
+    { cle: "le-port", nom: "Le Port et La Possession", zone: "littoral", altitude: 10, sites: [], arrivee: "Les grues sont immobiles, les quais se taisent.",
       voisins: [{ region: "saint-paul" }, { region: "saint-denis" }] },
     { cle: "hauts-ouest", nom: "Hauts de l'Ouest", zone: "hauts", altitude: 1200, sites: [], voisins: [{ region: "saint-paul" }] },
     { cle: "saint-denis", nom: "Saint-Denis", zone: "littoral", altitude: 30, sites: [], voisins: [{ region: "le-port" }, { region: "salazie" }] },
@@ -34,7 +37,11 @@ export const CONTENU = {
     { cle: "college-hauts-saint-paul", region: "saint-paul", nom: "Collège des Hauts de Saint-Paul", atouts: ["toit plat"], defauts: ["visible"] },
     { cle: "case-du-lagon", region: "saint-paul", nom: "Case créole du lagon" }
   ],
-  installations: [{ cle: "citerne", nom: "Citerne de pluie" }, { cle: "potager", nom: "Potager" }],
+  installations: [{ cle: "citerne", nom: "Citerne de pluie" }, { cle: "potager", nom: "Potager" },
+    // Lots du jeu 3D : un atelier de métier (§24), un cheptel (§27), la palissade de l'abri (§26).
+    { cle: "etabli", nom: "Établi", metiers: ["etabli"] }, { cle: "basse-cour", nom: "Basse-cour" }, { cle: "palissade", nom: "Palissade" }],
+  corvees: [{ cle: "eau-du-matin", nom: "L'eau du matin", tache: "eau" }], chantiersRegion: [{ cle: "centrale-langevin", nom: "La centrale de Langevin" }],
+  objetsFouille: [{ cle: "boite-de-clous", nom: "Une boîte de clous" }],
   savoirs: [{ cle: "premiers-secours", nom: "Premiers secours avancés", arbre: "moderne" }, { cle: "tisanes", nom: "Tisanes lontan", arbre: "lontan" }],
   factions: [{ cle: "recuperateurs", nom: "Les Récupérateurs" }, { cle: "planteurs", nom: "Les Planteurs des Hauts" }], evenements: [],
   // Le marché (§12), l'esprit (§14), les gramounes (§13) : comme le registre du système.
@@ -160,8 +167,12 @@ export function apiDoublure(cadre) {
   const quand = () => {
     const q = cadre.etat.horloge.quart;
     const jour = Math.floor(q / 4);
+    // Lots du jeu 3D (monde « troisD ») : le jour que le groupe croit (à peu près, deux jours de retard), le temps du quart.
+    const troisD = cadre.troisD ? { compte: { certitude: "a-peu-pres", marge: 2, jourCru: jour - 2, teneur: "s1" }, jourDuGroupe: jour - 2,
+      dateDuGroupe: `vers le ${2 + jour} décembre 2026`, heureLue: { exacte: false, marge: 2, cle: "soleil" }, heureDuGroupe: "",
+      pluie: true, brume: false, vent: { cap: 300, vers: "nord-ouest", de: "sud-est", force: 0.4, mot: "brise" }, voix: "ressac" } : {};
     return { quart: q, jour, moment: ["matin", "apres-midi", "soir", "nuit"][q % 4], date: `2026-12-${String(4 + jour).padStart(2, "0")}`,
-      dateTexte: `${4 + jour} décembre 2026`, saison: "saison des pluies", phase: cadre.etat.phase };
+      dateTexte: cadre.troisD ? `VRAI-JOUR-SECRET ${4 + jour} décembre 2026` : `${4 + jour} décembre 2026`, saison: "saison des pluies", phase: cadre.etat.phase, ...troisD };
   };
   const bilan = () => ({ production: { eau: 1 }, consommation: { eau: 3, nourriture: 3 }, net: { eau: -2, nourriture: -3, energie: 0 },
     autonomie: false, defense: 2, discretion: 1, visibilite: 4, capacite: 6, joursDeStocks: { eau: 4, nourriture: 3 }, alertes: [] });
@@ -391,7 +402,152 @@ export function apiDoublure(cadre) {
     }),
     separer: enregistrer("separer", async ({ partants = [], nom = "" }) => ({ communaute: { id: "c1", nom: nom || "Les autres (1)", membres: partants }, restants: ["s1"] })),
     fusionner: enregistrer("fusionner", async ({ communauteId }) => ({ membres: ["s1", "s2"], plans: ["citerne"], entente: -1, communauteId })),
-    lireSigne: enregistrer("lireSigne", async () => ({ lectures: [{ acteurId: "s1", nom: "Lucie Hoarau", lecture: "signe" }, { acteurId: "s2", nom: "Eddy Payet", lecture: "rien" }] }))
+    lireSigne: enregistrer("lireSigne", async () => ({ lectures: [{ acteurId: "s1", nom: "Lucie Hoarau", lecture: "signe" }, { acteurId: "s2", nom: "Eddy Payet", lecture: "rien" }] })),
+    ...apiTroisD(cadre, enregistrer)
+  };
+}
+
+// ---------------- les douze lots du jeu 3D (§16 à §29, scripts/api-*.mjs du système, branche vague3) : mêmes noms, mêmes arguments,
+// retours de même forme. Lectures partout ; écritures au MJ actif (enregistrer). Sans le monde « troisD », les lectures rendent du vide.
+const AFFAIRE = { cle: "la-source-tarie", numero: 3, titre: "La source tarie", taille: "affaire", front: "fournaise",
+  pente: { tousLes: 3, crans: ["On fait la queue à la fontaine.", "Une bagarre à la fontaine.", "La fontaine est gardée par des armes."] },
+  apprendre: "Une femme à la radio parle de la source.", demande: "Aller voir la source.", malTourner: "La fontaine est prise.", ton: "sobre",
+  issues: [{ cle: "partager", titre: "On partage l'eau", texte: "La source est partagée entre trois abris.", effets: { stocks: { eau: 4, plantes: 1 }, moral: 1, reputation: { planteurs: 3 }, front: -1, rumeur: true } },
+    { cle: "prendre", titre: "On prend la source", texte: "Le groupe tient la source, seul.", effets: { acte: "trahir", horde: true } }] };
+export const AFFAIRE_DOUBLURE = AFFAIRE;
+CONTENU.affaires = [AFFAIRE];
+function apiTroisD(cadre, enregistrer) {
+  const d = () => cadre.troisD ?? null;
+  const mj = () => cadre.mjActif && cadre.mondeOuvert;
+  return {
+    histoireDuSurvivant: ({ acteurId = "" } = {}) => (d() && acteurId === "s1" ? { phrases: ["Elle est née à Cilaos.", "Elle a soigné tout le quartier du Port."], cles: ["enfance:x/1", "passe:y/2"] } : { phrases: [], cles: [] }),
+    // §17 : les affaires (lecture), la vérité au tirage.
+    affaires: (options = {}) => ({ contexte: { region: cadre.etat.groupe.region, ...options }, affaires: (options.closes ?? []).includes(AFFAIRE.cle) ? []
+      : [{ cle: AFFAIRE.cle, numero: AFFAIRE.numero, titre: AFFAIRE.titre, taille: AFFAIRE.taille, front: AFFAIRE.front, regions: [] }] }),
+    tirerAffaire: ({ cle = "" } = {}) => (cle && cle !== AFFAIRE.cle ? null : { cle: AFFAIRE.cle, numero: 3, titre: AFFAIRE.titre, taille: AFFAIRE.taille, front: AFFAIRE.front,
+      verite: { cle: "piege", texte: "VERITE-SECRETE : la source n'est pas tarie, une bande la détourne.", poids: 2 }, voix: "Une vieille au marché : « La source pleure plus. »",
+      pente: AFFAIRE.pente.crans[0], possibles: 1 }),
+    penteAffaire: ({ cle = "", jours = 0 } = {}) => {
+      if (cle !== AFFAIRE.cle) return null;
+      const cran = Math.min(3, Math.floor(jours / 3));
+      return { cle, cran, texte: AFFAIRE.pente.crans[cran - 1] ?? "", fin: cran >= 3, crans: 3 };
+    },
+    issueAffaire: ({ cle = "", issue = "" } = {}) => (cle === AFFAIRE.cle ? structuredClone(AFFAIRE.issues.find(i => i.cle === issue) ?? null) : null),
+    // §18 : les sens.
+    sens: () => (d() ? { quart: cadre.etat.horloge.quart, pluie: true, brume: false, vent: { mot: "brise", de: "sud-est", vers: "nord-ouest" }, voix: "ressac", musique: "",
+      odeur: mj() ? { odeur: 2, betes: 1, sources: ["ODEUR-SECRETE cuisine"], sousLeVent: "nord-ouest" } : null, ravine: "coule", corps: null,
+      accoutumance: [{ id: "s1", nom: "Lucie Hoarau", nuits: 7, palier: 2, effectif: 2 }], nettoyes: [], musiqueLe: null } : null),
+    approche: ({ creature = "livide-frais" } = {}) => ({ creature, des: -1, perception: { vue: 1, ouie: 2, odorat: 3 } }),
+    noir: enregistrer("noir", async ({ acteurId, action = "lumiere", nuits = 0 }) => ({ acteurId, nuits: action === "regler" ? nuits : 7, palier: 2, effectif: action === "lumiere" ? 0 : 2 })),
+    nettoyer: enregistrer("nettoyer", async ({ region = "", site = "", tues = 0 }) => ({ region, site, tues, facteur: 0.5 })),
+    jouer: enregistrer("jouer", async ({ musiciens = [], air = "doux" }) => ({ musiciens, air, moral: 1, bruit: air === "fort" ? 3 : 1 })),
+    // §19 : le corps.
+    corps: () => (d() ? { quart: cadre.etat.horloge.quart, membres: [{ id: "s1", nom: "Lucie Hoarau", veille: 5, sommeil: "epuise", malus: -1, vivant: true }],
+      abri: { hygiene: 1, latrines: 0, toilette: 0, insalubrite: 2, etat: "sale", salubre: false, ...(mj() ? { souillure: 2.4 } : {}) }, grisConnu: false, bivouac: true } : null),
+    symptomes: ({ acteurId = "" } = {}) => (d() && acteurId === "s1" ? { acteurId, nom: "Lucie Hoarau", maux: [{ cle: "", nom: "", stade: "active", symptomes: ["fievre"], reconnue: false, signes: ["fièvre", "frissons"] }],
+      gris: { stade: 2, symptomes: ["toux"], reconnu: false, signes: ["une toux sèche"] }, morsure: null, sommeil: "epuise",
+      ...(cadre.mjActif ? { mj: { afflictions: [{ cle: "dengue", nom: "MAL-SECRET dengue", stade: "active", reste: 3, moral: -1 }], infection: { stade: 2, depuis: 10 } } } : {}) } : null),
+    bivouac: (criteres = {}) => ({ jugement: criteres.ravine ? "dangereux" : "sur", raisons: criteres.ravine ? ["ravine"] : [], libelle: criteres.ravine ? "dangereux" : "sûr",
+      textes: criteres.ravine ? ["au bord d'une ravine"] : [], sommeil: 3, equipe: true, rencontre: criteres.ravine ? 2 : 0.5 }),
+    dormir: enregistrer("dormir", async ({ membres = [], quarts = 1, lieu = "" }) => ({ lieu: lieu || "abri", quarts, survivants: membres.map(id => ({ acteurId: id, veille: 0, sommeil: "repose" })) })),
+    soignerMorsure: enregistrer("soignerMorsure", async ({ acteurId, soigneurId = "" }) => ({ acteurId, soigneurId: soigneurId || "s2", difficulte: "difficile", medicament: true, decoction: false,
+      pansee: true, mj: { reussite: false, infecte: true } })),
+    chute: enregistrer("chute", async ({ acteurId = "", hauteur = 0, livide = false }) => (livide ? { livide: true, chancelle: hauteur < 6, rampe: hauteur >= 6 }
+      : { acteurId, hauteur, amorti: 0, blessures: Math.floor(hauteur / 3), mourant: hauteur >= 12, mort: hauteur >= 25, fracture: hauteur >= 6, recu: false, test: null, vivant: hauteur < 25 })),
+    menage: enregistrer("menage", async ({ quarts = 1 }) => ({ quarts, bras: 2, retire: 1, souillure: 1, insalubrite: 1 })),
+    parer: enregistrer("parer", async ({ acteurId, touches = 1 }) => ({ acteurId, seuil: 5, parees: 1, passent: touches - 1, des: [5] })),
+    grisConnu: enregistrer("grisConnu", async ({ connu = true }) => ({ grisConnu: Boolean(connu) })),
+    // §20 : le jour qu'on croit, les repères.
+    reperes: () => (d() ? { compte: { certitude: "a-peu-pres", jourCru: 1, marge: 2, dateCrue: "5 décembre 2026", teneur: "s1", teneurNom: "Lucie Hoarau",
+      ...(cadre.mjActif ? { ecart: 2, jourCruReel: 1 } : {}) }, heure: { exacte: false, marge: 2 }, soleil: {}, support: "planche",
+      objets: [{ id: "o1", nom: "Carte routière", cle: "carte-routiere", porteurId: "s1", porteur: "Lucie Hoarau", type: "carte", annee: null, valable: null, regions: ["saint-paul"] }],
+      cartes: { "saint-paul": { routes: { "le-port": "ouverte" }, sources: [], notes: [] } }, calendrierLune: null, montre: false, cadran: false, fetesAVenir: [], journaux: [] } : null),
+    compte: enregistrer("compte", async ({ action = "teneur" }) => ({ certitude: action === "regler" ? "sur" : "a-peu-pres", jourCru: 1, marge: 2, dateCrue: "5 décembre 2026", teneurNom: "Lucie Hoarau", ecart: 2 })),
+    donnerDate: enregistrer("donnerDate", async ({ a = "", date = "", mensonge = null }) => (a ? { sens: "donne", date, mensonge: Boolean(mensonge), rumeur: mensonge ? { id: "r9" } : null, vrai: !mensonge }
+      : { sens: "recu", date, compte: { certitude: "a-peu-pres", dateCrue: date, ecart: 1 }, vrai: false })),
+    lireLaLune: enregistrer("lireLaLune", async () => ({ ok: true, jour: 2, date: "2026-12-06", autreAnnee: false, avant: false, ecart: -1, compte: { certitude: "a-peu-pres", ecart: 1 } })),
+    donnerRepere: enregistrer("donnerRepere", async ({ acteurId, cle }) => ({ acteurId, objetId: "o9", nom: `Repère ${cle}` })),
+    copierCarte: enregistrer("copierCarte", async () => ({ objetId: "o10", nom: "Copie de carte", encreUsee: "o11" })),
+    lireJournal: enregistrer("lireJournal", async ({ mortId = "", de = "" }) => ({ ok: true, de: mortId ? "Gilberte" : de, jour: 1, plans: ["citerne"], regions: [], papier: null, papiers: [] })),
+    // §21 : les plans.
+    plans: () => (d() ? { carnet: [{ cle: "citerne", nom: "Citerne de pluie", lisible: true }], connus: ["citerne"],
+      parCoeur: [{ acteurId: "s2", nom: "Eddy Payet", plans: [{ cle: "potager", nom: "Potager" }], enCours: null }],
+      papiers: [{ acteurId: "s1", porteur: "Lucie Hoarau", objetId: "pp1", nom: "Carnet du fontainier", plans: [{ cle: "citerne", nom: "Citerne", lisible: true }], unique: true, valeur: 9 }],
+      etagere: [], places: 12, protege: false, circulation: {} } : null),
+    valeurPlan: ({ cle = "" } = {}) => ({ cle, nom: "Citerne de pluie", rarete: 20, unique: false, valeur: 7 }),
+    lieuxAPlans: () => (d() && cadre.mjActif ? [{ cle: "moulin", nom: "LIEU-PLANS-SECRET Le vieux moulin", region: "saint-paul", regionNom: "Saint-Paul", ici: true, ouverte: true,
+      fenetre: "en saison sèche", garde: { type: "livides", texte: "Des Livides dans la cour." }, prochain: null, revenir: 0, tirage: [] }] : []),
+    lieuAPlans: enregistrer("lieuAPlans", async ({ lieu }) => ({ lieu, plan: "potager", nom: "Potager", unique: false, lus: ["potager"], objetId: "pp2", prochain: 30 })),
+    lirePlan: enregistrer("lirePlan", async () => ({ lus: ["citerne"], illisibles: [] })),
+    copierPlan: enregistrer("copierPlan", async ({ cle }) => ({ objetId: "pp3", plan: cle, lumiere: false })),
+    enseignerPlan: enregistrer("enseignerPlan", async () => ({ fait: 1, requis: 2, termine: false, lumiere: false })),
+    rangerPlan: enregistrer("rangerPlan", async () => ({ id: "e1", places: 12, ranges: 1 })),
+    prendrePlan: enregistrer("prendrePlan", async ({ acteurId }) => ({ objetId: "pp4", acteurId })),
+    perdreEtagere: enregistrer("perdreEtagere", async () => ({ perdus: ["Carnet du fontainier"], restent: 0 })),
+    donnerPlan: enregistrer("donnerPlan", async ({ contre = {} }) => ({ valeur: 9, recu: contre, circulation: { citerne: 1 } })),
+    recevoirPlan: enregistrer("recevoirPlan", async ({ cle }) => ({ objetId: "pp5", plan: cle, nom: "Potager", lus: [], paye: {}, valeur: 6 })),
+    noterPlan: enregistrer("noterPlan", async ({ cle }) => ({ cle, deja: cadre.etat.groupe.plans.includes(cle), carnet: [...cadre.etat.groupe.plans, cle] })),
+    reprendrePlans: enregistrer("reprendrePlans", async () => ({ repris: ["Carnet du fontainier"] })),
+    // §22 : la table de gestion, les rangs, la conversion, l'étal, la valeur d'un objet.
+    tableDeGestion: () => (d() ? { jour: 3, semaine: 0, disponible: { garde: true, ronde: true },
+      membres: [{ id: "s1", nom: "Lucie Hoarau", statut: "joueur", rang: "chef", actif: true, tache: "soins", corvee: "", grille: { soins: 1 }, grillePropre: false, prendrait: "soins", niveaux: {} },
+        { id: "s2", nom: "Eddy Payet", statut: "compagnon", rang: "second", actif: true, tache: "chantier", corvee: "eau-du-matin", grille: { chantier: 1 }, grillePropre: true, prendrait: "chantier", niveaux: {} }],
+      quotas: [{ id: "q1", acteurId: "s2", nom: "Eddy Payet", tache: "chantier", jours: 3, semaine: 0, fait: 1, depuis: 0 }], seconds: ["s2"], stocks: {} } : null),
+    corvees: () => [{ cle: "eau-du-matin", nom: "L'eau du matin", tache: "eau", description: "" }],
+    priorites: enregistrer("priorites", async ({ acteurId, grille = {} }) => ({ acteurId, grille })),
+    quota: enregistrer("quota", async ({ acteurId = "", tache = "", jours = 1, retirer = "" }) => (retirer ? { retire: retirer } : { quota: { id: "q2", acteurId, tache, jours } })),
+    corvee: enregistrer("corvee", async ({ acteurId, corvee = "" }) => ({ acteurId, corvee })),
+    second: enregistrer("second", async ({ acteurId, retirer = false }) => ({ seconds: retirer ? [] : [acteurId] })),
+    admettre: enregistrer("admettre", async ({ acteurId }) => ({ acteurId, rang: "membre" })),
+    passage: enregistrer("passage", async ({ communauteId, ouvert = true }) => ({ communaute: { id: communauteId, passage: ouvert } })),
+    convertir: enregistrer("convertir", async ({ religion = "" }) => ({ religion, religions: [], avant: "catholique", quitte: false, souvent: false, rumeur: null })),
+    tenirEtal: enregistrer("tenirEtal", async ({ marche, biens = {}, contre = "nourriture" }) => ({ etal: { id: "etal1", marche, biens, contre } })),
+    releverEtal: enregistrer("releverEtal", async ({ etal, fermer = false }) => ({ releve: { nourriture: 2 }, rendus: {}, etal: fermer ? null : { id: etal } })),
+    valeurObjet: ({ cle = "", objetId = "" } = {}) => ({ cle: cle || "trousse", objet: objetId ? "Trousse de secours" : "", valeur: 5, source: "bareme" }),
+    // §24 : les outils.
+    outils: ({ acteurId = "" } = {}) => (d() ? [{ acteurId: "s2", objetId: "h1", cle: "hache", nom: "Hache", qualite: "recuperation", gammes: ["hache"], usages: 20, usure: 14, restants: 6,
+      reparations: 0, etat: "use", remise: false }].filter(o => !acteurId || o.acteurId === acteurId) : []),
+    userOutil: enregistrer("userOutil", async ({ acteurId, objetId }) => ({ acteurId, objetId, nom: "Hache", usages: 20, restants: 5, casse: false, devenueUsee: false })),
+    reparerOutil: enregistrer("reparerOutil", async ({ acteurId, objetId, affuter = false }) => ({ acteurId, objetId, nom: "Hache", usages: 20, restants: 11, rendu: 5, ...(affuter ? { affute: true } : {}) })),
+    // §25 : les lieux, les gisements, démonter.
+    lieux: ({ region = "" } = {}) => (d() ? { region, nom: "Saint-Paul", genres: [{ genre: "maison", nom: "Maisons", nombre: 12, ecarts: 3, vus: 1, finis: 0, demontes: 0 }],
+      vus: [{ cle: "saint-paul:maison:1", region, genre: "maison", n: 1, nom: "Maisons 1", mot: "deja", ...(mj() ? { degre: 0.73, bete: "BETE-SECRETE poules" } : {}) }] } : null),
+    gisements: ({ region = "" } = {}) => (d() ? { region, nom: "Saint-Paul", milieux: [], gisements: [{ cle: "bambou", nom: "Bambou", nombre: 2, recoltable: true, renvoi: "", ...(mj() ? { disponibles: 2 } : {}) }] } : null),
+    betes: () => [],
+    demonter: enregistrer("demonter", async () => ({ ok: true, rend: { materiaux: 3 }, travail: 2, quarts: 1 })),
+    // §26 : bâtir et défendre.
+    ouvrages: () => (d() ? { abri: true, jour: 3, installations: [{ id: "i1", cle: "palissade", nom: "Palissade", niveau: 1, etat: 2, materiau: "bois-sous-tole",
+      entretien: { tousLes: 30, travail: 2, prochain: -2, retard: 2, encrasse: false } }], dus: [{ cle: "palissade", nom: "Palissade", retard: 2 }],
+      defenses: { piege: 1, pieges: 1, hauteur: false, portes: 0, alarme: true }, eboulement: null } : null),
+    entretenir: enregistrer("entretenir", async () => ({ installation: "palissade", soigne: true, rattrape: 1, reste: 0, etat: 1 })),
+    incendie: enregistrer("incendie", async ({ force = 1 }) => ({ force, brulees: ["Palissade"], epargnees: [], degatsAbri: force - 1 })),
+    // §27 : le vivant.
+    cheptels: () => (d() ? { cheptels: [{ cle: "basse-cour", nom: "Basse-cour", espece: "poule", especeNom: "poules", tetes: 5, places: 8, plein: 6, sante: 2, malade: false, manques: ["soif"] }],
+      betes: [{ id: "b1", cle: "poule", espece: "poule", nom: "poules", nombre: 2, reste: 3 }], chien: true, outils: ["sac-de-goni"] } : null),
+    flairDuChien: ({ distance = 30 } = {}) => ({ signal: distance < 5 ? "aboie" : "tourne", texte: "Il tourne la tête vers la ravine." }),
+    beteSauvage: () => ({ espece: "tangue", especeNom: "Tangue", nombre: 1, zone: "littoral" }),
+    peupler: enregistrer("peupler", async ({ installation, n = 1 }) => ({ installation, entrent: n, restent: 0, tetes: 5 + n, places: 8 })),
+    mettreEnEnclos: enregistrer("mettreEnEnclos", async ({ beteId }) => ({ betes: [beteId], restent: 0 })),
+    abattre: enregistrer("abattre", async ({ n = 1 }) => ({ abattues: n, nourriture: 2 * n })),
+    soignerCheptel: enregistrer("soignerCheptel", async ({ installation, acteurId }) => ({ installation, gueri: true, reussite: true, acteurId })),
+    curer: enregistrer("curer", async ({ installation }) => ({ installation, soigne: true, reste: 0 })),
+    capturer: enregistrer("capturer", async () => ({ prise: true, file: false, outil: "sac-de-goni", blessure: false })),
+    chasser: enregistrer("chasser", async ({ competence = "combat" }) => ({ abattue: true, viande: 3, bruit: competence === "tir" ? 2 : 0, reussite: true })),
+    recevoirBete: enregistrer("recevoirBete", async ({ espece, n = 1 }) => ({ bete: { espece, nombre: n } })),
+    lacherBetes: enregistrer("lacherBetes", async ({ beteId }) => ({ lachees: [beteId] })),
+    // §28 : le paradis et rallumer l'île.
+    paradis: () => (d() ? { quart: cadre.etat.horloge.quart, abri: { nom: "Collège des Hauts", signe: "remarques", signeTexte: "on vous a remarqués : des traces autour de la clôture",
+      corps: 3, corpsFrais: 2, rondeLe: 2, rondesManquees: 1, fumee: false, sousTerre: false, air: "bon", airTexte: "bon", puits: {} }, rondiers: ["Eddy Payet"], membres: [],
+      prix: { autonome: false, rondiers: 1, corps: 3 }, ...(mj() ? { mj: { chaleur: 4.37, agglutines: 2, leurreLe: null, seuil: 2, arrivants: 0.8 } } : {}) } : null),
+    ile: () => (d() ? { jour: 3, regions: [{ cle: "saint-paul", nom: "Saint-Paul", etat: "rallumee", etatTexte: "rallumée", conditions: { manque: [], manqueTextes: [], toutes: true } },
+      { cle: "le-port", nom: "Le Port", etat: "noire", etatTexte: "noire" }], chantiers: [], jalons: [], rallumees: 1, total: 5 } : null),
+    ronde: enregistrer("ronde", async () => ({ abattus: 2, restants: 0, livides: 2, morsures: ["s2"], trouvaille: 0, chaleur: 3.9 })),
+    traiterCorps: enregistrer("traiterCorps", async ({ action = "enterrer" }) => ({ action, traites: 3, restent: 0, bois: action === "bruler" ? 1 : 0, fumee: action === "bruler" })),
+    leurre: enregistrer("leurre", async () => ({ reussi: true, effet: -2, partent: 1, recent: false })),
+    chaleur: enregistrer("chaleur", async ({ delta = 0 }) => ({ chaleur: 4.37 + delta, agglutines: 2, signe: "remarques" })),
+    sousTerre: enregistrer("sousTerre", async ({ vit = null }) => ({ sousTerre: vit })),
+    rallumer: enregistrer("rallumer", async ({ region, action = "declarer" }) => ({ region, etat: action === "eteindre" ? "eteinte" : "rallumee", jalons: [] })),
+    chantierRegion: enregistrer("chantierRegion", async ({ cle, aide = "", retirer = false }) => (aide ? { cle, aides: retirer ? [] : [aide] } : { cle, fait: 4, requis: 40, fini: false }))
   };
 }
 
@@ -457,9 +613,41 @@ function poserNouveautes(cadre, acteurs) {
   globalThis.game.scenes.active = { name: "Marché de Saint-Paul", tokens: { contents: [{ name: "Madame Chane", actor: acteurs.get("pnj-chane"), hidden: false, disposition: 0 }] } };
 }
 
+// Le monde des lots du jeu 3D (§16 à §29) : le compte des jours, le temps, le corps, les plans, la gestion, les ateliers, le vivant, le
+// paradis ; l'odeur, la chaleur, les vrais maux, la vérité des affaires au secret. Posé par installerFenoir({ troisD }).
+function poserTroisD(cadre, acteurs) {
+  cadre.troisD = true;
+  Object.assign(cadre.etat.groupe, { seconds: ["s2"], nouveaux: { n9: 2 }, quotas: [{ id: "q1", acteurId: "s2", tache: "chantier", jours: 3, semaine: 0, fait: 1, depuis: 0 }],
+    betes: [{ id: "b1", cle: "poule", nombre: 2, prisLe: 10, jusqua: 16, enclos: "", abri: "", source: "fouille" }] });
+  cadre.etat.morts = [{ id: "m1", nom: "Gilberte", quart: 4, retrouve: true, repos: false, journal: { jourCru: 1, certitude: "sur", plans: [] } }];
+  Object.assign(acteurs.get("s1").system, { veille: 5, morsure: { quart: 12 }, noir: { nuits: 7 } });
+  acteurs.get("s2").items.push({ id: "h1", type: "equipement", name: "Hache", system: { cle: "hache", qualite: "recuperation", usages: 20, usure: 14 } },
+    { id: "pp9", type: "equipement", name: "Carte routière", system: { cle: "carte-routiere" } });
+  acteurs.get("abri1").items.push({ id: "i2", type: "installation", name: "Établi", system: { cle: "etabli", niveau: 2, etat: 0 } },
+    { id: "i3", type: "installation", name: "Basse-cour", system: { cle: "basse-cour", niveau: 1, etat: 0 } });
+}
+
+// Les horloges du moteur (api.horloges de main.js), en mémoire : assurer, avancer, lister, trouver, regler (les affaires, §17 ; les
+// réputations rep-<faction> et les fronts front-<front>).
+function horlogesDoublure(cadre) {
+  cadre.horloges = [];
+  const trouver = ref => cadre.horloges.find(h => h.id === ref || h.nom === ref) ?? null;
+  return {
+    lister: () => structuredClone(cadre.horloges),
+    trouver: ref => structuredClone(trouver(ref)),
+    assurer: async def => { const deja = trouver(def.id ?? def.nom); if (deja) return structuredClone(deja);
+      const el = { id: def.id ?? def.nom, nom: def.nom ?? def.id, type: def.type ?? "horloge", valeur: def.valeur ?? 0, max: def.max ?? 6, visible: Boolean(def.visible),
+        faction: def.faction ?? "", notes: def.notes ?? "", paliers: [] };
+      cadre.horloges.push(el); return structuredClone(el); },
+    avancer: async (id, n = 1) => { const el = trouver(id); if (!el) return null; el.valeur = Math.min(el.max, el.valeur + n); return { element: structuredClone(el), evenements: [] }; },
+    regler: async (id, ch = {}) => { const el = trouver(id); if (!el) return null; Object.assign(el, ch); return { element: structuredClone(el), evenements: [] }; }
+  };
+}
+
 // Installe le monde Fénoir de la doublure dans globalThis. -> { cadre, api, chat, acteurs }
 // nouveautes : le marché, la porte, la communauté, l'esprit, les savoirs et le cyclone vécu (§12 à §15) posés sur le monde.
-export function installerFenoir({ mjActif = true, mondeOuvert = true, systeme = "lakour-survie", avecApi = true, nouveautes = false } = {}) {
+// troisD : les douze lots du jeu 3D (§16 à §29).
+export function installerFenoir({ mjActif = true, mondeOuvert = true, systeme = "lakour-survie", avecApi = true, nouveautes = false, troisD = false } = {}) {
   const cadre = { mjActif, mondeOuvert, etat: etatDeDepart(), monde: mondeDeDepart(), derniersArgs: [], generes: [], feteDuJour: "noel" };
   const chat = [];
   const acteurs = new Collection(acteursDeDepart().map(a => [a.id, a]));
@@ -498,9 +686,10 @@ export function installerFenoir({ mjActif = true, mondeOuvert = true, systeme = 
     messages: { contents: chat }, scenes: { active: null }, combats: { active: null },
     settings: { get: (_m, k) => structuredClone(reglages[k]), set: async (_m, k, v) => { reglages[k] = structuredClone(v); }, settings: new Map() },
     i18n: { localize: k => (k === "LAKOUR_SURVIE.Erreurs.PasMJActif" ? "Seul le MJ actif peut faire cela." : k), format: k => k, has: () => false },
-    modules: new Map([["lakour-mj-ia", { api: {} }]]),
+    modules: new Map([["lakour-mj-ia", { api: { horloges: horlogesDoublure(cadre) } }]]),
     ...(avecApi ? { lakourSurvie: api } : {})
   };
   if (nouveautes) poserNouveautes(cadre, acteurs);
+  if (troisD) poserTroisD(cadre, acteurs);
   return { cadre, api, chat, acteurs, reglages };
 }

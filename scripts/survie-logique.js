@@ -44,11 +44,14 @@ export const STADES_MARCHE = ["troc", "boutique", "forain", "foire"];
 export const PORTEES_RUMEUR = ["quartier", "region", "voisins", "ile"];
 export const PREUVES = ["marque", "temoin", "fait"];
 export const REGARDS = ["epreuve", "refaire", "vivre"];
-export const ACTES_MORAUX = ["exclure", "colporter", "mentir", "abandonner", "attaquer", "trahir", "accueillir", "aider", "partager", "epargner", "rendre"];
+export const ACTES_MORAUX = ["exclure", "colporter", "mentir", "abandonner", "attaquer", "trahir", "prendre-au-culte", "accueillir", "aider", "partager", "epargner", "rendre"];
 export const VOIX = ["pour", "contre", "abstention"];
 export const PROFILS_VISITEUR = ["refugie", "famille", "blesse", "dur"];
 export const SOURCES_APPRENTISSAGE = ["livre", "cahier", "maitre"];
 export const CIBLES_SAVOIRS = ["jardins", "livres"];
+// Lot 5 « fouille » (§25) : les cibles d'un lieu (fouilles.mjs, CIBLES_FOUILLES) ; lot « corps » (§19) : les traits d'un bivouac (jugerBivouac).
+export const CIBLES_LIEUX = ["lieu", "demonter", "matieres"];
+export const CRITERES_BIVOUAC = ["pente-raide", "pente-douce", "ravine", "livides", "route", "bati", "a-decouvert", "feu", "lumiere", "bruit", "souille"];
 export const GROUPE = "groupe";
 const LIBELLES_REGARDS = { epreuve: "l'épreuve (il endure)", refaire: "refaire (bâtir, accueillir)", vivre: "vivre (les petits plaisirs)" };
 // Les bandes du sens moral et de la réputation (moralite.mjs, BANDES_SENS_MORAL), du rouge (exclure, trahir) au bleu (accueillir).
@@ -188,9 +191,11 @@ export const CLARTES = ["nuit noire (dehors : −1 dé sauf discrétion +1, renc
   "nuit sombre", "nuit claire", "pleine lumière (vigilance +1, discrétion −1 : les Livides y voient aussi)"];
 export function texteQuand(q) {
   if (!q) return "date inconnue";
-  const date = q.dateTexte || q.date;
+  // Lot « cartes » (§20) : avec un compte des jours, le jour et la date que le GROUPE croit ; le vrai jour va au secret de l'état du jeu.
+  const cru = Boolean(q.compte);
+  const date = cru ? q.dateDuGroupe : q.dateTexte || q.date;
   const lune = q.lune?.phase ? `, ${PHASES_LUNE[q.lune.phase] ?? q.lune.phase}${Number.isInteger(q.clarte) ? ` : ${CLARTES[q.clarte] ?? ""}${q.couvert ? ", ciel couvert" : ""}` : ""}` : "";
-  return `jour ${q.jour ?? "?"}, ${momentTexte(q.moment)}${date ? ` (${date}${q.saison ? `, ${q.saison}` : ""})` : ""}, phase ${phaseTexte(q.phase)}${lune}`;
+  return `jour ${cru ? q.jourDuGroupe ?? "inconnu" : q.jour ?? "?"}, ${momentTexte(q.moment)}${date ? ` (${date}${q.saison ? `, ${q.saison}` : ""})` : ""}, phase ${phaseTexte(q.phase)}${lune}`;
 }
 // La lune, le paysage, la date que les joueurs savent, les morts, ce qui soutient le groupe, les liens (lot « fetes ») : des lignes
 // [connu] pour l'état du jeu. Vide pour un système d'avant le lot.
@@ -208,7 +213,7 @@ export function lignesTempsDeLIle({ etat, quand } = {}, { acteur = () => null } 
   const actifs = (etat?.souvenirs ?? []).filter(x => Number(x.depuis) <= jour && (x.jusqua === null || x.jusqua === undefined || Number(x.jusqua) >= jour));
   if (actifs.length) {
     const NOMS = { soutien: "souvenir de fête (moral)", lueur: "lueur visible", hygiene: "abri propre (maladies moitié moins)", "sang-froid": "sang-froid contre les hordes", voeu: "vœu", autel: "autel honoré" };
-    l.push(`Ce qui soutient le groupe : ${actifs.map(x => `${NOMS[x.cle] ?? x.cle}${x.qui?.length ? ` (${x.qui.map(id => acteur(id)?.name ?? id).join(", ")})` : ""}${x.jusqua === null || x.jusqua === undefined ? " tant qu'il tient" : ` jusqu'au jour ${x.jusqua}`}`).join(" ; ")}.`);
+    l.push(`Ce qui soutient le groupe : ${actifs.map(x => `${NOMS[x.cle] ?? x.cle}${x.qui?.length ? ` (${x.qui.map(id => acteur(id)?.name ?? id).join(", ")})` : ""}${x.jusqua === null || x.jusqua === undefined ? " tant qu'il tient" : quand?.compte ? ` encore ${Math.max(0, entier(x.jusqua) - entier(jour))} j` : ` jusqu'au jour ${x.jusqua}`}`).join(" ; ")}.`);
   }
   const liens = etat?.liens;
   const tous = { ...(liens?.communautes ?? {}), ...(liens?.factions ?? {}) };
@@ -217,6 +222,13 @@ export function lignesTempsDeLIle({ etat, quand } = {}, { acteur = () => null } 
 }
 // Le jour d'un quart (4 quarts par jour, §1.4).
 export const jourDuQuart = quart => Math.floor(entier(quart) / 4);
+// Un jour de l'horloge, dit au connu : « jour N » pour un système sans compte des jours ; avec lui (§20), relatif au jour présent
+// (« aujourd'hui », « il y a 2 j », « dans 3 j ») : le vrai numéro du jour ne se dit pas.
+export function texteJour(j, quand) {
+  if (!quand?.compte) return `jour ${j}`;
+  const d = entier(j) - entier(quand.jour);
+  return d === 0 ? "aujourd'hui" : d < 0 ? `il y a ${-d} j` : `dans ${d} j`;
+}
 
 // Stocks : « eau 12, nourriture 9, carburant 2 » (les ressources à zéro sont tues, sauf eau et nourriture).
 export function texteStocks(stocks = {}) {
@@ -245,7 +257,6 @@ export function resumerSurvivant(acteur, { nomPasse = null, nomDe: nomContenu = 
   const objets = [...(acteur?.items ?? [])];
   const savoirs = objets.filter(i => i.type === "savoir").map(i => i.name);
   const equipement = objets.filter(i => i.type === "equipement").map(i => i.name);
-  const inf = s.infection ?? {};
   const passe = s.passe ? (nomPasse ? nomPasse(s.passe, genre) : nomContenu("passes", s.passe, genre)) : "";
   const etat = [`blessures ${entier(s.blessures)}/4 (${etiquetteBlessures(s.blessures)})`, `fatigue ${entier(s.fatigue)}/5`,
     `moral ${entier(s.moral ?? 4)}/5`, entier(s.faim) ? `faim ${pluriel(entier(s.faim), "jour")}` : "",
@@ -262,7 +273,9 @@ export function resumerSurvivant(acteur, { nomPasse = null, nomDe: nomContenu = 
     (s.incapacites ?? []).length ? `INCAPABLE de : ${s.incapacites.join(", ")}` : "",
     s.tache ? `tâche du jour : ${s.tache}` : "",
     `état : ${etat}`,
-    inf.atteint ? `INFECTÉ : stade ${entier(inf.stade)}/6 depuis le quart ${entier(inf.depuis)} (à 6 il meurt et se relève Livide ; aucun remède connu)` : "",
+    // Lots du jeu 3D (§18, §19, §22, §28) : le sommeil, la morsure pansée, l'habitude du noir, les jours sans soleil, une conversion.
+    // L'infection ne se dit qu'au narrateur (ligne secrète) : la fiche d'un joueur n'en montre que les signes.
+    ...lignesCorpsPubliques(s),
     savoirs.length ? `savoirs : ${savoirs.join(", ")}` : "",
     equipement.length ? `équipement : ${equipement.join(", ")}` : "",
     entier(s.charge) ? `charge ${entier(s.charge)}` : "",
@@ -329,9 +342,35 @@ export function secretDuSurvivant(acteur, { nomDe: nomContenu = (_c, cle) => cle
     REGARDS.includes(s?.regard) || entier(s?.sensMoral) ? `sens moral ${signe(entier(s?.sensMoral))} (${bandeSensMoral(entier(s?.sensMoral))})` : "",
     entier(e.chance) ? `chance ${entier(e.chance)} (un dé de plus au prochain test qui compte)` : "",
     e.projet ? `projet : ${texteBrut(e.projet)}` : "",
-    prejuges ? `préjugés (à faire dire par lui, jamais confirmés) : ${prejuges}` : ""
+    prejuges ? `préjugés (à faire dire par lui, jamais confirmés) : ${prejuges}` : "",
+    texteInfection(s)
   ].filter(Boolean);
   return morceaux.join(", ");
+}
+// L'infection (§19 : « INFECTÉ n/6 » au MJ seul ; le groupe n'en voit que les signes).
+const texteInfection = s => (s?.infection?.atteint && s.vivant !== false && !s.livide
+  ? `INFECTÉ ${entier(s.infection.stade)}/6 depuis le quart ${entier(s.infection.depuis)} (à 6 il meurt et se relève Livide ; aucun remède : ne le dis jamais, raconte ses signes)` : "");
+
+// ------------------------------------------------------------------ le corps, le noir, sous terre (lots du jeu 3D, §18, §19, §22, §28)
+// Le sommeil d'un survivant (corps.mjs, etatSommeil : quarts éveillés depuis le dernier sommeil).
+export const etatSommeil = veille => (entier(veille) >= 7 ? "terrasse" : entier(veille) >= 4 ? "epuise" : entier(veille) >= 3 ? "en-manque" : "repose");
+const LIBELLES_SOMMEIL = { terrasse: "TERRASSÉ de sommeil (−2 dés, il s'endort où il est)", epuise: "épuisé de sommeil (−1 dé)", "en-manque": "manque de sommeil" };
+// L'habitude du noir (sens.mjs, palierNoir : 2, 6, 14, 30 nuits).
+const PALIERS_NOIR = [2, 6, 14, 30];
+export const palierNoir = nuits => PALIERS_NOIR.filter(n => entier(nuits) >= n).length;
+// Ce que tout le groupe voit d'un survivant : le sommeil, la morsure pansée, le noir, le soleil, la conversion.
+function lignesCorpsPubliques(s = {}) {
+  const sommeil = LIBELLES_SOMMEIL[etatSommeil(s.veille)];
+  const noir = palierNoir(s.noir?.nuits);
+  const sousTerre = entier(s.sousTerre?.jours);
+  const e = s.esprit ?? {};
+  return [
+    sommeil ?? "",
+    s.morsure ? "une morsure pansée" : "",
+    noir ? `habitué au noir (palier ${noir}/4)` : "",
+    sousTerre >= 7 ? `${sousTerre} jours sans soleil` : "",
+    e.convertiLe !== undefined && e.convertiLe !== null && (e.religionAvant || (e.religionsAvant ?? []).length) ? `change de religion (depuis le jour ${entier(e.convertiLe)})` : ""
+  ].filter(Boolean);
 }
 
 // Passions (§10.1) : 1 intérêt, 2 passion (marques plus rapides, moral).
@@ -347,7 +386,8 @@ export function etatCourt(acteur) {
     entier(s.fatigue) >= 2 ? `fatigue ${entier(s.fatigue)}` : "",
     entier(s.moral ?? 4) <= 2 ? `moral ${entier(s.moral)}` : "",
     entier(s.faim) ? `faim ${entier(s.faim)} j` : "", entier(s.soif) >= 2 ? `soif ${entier(s.soif)} q` : "",
-    s.infection?.atteint ? `INFECTÉ ${entier(s.infection.stade)}/6` : "",
+    // Le sommeil (§19) ; l'infection n'est plus dite ici (connu, compagnons) : la ligne « Infectés » du secret la porte.
+    ({ terrasse: "terrassé de sommeil", epuise: "épuisé" })[etatSommeil(s.veille)] ?? "",
     s.tache ? `à : ${s.tache}` : ""
   ].filter(Boolean);
   if (acteur?.flags?.[ID_MJIA]?.compagnon) morceaux.push("compagnon IA");
@@ -426,7 +466,7 @@ function ligneCoupures(coupures, jour) {
 // deux listes de lignes ; le secret ne lit QUE monde. Court : quelques centaines de mots au plus.
 // Les nouveautés du 2026-11-13 (facultatives : un système d'avant les tait) : communaute (api.communaute()), cyclone (api.cyclone()),
 // autonomie (api.savoirsDuGroupe()), presents (les acteurs dont on lit les préjugés : membres du groupe, PNJ en scène).
-export function lignesSurvie({ etat, quand, bilan, monde, contenu, besoins, communaute = null, cyclone = null, autonomie = null } = {},
+export function lignesSurvie({ etat, quand, bilan, monde, contenu, besoins, communaute = null, cyclone = null, autonomie = null, ...troisD } = {},
   { acteur = () => null, presents = [] } = {}) {
   const connu = [], secret = [];
   if (!etat) return { connu: ["Fénoir : état de la partie illisible (système lakour-survie absent ou pas prêt)."], secret };
@@ -463,12 +503,14 @@ export function lignesSurvie({ etat, quand, bilan, monde, contenu, besoins, comm
   const manques = lignesBesoins(besoins).slice(0, 4);
   if (manques.length) connu.push(`Manques du groupe : ${manques.join(" ; ")}.`);
   const alertes = (etat.alertes ?? []).slice(-4);
-  if (alertes.length) connu.push(`Alertes connues : ${alertes.map(a => `${couper(texteBrut(a.texte), 140)} (jour ${jourDuQuart(a.quart)})`).join(" ; ")}.`);
+  if (alertes.length) connu.push(`Alertes connues : ${alertes.map(a => `${couper(texteBrut(a.texte), 140)} (${texteJour(jourDuQuart(a.quart), quand)})`).join(" ; ")}.`);
   // Le marché, la communauté, les savoirs (§12 à §14) : leurs lignes connues ici, leur secret à la fin.
   const nouveautes = [
-    lignesCommunaute({ etat, communaute, monde, jour }, { acteur }),
+    lignesCommunaute({ etat, communaute, monde, jour, quand }, { acteur }),
     lignesMarche({ marche: etat.marche, secret: monde?.marche, quand: quand ?? { jour }, contenu }, { presents }),
-    lignesSavoirs({ etat, bilan, contenu, membres, autonomie, cyclone })
+    lignesSavoirs({ etat, bilan, contenu, membres, autonomie, cyclone }),
+    // Les douze lots du jeu 3D (§16 à §29) : chaque ligne se tait sans rien à dire.
+    lignesTroisD({ etat, quand, bilan, contenu, ...troisD }, { acteur })
   ];
   for (const x of nouveautes) connu.push(...x.connu);
   const secretsNouveaux = nouveautes.flatMap(x => x.secret);
@@ -534,7 +576,7 @@ export function texteMenace(m = {}) {
 // ------------------------------------------------------------------ la communauté (§14) : chef, entente, porte, tributs, votes
 // communaute : api.communaute() ({ chef, entente, reputation, couleur (MJ), porte, tributs, votes, communautes, liste }) ; monde :
 // api.monde() (la vraie couleur des visiteurs, monde.porte). -> { connu, secret }
-export function lignesCommunaute({ etat, communaute, monde, jour } = {}, { acteur = () => null } = {}) {
+export function lignesCommunaute({ etat, communaute, monde, jour, quand = null } = {}, { acteur = () => null } = {}) {
   const connu = [], secret = [];
   const c = communaute;
   if (!c || !etat?.demarree) return { connu, secret };
@@ -557,7 +599,7 @@ export function lignesCommunaute({ etat, communaute, monde, jour } = {}, { acteu
   const actifs = (c.tributs ?? []).filter(t => t.etat === "actif");
   if (actifs.length) {
     connu.push(`Tributs : ${actifs.map(t => `${t.id} (${t.bande ?? t.faction ?? "?"}) ${texteVariations(t.demande).replace(/\+/g, "")} tous les ${entier(t.tousLes)} j`
-      + `${Number.isFinite(Number(t.prochain)) && entier(t.prochain) <= entier(jour) ? " — DÛ AUJOURD'HUI" : `, prochain jour ${t.prochain ?? "?"}`}`).join(" ; ")}.`);
+      + `${Number.isFinite(Number(t.prochain)) && entier(t.prochain) <= entier(jour) ? " — DÛ AUJOURD'HUI" : `, prochain ${quand?.compte ? texteJour(t.prochain, quand) : `jour ${t.prochain ?? "?"}`}`}`).join(" ; ")}.`);
   }
   const votes = (c.votes ?? []).slice(-2);
   if (votes.length) {
@@ -651,6 +693,106 @@ export function lignesSavoirs({ etat, bilan, contenu, membres = [], autonomie, c
   return { connu, secret };
 }
 
+// ------------------------------------------------------------------ les douze lots du jeu 3D (§16 à §29 du contrat, 2026-11-17)
+// Ce que l'état du jeu dit en plus, chaque ligne se taisant quand elle n'a rien à dire. Les lectures de l'API sont facultatives (un
+// système d'avant les tait) : quand (temps, compte), corps (api.corps), symptomes ([api.symptomes({ acteurId })] des membres), reperes,
+// plans, lieuxAPlans, outils (api.outils()), ouvrages, cheptels, paradis, ile, sens ; horloges : celles du moteur (affaires en cours).
+// SECRET : le vrai jour et l'écart du compte, l'odeur, l'infection et les vrais maux, les lieux à plans, la chaleur, la vérité des affaires.
+const MOTS_VENT = { calme: "", brise: "une brise", vent: "du vent" };
+const COMPTES = { "a-peu-pres": "à peu près", perdu: "PERDU", sur: "sûr" };
+const nomsDe = (ids = [], acteur = () => null) => ids.map(id => acteur(id)?.name ?? id).join(", ");
+export function lignesTroisD({ etat, quand, bilan, contenu, corps = null, symptomes = [], reperes = null, plans = null, lieuxAPlans = null,
+  outils = null, ouvrages = null, cheptels = null, paradis = null, ile = null, sens = null, horloges = [] } = {}, { acteur = () => null } = {}) {
+  const connu = [], secret = [];
+  if (!etat?.demarree) return { connu, secret };
+  const groupe = etat.groupe ?? {};
+  const membres = (groupe.membres ?? []).map(acteur).filter(Boolean);
+  // §18 : la pluie, la brume, le vent et la voix de la région.
+  const vent = MOTS_VENT[quand?.vent?.mot] ? `${MOTS_VENT[quand.vent.mot]} qui vient du ${quand.vent.de ?? "?"}` : "";
+  const temps = [quand?.pluie ? "il pleut" : "", quand?.brume ? "la brume" : "", vent].filter(Boolean);
+  if (temps.length || quand?.voix) connu.push(`Dehors : ${temps.join(", ") || "temps sec"}${quand?.voix ? ` ; la voix du coin : ${quand.voix}` : ""}.`);
+  // §20 : le compte des jours (ce que le groupe croit) ; le vrai jour au secret.
+  const c = quand?.compte;
+  if (c && c.certitude !== "sur") {
+    connu.push(`Compte des jours : ${COMPTES[c.certitude] ?? c.certitude}${entier(c.marge) ? ` (à ${entier(c.marge)} j près)` : ""}${c.teneur ? `, tenu par ${acteur(c.teneur)?.name ?? c.teneur}` : ", personne ne le tient"}.`);
+    secret.push(`· Vrai jour : jour ${quand.jour ?? "?"} (${quand.dateTexte || quand.date || "?"})${c.jourCru === null || c.jourCru === undefined ? " ; le groupe l'a perdu"
+      : ` ; le groupe croit le jour ${c.jourCru} (écart ${signe(entier(quand.jour) - entier(c.jourCru))} j)`}. Ne dis jamais le vrai jour.`);
+  }
+  const objets = (reperes?.objets ?? []).map(o => `${o.nom}${o.porteur ? ` (${o.porteur})` : ""}${o.type === "calendrier" && o.valable === false ? ", d'une autre année" : ""}`);
+  if (objets.length) connu.push(`Repères du groupe : ${objets.slice(0, 6).join(", ")}.`);
+  // §19 : le sommeil (dans « Membres »), l'hygiène, les signes des maux ; l'infection et le nom des maux au secret.
+  const ab = corps?.abri;
+  if (ab && entier(ab.insalubrite) >= 2) connu.push(`Hygiène de l'abri : ${ab.etat ?? "sale"}${!entier(ab.latrines) ? ", pas de latrines" : ""} (les maladies guettent).`);
+  if (corps?.grisConnu) connu.push("Le groupe a vu un mordu se relever : il reconnaît les signes du Gris.");
+  const signes = [], vrais = [];
+  for (const x of symptomes ?? []) {
+    if (!x) continue;
+    const vus = [...(x.maux ?? []).map(m => `${(m.signes ?? []).join(", ") || "mal-être"}${m.reconnue && m.nom ? ` — ${m.nom}` : ""}`),
+      ...(x.gris ? [`${(x.gris.signes ?? []).join(", ") || "fièvre"}${x.gris.reconnu ? " — le Gris" : ""}`] : [])];
+    if (vus.length) signes.push(`${x.nom ?? acteur(x.acteurId)?.name ?? "?"} : ${vus.join(" ; ")}`);
+    const reels = (x.mj?.afflictions ?? []).map(a => `${a.nom ?? a.cle} (${a.stade ?? "?"})`);
+    if (reels.length) vrais.push(`${x.nom ?? "?"} : ${reels.join(", ")}`);
+  }
+  if (signes.length) connu.push(`Signes (dis-les ainsi, pas par le nom d'un mal qu'ils ne reconnaissent pas) : ${signes.join(" | ")}.`);
+  const infectes = membres.map(a => [a, texteInfection(a.system)]).filter(([, t]) => t).map(([a]) => `${a.name} ${entier(a.system.infection.stade)}/6`);
+  if (infectes.length) secret.push(`· INFECTÉS (le Gris, à ne jamais dire) : ${infectes.join(", ")}.`);
+  if (vrais.length) secret.push(`· Vrais maux : ${vrais.join(" | ")}.`);
+  // §18 : l'odeur de l'abri (ce que sentent les Livides et les bêtes).
+  const o = sens?.odeur;
+  if (o && (entier(o.odeur) || entier(o.betes))) secret.push(`· Odeur de l'abri : ${entier(o.odeur)}/4 pour les Livides, ${entier(o.betes)}/4 pour les bêtes${(o.sources ?? []).length ? ` (${o.sources.join(", ")})` : ""}.`);
+  // §21 : le carnet est dans « Plans » ; les papiers, l'étagère, ce qu'on sait par cœur ; les lieux à plans au secret.
+  const papiers = (plans?.papiers ?? []).map(p => `${p.nom}${p.porteur ? ` (${p.porteur})` : ""}`);
+  const parCoeur = (plans?.parCoeur ?? []).filter(p => (p.plans ?? []).length).map(p => `${p.nom} (${p.plans.map(x => x.nom ?? x.cle).join(", ")})`);
+  if (papiers.length || (plans?.etagere ?? []).length || parCoeur.length) {
+    connu.push(`Papiers de plans : ${papiers.join(", ") || "aucun en main"}${(plans?.etagere ?? []).length ? ` ; sur l'étagère : ${plans.etagere.length}` : ""}`
+      + `${parCoeur.length ? ` ; par cœur : ${parCoeur.join(", ")}` : ""}.`);
+  }
+  const lieux = (lieuxAPlans ?? []).filter(l => l.ici || l.ouverte).slice(0, 3).map(l => `${l.nom} (${l.regionNom ?? l.region}${l.ici ? ", ICI" : ""} ; fenêtre ${l.ouverte ? "OUVERTE" : "fermée"})`);
+  if (lieux.length) secret.push(`· Lieux à plans : ${lieux.join(" ; ")}. Un plan n'est jamais obligatoire.`);
+  // §22 : les rangs, les quotas, les conversions.
+  const nouveaux = Object.keys(groupe.nouveaux ?? {});
+  if ((groupe.seconds ?? []).length || nouveaux.length) {
+    connu.push(`Rangs : ${(groupe.seconds ?? []).length ? `seconds ${nomsDe(groupe.seconds, acteur)}` : "pas de second"}${nouveaux.length ? ` ; nouveaux ${nomsDe(nouveaux, acteur)}` : ""}.`);
+  }
+  const quotas = (groupe.quotas ?? []).map(q => `${acteur(q.acteurId)?.name ?? q.acteurId} ${q.tache} ${entier(q.jours)} j par semaine (fait ${entier(q.fait)})`);
+  if (quotas.length) connu.push(`Quotas : ${quotas.join(" ; ")}.`);
+  // §24 : les ateliers de l'abri, les outils usés, l'eau traitée.
+  const abri = groupe.abri ? acteur(groupe.abri) : null;
+  const ateliers = [...(abri?.items ?? [])].filter(i => i.type === "installation" && entier(i.system?.niveau) >= 1
+    && (trouverFiche(contenu?.installations, i.system?.cle)?.metiers ?? []).length).map(i => `${i.name} ${entier(i.system.niveau)}`);
+  if (ateliers.length) connu.push(`Ateliers : ${ateliers.join(", ")}.`);
+  const uses = (outils ?? []).filter(x => x.etat === "use" || x.etat === "casse").map(x => `${x.nom} (${acteur(x.acteurId)?.name ?? "?"}${x.etat === "casse" ? ", CASSÉ" : ", usé"})`);
+  if (uses.length) connu.push(`Outils fatigués : ${uses.slice(0, 6).join(", ")}.`);
+  if (bilan?.eauTraitee) connu.push("L'eau de l'abri est traitée.");
+  // §26 : les entretiens dus, les défenses.
+  const dus = (ouvrages?.dus ?? []).map(d => `${d.nom ?? d.cle}${entier(d.retard) > 0 ? ` (en retard de ${entier(d.retard)} j)` : ""}`);
+  if (dus.length) connu.push(`Entretiens dus : ${dus.slice(0, 6).join(", ")}.`);
+  const d = ouvrages?.defenses;
+  const defenses = d ? [entier(d.piege) ? `pièges ${entier(d.piege)}` : "", d.hauteur ? "une hauteur" : "", entier(d.portes) ? `portes ${entier(d.portes)}` : "", d.alarme ? "une alarme" : ""].filter(Boolean) : [];
+  if (defenses.length) connu.push(`Défenses devant les Livides : ${defenses.join(", ")}.`);
+  // §27 : les cheptels, les bêtes portées, le chien.
+  const troupeaux = (cheptels?.cheptels ?? []).map(x => `${x.nom} : ${entier(x.tetes)}/${entier(x.places)} ${x.especeNom ?? x.espece ?? ""} (santé ${entier(x.sante)}/3${x.malade ? ", MALADE" : ""}${(x.manques ?? []).length ? `, manque : ${x.manques.join(", ")}` : ""})`);
+  if (troupeaux.length) connu.push(`Cheptels : ${troupeaux.join(" ; ")}.`);
+  const betes = (cheptels?.betes ?? []).map(b => `${entier(b.nombre) || 1} ${b.nom ?? b.cle} (encore ${entier(b.reste)} quart(s) hors d'un enclos)`);
+  if (betes.length) connu.push(`Bêtes portées : ${betes.join(", ")}.`);
+  if (cheptels?.chien) connu.push("Le chien est avec le groupe : il prévient sans aboyer, sauf tout près.");
+  // §28 : le signe autour de l'abri, les corps, la ronde ; la chaleur au secret ; les régions rallumées.
+  const p = paradis?.abri;
+  if (p && (p.signe !== "oublie" || entier(p.corps) || (paradis.rondiers ?? []).length || p.air !== "bon")) {
+    connu.push(`Autour de l'abri : ${p.signeTexte || p.signe}${entier(p.corps) ? ` ; ${entier(p.corps)} corps à enterrer ou brûler` : ""}`
+      + `${(paradis.rondiers ?? []).length ? ` ; à la ronde : ${paradis.rondiers.join(", ")}` : ""}${p.air && p.air !== "bon" ? ` ; air ${p.airTexte || p.air}` : ""}.`);
+  }
+  const m = paradis?.mj;
+  if (m) secret.push(`· Chaleur du lieu : ${virgule(Number(m.chaleur) || 0)}/10, ${entier(m.agglutines)} Livide(s) agglutiné(s) (ronde utile dès ${m.seuil ?? "?"}). Jamais le chiffre : seulement ses signes.`);
+  const rallumees = (ile?.regions ?? []).filter(r => r.etat === "rallumee").map(r => r.nom);
+  if (rallumees.length) connu.push(`Régions rallumées : ${rallumees.join(", ")} (${rallumees.length}/${ile.total ?? "?"}).`);
+  // §17 : les affaires en cours (horloges « affaire-<clé> » du moteur), leur vérité au secret.
+  const affaires = (horloges ?? []).filter(h => String(h?.id ?? "").startsWith("affaire-"))
+    .map(h => `${h.nom} [${h.id}] cran ${entier(h.valeur)}/${entier(h.max)}${texteBrut(h.notes) ? ` — ${couper(texteBrut(h.notes), 160)}` : ""}`);
+  if (affaires.length) secret.push(`· Affaires en cours (ne dis jamais leur vérité) : ${affaires.join(" ; ")}.`);
+  return { connu, secret };
+}
+
 // Le temps avancé hors de l'IA (crochet « lakourSurvie.avance » du système : quand, faits publics), signalé au narrateur.
 export function texteAvanceSurvie(quand, faits = []) {
   const publics = (faits ?? []).filter(f => f?.public !== false).map(f => couper(texteBrut(f.texte ?? f.cle ?? ""), 160)).filter(Boolean);
@@ -680,10 +822,14 @@ export function rendu({ connu = [], secret = [] } = {}, { enteteSecret = `${SECR
 }
 
 // Les lignes de l'état du jeu de Fénoir (contexte.js) : l'API est lue ici, défensivement.
-export function contexteSurvie(api, { acteur = () => null, presents = null } = {}) {
+export function contexteSurvie(api, { acteur = () => null, presents = null, horloges = [] } = {}) {
   const lire = nom => lireSurvie(api, nom);
   const donnees = { etat: lire("etat"), quand: lire("quand"), bilan: lire("bilan"), monde: lire("monde"), contenu: lire("contenu"), besoins: lire("besoins"),
-    communaute: lire("communaute"), cyclone: lire("cyclone"), autonomie: lire("savoirsDuGroupe") };
+    communaute: lire("communaute"), cyclone: lire("cyclone"), autonomie: lire("savoirsDuGroupe"),
+    // Les lots du jeu 3D (§17 à §28) : lectures facultatives, et les horloges du moteur (affaires en cours).
+    corps: lire("corps"), reperes: lire("reperes"), plans: lire("plans"), lieuxAPlans: lire("lieuxAPlans"), outils: lire("outils"), ouvrages: lire("ouvrages"),
+    cheptels: lire("cheptels"), paradis: lire("paradis"), ile: lire("ile"), sens: lire("sens"), horloges };
+  donnees.symptomes = (donnees.etat?.groupe?.membres ?? []).map(id => lireSurvie(api, "symptomes", { acteurId: id })).filter(Boolean);
   const { connu, secret } = lignesSurvie(donnees, { acteur, presents: presents ?? presentsDuMarche(donnees.etat, acteur) });
   return [`${CONNU}`, ...connu, ...(secret.length ? [ENTETE_SECRET, ...secret] : [])];
 }
@@ -724,7 +870,8 @@ export function vuePubliqueDepuisApi(api, options = {}) {
 // Fonctions de l'API supposées (le contrat les décrit au §10 sans les signer) : generer({ verrous, …options }) -> données d'un
 // survivant ; besoins() -> besoins du groupe ; genererRecrue({ region }) -> une recrue ; recruter({ recrue, parleurId }) ;
 // assigner({ acteurId, tache }) ; ajouterMembre({ acteurId, statut }).
-export const TACHES = ["garde", "cultures", "elevage", "chantier", "atelier", "cuisine", "soins", "eau", "peche", "chasse", "fouille", "repos", "enseigner"];
+// La ronde (lot 9, §28) : une tâche « sur demande », jamais donnée par la répartition automatique (elle ne naît pas des besoins).
+export const TACHES = ["garde", "cultures", "elevage", "chantier", "atelier", "cuisine", "soins", "eau", "peche", "chasse", "fouille", "repos", "enseigner", "ronde"];
 export const STATUTS = ["joueur", "compagnon", "recrue", "pnj"];
 // Budget d'un humain de départ (§10.2 : somme des niveaux entre 10 et 16, réglage du MJ côté système).
 export const BUDGET_DEPART = Object.freeze({ min: 10, max: 16 });

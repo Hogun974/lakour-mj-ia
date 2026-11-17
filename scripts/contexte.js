@@ -8,7 +8,7 @@ import { listeSalles, salleDeLaCase, resumerFigurants, reperesDuPlan, planDe, ca
 import { voteEnCours } from "./decisions.js";
 import { compagnonsDuMonde, estCompagnon, personnaliteDe } from "./compagnons-jeu.js";
 import { TEMPERAMENTS } from "./compagnons.js";
-import { resumePourIA as resumeHorloges } from "./horloges.js";
+import { resumePourIA as resumeHorloges, lireHorloges } from "./horloges.js";
 import { horlogesDisponibles } from "./horloges-logique.js";
 import { resumeCarnetPourIA } from "./carnet.js";
 import { etatCoffre } from "./coffre.js";
@@ -19,6 +19,8 @@ import { langueDuMonde } from "./contenus.js";
 import { etatPacteLoups, appelSur } from "./veillees-pacte.js";
 
 // Pour le narrateur seul : les secrets du personnage (page secrète de son journal d'histoire), "" sinon.
+// Les horloges du moteur, défensivement (un monde sans réglage « horloges », une doublure d'essai) : une liste, peut-être vide.
+const horlogesDuMonde = () => { try { return lireHorloges() ?? []; } catch { return []; } };
 const secretHistoire = a => { const l = ligneHistoireActeur(a, { publique: false, secret: true }); return l ? ` — ${l}` : ""; };
 
 // La langue dans laquelle le narrateur parle aux joueurs : celle du monde (contenus.js, langueDuMonde ; module de contenu
@@ -276,7 +278,8 @@ export function etatDuJeu() {
   if (game.lakourLoups) lignes.push(...etatPartieLoups(game.lakourLoups));
   // Fénoir (système lakour-survie) : le moment, l'abri, les stocks, les membres, les renseignements datés (connus des joueurs) et,
   // marqué SECRET, le réel des mêmes régions et les menaces qui approchent (survie-logique.js, contexteSurvie).
-  if (game.lakourSurvie) lignes.push(...contexteSurvie(game.lakourSurvie, { acteur: id => game.actors.get(id) ?? null }));
+  // Les affaires en cours (§17) : les horloges « affaire-<clé> » du moteur, leur vérité dans leurs notes (au secret).
+  if (game.lakourSurvie) lignes.push(...contexteSurvie(game.lakourSurvie, { acteur: id => game.actors.get(id) ?? null, horloges: horlogesDuMonde() }));
   const vote = voteEnCours();
   if (vote) lignes.push(`Vote de groupe OUVERT : « ${vote.question} » — ${vote.exprimes} voix reçue(s) sur ${vote.total} (contenu caché), clôture dans ${vote.reste} s.`);
   const scene = game.scenes.active;

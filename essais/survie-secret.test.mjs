@@ -36,13 +36,17 @@ const VERIFICATIONS = {
     for (const m of ["HORDE-SECRETE", "CYCLONE-SECRET", "faction-secrete", "MENACE-SECRETE", "crue-secrete", "JOURNAL-SECRET"]) assert.ok(secret.includes(m), `${m} absent du secret`);
     assert.ok(!texte.includes("HORDE-LOINTAINE"), "horde à 3 régions");
     assert.ok(!texte.includes("JOURNAL-SECRET-ANCIEN"), "hors-champ trop ancien");
-    for (const m of ["jour 3", "phase panique", "Collège des Hauts", "eau 12", "tiennent 4 j d'eau", "net : eau -2", "Lucie Hoarau (égratigné 1, fatigue 2, INFECTÉ 2/6)",
+    for (const m of ["jour 3", "phase panique", "Collège des Hauts", "eau 12", "tiennent 4 j d'eau", "net : eau -2", "Lucie Hoarau (égratigné 1, fatigue 2)",
       "Eddy Payet (compagnon IA)", "Tantine Josette (inquiète)", "Pré-alerte cyclonique", "Saint-Paul (vu, aujourd'hui)", "Le Port et La Possession (par radio, il y a 2 j)",
       "Hauts de l'Ouest : rien de connu"]) assert.ok(connu.includes(m), `${m} absent du connu :\n${connu}`);
     assert.match(secret, /Saint-Paul : infestation 2,4\/5 ; reste à piller : eau 30, nourriture 50/);
     assert.match(secret, /Réseaux à Saint-Paul : électricité tombe au jour 9, eau tombe au jour 12, carburant tient, téléphone tombé \(jour 2\)/);
     assert.match(secret, /horde HORDE-SECRETE \(taille 3\/5\) à Le Port et La Possession \(à 1 région\), cap sur Saint-Paul/);
-    assert.ok(texte.split(/\s+/).length < 450, `trop long : ${texte.split(/\s+/).length} mots`);
+    // Lot « corps » (§19) : « INFECTÉ n/6 » au MJ seul.
+    assert.doesNotMatch(connu, /INFECT/);
+    assert.match(secret, /INFECTÉS \(le Gris, à ne jamais dire\) : Lucie Hoarau 2\/6/);
+    // 450 mots, et la ligne des infectés (lot « corps », §19 : « INFECTÉ n/6 » au MJ seul).
+    assert.ok(texte.split(/\s+/).length < 462, `trop long : ${texte.split(/\s+/).length} mots`);
   },
   "contexte dans l'état du jeu (contexte.js) : le même découpage"(M) {
     installerFenoir();
@@ -135,6 +139,50 @@ const VERIFICATIONS = {
     assert.ok(!vue.includes("sens moral") && !vue.includes(M.L.SECRET), "le compagnon lit son sens moral");
     assert.match(M.a.adaptateur().resumer(a, { secret: true }), /\[secret MJ\] sens moral -4/);
   },
+  "lots du jeu 3D : le jour cru au connu ; le vrai jour, l'odeur, la chaleur, les vrais maux, l'infection, la vérité des affaires, les lieux à plans au secret ; rien au compagnon"(M) {
+    installerFenoir({ troisD: true });
+    const affaire = { id: "affaire-la-source-tarie", nom: "Affaire : La source tarie", type: "horloge", valeur: 1, max: 3, notes: "Vérité (piege) : VERITE-SECRETE" };
+    const texte = M.L.contexteSurvie(game.lakourSurvie, { acteur: id => game.actors.get(id), horloges: [affaire] }).join("\n");
+    const [connu, secret] = coupe(texte, M.L.SECRET);
+    assert.deepEqual(fuites(connu), [], "fuite dans le connu");
+    assert.doesNotMatch(connu, /INFECT|Chaleur du lieu|4,4|Odeur|dengue|écart|Vrai jour|jour 3,/);
+    for (const m of ["Fénoir — jour 1, après-midi (vers le 5 décembre 2026", "il pleut, une brise qui vient du sud-est ; la voix du coin : ressac",
+      "Compte des jours : à peu près (à 2 j près), tenu par Lucie Hoarau", "Lucie Hoarau (égratigné 1, fatigue 2, épuisé)", "fièvre, frissons ; une toux sèche",
+      "Hygiène de l'abri : sale, pas de latrines", "Rangs : seconds Eddy Payet", "Quotas : Eddy Payet chantier 3 j par semaine", "Ateliers : Établi 2",
+      "Outils fatigués : Hache (Eddy Payet, usé)", "Entretiens dus : Palissade (en retard de 2 j)", "Cheptels : Basse-cour : 5/8 poules", "Bêtes portées : 2 poules",
+      "on vous a remarqués", "Régions rallumées : Saint-Paul", "Papiers de plans : Carnet du fontainier (Lucie Hoarau)", "Repères du groupe : Carte routière (Lucie Hoarau)",
+      "Pré-alerte cyclonique entendue à la radio (aujourd'hui)"]) {
+      assert.ok(connu.includes(m), `${m} absent du connu :\n${connu}`);
+    }
+    for (const m of ["VRAI-JOUR-SECRET", "écart +2 j", "ODEUR-SECRETE", "MAL-SECRET", "INFECTÉS", "Chaleur du lieu : 4,4/10", "VERITE-SECRETE", "LIEU-PLANS-SECRET"]) {
+      assert.ok(secret.includes(m), `${m} absent du secret :\n${secret}`);
+    }
+    // Un compagnon IA : ni l'infection, ni la chaleur, ni le vrai jour.
+    const vue = JSON.stringify(M.c.vueAventure(game.actors.get("s2"), { messages: [] }));
+    assert.deepEqual(fuites(vue), [], "fuite dans la vue du compagnon");
+    assert.doesNotMatch(vue, /INFECT|4,4|Chaleur/);
+    assert.match(vue, /Fénoir, jour 1/, "le compagnon lit le jour que le groupe croit");
+  },
+  async "outils des lots du jeu 3D : affaire, morsure, sens, corps, repères, plans, paradis, région de près : le secret au secret seulement"(M) {
+    installerFenoir({ troisD: true });
+    const o = nom => M.o.OUTILS.find(x => x.nom === nom);
+    const textes = [
+      (await o("survie_affaire").executer({ action: "tirer", affaire: "", issue: "", declencheur: "" })).contenu,
+      (await o("survie_blessure").executer({ action: "morsure", personnage: "Lucie", n: 0, morsure: false, soigneur: "Eddy" })).contenu,
+      (await o("survie_sens").executer({ action: "lire", personnages: [], creature: "", vent: "", bruit: false, region: "", site: "", n: 0, air: "doux" })).contenu,
+      (await o("survie_corps").executer({ action: "symptomes", personnage: "Lucie", membres: [], quarts: 0, lieu: "", hauteur: 0, eau: 0, tester: false, livide: false, touches: 0, criteres: [], oui: true })).contenu,
+      (await o("survie_reperes").executer({ action: "lire", personnage: "", de: "", a: "", date: "", certitude: "", mensonge: false, objet: "", repere: "", mort: "", plans: [] })).contenu,
+      (await o("survie_plans").executer({ action: "lieux", plan: "", objet: "", personnage: "", membres: [], lieu: "", cause: "", contre: [], qui: "", mort: "" })).contenu,
+      (await o("survie_paradis").executer({ action: "lire", membres: [], quarts: 0, abattus: -1, livides: -1, delta: 0, vit: "", region: "", chantier: "", aide: "" })).contenu,
+      (await o("survie_etat").executer({ region: "saint-paul" })).contenu
+    ];
+    for (const t of textes) {
+      const [connu, secret] = coupe(t, M.L.SECRET);
+      assert.deepEqual(fuites(connu), [], t);
+      assert.doesNotMatch(connu, /Gris est en lui|INFECT|4,37|4\.37|Chaleur :|Écart|0\.73|dengue/, t);
+      assert.ok(secret, `rien au secret :\n${t}`);
+    }
+  },
   async "outils des nouveautés : vraie couleur, vérité des rumeurs, sens moral, préjugés au secret seulement"(M) {
     installerFenoir({ nouveautes: true });
     const o = nom => M.o.OUTILS.find(x => x.nom === nom);
@@ -178,7 +226,41 @@ const MUTATIONS = [
   ["survie-logique.js", "    secret ? ligneSecreteSurvivant(s, nomContenu) : \"\"", "    ligneSecreteSurvivant(s, nomContenu)", "ligne secrète dans tout résumé"],
   ["compagnons-jeu.js", "fiche: [sys.resumer(acteur), ", "fiche: [sys.resumer(acteur, { secret: true }), ", "compagnon : résumé du narrateur"],
   ["outils-survie.js", "    secret: vrai ? [`Sa vraie couleur", "    connu2: 0, secret: [], connu: vrai ? [`Sa vraie couleur", "porte : vraie couleur au connu"],
-  ["outils-survie.js", "N'A PAS SUIVI\"} le vote.` : \"\"], secret: lignesSens(r) }) };", "N'A PAS SUIVI\"} le vote.` : \"\", ...lignesSens(r)] }) };", "acte moral : sens au connu"]
+  ["outils-survie.js", "N'A PAS SUIVI\"} le vote.` : \"\"], secret: lignesSens(r) }) };", "N'A PAS SUIVI\"} le vote.` : \"\", ...lignesSens(r)] }) };", "acte moral : sens au connu"],
+  // Les lots du jeu 3D (§16 à §29) : l'infection, le vrai jour, l'odeur, la chaleur, les vrais maux, la vérité des affaires, l'issue d'une
+  // morsure, le pillage réel, les lieux à plans.
+  ["survie-logique.js", "    ({ terrasse: \"terrassé de sommeil\", epuise: \"épuisé\" })[etatSommeil(s.veille)] ?? \"\",",
+    "    ({ terrasse: \"terrassé de sommeil\", epuise: \"épuisé\" })[etatSommeil(s.veille)] ?? \"\", s.infection?.atteint ? `INFECTÉ ${entier(s.infection.stade)}/6` : \"\",", "infection au connu"],
+  ["survie-logique.js", "  return `jour ${cru ? q.jourDuGroupe ?? \"inconnu\" : q.jour ?? \"?\"}",
+    "  return `jour ${q.jour ?? \"?\"}", "vrai jour au connu"],
+  ["survie-logique.js", "  const date = cru ? q.dateDuGroupe : q.dateTexte || q.date;",
+    "  const date = q.dateTexte || q.date;", "vraie date au connu"],
+  ["survie-logique.js", "  if (o && (entier(o.odeur) || entier(o.betes))) secret.push(",
+    "  if (o && (entier(o.odeur) || entier(o.betes))) connu.push(", "odeur au connu"],
+  ["survie-logique.js", "  if (m) secret.push(`· Chaleur du lieu",
+    "  if (m) connu.push(`· Chaleur du lieu", "chaleur au connu"],
+  ["survie-logique.js", "  if (vrais.length) secret.push(",
+    "  if (vrais.length) connu.push(", "vrais maux au connu"],
+  ["survie-logique.js", "  if (affaires.length) secret.push(",
+    "  if (affaires.length) connu.push(", "vérité des affaires au connu"],
+  ["survie-logique.js", "  if (lieux.length) secret.push(",
+    "  if (lieux.length) connu.push(", "lieux à plans au connu"],
+  ["survie-logique.js", "    secret.push(`· Vrai jour",
+    "    connu.push(`· Vrai jour", "vrai jour au connu (ligne)"],
+  ["survie-logique.js", "  if (infectes.length) secret.push(",
+    "  if (infectes.length) connu.push(", "infectés au connu (ligne)"],
+  ["survie-logique.js", "  if (!quand?.compte) return `jour ${j}`;",
+    "  return `jour ${j}`;", "alertes datées du vrai jour"],
+  ["outils-survie.js", "          secret: [r?.mj ? `Issue (à ne jamais dire",
+    "          connu2: 0, secret: [], connu: [r?.mj ? `Issue (à ne jamais dire", "issue d'une morsure au connu"],
+  ["outils-survie.js", "        return { contenu: rendu({ secret: [\n          `Affaire tirée",
+    "        return { contenu: rendu({ connu: [\n          `Affaire tirée", "vérité d'une affaire tirée au connu"],
+  ["outils-survie.js", "          sites.length ? `Sites d'abri connus : ${sites.join(\", \")}.` : \"\",",
+    "          sites.length ? `Sites d'abri connus : ${sites.join(\", \")}.` : \"\", JSON.stringify(l?.vus ?? []),", "pillage réel au connu"],
+  ["outils-survie.js", "          secret: [s.odeur ? `Odeur de l'abri",
+    "          connu2: 0, secret: [], x: [s.odeur ? `Odeur de l'abri", "survie_sens : odeur perdue (elle doit être au secret)"],
+  ["outils-survie.js", "          secret: [p.mj ? `Chaleur : ${p.mj.chaleur}/10",
+    "          connu2: 0, secret: [p.mj ? \"rien\" : \"\"], connu: [p.mj ? `Chaleur : ${p.mj.chaleur}/10", "survie_paradis : chaleur au connu"]
 ];
 
 const RACINE = fileURLToPath(new URL("../", import.meta.url));

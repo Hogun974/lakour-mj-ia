@@ -89,6 +89,50 @@ abri, réserves, état du groupe, alertes, renseignement de leur région). `api.
   Chaque ligne se tait quand elle n'a rien à dire. **Le résumé d'un survivant** dit son regard, sa foi (en faute ou non), les signes
   de qui lâche, sa réputation, son autorité, s'il est chef, sa confiance et son apprentissage ; pour le narrateur seul (`resumer(acteur,
   { secret: true })`), une ligne « [secret MJ] » : sens moral, chance, projet d'un enfant, préjugés. Un compagnon IA n'en reçoit rien.
+- **Les douze lots du jeu 3D** (contrat §16 à §29, branche `vague3` du système, 2026-11-17 ; essais `essais/survie-troisd.test.mjs`) :
+  - **Histoires** (§16) : `histoire_personnage` « preparer » ajoute la ligne « Phrases d'histoire » (`histoireDuSurvivant`), déjà
+    écrites au portrait par le système : le reste de l'histoire ne les contredit jamais.
+  - **Affaires** (§17) : `survie_affaire` (lister, tirer, avancer, clore). Une affaire tirée vit dans une horloge cachée du moteur
+    `affaire-<clé>` (une case par cran de pente, la vérité dans ses notes, au coffre) ; « clore » applique les effets mécaniques de
+    l'issue (stocks par `ajuster`, moral de chacun, `entente`, horloges `rep-<faction>` et `front-<front>`, `noterPlan`) et rend le
+    reste au narrateur (acte, recrue, départ, rumeur, préjugé, horde, fête, vœu…) ; l'horloge reste, ses notes commencent par
+    « Close » (l'affaire ne renaît pas : `closes`). L'état du jeu dit les affaires en cours, vérité comprise, au secret ; un voyage dit
+    ce qu'on comprend en arrivant (`regions[].arrivee`).
+  - **Sens** (§18) : `survie_sens` (lire, approche, lumiere, nuit, regler, nettoyer, jouer) ; `survie_test` prend `ecoute` ;
+    `survie_avancer` prend `lumiere` et `lumiere_en_route`. État du jeu : la pluie, la brume, le vent, la voix de la région (connu),
+    l'odeur de l'abri (secret) ; le résumé d'un survivant dit son habitude du noir.
+  - **Corps** (§19) : `survie_blessure morsure` passe par `soignerMorsure` (test chuchoté aux MJ ; l'issue au seul secret de l'outil,
+    jamais au connu) ; `survie_corps` (lire, symptomes, bivouac, dormir, chute, menage, parer, gris_connu) ; `survie_avancer` prend
+    `dorment`, `eveilles`, `lieu_sommeil`. **« INFECTÉ n/6 » ne se dit plus qu'au narrateur** : ni dans « Membres », ni dans la vue
+    d'un compagnon IA, ni dans le résumé public d'un survivant (ligne `[secret MJ]` seulement) ; l'état du jeu dit les signes des maux
+    (`symptomes`), leurs vrais noms au secret, le sommeil de chacun, l'hygiène d'un abri sale.
+  - **Cartes** (§20) : `survie_reperes` (lire, teneur, noter, oublier, regler, recevoir_date, donner_date, lune, repere, copier_carte,
+    journal). Avec un compte des jours (`quand().compte`), `texteQuand` dit le jour et la date **que le groupe croit**
+    (`jourDuGroupe`, `dateDuGroupe` ; « jour inconnu » quand il est perdu) ; les alertes, la chronique, les tributs et les soutiens se
+    datent relativement (« il y a 2 j ») ; le vrai jour et l'écart vont au secret. Sans compte (système d'avant), rien ne change.
+  - **Plans** (§21) : `survie_plans` (lire, valeur, lieux, visiter, lire_papier, copier, apprendre, ranger, prendre, perdre, donner,
+    recevoir, noter, reprendre) ; `survie_fouiller` cible `plans`. État du jeu : papiers, étagère, par cœur ; les lieux à plans au secret.
+  - **Communauté** (§22) : `survie_assigner` (tache, repartir, table, priorites, quota, retirer_quota, corvee ; la tâche « ronde », à la
+    demande) ; `survie_communaute` (second, admettre, passage, convertir) ; `survie_carnet ouvrir` prend `tirer` (un commerçant est-il
+    resté ?) ; `survie_marche_forain` (etal, relever, fermer_etal) ; `survie_marche valeur` (valeur d'un objet en parts) ;
+    `survie_troquer` prend `boutique` et `parleur`. État du jeu : rangs, quotas ; le résumé dit une conversion en cours.
+  - **Ateliers** (§24) : `survie_fabriquer` (fabriquer, outils, user, reparer, affuter) ; état du jeu : les ateliers de l'abri, les
+    outils usés ou cassés, l'eau traitée.
+  - **Fouille** (§25) : `survie_fouiller` cibles `lieu`, `demonter`, `matieres` (genre, ecart, lieu, gisement) ; `survie_etat` d'une
+    région dit ses lieux et ses gisements, et au secret le degré réel de pillage des lieux vus ; `survie_construire demonter` (une
+    installation) ; les bêtes prises par `survie_vivant`.
+  - **Bâtir** (§26) : `survie_construire` (entretenir, demonter, ouvrages) ; `survie_assaut` type « incendie » (`incendie`, force 1 à 3) ;
+    état du jeu : entretiens dus, défenses.
+  - **Vivant** (§27) : `survie_vivant` (lire, peupler, enclos, abattre, soigner, curer, capturer, chasser, recevoir, lacher, flair,
+    sauvage) ; état du jeu : cheptels, bêtes portées, chien.
+  - **Paradis** (§28) : `survie_paradis` (lire, ile, ronde, enterrer, bruler, leurre, chaleur, sous_terre, rallumer, eteindre, chantier,
+    aide, retirer_aide) ; `survie_avancer` prend `silence`. État du jeu : le signe autour de l'abri (connu), la chaleur (secret), les
+    régions rallumées.
+  - **Consignes** (adaptateur) : ne jamais dire la vérité d'une affaire, le vrai jour, la chaleur, l'issue d'une morsure, l'infection,
+    l'odeur, le pillage réel ; sujets délicats sobres ; parler par symptômes ; la faim et la soif ne tuent pas d'elles-mêmes ; la Timise
+    est un oiseau, un bruit amène des Livides intrigués ; l'enrayage se dit sobrement, aucun remède ne guérit le Gris ; un plan n'est
+    jamais obligatoire ; la fouille se raconte en objets ; une région ne se rallume pas par le narrateur seul ; l'ordre d'action d'un
+    PNJ croisé.
 - **Remise à zéro** d'un monde : réglages `lakour-survie.partie`, `coffre`, `mondeClair` et `monde` (client) à leur défaut,
   acteurs non gardés effacés (les survivants sont proposés à la conservation), contenu `lakour-fenoir` réinstallé.
 
@@ -136,7 +180,14 @@ abri, réserves, état du groupe, alertes, renseignement de leur région). `api.
 | `survie_acte_moral` | un acte (dont colporter) ou un déplacement libre, avec un vote | `acteMoral` |
 | `survie_communaute` | chef, parole, entente, séparer, fusionner, signe, tribut | `chef`, `parole`, `entente`, `separer`, `fusionner`, `lireSigne`, `tribut` |
 | `survie_esprit` | lire (sens moral au secret), ajuster, tirer | `ajusterEsprit`, `tirerEsprit` |
-| `histoire_personnage` | l'histoire d'un personnage (commun 40k, Warcraft, Fénoir) | journaux Foundry (`scripts/histoire.js`) |
+| `histoire_personnage` | l'histoire d'un personnage (commun 40k, Warcraft, Fénoir) | journaux Foundry (`scripts/histoire.js`) ; `histoireDuSurvivant` |
+| `survie_affaire` | les affaires de l'île : lister, tirer (horloge cachée `affaire-<clé>`, vérité au secret), avancer, clore | `affaires`, `tirerAffaire`, `penteAffaire`, `issueAffaire` ; horloges du moteur |
+| `survie_sens` | lire, approche, l'habitude du noir (lumiere, nuit, regler), nettoyer, jouer | `sens`, `approche`, `noir`, `nettoyer`, `jouer` |
+| `survie_corps` | lire, symptomes, bivouac, dormir, chute, menage, parer, gris_connu | `corps`, `symptomes`, `bivouac`, `dormir`, `chute`, `menage`, `parer`, `grisConnu` |
+| `survie_reperes` | le compte des jours, une date reçue ou donnée, la lune, un repère, une carte copiée, un journal | `reperes`, `compte`, `donnerDate`, `lireLaLune`, `donnerRepere`, `copierCarte`, `lireJournal` |
+| `survie_plans` | carnet, valeur, lieux à plans, papiers, étagère, donner, recevoir, noter, reprendre | `plans`, `valeurPlan`, `lieuxAPlans`, `lieuAPlans`, `lirePlan`, `copierPlan`, `enseignerPlan`, `rangerPlan`, `prendrePlan`, `perdreEtagere`, `donnerPlan`, `recevoirPlan`, `noterPlan`, `reprendrePlans` |
+| `survie_vivant` | cheptels, bêtes portées, peupler, enclos, abattre, soigner, curer, capturer, chasser, recevoir, lâcher, flair, bête sauvage | `cheptels`, `peupler`, `mettreEnEnclos`, `abattre`, `soignerCheptel`, `curer`, `capturer`, `chasser`, `recevoirBete`, `lacherBetes`, `flairDuChien`, `beteSauvage` |
+| `survie_paradis` | le signe, la ronde, les corps, le leurre, la chaleur, sous terre, rallumer l'île, les chantiers de région | `paradis`, `ile`, `ronde`, `traiterCorps`, `leurre`, `chaleur`, `sousTerre`, `rallumer`, `chantierRegion` |
 
 Outils génériques gardés à Fénoir : `demander_jet`, `lancer_des`, compagnons (`compagnon_ajouter`, `compagnon_retirer`,
 `compagnons`, `jet_compagnon`), horloges, Carnet (enquêtes, contacts), mémoire, chronique, scènes, placement, figurants, vue 3D,
@@ -180,8 +231,9 @@ absente de l'API donne une erreur claire (`ne fournit pas game.lakourSurvie.x()`
 
 ## Essais
 
-`essais/survie-adaptateur.test.mjs`, `essais/survie-outils.test.mjs`, `essais/survie-nouveautes.test.mjs` (marché, savoirs, moral :
+`essais/survie-adaptateur.test.mjs`, `essais/survie-outils.test.mjs`, `essais/survie-troisd.test.mjs` (les douze lots du jeu 3D), `essais/survie-nouveautes.test.mjs` (marché, savoirs, moral :
 schémas, appels, refus, secret), `essais/survie-api-fenoir.test.mjs` (noms exacts et listes, contre le code du système), `essais/survie-secret.test.mjs` (contexte, non-fuite vers
 les compagnons, fêtes, remise à zéro, appels radio, pilote ; batterie de mutations), doublure `essais/doublures/foundry-survie.mjs`
 (API conforme au §5, monde réel balisé de marqueurs secrets ; `installerFenoir({ nouveautes: true })` pose le marché, la porte,
-la communauté, l'esprit, les savoirs et le cyclone vécu).
+la communauté, l'esprit, les savoirs et le cyclone vécu ; `installerFenoir({ troisD: true })` les lots du jeu 3D ; les horloges du
+moteur en mémoire). L'essai des noms lit chaque fabrique `scripts/api-*.mjs` étalée dans `game.lakourSurvie`.

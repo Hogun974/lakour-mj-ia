@@ -11,8 +11,17 @@ const { OUTILS, outilsDuSysteme } = await import("../scripts/outils.js");
 const { validerSchema } = await import("../scripts/schema.js");
 const { CONNU, SECRET, resoudreTransport, proprietesVehicule, ligneTransport, vehiculesDu } = await import("../scripts/survie-logique.js");
 
+// Les champs que les lots du jeu 3D (§16 à §29) ont ajoutés aux outils d'avant, à leur valeur vide, pour les appels écrits avant eux
+// (essais/survie-troisd.test.mjs essaie ces champs).
+export const CHAMPS_3D = {
+  survie_avancer: { lumiere: false, lumiere_en_route: false, dorment: [], eveilles: [], lieu_sommeil: "", silence: "" },
+  survie_test: { ecoute: "" }, survie_fouiller: { genre: "", ecart: "", lieu: "", gisement: "" },
+  survie_fabriquer: { action: "fabriquer", objet: "", usages: 0 }, survie_marche: { objet: "" }, survie_troquer: { boutique: "", parleur: "" },
+  survie_carnet: { tirer: false }, survie_marche_forain: { biens: [], contre: "" }, survie_communaute: { religions: [] }
+};
 // Exécute un outil après avoir vérifié ses arguments contre son schéma strict (comme le moteur).
 async function executer(nom, args) {
+  args = { ...(CHAMPS_3D[nom] ?? {}), ...args };
   const o = OUTILS.find(x => x.nom === nom);
   assert.ok(o, `outil absent : ${nom}`);
   assert.deepEqual(validerSchema(o.schema, args), [], `${nom} : arguments hors schéma`);
@@ -248,11 +257,11 @@ test("survie_ajuster : variations non nulles seulement ; un état sans personnag
   assert.match((await executer("survie_ajuster", { stocks: ZERO, personnage: "", etat: { ...etat0, moral: 1 }, raison: "" })).contenu, /demande un personnage/);
 });
 
-test("survie_blessure : blesser (morsure -> rappel du test de soins extrême), soigner, infecter", async () => {
+test("survie_blessure : blesser (morsure -> soigner la morsure : survie_blessure morsure), soigner, infecter (au secret)", async () => {
   const { api } = installerFenoir();
   const r = await executer("survie_blessure", { action: "blesser", personnage: "Eddy", n: 1, morsure: true, soigneur: "" });
   assert.deepEqual(derniersArgs(api), ["blesser", { acteurId: "s2", n: 1, morsure: true }]);
-  assert.match(r.contenu, /MORSURE : test de soins EXTRÊME/);
+  assert.match(r.contenu, /MORSURE : soigne-la maintenant, dans le quart \(survie_blessure morsure/);
   const s = await executer("survie_blessure", { action: "soigner", personnage: "Eddy", n: 0, morsure: false, soigneur: "Lucie" });
   assert.deepEqual(derniersArgs(api), ["soigner", { acteurId: "s2", soigneurId: "s1" }]);
   assert.match(s.contenu, /Lucie Hoarau, Soins : 2 succès pour 1 requis — réussite \(marge \+1\)\. 1 blessure\(s\) soignée\(s\), un médicament consommé\./);
@@ -262,7 +271,8 @@ test("survie_blessure : blesser (morsure -> rappel du test de soins extrême), s
   assert.match(auto.contenu, /Lucie Hoarau, Soins : 2 succès/);
   const i = await executer("survie_blessure", { action: "infecter", personnage: "Eddy", n: 0, morsure: false, soigneur: "" });
   assert.deepEqual(derniersArgs(api), ["infecter", { acteurId: "s2" }]);
-  assert.match(i.contenu, /Aucun remède connu/);
+  assert.match(blocs(i.contenu).secret, /Aucun remède : ne le dis jamais/);
+  assert.doesNotMatch(blocs(i.contenu).connu, /Gris|INFECT/);
 });
 
 test("survie_marquer, survie_assaut (force bornée, blessés nommés), survie_rencontre (au secret), survie_bilan", async () => {
@@ -343,7 +353,7 @@ test("hors du MJ actif : chaque outil qui écrit est refusé avec le message du 
     survie_releve: { action: "reprendre", mort: "Lucie", candidat: "Eddy", joueur: "" },
     survie_autel: { action: "honorer", mort: "" },
     survie_recrue: { action: "generer", region: "", gramoune: "", recrue: "", parleur: "", attitude: "" },
-    survie_assigner: { personnage: "Eddy", tache: "garde", repartir: false },
+    survie_assigner: { action: "tache", personnage: "Eddy", tache: "garde", priorites: "", jours: 0, ref: "" },
     survie_ajouter_membre: { personnage: "Bellemène", statut: "pnj" }
   };
   for (const [nom, args] of Object.entries(essais)) {
@@ -506,14 +516,14 @@ test("survie_recrue : generer (au secret, avec son prix), recruter par le test d
 
 test("survie_assigner : une tâche ; répartition automatique des compagnons et recrues selon les manques, jamais les joueurs", async () => {
   const { api, acteurs } = installerFenoir();
-  await executer("survie_assigner", { personnage: "Eddy", tache: "chantier", repartir: false });
+  await executer("survie_assigner", { action: "tache", personnage: "Eddy", tache: "chantier", priorites: "", jours: 0, ref: "" });
   assert.deepEqual(derniersArgs(api), ["assigner", { acteurId: "s2", tache: "chantier" }]);
-  const r = await executer("survie_assigner", { personnage: "", tache: "", repartir: true });
+  const r = await executer("survie_assigner", { action: "repartir", personnage: "", tache: "", priorites: "", jours: 0, ref: "" });
   assert.deepEqual(api.appels.filter(x => x[0] === "assigner").map(x => x[1]), [{ acteurId: "s2", tache: "chantier" }, { acteurId: "s2", tache: "garde" }],
     "Eddy (compagnon) à la garde, urgente ; Lucie (joueuse) n'est pas touchée");
   assert.match(r.contenu, /Eddy Payet → garde \(manquant, urgent, vigilance 0\)/);
   assert.equal(acteurs.get("s1").system.tache, undefined);
-  assert.equal((await executer("survie_assigner", { personnage: "Eddy", tache: "", repartir: false })).erreur, true);
+  assert.equal((await executer("survie_assigner", { action: "tache", personnage: "Eddy", tache: "", priorites: "", jours: 0, ref: "" })).erreur, true);
 });
 
 test("survie_ajouter_membre : un compagnon arrivé en cours de partie ; déjà membre refusé", async () => {

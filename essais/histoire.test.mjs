@@ -66,6 +66,8 @@ const VERIFICATIONS = {
     const { journaux, dossiers } = monde();
     game.actors.get("s1").system.enfance = "gamin-du-port";
     game.actors.get("s1").flags["lakour-mj-ia"] = { graineHistoire: "Sa sœur a disparu au jour zéro." };
+    // Fénoir (§16) : les phrases d'histoire du système (api.histoireDuSurvivant), déjà au portrait, à ne jamais contredire.
+    game.lakourSurvie.histoireDuSurvivant = ({ acteurId }) => (acteurId === "s1" ? { phrases: ["Elle est née à Cilaos.", "Elle a soigné tout le Port."], cles: [] } : null);
     const r = await outil(M, "histoire_personnage").executer({ personnage: "Lucie", action: "preparer", ...ARGS });
     assert.ok(!r.erreur, r.contenu);
     assert.equal(journaux.size, 1);
@@ -74,7 +76,8 @@ const VERIFICATIONS = {
     assert.equal(j.folder, dossiers.contents[0].id);
     assert.equal(game.actors.get("s1").flags["lakour-mj-ia"].histoire, j.uuid);
     assert.equal(game.actors.get("s1").system.histoire.journal, j.uuid, "Fénoir : system.histoire.journal aussi");
-    for (const m of ["créé", "Enfance : Gamin du Port", "Passé : Infirmière", "Âge : 34 ans", "Graine d'histoire : Sa sœur a disparu", "Questions possibles"]) {
+    for (const m of ["créé", "Enfance : Gamin du Port", "Passé : Infirmière", "Âge : 34 ans", "Graine d'histoire : Sa sœur a disparu", "Questions possibles",
+      "Phrases d'histoire (déjà au « Portrait » : ne les contredis jamais, pars d'elles) : Elle est née à Cilaos. Elle a soigné tout le Port."]) {
       assert.ok(r.contenu.includes(m), `${m} absent :\n${r.contenu}`);
     }
     await outil(M, "histoire_personnage").executer({ personnage: "Lucie", action: "preparer", ...ARGS });

@@ -9,12 +9,13 @@ import { packDeContenu, CONTENUS, jetonJoueur } from "./contenus.js";
 import {
   CLES_COMPETENCES, RESSOURCES, DIFFICULTES_SURVIE, convertirDifficulte, apiSurvie, fonctionSurvie, lireSurvie, messageErreurSurvie,
   trouverFiche, listeDe, nomDe, voisinsDe, texteQuand, texteStocks, texteVariations, texteTest, ligneRenseignement, ligneReel,
-  lignesSurvie, lignesMenaces, rendu, resumerSurvivant, etatCourt, jourDuQuart, libelleRessource, TACHES, STATUTS,
+  lignesSurvie, lignesMenaces, rendu, resumerSurvivant, etatCourt, jourDuQuart, texteJour, libelleRessource, TACHES, STATUTS,
   dansLeBudget, sommeNiveaux, resumerTirage, lignesBesoins, repartirTaches, resumerRecrue,
   resoudreTransport, vehiculesDu, ligneVehicule, ligneTransport, portentVehicule,
   RESSOURCES_TROC, STADES_MARCHE, PORTEES_RUMEUR, PREUVES, REGARDS, ACTES_MORAUX, VOIX, PROFILS_VISITEUR, SOURCES_APPRENTISSAGE, CIBLES_SAVOIRS,
-  GROUPE, bandeSensMoral, detteDuGroupe, texteMarche, texteRumeur, rumeurVivante, textePrejuges, secretDuSurvivant
+  GROUPE, bandeSensMoral, detteDuGroupe, texteMarche, texteRumeur, rumeurVivante, textePrejuges, secretDuSurvivant, CIBLES_LIEUX, CRITERES_BIVOUAC
 } from "./survie-logique.js";
+import * as Horloges from "./horloges.js";
 
 const SURVIE = ["lakour-survie"];
 const ID_MJIA = "lakour-mj-ia";
@@ -39,6 +40,8 @@ const jeu = () => globalThis.game;
 const api = () => apiSurvie(jeu()?.lakourSurvie);
 const appeler = (nom, args) => fonctionSurvie(jeu()?.lakourSurvie, nom)(args);
 const lire = nom => lireSurvie(jeu()?.lakourSurvie, nom);
+// Une lecture avec arguments (lieux d'une région, symptômes d'un survivant…) : null si la fonction manque.
+const lire1 = (nom, args) => lireSurvie(jeu()?.lakourSurvie, nom, args);
 const acteurDe = id => jeu()?.actors?.get?.(id) ?? null;
 const nomActeur = id => acteurDe(id)?.name ?? String(id ?? "?");
 const traduire = k => { try { return jeu()?.i18n?.localize?.(k) ?? k; } catch { return k; } };
@@ -100,7 +103,7 @@ function cleDe(collection, reference, genre, { defaut = undefined } = {}) {
 }
 const LIBELLES_COLLECTIONS = { regions: "régions", sites: "sites", installations: "installations", recettes: "recettes", afflictions: "afflictions",
   factions: "factions", communautes: "communautés", marchands: "gens du marché", marches: "marchés", foires: "foires", savoirs: "savoirs",
-  religions: "religions", ancrages: "ancrages", gramounes: "gramounes" };
+  religions: "religions", ancrages: "ancrages", gramounes: "gramounes", corvees: "corvées", chantiersRegion: "chantiers de région" };
 const regionDuGroupe = () => lire("etat")?.groupe?.region ?? "";
 const nomRegion = cle => nomDe(lire("contenu")?.regions, cle);
 const quandTexte = () => texteQuand(lire("quand"));
@@ -164,6 +167,49 @@ function noteVehicule({ vehicule }, ids = []) {
     : " ; aucune fiche du groupe ne l'a : s'ils l'ont trouvé en scène, donne-le à l'un d'eux, sinon ce trajet ne devait pas se faire ainsi"}.`;
 }
 
+// ------------------------------------------------------------------ aides des lots du jeu 3D (§16 à §29)
+// Une installation de l'abri, par son nom, sa clé ou son id.
+function installationAbri(reference) {
+  const abri = acteurDe(lire("etat")?.groupe?.abri);
+  if (!abri) throw new Refus("le groupe n'a pas d'abri.");
+  const items = [...(abri.items ?? [])].filter(i => i.type === "installation");
+  const x = n(reference);
+  const i = items.find(y => y.id === reference || n(y.name) === x || n(y.system?.cle) === x) ?? (x ? items.find(y => n(y.name).includes(x)) : null);
+  if (!i) throw new Refus(`installation introuvable dans l'abri : « ${reference} » (installations : ${items.map(y => y.name).join(", ") || "aucune"}).`);
+  return i;
+}
+// Les ouvrages de l'abri (api.ouvrages, §26) : matériau, usure, entretien de chacun ; les défenses ; le risque d'éboulement.
+function lignesOuvrages(o) {
+  if (!o) return ["Le système ne dit rien des ouvrages."];
+  if (!o.abri) return ["Pas d'abri."];
+  const e = i => (!i.entretien ? "" : Number(i.entretien.retard) > 0 ? `, entretien EN RETARD de ${i.entretien.retard} j` : `, entretien ${i.entretien.prochain ?? "?"}`)
+    + (i.entretien?.encrasse ? ", encrassée" : "");
+  const d = o.defenses ?? {};
+  return [
+    `Installations : ${(o.installations ?? []).map(i => `${i.nom} ${i.niveau} (${i.materiau ?? "?"}${Number(i.etat) ? `, usure ${i.etat}/3` : ""}${e(i)})`).join(" ; ") || "aucune"}.`,
+    (o.dus ?? []).length ? `Entretiens dus : ${o.dus.map(x => `${x.nom ?? x.cle}${Number(x.retard) > 0 ? ` (retard ${x.retard} j)` : ""}`).join(", ")}.` : "Aucun entretien dû.",
+    `Défenses devant les Livides : pièges ${Number(d.piege) || 0}${d.hauteur ? ", une hauteur" : ""}${Number(d.portes) ? `, portes ${d.portes}` : ""}${d.alarme ? ", une alarme" : ""}.`,
+    o.eboulement ? `Chantier souterrain (${o.eboulement.installation}) : risque d'éboulement ${Math.round(Number(o.eboulement.chance) * 100)} % en l'achevant.` : ""
+  ];
+}
+// Un objet porté par un survivant du groupe (ou par celui donné) : par id, nom ou clé. -> { acteur, item }
+function objetPorte(reference, { qui = null, genre = "un objet" } = {}) {
+  const x = n(reference);
+  if (!x) throw new Refus(`dis quel objet (${genre}).`);
+  const porteurs = qui ? [qui] : (lire("etat")?.groupe?.membres ?? []).map(acteurDe).filter(Boolean);
+  const tous = porteurs.flatMap(a => [...(a.items ?? [])].filter(i => i.type === "equipement").map(item => ({ acteur: a, item })));
+  const o = tous.find(({ item }) => item.id === reference || n(item.name) === x || n(item.system?.cle) === x) ?? tous.find(({ item }) => n(item.name).includes(x));
+  if (!o) throw new Refus(`${genre} introuvable : « ${reference} » (${tous.map(({ acteur, item }) => `${item.name} (${acteur.name})`).slice(0, 20).join(", ") || "rien"}).`);
+  return o;
+}
+// Une valeur courte pour l'IA : listes jointes, objets en « clé valeur ».
+const court = v => (Array.isArray(v) ? v.map(court).join(", ")
+  : v && typeof v === "object" ? Object.entries(v).filter(([, x]) => x !== null && x !== undefined && x !== "" && !(Array.isArray(x) && !x.length)).map(([k, x]) => `${k} ${court(x)}`).join(", ")
+    : String(v ?? ""));
+// Les champs donnés d'un résultat, en une ligne : « abattus 2 ; restants 1 ».
+const champs = (r, cles) => cles.filter(k => r?.[k] !== undefined && r?.[k] !== null && r[k] !== "" && !(Array.isArray(r[k]) && !r[k].length))
+  .map(k => `${k} ${court(r[k])}`).join(" ; ");
+
 // ------------------------------------------------------------------ les outils
 export const OUTILS_SURVIE = [
   outil({
@@ -181,7 +227,7 @@ export const OUTILS_SURVIE = [
       const donnees = { etat: lire("etat"), quand: lire("quand"), bilan: lire("bilan"), monde: lire("monde"), contenu: lire("contenu") };
       if (!String(region ?? "").trim()) {
         const { connu, secret } = lignesSurvie(donnees, { acteur: acteurDe });
-        const journal = (donnees.etat?.journal ?? []).slice(-5).map(e => `jour ${jourDuQuart(e.quart)} : ${brut(e.texte)}`);
+        const journal = (donnees.etat?.journal ?? []).slice(-5).map(e => `${texteJour(jourDuQuart(e.quart), donnees.quand)} : ${brut(e.texte)}`);
         return { contenu: rendu({ connu: [...connu, ...(journal.length ? [`Chronique récente : ${journal.join(" ; ")}.`] : [])], secret }) };
       }
       const cle = cleDe("regions", region, "une région");
@@ -191,15 +237,22 @@ export const OUTILS_SURVIE = [
         + `${v.quartsPied ?? "?"} quart(s) à pied${v.quartsVehicule ? `, ${v.quartsVehicule} en véhicule` : ", pas de véhicule"})`);
       const sites = (fiche.sites ?? []).map(s => nomDe(donnees.contenu?.sites, s));
       const monde = donnees.monde;
+      // Lot 5 « fouille » (§25) : les lieux de la région (genres, vus) et ses gisements ; le degré réel de pillage au secret.
+      const l = lire1("lieux", { region: cle }), g = lire1("gisements", { region: cle });
+      const vus = (l?.vus ?? []).filter(x => x.degre !== undefined);
       return { contenu: rendu({
         connu: [
           `${fiche.nom ?? cle} (${fiche.zone ?? "?"}, ${fiche.altitude ?? "?"} m).`,
           ligneRenseignement(fiche.nom ?? cle, donnees.etat?.renseignements?.[cle], jour, nomRegion),
           routes.length ? `Routes : ${routes.join(" ; ")}.` : "",
-          sites.length ? `Sites d'abri connus : ${sites.join(", ")}.` : ""
+          sites.length ? `Sites d'abri connus : ${sites.join(", ")}.` : "",
+          (l?.genres ?? []).length ? `Lieux à fouiller (genre : nombre, vus) : ${l.genres.map(x => `${x.nom ?? x.genre} [${x.genre}] ${x.nombre}${x.vus ? `, ${x.vus} vu(s)${x.finis ? `, ${x.finis} fini(s)` : ""}` : ""}`).join(" ; ")}.` : "",
+          (g?.gisements ?? []).length ? `Gisements (survie_fouiller matieres) : ${g.gisements.filter(x => x.recoltable !== false).map(x => `${x.nom ?? x.cle} [${x.cle}]`).join(", ")}.` : ""
         ],
         secret: monde ? [ligneReel(fiche.nom ?? cle, monde.regions?.[cle], nomRegion),
-          ...(monde.hordes ?? []).filter(h => h.region === cle).map(h => `Horde ${h.id ?? "?"} (taille ${h.taille ?? "?"}) ICI${h.cap ? `, cap sur ${nomRegion(h.cap)}` : ""}.`)]
+          ...(monde.hordes ?? []).filter(h => h.region === cle).map(h => `Horde ${h.id ?? "?"} (taille ${h.taille ?? "?"}) ICI${h.cap ? `, cap sur ${nomRegion(h.cap)}` : ""}.`),
+          vus.length ? `Pillage réel des lieux vus (0 intact, 1 vidé) : ${vus.map(x => `${x.nom} ${Math.round(Number(x.degre) * 100) / 100}${x.bete ? `, une bête : ${x.bete}` : ""}`).join(" ; ")}.` : "",
+          (g?.gisements ?? []).some(x => x.disponibles !== undefined) ? `Gisements disponibles : ${g.gisements.map(x => `${x.cle} ${x.disponibles ?? "?"}`).join(", ")}.` : ""]
           : ["Monde réel indisponible (coffre pas encore ouvert) : ne devine pas."]
       }) };
     }
@@ -244,17 +297,28 @@ export const OUTILS_SURVIE = [
     description: "Fénoir : fait passer le temps, en quarts de six heures (matin, après-midi, soir, nuit), quand une action en prend sans "
       + "outil qui le compte (garde, repos, attente, soins, travaux simples, discussion longue). Le monde avance avec (consommation, "
       + "production, réseaux, hordes, météo, menaces). Rend les faits publics à raconter et, pour toi seul, ce qui s'est passé hors champ. "
-      + "Une nuit de repos à l'abri : 2 quarts (soir et nuit).",
+      + "Une nuit de repos à l'abri : 2 quarts (soir et nuit). Aussi : la lumière la nuit, le sommeil, un jour de silence.",
     schema: objet({
       quarts: entier("Nombre de quarts (1 à 28 ; 4 = un jour)."),
-      raison: chaine("Ce que fait le groupe pendant ce temps (inscrit à la chronique) ; vide = sans précision.")
+      raison: chaine("Ce que fait le groupe pendant ce temps (inscrit à la chronique) ; vide = sans précision."),
+      lumiere: booleen("La nuit, l'abri reste éclairé."),
+      lumiere_en_route: booleen("En route la nuit, à la torche."),
+      dorment: liste(chaine("Nom."), "Qui dort à chaque quart ; vide = selon le moment."),
+      eveilles: liste(chaine("Nom."), "Qui reste debout ; vide = personne."),
+      lieu_sommeil: choix(["", "bivouac", "sol"], "Nuit dehors ; vide = selon le lieu."),
+      silence: choix(["", "oui", "non"], "Jour de silence décidé ou refusé ; vide = le système juge.")
     }),
     sensible: false,
-    async executer({ quarts, raison }) {
+    async executer({ quarts, raison, lumiere = false, lumiere_en_route = false, dorment = [], eveilles = [], lieu_sommeil = "", silence = "" }) {
       api();
       if (!Number.isInteger(quarts) || quarts < 1 || quarts > 28) throw new Refus("quarts : de 1 à 28 (quatre par jour).");
       const avant = lire("quand")?.jour ?? 0;
-      const r = await appeler("avancer", { quarts, raison: raison.trim() });
+      // Lots du jeu 3D (§18, §19, §28) : seules les options données partent à l'API.
+      const ids = noms => (noms ?? []).filter(x => ref(x)).map(x => survivant(x).id);
+      const options = { ...(lumiere ? { lumiere: true } : {}), ...(lumiere_en_route ? { lumiereEnRoute: true } : {}),
+        ...(ids(dorment).length ? { dorment: ids(dorment) } : {}), ...(ids(eveilles).length ? { eveilles: ids(eveilles) } : {}),
+        ...(lieu_sommeil ? { lieuSommeil: lieu_sommeil } : {}), ...(silence ? { silence: silence === "oui" } : {}) };
+      const r = await appeler("avancer", { quarts, raison: raison.trim(), ...options });
       const { publics } = trierFaits(r?.faits ?? []);
       const b = r?.bilan;
       const etat = lire("etat");
@@ -289,16 +353,19 @@ export const OUTILS_SURVIE = [
       malus: entier("Dés en moins pour la situation (obscurité, pluie battante, panique) : 1 ou 2, 0 si aucun ; les malus d'état sont comptés par le système."),
       forcer: booleen("true si le personnage force d'emblée (relance des dés ratés, +1 fatigue ; échec forcé = complication)."),
       compte: booleen("true si le test compte pour la progression (danger, enjeu réel)."),
-      raison: chaine("Ce qu'il tente, en quelques mots (titre de la carte au chat) ; vide = le nom de la compétence.")
+      raison: chaine("Ce qu'il tente, en quelques mots (titre de la carte au chat) ; vide = le nom de la compétence."),
+      ecoute: choix(["", "yeux-fermes", "active"], "Écouter dans le noir (vigilance) ; vide = non.")
     }),
     sensible: false,
-    async executer({ personnage, competence, difficulte, bonus, malus, forcer, compte, raison }) {
+    async executer({ personnage, competence, difficulte, bonus, malus, forcer, compte, raison, ecoute = "" }) {
       api();
       const a = survivant(personnage);
       const conv = convertirDifficulte(difficulte);
       const r = await appeler("test", { acteurId: a.id, competence, difficulte: conv.difficulte, bonus: Math.max(0, bonus) + conv.bonus,
-        malus: Math.max(0, malus), forcer, titre: raison.trim() || competence, compte });
-      return { contenu: rendu({ connu: [texteTest(a.name, competence, { ...r, difficulte: r?.difficulte ?? conv.difficulte })] }) };
+        malus: Math.max(0, malus), forcer, titre: raison.trim() || competence, compte, ...(ecoute ? { ecoute } : {}) });
+      return { contenu: rendu({ connu: [texteTest(a.name, competence, { ...r, difficulte: r?.difficulte ?? conv.difficulte }),
+        r?.enrayee ? "L'arme s'est ENRAYÉE (dis-le sobrement : un claquement sec, rien ne part)." : "",
+        Number(r?.bruitEcoute) ? `Écouter a fait du bruit (${r.bruitEcoute}).` : ""] }) };
     }
   }),
   outil({
@@ -333,36 +400,54 @@ export const OUTILS_SURVIE = [
     nom: "survie_fouiller",
     description: "Fénoir : fouille d'un lieu pour des ressources (1 quart en général) : butin ajouté aux stocks, bruit, rencontre possible. "
       + "prudence « discret » (moins de butin, moins de bruit), « normal », « rapide » (plus de butin, plus de bruit et de risques). "
-      + "À utiliser quand les joueurs fouillent une maison, un commerce, une pharmacie, une station-service, la nature alentour.",
+      + "À utiliser quand les joueurs fouillent une maison, un commerce, une pharmacie, une station-service, la nature alentour. "
+      + "Cibles « lieu » (un bâtiment d'un genre : jamais vide, plus ou moins pillé), « demonter », « matieres » (un gisement), « plans ». "
+      + "Raconte le butin en objets, pas en chiffres.",
     schema: objet({
       region: chaine("Région fouillée (clé ou nom) ; vide = celle du groupe."),
       site: chaine("Site précis (clé ou nom d'un site du contenu) ; vide = la région en général."),
-      cible: choix(["", ...RESSOURCES_PILLABLES, "gaz", ...NATURE, ...CIBLES_SAVOIRS], "Ressource cherchée en priorité dans les maisons et commerces, ou la nature "
+      cible: choix(["", ...RESSOURCES_PILLABLES, "gaz", ...NATURE, ...CIBLES_SAVOIRS, "plans", ...CIBLES_LIEUX], "Ressource cherchée en priorité dans les maisons et commerces, ou la nature "
         + "alentour (cueillette, gibier, peche : nourriture ; bois : matériaux), ou jardins (les jardins créoles des cases : plantes, boutures), livres "
         + "(un livre qui apprend un savoir, au premier fouilleur) ; vide = tout ce qui se trouve."),
       membres: MEMBRES,
       quarts: entier("Durée en quarts (1 en général ; 0 = 1)."),
-      prudence: choix(["discret", "normal", "rapide"], "Façon de fouiller.")
+      prudence: choix(["discret", "normal", "rapide"], "Façon de fouiller."),
+      genre: chaine("lieu, demonter : genre de lieu (survie_etat d'une région) ; vide sinon."),
+      ecart: choix(["", "oui", "non"], "lieu : à l'écart ; vide = peu importe."),
+      lieu: chaine("Clé d'un lieu déjà vu ; vide = le suivant du genre."),
+      gisement: chaine("matieres : clé du gisement ; vide sinon.")
     }),
     sensible: false,
-    async executer({ region, site, cible, membres: noms, quarts, prudence }) {
+    async executer({ region, site, cible, membres: noms, quarts, prudence, genre = "", ecart = "", lieu = "", gisement = "" }) {
       api();
       const cle = cleDe("regions", region, "une région", { defaut: regionDuGroupe() });
       const cleSite = site.trim() ? cleDe("sites", site, "un site") : "";
       const ids = membres(noms);
+      // Lot 5 « fouille » (§25) : seuls les champs donnés partent à l'API.
       const r = await appeler("fouiller", { region: cle, ...(cleSite ? { site: cleSite } : {}), ...(cible ? { cible } : {}), membres: ids,
-        quarts: Math.max(1, quarts || 1), prudence });
+        quarts: Math.max(1, quarts || 1), prudence, ...(ref(genre) ? { genre: ref(genre) } : {}), ...(ecart ? { ecart: ecart === "oui" } : {}),
+        ...(ref(lieu) ? { lieu: ref(lieu) } : {}), ...(ref(gisement) ? { gisement: ref(gisement) } : {}) });
+      if (r?.ok === false) return { contenu: rendu({ connu: [`Rien à faire là : ${brut(r.motif?.texte ?? r.motif) || "refusé"} (rien n'a changé).`] }) };
       const butin = Object.entries(r?.butin ?? {}).filter(([, v]) => Number(v) > 0).map(([k, v]) => `${libelleRessource(k)} ${v}`);
       const { publics, secrets } = trierFaits(r?.faits ?? []);
+      const contenu = lire("contenu");
+      const trouve = (r?.trouve ?? []).map(x => `${nomDe(contenu?.objetsFouille, x.objet)} ×${x.q}`);
       return { contenu: rendu({
         connu: [
-          `${ids.map(nomActeur).join(", ")} fouillent ${cleSite ? nomDe(lire("contenu")?.sites, cleSite) : nomRegion(cle)} (${prudence}) ; maintenant : ${quandTexte()}.`,
+          `${ids.map(nomActeur).join(", ")} fouillent ${cleSite ? nomDe(contenu?.sites, cleSite) : nomRegion(cle)} (${prudence}) ; maintenant : ${quandTexte()}.`,
+          r?.lieu ? `Le lieu : ${[r.lieu.genre, r.lieu.n, r.lieu.ecart ? "à l'écart" : "", r.lieu.mot ? `pillé : ${r.lieu.mot}` : "", r.lieu.fini ? "FINI" : "", r.lieu.demonte ? "démonté" : ""].filter(Boolean).join(", ")}`
+            + `${r?.cleLieu ? ` [${r.cleLieu}]` : ""}.` : "",
+          trouve.length ? `Ce qu'ils trouvent (raconte-le en objets) : ${trouve.join(", ")}.` : "",
           `Butin : ${butin.join(", ") || "rien de valable"}.`, Number(r?.bruit) ? `Bruit fait : ${r.bruit}.` : "",
-          r?.livre ? `Un livre trouvé : ${nomDe(lire("contenu")?.savoirs, r.livre)}, porté par ${nomActeur(ids[0])} ; il s'apprend en veillées de lecture `
+          r?.livre ? `Un livre trouvé : ${nomDe(contenu?.savoirs, r.livre)}, porté par ${nomActeur(ids[0])} ; il s'apprend en veillées de lecture `
             + "(survie_veillee apprendre, source livre)." : "",
+          r?.plan ? `Un plan trouvé : ${r.plan.nom ?? r.plan.plan ?? r.plan}${(r.plan.lus ?? []).length ? " (lu au carnet)" : " (à lire : survie_plans)"}.` : "",
+          r?.repere ? `Un repère trouvé : ${r.repere.nom ?? r.repere.cle}, porté par ${nomActeur(r.repere.acteurId ?? ids[0])}.` : "",
+          r?.bete ? `Une bête : ${brut(r.bete.nom ?? r.bete.cle ?? r.bete.bete)}${r.bete.issue ? ` (${r.bete.issue})` : ""} (survie_vivant).` : "",
           ...lignePubliques("Faits perçus", publics)
         ],
-        secret: [r?.rencontre ? `${RENCONTRE}${texteRencontre(r.rencontre)}` : "", `Réel après la fouille : ${reelDe(cle)}`, ...lignePubliques("Hors de leur vue", secrets)]
+        secret: [r?.rencontre ? `${RENCONTRE}${texteRencontre(r.rencontre)}` : "", `Réel après la fouille : ${reelDe(cle)}`, ...lignePubliques("Hors de leur vue", secrets),
+          r?.culte ? "Un lieu de culte : à toi de juger (prendre au culte pèse sur le sens moral, le même pour tous)." : ""]
       }) };
     }
   }),
@@ -397,19 +482,32 @@ export const OUTILS_SURVIE = [
     nom: "survie_construire",
     description: "Fénoir : chantier d'une installation de l'abri (citerne, potager, palissade, panneaux solaires, galerie…) ou réparation "
       + "d'une installation endommagée. Les coûts sont payés au premier quart ; le travail avance de quarts × bras. Une installation déjà "
-      + "construite ailleurs (plans du groupe) coûte 25 % de matériaux en moins et moitié moins de travail.",
+      + "construite ailleurs (plans du groupe) coûte 25 % de matériaux en moins et moitié moins de travail. Aussi : entretenir, demonter "
+      + "(la moitié des coûts rendue), ouvrages (lire : matériaux, entretiens dus, défenses).",
     schema: objet({
-      action: choix(["construire", "reparer"], "construire (ou poursuivre un chantier, ou monter d'un niveau), ou reparer."),
-      installation: chaine("construire : clé ou nom d'une installation du contenu ; reparer : nom de l'installation endommagée de l'abri, ou vide = "
-        + "les dégâts de l'abri lui-même (après un assaut)."),
+      action: choix(["construire", "reparer", "entretenir", "demonter", "ouvrages"], "construire (ou poursuivre, ou monter d'un niveau), ou le reste."),
+      installation: chaine("construire : clé ou nom d'une installation du contenu ; sinon une installation de l'abri (reparer vide = les dégâts "
+        + "de l'abri lui-même) ; ouvrages : vide."),
       membres: MEMBRES,
       quarts: entier("Quarts de travail (1 à 8 en général ; 0 = 1).")
     }),
     sensible: false,
     async executer({ action, installation, membres: noms, quarts }) {
       api();
+      if (action === "ouvrages") return { contenu: rendu({ connu: lignesOuvrages(lire("ouvrages")) }) };
       const ids = membres(noms);
       const q = Math.max(1, quarts || 1);
+      if (action === "entretenir" || action === "demonter") {
+        const inst = installationAbri(installation);
+        if (action === "demonter") {
+          const r = await appeler("demonter", { installationId: inst.id, membres: ids });
+          return { contenu: rendu({ connu: [`${ids.map(nomActeur).join(", ")} démontent ${inst.name} (${r?.quarts ?? "?"} quart(s)) : ${texteBiensTroc(r?.rend)} récupérés ; le plan reste au carnet ; `
+            + `maintenant : ${quandTexte()}.`] }) };
+        }
+        const r = await appeler("entretenir", { installationId: inst.id, membres: ids, quarts: q });
+        return { contenu: rendu({ connu: [`${ids.map(nomActeur).join(", ")} entretiennent ${inst.name} (${q} quart(s)) : ${r?.soigne ? "entretenue" : `encore ${r?.reste ?? "?"} quart(s)-personne`}`
+          + `${Number(r?.rattrape) ? `, ${r.rattrape} cran(s) d'usure rattrapé(s)` : ""} ; maintenant : ${quandTexte()}.`] }) };
+      }
       if (action === "reparer") {
         const abri = acteurDe(lire("etat")?.groupe?.abri);
         if (!abri) throw new Refus("le groupe n'a pas d'abri.");
@@ -432,8 +530,9 @@ export const OUTILS_SURVIE = [
       const r = await appeler("construire", { installation: cle, membres: ids, quarts: q });
       const c = r?.chantier ?? {};
       return { contenu: rendu({ connu: [
-        `${ids.map(nomActeur).join(", ")} travaillent à ${nomDe(lire("contenu")?.installations, cle)} (${q} quart(s))${plans.includes(cle) ? " — ils en ont déjà les plans" : ""} ; maintenant : ${quandTexte()}.`,
-        r?.termine ? `TERMINÉ : niveau ${r.niveau ?? "?"} en service.` : `Chantier : ${c.fait ?? "?"}/${c.requis ?? "?"} quarts-personne.`
+        `${ids.map(nomActeur).join(", ")} travaillent à ${nomDe(lire("contenu")?.installations, cle)} (${q} quart(s))${plans.includes(cle) || r?.plan ? " — ils en ont déjà les plans" : ""} ; maintenant : ${quandTexte()}.`,
+        r?.termine ? `TERMINÉ : niveau ${r.niveau ?? "?"} en service.` : `Chantier : ${c.fait ?? "?"}/${c.requis ?? "?"} quarts-personne.`,
+        r?.eboulement?.eboule ? `ÉBOULEMENT au moment d'achever : ${r.eboulement.blesse ? `${nomActeur(r.eboulement.blesse)} blessé, ` : ""}la dernière cellule est à recreuser.` : ""
       ] }) };
     }
   }),
@@ -457,6 +556,8 @@ export const OUTILS_SURVIE = [
       if (ici && contenu?.regions && !voisinsDe(contenu, ici).includes(cle)) {
         throw new Refus(`${nomRegion(cle)} n'est pas voisine de ${nomRegion(ici)} (voisines : ${voisinsDe(contenu, ici).map(nomRegion).join(", ")}) : voyage étape par étape.`);
       }
+      // Lot 12 (§17) : ce qu'on comprend en arrivant dans la région (regions[].arrivee), une ligne pour le narrateur.
+      const arrivee = brut(trouverFiche(contenu?.regions, cle)?.arrivee);
       const ids = membres(noms);
       const moyen = transportDe(transport);
       const r = await appeler("voyager", { vers: cle, transport: moyen.transport, membres: ids, charge: Math.max(0, charge) });
@@ -467,6 +568,7 @@ export const OUTILS_SURVIE = [
           r?.arrivee ? `${ids.map(nomActeur).join(", ")} arrivent à ${nomRegion(cle)} après ${r.quarts ?? "?"} quart(s) de route ; maintenant : ${quandTexte()}.`
             : `${ids.map(nomActeur).join(", ")} sont en route vers ${nomRegion(cle)} (${r?.quarts ?? "?"} quart(s) passés, pas encore arrivés) ; maintenant : ${quandTexte()}.`,
           r?.arrivee ? `Ce qu'ils voient : ${ligneRenseignement(nomRegion(cle), lire("etat")?.renseignements?.[cle], lire("quand")?.jour ?? 0, nomRegion)}` : "",
+          r?.arrivee && arrivee ? `En arrivant, ce qu'on comprend (à raconter) : ${arrivee}.` : "",
           ligneTransport(moyen, r),
           ligneManque(r?.manque),
           ...lignePubliques("En chemin", publics)
@@ -540,14 +642,15 @@ export const OUTILS_SURVIE = [
   outil({
     nom: "survie_blessure",
     description: "Fénoir : blessures et infection. blesser (n blessures ; morsure = true si un Livide a mordu ou griffé profond : il faut "
-      + "alors TOUT DE SUITE un test de soins extrême), soigner (un soigneur traite les blessures, avec les médicaments de l'abri), "
-      + "infecter (échec du test après une morsure : le Gris suit sa route, stade +1 tous les deux quarts, Livide à 6).",
+      + "alors TOUT DE SUITE soigner la morsure), morsure (le système lance le test de soins en secret, avec médicament et décoction s'il y en a, "
+      + "et suit le Gris : l'issue ne se dit JAMAIS, le Gris se dira par ses signes), soigner (un soigneur traite les blessures, avec les "
+      + "médicaments de l'abri), infecter (à la main seulement : le Gris suit sa route, stade +1 tous les deux quarts, Livide à 6).",
     schema: objet({
-      action: choix(["blesser", "soigner", "infecter"], "Ce qui arrive."),
+      action: choix(["blesser", "morsure", "soigner", "infecter"], "Ce qui arrive."),
       personnage: chaine("Le survivant touché ou soigné."),
       n: entier("blesser : nombre de blessures (1 en général) ; 0 sinon."),
       morsure: booleen("blesser : true si c'est une morsure ou une griffure profonde de Livide."),
-      soigneur: chaine("soigner : nom de celui qui soigne ; vide = le meilleur soigneur présent, choisi par le système (blesser, infecter : vide).")
+      soigneur: chaine("soigner, morsure : nom de celui qui soigne ; vide = le meilleur soigneur présent, choisi par le système.")
     }),
     sensible: true,
     async executer({ action, personnage, n: nombre, morsure, soigneur }) {
@@ -556,8 +659,17 @@ export const OUTILS_SURVIE = [
       let suite = "";
       if (action === "blesser") {
         await appeler("blesser", { acteurId: a.id, n: Math.max(1, nombre || 1), morsure });
-        if (morsure) suite = "MORSURE : test de soins EXTRÊME maintenant, dans le quart (demander_jet soins « tres-ardue » pour un joueur, "
-          + "survie_test soins extreme sinon) ; décris le geste (lavage, cautérisation, amputation selon l'endroit). Échec : survie_blessure infecter.";
+        if (morsure) suite = "MORSURE : soigne-la maintenant, dans le quart (survie_blessure morsure, avec le soigneur) ; décris le geste (lavage, "
+          + "cautérisation, garrot selon l'endroit), jamais ce qu'il en adviendra.";
+      } else if (action === "morsure") {
+        // Lot « corps » (§19) : soignerMorsure lance le test chuchoté aux MJ ; l'issue va au secret, jamais au connu.
+        const s = survivant(soigneur, { requis: false });
+        const r = await appeler("soignerMorsure", { acteurId: a.id, ...(s ? { soigneurId: s.id } : {}) });
+        return { contenu: rendu({
+          connu: [`La morsure de ${a.name} est lavée et pansée par ${s?.name ?? nomActeur(r?.soigneurId)}${r?.medicament ? ", avec un médicament" : ""}${r?.decoction ? " et une décoction" : ""}. `
+            + "Personne ne sait encore ce qu'il en sera : ne le dis pas, le Gris (s'il vient) se dira par ses signes."],
+          secret: [r?.mj ? `Issue (à ne jamais dire ni laisser deviner) : ${r.mj.infecte ? "le Gris est en lui" : "la morsure est propre"}.` : "Issue au journal secret du système."]
+        }) };
       } else if (action === "soigner") {
         // Sans soigneur nommé, le système prend le meilleur en soins (api.soigner) : il rend le test (du soigneur) et les blessures soignées.
         const s = survivant(soigneur, { requis: false });
@@ -567,10 +679,11 @@ export const OUTILS_SURVIE = [
           r?.soignees !== undefined ? `${Number(r.soignees) || 0} blessure(s) soignée(s)${r.medicament ? ", un médicament consommé" : ""}.` : ""].filter(Boolean).join(" ");
       } else {
         await appeler("infecter", { acteurId: a.id });
-        suite = "Le Gris est en lui : stade +1 tous les deux quarts, mort à 6 puis Livide au quart suivant si rien n'est fait. Aucun "
-          + "remède connu. Laisse les joueurs choisir ce qu'ils font de ce temps.";
+        suite = "Le Gris est en lui (le groupe n'en verra que les signes) : stade +1 tous les deux quarts, mort à 6 puis Livide au quart suivant. "
+          + "Aucun remède : ne le dis jamais.";
+        return { contenu: rendu({ connu: [resumerSurvivant(acteurDe(a.id) ?? a)], secret: [suite] }) };
       }
-      return { contenu: rendu({ connu: [resumerSurvivant(acteurDe(a.id) ?? a), suite] }) };
+      return { contenu: rendu({ connu: [resumerSurvivant(acteurDe(a.id) ?? a), suite], secret: [secretDuSurvivant(acteurDe(a.id) ?? a)] }) };
     }
   }),
   outil({
@@ -599,7 +712,7 @@ export const OUTILS_SURVIE = [
       + "par menace et issue : assaut, ecarter, ultimatum (le groupe accepte le tribut de la bande), rejoindre (son chef frappe à la porte).",
     schema: objet({
       force: entier("Force de la menace en d6 (1 à 10 : une poignée de Livides 2, une horde 6 à 10, une bande armée 4 à 7) ; 0 avec une menace du jour."),
-      type: chaine("Nature de la menace (« horde », « bande », « chiens »…) ; vide = inconnue."),
+      type: chaine("Nature de la menace (« horde », « bande », « chiens »…, ou « incendie » : le feu à l'abri, force 1 à 3) ; vide = inconnue."),
       description: chaine("Ce qui arrive, en une phrase (inscrit à la chronique) ; vide = rien de plus."),
       menace: chaine("Identifiant d'une menace du jour à régler (« m3 ») ; vide = un assaut libre (force, type)."),
       issue: choix(["assaut", "ecarter", "ultimatum", "rejoindre"], "Avec une menace : ce qu'il en advient ; sans : assaut.")
@@ -608,6 +721,13 @@ export const OUTILS_SURVIE = [
     async executer({ force, type, description, menace = "", issue = "assaut" }) {
       api();
       if (String(menace ?? "").trim()) return reglerMenace(String(menace).trim(), issue);
+      // Lot 7 (§26) : le feu à l'abri (api.incendie : un cran par point de force, rien sous terre ; force 2 et plus, l'abri en prend).
+      if (n(type) === "incendie") {
+        if (!Number.isInteger(force) || force < 1 || force > 3) throw new Refus("incendie : force de 1 à 3.");
+        const r = await appeler("incendie", { force, cause: description.trim() });
+        return { contenu: rendu({ connu: [`Le feu à l'abri (force ${r?.force ?? force}) : brûlé ${(r?.brulees ?? []).join(", ") || "rien"} ; épargné ${(r?.epargnees ?? []).join(", ") || "rien"}`
+          + `${Number(r?.degatsAbri) ? ` ; l'abri prend ${r.degatsAbri} dégât(s)` : ""}. Raconte la fumée, la chaîne des seaux, ce qu'on sauve.`] }) };
+      }
       if (!Number.isInteger(force) || force < 1 || force > 10) throw new Refus("force : de 1 à 10 dés.");
       const r = await appeler("assaut", { force, type: type.trim(), description: description.trim() });
       return { contenu: rendu({ connu: lignesAssaut(r, `${type.trim() || "?"}, force ${force}`) }) };
@@ -693,15 +813,19 @@ export const OUTILS_SURVIE = [
       + "pièges, filtre portatif, alambic, réchaud à bois, munitions rechargées, savon…) : coût payé sur les stocks, temps de travail, "
       + "test de la compétence de la recette, savoirs et installation requis vérifiés par le système. À utiliser quand les joueurs "
       + "veulent fabriquer quelque chose de précis. Les bras comptent : le système compte l'artisan ET ses aides (membres), plus de bras "
-      + "pour un travail plus court.",
+      + "pour un travail plus court. Les outils s'usent : outils (lire), user, reparer (de fortune), affuter. L'enrayage se dit sobrement.",
     schema: objet({
-      recette: chaine("Clé ou nom d'une recette du contenu (« arc-et-fleches », « Filtre portatif »)."),
-      artisan: chaine("Le survivant qui fabrique (sa compétence fait le test)."),
-      membres: liste(chaine("Nom d'un aide."), "Ceux qui l'aident (travail partagé) ; vide = personne d'autre.")
+      action: choix(["fabriquer", "outils", "user", "reparer", "affuter"], "fabriquer, ou les outils."),
+      recette: chaine("fabriquer : clé ou nom d'une recette du contenu (« arc-et-fleches », « Filtre portatif ») ; vide sinon."),
+      artisan: chaine("Qui fabrique, ou qui porte l'outil (outils : vide = le groupe)."),
+      membres: liste(chaine("Nom d'un aide."), "fabriquer : ceux qui l'aident ; vide = personne."),
+      objet: chaine("user, reparer, affuter : l'outil ; vide sinon."),
+      usages: entier("user : usages ; 0 sinon.")
     }),
     sensible: false,
-    async executer({ recette, artisan, membres: aides }) {
+    async executer({ action = "fabriquer", recette, artisan, membres: aides = [], objet: outil = "", usages = 0 }) {
       api();
+      if (action !== "fabriquer") return outilsDuSurvivant(action, { artisan, outil, usages });
       const cle = cleDe("recettes", recette, "une recette");
       const a = survivant(artisan);
       const ids = [...new Set(aides.map(x => survivant(x).id).filter(id => id !== a.id))];
@@ -713,7 +837,12 @@ export const OUTILS_SURVIE = [
         r?.test ? texteTest(a.name, r.test.competence ?? r.competence ?? "bricolage", r.test) : "",
         r?.termine === false ? `Pas encore fini${r?.chantier ? ` (${r.chantier.fait ?? "?"}/${r.chantier.requis ?? "?"} quarts)` : ""}.`
           : r?.reussite === false || r?.test?.reussite === false ? "Raté : matériaux perdus ou objet bancal (raconte-le)." : produit ? `Fabriqué : ${produit}.` : "Fabrication faite.",
-        brut(r?.texte)
+        brut(r?.texte),
+        // Lot 6 (§24) : l'atelier, les objets consommés, les outils usés, le bruit.
+        r?.atelier?.cle ? `Atelier : ${nomDe(lire("contenu")?.installations, r.atelier.cle)}${Number(r.atelier.bonus) ? ` (+${r.atelier.bonus} dé)` : ""}.` : "",
+        (r?.consomme ?? []).length ? `Consommé : ${court(r.consomme)}.` : "",
+        (r?.outils ?? []).length ? `Outils usés : ${court(r.outils)}.` : "",
+        Number(r?.bruit) ? `Bruit : ${r.bruit}.` : "", (r?.notes ?? []).map(brut).filter(Boolean).join(" ")
       ] }) };
     }
   }),
@@ -903,6 +1032,10 @@ function lignesAssaut(r, libelle) {
   return [
     `Assaut (${libelle}) : ${ISSUES_ASSAUT[r?.issue] ?? r?.issue ?? "?"} (marge ${r?.marge ?? "?"}).`,
     degats ? `Dégâts : ${degats}.` : "", blesses.length ? `Blessés : ${blesses.join(", ")}.` : "",
+    // Lots 4, 7, 8 (§21, §26, §27) : les défenses devant les Livides, ce que la brèche a coûté.
+    Number(r?.pieges) || r?.hauteur || r?.cloche ? `Défenses : ${[Number(r.pieges) ? `pièges ${r.pieges}${Number(r.comblees) ? ` (${r.comblees} comblé)` : ""}` : "", r.hauteur ? "la hauteur a tenu" : "", r.cloche ? "la cloche a sonné" : ""].filter(Boolean).join(", ")}.` : "",
+    (r?.papiersVoles ?? []).length ? `Papiers volés : ${r.papiersVoles.map(p => p?.name ?? p?.nom ?? p).join(", ")}.` : "",
+    (r?.betesPerdues ?? []).length ? `Bêtes perdues : ${r.betesPerdues.map(b => b?.nom ?? b?.espece ?? b).join(", ")}.` : "",
     r?.issue === "breche" || Number(r?.marge) <= -2 ? "BRÈCHE : joue la scène (combat simple, §1.7) ; la fuite est une vraie option." : ""
   ];
 }
@@ -1235,17 +1368,23 @@ OUTILS_SURVIE.push(
   outil({
     nom: "survie_assigner",
     description: "Fénoir : la tâche du jour d'un compagnon IA, d'une recrue ou d'un PNJ du groupe (les joueurs choisissent la leur) : "
-      + `${TACHES.join(", ")}. repartir = true : répartition automatique des compagnons et des recrues selon les manques du groupe `
-      + "(urgences d'abord, le plus compétent, jamais une tâche dont il est incapable).",
+      + `${TACHES.join(", ")} (la ronde : à la demande). « repartir » : répartition automatique des compagnons et des recrues selon `
+      + "les manques (urgences d'abord, le plus compétent, jamais une tâche dont il est incapable). Table de gestion : table, priorites, "
+      + "quota (jours par semaine, sans punition), retirer_quota, corvee.",
     schema: objet({
-      personnage: chaine("Le membre ; vide si repartir."),
-      tache: choix(["", ...TACHES], "La tâche ; vide si repartir."),
-      repartir: booleen("true : répartition automatique des compagnons et recrues.")
+      action: choix(["tache", "repartir", "table", "priorites", "quota", "retirer_quota", "corvee"], "Ce qu'on fait."),
+      personnage: chaine("Le membre ; vide pour repartir, table."),
+      tache: choix(["", ...TACHES], "tache, quota : la tâche ; vide sinon."),
+      priorites: chaine("priorites : « garde 1, ronde 2 » (0 jamais, 1 d'abord … 4) ; vide = l'effacer."),
+      jours: entier("quota : jours par semaine ; 0 sinon."),
+      ref: chaine("corvee : la corvée (vide = aucune) ; retirer_quota : l'id ; vide sinon.")
     }),
     sensible: false,
-    async executer({ personnage, tache, repartir }) {
+    async executer({ action = "", personnage, tache, repartir = false, priorites = "", jours = 0, ref: cle = "" }) {
       api();
-      if (repartir) {
+      const act = action || (repartir ? "repartir" : "tache");
+      if (["table", "priorites", "quota", "retirer_quota", "corvee"].includes(act)) return gestion(act, { personnage, tache, priorites, jours, cle });
+      if (act === "repartir") {
         const b = await fonctionSurvie(jeu()?.lakourSurvie, "besoins")();
         const libres = (lire("etat")?.groupe?.membres ?? []).map(acteurDe).filter(x => x && x.system?.vivant !== false && !x.system?.livide
           && (x.flags?.[ID_MJIA]?.compagnon || ["compagnon", "recrue", "pnj"].includes(x.system?.statut)))
@@ -1363,14 +1502,23 @@ OUTILS_SURVIE.push(
     description: "Fénoir, le marché (troc seulement, en parts : une part = un jour de nourriture). « lire » : le cours du jour, les stades "
       + "possibles, les carnets, les marchés, ce qui se dit ; au secret, la vérité des rumeurs. « evenement » : un événement de marché à jouer.",
     schema: objet({
-      action: choix(["lire", "evenement"], "lire, ou tirer un événement."),
+      action: choix(["lire", "evenement", "valeur"], "lire, tirer un événement, ou la valeur d'un objet en parts."),
       region: chaine("lire : région des stades ; vide = celle du groupe."),
-      stade: choix(["", ...STADES_MARCHE], "evenement : le stade ; vide = forain.")
+      stade: choix(["", ...STADES_MARCHE], "evenement : le stade ; vide = forain."),
+      objet: chaine("valeur : un objet porté (nom) ou du contenu (clé) ; vide sinon.")
     }),
     sensible: false,
-    async executer({ action, region, stade }) {
+    async executer({ action, region, stade, objet: chose = "" }) {
       api();
       const contenu = lire("contenu");
+      if (action === "valeur") {
+        // Lot 10 (§22) : la valeur d'un objet en parts (barème, recette ; un papier vaut son plan).
+        let porte = null;
+        try { porte = objetPorte(chose); } catch { porte = null; }
+        if (!porte && !ref(chose)) throw new Refus("dis quel objet (objet).");
+        const v = await appeler("valeurObjet", porte ? { objetId: porte.item.id } : { cle: ref(chose) });
+        return { contenu: rendu({ connu: [`${porte?.item.name ?? v?.objet ?? chose} vaut ${parts(v?.valeur)} part(s)${v?.source ? ` (${v.source})` : ""}.`] }) };
+      }
       if (action === "evenement") {
         const e = await appeler("evenementDeMarche", { stade: stade || "forain" });
         if (!e) return { contenu: rendu({ connu: ["Aucun événement de marché pour ce stade, cette saison, cette phase."] }) };
@@ -1414,13 +1562,16 @@ OUTILS_SURVIE.push(
       faction: chaine("Sa faction (clé ou nom) ; vide = aucune."),
       marche: chaine("Le marché (une foire : sa récolte vaut moins) ; vide = aucun."),
       accepter: booleen("troquer : true = passer outre un refus."),
-      prejuge: chaine("troquer : qui joue d'un préjugé pour le prix (« groupe », un survivant : il porte « colporter ») ; vide = personne.")
+      prejuge: chaine("troquer : qui joue d'un préjugé pour le prix (« groupe », un survivant : il porte « colporter ») ; vide = personne."),
+      boutique: chaine("À une boutique (la marge du commerçant) ; vide = de la main à la main."),
+      parleur: chaine("Qui parle pour le groupe ; vide = personne.")
     }),
     sensible: true,
-    async executer({ action, biens, pnj, cibles, faction, marche, accepter, prejuge }) {
+    async executer({ action, biens, pnj, cibles, faction, marche, accepter, prejuge, boutique = "", parleur = "" }) {
       api();
       const args = { donne: biensDe(biens, -1), recoit: biensDe(biens, 1), pnjId: pnjDe(pnj), cibles: ciblesDe(cibles), faction: factionDe(faction),
-        marche: ref(marche) ? lieuDuMarche("marches", marche) : "" };
+        marche: ref(marche) ? lieuDuMarche("marches", marche) : "",
+        ...(ref(boutique) ? { boutique: lieuDuMarche("boutiques", boutique) } : {}), ...(ref(parleur) ? { parleurId: survivant(parleur).id } : {}) };
       if (!Object.keys(args.recoit).length && !Object.keys(args.donne).length) throw new Refus("rien à échanger (donne et recoit vides).");
       const troc = action === "troquer";
       const r = await appeler(troc ? "troquer" : "evaluerTroc", troc ? { ...args, accepter, prejuge: porteurDe(prejuge) } : args);
@@ -1449,15 +1600,17 @@ OUTILS_SURVIE.push(
       biens: BIENS,
       cibles: liste(chaine("Communauté."), "prendre, rendre : ses préjugés éveillés ; vide = aucun."),
       faction: chaine("prendre : sa faction ; vide = aucune."),
-      remise: booleen("solder : true = effacer ce que le groupe doit encore.")
+      remise: booleen("solder : true = effacer ce que le groupe doit encore."),
+      tirer: booleen("ouvrir : un commerçant est-il resté ? (trois fois sur dix).")
     }),
     sensible: true,
-    async executer({ action, boutique, tenancier, biens, cibles, faction, remise }) {
+    async executer({ action, boutique, tenancier, biens, cibles, faction, remise, tirer = false }) {
       api();
       if (action === "ouvrir") {
         if (!ref(boutique)) throw new Refus("donne le nom de la boutique.");
         const t = pnjDe(tenancier);
-        const r = await appeler("ouvrirBoutique", { nom: ref(boutique), tenancier: t });
+        const r = await appeler("ouvrirBoutique", { nom: ref(boutique), tenancier: t, ...(tirer ? { tirer: true } : {}) });
+        if (r?.ok === false) return { contenu: rendu({ connu: [`Personne n'est resté tenir boutique : ${brut(r.raison) || "le rideau est baissé"}.`] }) };
         return { contenu: rendu({ connu: [`Boutique ouverte : ${r?.boutique?.nom ?? boutique} [${r?.boutique?.cle ?? "?"}]${t ? `, tenue par ${nomActeur(t)}` : ""}, avec son carnet.`] }) };
       }
       const cle = lieuDuMarche("boutiques", boutique);
@@ -1488,20 +1641,37 @@ OUTILS_SURVIE.push(
     nom: "survie_marche_forain",
     description: "Fénoir : un marché forain (jour fixe, conseil d'une voix par bastion, sous TRÊVE) ou une foire (trois jours, une récolte). "
       + "« ouvrir » (du contenu, ou le sien), « fermer », « accueillir » à l'abri (bruit, l'abri se voit, réputation auprès des bastions) ou "
-      + "« rendre » l'accueil, « rompre » la trêve (toute l'île le sait ; le groupe : −3 de réputation par bastion, acte « attaquer »), « retablir ».",
+      + "« rendre » l'accueil, « rompre » la trêve (toute l'île le sait ; le groupe : −3 de réputation par bastion, acte « attaquer »), « retablir ». "
+      + "L'étal du groupe (il vend les jours de marché) : etal, relever, fermer_etal.",
     schema: objet({
-      action: choix(["ouvrir", "fermer", "accueillir", "rendre", "rompre", "retablir"], "Ce qu'on fait."),
+      action: choix(["ouvrir", "fermer", "accueillir", "rendre", "rompre", "retablir", "etal", "relever", "fermer_etal"], "Ce qu'on fait."),
       marche: chaine("Le marché ; ouvrir : un marché du contenu ; vide = le seul ouvert."),
       foire: chaine("ouvrir : une foire du contenu ; vide sinon."),
       nom: chaine("ouvrir un marché à soi : son nom ; vide sinon."),
       jour_semaine: entier("ouvrir un marché à soi : 0 dimanche … 6 samedi."),
       bastions: liste(chaine("Faction, ou « groupe »."), "ouvrir : son conseil ; vide = aucun."),
-      par: chaine("rompre : qui rompt (« groupe », un survivant, une faction) ; vide = le groupe.")
+      par: chaine("rompre : qui rompt (« groupe », un survivant, une faction) ; etal : le gardien ; relever, fermer_etal : l'étal ; vide sinon."),
+      biens: BIENS,
+      contre: chaine("etal : payé en (une ressource) ; vide = nourriture.")
     }),
     sensible: true,
-    async executer({ action, marche, foire, nom, jour_semaine, bastions, par }) {
+    async executer({ action, marche, foire, nom, jour_semaine, bastions, par, biens = [], contre = "" }) {
       api();
       const contenu = lire("contenu");
+      if (action === "relever" || action === "fermer_etal") {
+        const etals = lire("etat")?.marche?.etals ?? [];
+        const e = etals.find(x => x.id === ref(par)) ?? (etals.length === 1 ? etals[0] : null);
+        if (!e) throw new Refus(`dis quel étal (par : ${etals.map(x => x.id).join(", ") || "aucun"}).`);
+        const r = await appeler("releverEtal", { etal: e.id, fermer: action === "fermer_etal" });
+        return { contenu: rendu({ connu: [`Étal ${e.id} relevé : ${court(r?.releve) || "rien en caisse"}${action === "fermer_etal" ? " ; il est fermé (ce qui restait revient)" : ""}.`] }) };
+      }
+      if (action === "etal") {
+        if (ref(contre) && !RESSOURCES_TROC.includes(ref(contre))) throw new Refus(`contre : une ressource (${RESSOURCES_TROC.join(", ")}).`);
+        const b = biensDe(biens);
+        if (!Object.keys(b).length) throw new Refus("dis quels biens poser (biens).");
+        const r = await appeler("tenirEtal", { marche: lieuDuMarche("marches", marche), biens: b, contre: contre || "nourriture", ...(ref(par) ? { gardien: survivant(par).id } : {}) });
+        return { contenu: rendu({ connu: [`L'étal ${r?.etal?.id ?? "?"} est posé : ${texteBiensTroc(b)}, payé en ${contre || "nourriture"}${ref(par) ? `, gardé par ${par}` : " (sans gardien : on peut le voler)"}.`] }) };
+      }
       if (action === "ouvrir") {
         const f = ref(foire) ? cleDe("foires", foire, "une foire") : "";
         const modele = !f && ref(marche) ? cleDe("marches", marche, "un marché du contenu") : "";
@@ -1739,22 +1909,49 @@ OUTILS_SURVIE.push(
     nom: "survie_communaute",
     description: "Fénoir, la communauté : « chef » (pas un jeune de 16 à 18 ans) ; « parole » du chef tenue ou manquée (autorité ±1) ; "
       + "« entente » (−3 à +3, sur le moral de chacun) ; « separer » (des partants avec leur part) ; « fusionner » un groupe parti ; « signe » : "
-      + "un objet du cyclone, une coïncidence, que chacun lit selon sa foi ; « tribut » dû à une bande : payé, ou refusé (elle attaquera).",
+      + "un objet du cyclone, une coïncidence, que chacun lit selon sa foi ; « tribut » dû à une bande : payé, ou refusé (elle attaquera). "
+      + "Rangs : second (oui false = retirer), admettre ; passage (accord avec un groupe parti) ; convertir (aucune religion n'a d'effet propre).",
     schema: objet({
-      action: choix(["chef", "parole", "entente", "separer", "fusionner", "signe", "tribut"], "Ce qu'on fait."),
-      qui: liste(chaine("Un survivant."), "chef : le chef (vide = personne) ; separer : les partants."),
-      oui: booleen("parole : tenue ; tribut : payé."),
+      action: choix(["chef", "parole", "entente", "separer", "fusionner", "signe", "tribut", "second", "admettre", "passage", "convertir"], "Ce qu'on fait."),
+      qui: liste(chaine("Un survivant."), "chef : le chef (vide = personne) ; separer : les partants ; second, admettre, convertir : lui."),
+      oui: booleen("parole : tenue ; tribut : payé ; second : nommé ; passage : ouvert."),
       delta: entier("entente : variation ; 0 sinon."),
-      raison: chaine("parole, entente : pourquoi ; vide sinon."),
-      cible: chaine("fusionner : le groupe parti (« c1 ») ; tribut : « t1 » ou la bande ; vide sinon."),
+      raison: chaine("parole, entente : pourquoi ; convertir : le lieu de culte ; vide sinon."),
+      cible: chaine("fusionner, passage : le groupe parti (« c1 ») ; tribut : « t1 » ou la bande ; vide sinon."),
       nom: chaine("separer : nom du groupe qui part ; vide = tiré."),
-      abri_aux: choix(["restants", "partants"], "separer : à qui va l'abri.")
+      abri_aux: choix(["restants", "partants"], "separer : à qui va l'abri."),
+      religions: liste(chaine("Religion."), "convertir : la nouvelle (deux ou trois : plusieurs) ; vide sinon.")
     }),
     sensible: true,
-    async executer({ action, qui, oui, delta, raison, cible, nom, abri_aux }) {
+    async executer({ action, qui, oui, delta, raison, cible, nom, abri_aux, religions = [] }) {
       api();
       const ids = (qui ?? []).map(ref).filter(Boolean).map(x => survivant(x).id);
       const etat = lire("etat");
+      // Lot 10 (§22) : les rangs, le passage entre abris, changer de religion.
+      if (action === "second" || action === "admettre" || action === "convertir") {
+        if (!ids[0]) throw new Refus(`${action} : dis qui (qui).`);
+        if (action === "second") {
+          const r = await appeler("second", { acteurId: ids[0], retirer: !oui });
+          return { contenu: rendu({ connu: [`${nomActeur(ids[0])} ${oui ? "devient second" : "n'est plus second"} ; seconds : ${(r?.seconds ?? []).map(nomActeur).join(", ") || "aucun"}.`] }) };
+        }
+        if (action === "admettre") {
+          const r = await appeler("admettre", { acteurId: ids[0] });
+          return { contenu: rendu({ connu: [`${nomActeur(ids[0])} est admis (rang : ${r?.rang ?? "membre"}).`] }) };
+        }
+        const cles = (religions ?? []).filter(ref).map(x => cleDe("religions", x, "une religion"));
+        if (!cles.length) throw new Refus("convertir : dis vers quelle religion (religions).");
+        if (!ref(raison)) throw new Refus("convertir : dis le lieu de culte (raison).");
+        const r = await appeler("convertir", { acteurId: ids[0], ...(cles.length > 1 ? { religion: "plusieurs", religions: cles.slice(0, 3) } : { religion: cles[0] }), lieu: ref(raison) });
+        return { contenu: rendu({ connu: [`${nomActeur(ids[0])} change de religion (${court(r?.avant) || "?"} → ${cles.map(c => nomDe(lire("contenu")?.religions, c)).join(", ")}) : trente jours où les deux comptent.`
+          + `${r?.rumeur ? " On en parle au Ladi Lafé." : ""}`] }) };
+      }
+      if (action === "passage") {
+        const groupes = etat?.communautes ?? [];
+        const g = groupes.find(x => x.id === ref(cible)) ?? trouverFiche(groupes.map(x => ({ ...x, cle: x.id })), cible);
+        if (!g) throw new Refus(`groupe introuvable : « ${cible} » (${groupes.map(x => `${x.id} ${x.nom}`).join(", ") || "aucun groupe parti"}).`);
+        await appeler("passage", { communauteId: g.id, ouvert: oui });
+        return { contenu: rendu({ connu: [`Accord de passage avec « ${g.nom} » : ${oui ? "ouvert" : "fermé"}.`] }) };
+      }
       if (action === "chef") {
         await appeler("chef", { acteurId: ids[0] ?? "" });
         return { contenu: rendu({ connu: [ids[0] ? `${nomActeur(ids[0])} mène le groupe.` : "Le groupe n'a plus de chef."] }) };
@@ -1842,6 +2039,653 @@ OUTILS_SURVIE.push(
       if (!Object.keys(champs).length) throw new Refus("rien à changer (tous les champs vides ou à 0).");
       await appeler("ajusterEsprit", { acteurId: s.id, ...champs });
       return { contenu: rendu(resume(`Esprit de ${s.name} ajusté (${Object.keys(champs).join(", ")}).`)) };
+    }
+  })
+);
+
+// ------------------------------------------------------------------ les douze lots du jeu 3D (§16 à §29 du contrat, 2026-11-17)
+// Fonctions de l'API (scripts/api*.mjs du système, branche vague3 ; essais/survie-api-fenoir.test.mjs les cherche dans son code) :
+// affaires, tirerAffaire, penteAffaire, issueAffaire ; sens, approche, noir, nettoyer, jouer ; corps, symptomes, bivouac, dormir,
+// soignerMorsure, chute, menage, parer, grisConnu ; reperes, compte, donnerDate, lireLaLune, donnerRepere, copierCarte, lireJournal ;
+// plans, valeurPlan, lieuxAPlans, lieuAPlans, lirePlan, copierPlan, enseignerPlan, rangerPlan, prendrePlan, perdreEtagere, donnerPlan,
+// recevoirPlan, noterPlan, reprendrePlans ; tableDeGestion, priorites, quota, corvee, second, admettre, passage, convertir, tenirEtal,
+// releverEtal, valeurObjet ; outils, userOutil, reparerOutil ; lieux, gisements, demonter ; ouvrages, entretenir, incendie ; cheptels,
+// flairDuChien, beteSauvage, peupler, mettreEnEnclos, abattre, soignerCheptel, curer, capturer, chasser, recevoirBete, lacherBetes ;
+// paradis, ile, ronde, traiterCorps, leurre, chaleur, sousTerre, rallumer, chantierRegion.
+// SECRETS (jamais au connu, jamais à un compagnon IA) : la vérité d'une affaire, l'écart du jour, la chaleur, l'issue d'une morsure,
+// l'infection, l'odeur, le degré réel de pillage.
+
+// Lot 6 (§24) : les outils d'un survivant (lire, user, réparer, affûter).
+const ETATS_OUTIL = { bon: "bon", use: "USÉ", casse: "CASSÉ" };
+async function outilsDuSurvivant(action, { artisan = "", outil = "", usages = 0 } = {}) {
+  const a = ref(artisan) ? survivant(artisan) : null;
+  if (action === "outils") {
+    const l = await appeler("outils", a ? { acteurId: a.id } : {});
+    return { contenu: rendu({ connu: [(l ?? []).length ? `Outils : ${l.map(o => `${o.nom} (${nomActeur(o.acteurId)} ; ${o.qualite || "?"}, ${ETATS_OUTIL[o.etat] ?? "sans usure"}`
+      + `${Number(o.usages) ? `, ${o.restants}/${o.usages} usages` : ""}${Number(o.reparations) ? `, réparé ${o.reparations} fois` : ""})`).join(" ; ")}.` : "Aucun outil qui s'use."] }) };
+  }
+  const { acteur: p, item } = objetPorte(outil, { qui: a, genre: "l'outil" });
+  if (action === "user") {
+    const r = await appeler("userOutil", { acteurId: p.id, objetId: item.id, usages: Math.max(1, usages || 1) });
+    return { contenu: rendu({ connu: [`${item.name} (${p.name}) : ${r?.restants ?? "?"} usage(s) restant(s)${r?.casse ? " — il CASSE" : r?.devenueUsee ? " — il est usé" : ""}.`] }) };
+  }
+  const r = await appeler("reparerOutil", { acteurId: p.id, objetId: item.id, ...(action === "affuter" ? { affuter: true } : {}) });
+  return { contenu: rendu({ connu: [`${item.name} (${p.name}) ${action === "affuter" ? "affûté" : "réparé de fortune"} : ${r?.restants ?? "?"}/${r?.usages ?? "?"} usages ; `
+    + `maintenant : ${quandTexte()}.`] }) };
+}
+
+// Lot 10 (§22) : la table de gestion (grille de priorités, quotas sans punition, corvées).
+async function gestion(act, { personnage = "", tache = "", priorites = "", jours = 0, cle = "" } = {}) {
+  if (act === "table") {
+    const t = await appeler("tableDeGestion", {});
+    if (!t) return { contenu: rendu({ connu: ["Pas de partie en cours."] }) };
+    return { contenu: rendu({ connu: [
+      `Table de gestion (semaine ${t.semaine ?? "?"}) :`,
+      ...(t.membres ?? []).map(m => `- ${m.nom} (${m.rang ?? "?"}${m.actif === false ? ", hors d'état" : ""}) : à ${m.tache || "?"}${m.prendrait && m.prendrait !== m.tache ? `, prendrait ${m.prendrait}` : ""}`
+        + `${m.corvee ? `, corvée ${m.corvee}` : ""}${m.grillePropre ? `, grille : ${court(m.grille)}` : ""}`),
+      (t.quotas ?? []).length ? `Quotas : ${t.quotas.map(q => `${q.nom} ${q.tache} ${q.jours} j/semaine (fait ${q.fait ?? 0}) [${q.id}]`).join(" ; ")}.` : "",
+      t.disponible ? `Travail disponible : ${court(t.disponible)}.` : ""] }) };
+  }
+  if (act === "retirer_quota") {
+    if (!ref(cle)) throw new Refus("dis quel quota (ref : son id).");
+    await appeler("quota", { retirer: ref(cle) });
+    return { contenu: rendu({ connu: [`Quota ${ref(cle)} retiré.`] }) };
+  }
+  const a = survivant(personnage);
+  if (act === "priorites") {
+    // « garde 1, ronde 2 » : une tâche du jour et sa priorité (0 jamais, 1 d'abord … 4).
+    const paires = String(priorites ?? "").split(/[,;]/).map(x => x.trim()).filter(Boolean).map(x => /^(\S+)\s+(\d+)$/.exec(x));
+    const fautive = paires.findIndex(m => !m || !TACHES.includes(m[1]));
+    if (fautive >= 0) throw new Refus(`priorités illisibles : « ${String(priorites).split(/[,;]/)[fautive]?.trim()} » (« tâche n », tâches : ${TACHES.join(", ")}).`);
+    const grille = Object.fromEntries(paires.map(m => [m[1], Math.max(0, Math.min(4, Number(m[2])))]));
+    await appeler("priorites", { acteurId: a.id, ...(Object.keys(grille).length ? { grille } : { effacer: true }) });
+    return { contenu: rendu({ connu: [Object.keys(grille).length ? `Grille de ${a.name} : ${court(grille)}.` : `Grille de ${a.name} effacée (celle par défaut).`] }) };
+  }
+  if (act === "quota") {
+    if (!tache) throw new Refus("quota : dis la tâche.");
+    const r = await appeler("quota", { acteurId: a.id, tache, jours: Math.max(1, Math.min(7, jours || 1)) });
+    return { contenu: rendu({ connu: [`Quota de ${a.name} : ${tache}, ${r?.quota?.jours ?? jours} jour(s) par semaine [${r?.quota?.id ?? "?"}] (un bilan, jamais une punition).`] }) };
+  }
+  const corvee = ref(cle) ? cleDe("corvees", cle, "une corvée") : "";
+  await appeler("corvee", { acteurId: a.id, corvee });
+  return { contenu: rendu({ connu: [corvee ? `${a.name} prend la corvée : ${nomDe(lire("contenu")?.corvees, corvee)}.` : `${a.name} n'a plus de corvée.`] }) };
+}
+
+// Lot 12 (§17) : les affaires tenues dans les horloges du moteur « affaire-<clé> » (pente en segments, vérité dans les notes, cachées).
+// Les horloges du moteur par son API publique (main.js : api.horloges, celle que lit aussi le système), sinon le module lui-même.
+const horloges = () => jeu()?.modules?.get?.(ID_MJIA)?.api?.horloges ?? Horloges;
+const CLOSE = "Close";
+const horlogesAffaires = () => { try { return horloges().lister().filter(h => String(h?.id ?? "").startsWith("affaire-")); } catch { return []; } };
+const affairesCloses = () => horlogesAffaires().filter(h => String(h.notes ?? "").startsWith(CLOSE)).map(h => h.id.slice(8));
+const affairesEnCours = () => horlogesAffaires().filter(h => !String(h.notes ?? "").startsWith(CLOSE));
+const definitionAffaire = cle => listeDe(lire("contenu")?.affaires).find(a => a.cle === cle) ?? null;
+function affaireDuContenu(reference) {
+  const x = n(reference);
+  const toutes = listeDe(lire("contenu")?.affaires);
+  const a = toutes.find(y => n(y.cle) === x || n(y.titre) === x) ?? toutes.find(y => n(y.titre).includes(x));
+  if (!a) throw new Refus(`affaire introuvable : « ${reference} » (${toutes.slice(0, 25).map(y => `${y.titre} [${y.cle}]`).join(", ") || "aucune au contenu"}).`);
+  return a;
+}
+function affaireEnCours(reference) {
+  const l = affairesEnCours();
+  const x = n(reference);
+  const h = x ? l.find(y => y.id === `affaire-${x}` || n(y.id.slice(8)) === x || n(y.nom).includes(x)) : l.length === 1 ? l[0] : null;
+  if (!h) throw new Refus(`affaire en cours introuvable : « ${reference} » (en cours : ${l.map(y => y.nom).join(", ") || "aucune"}).`);
+  return h;
+}
+// Une horloge du moteur, retrouvée ou créée (réputation rep-<faction>, front-<front>), puis avancée.
+async function avancerHorloge(nom, n0, def) {
+  const h = horloges().trouver(nom) ?? await horloges().assurer({ id: nom, nom, ...def });
+  if (h?.id) await horloges().avancer(h.id, n0);
+  return h;
+}
+// Les effets d'une issue (§17.1, EFFETS_ISSUE) : appliqués par le moteur quand ils sont mécaniques, le reste au narrateur.
+async function effetsDIssue(e = {}, { titre = "", front = "" } = {}) {
+  const faits = [], aFaire = [];
+  const raison = `Affaire : ${titre}`;
+  const stocks = Object.fromEntries(Object.entries(e.stocks ?? {}).filter(([k, v]) => RESSOURCES.includes(k) && Number(v)));
+  const autres = Object.entries(e.stocks ?? {}).filter(([k, v]) => !RESSOURCES.includes(k) && Number(v));
+  if (Object.keys(stocks).length) { await appeler("ajuster", { stocks, raison }); faits.push(`stocks ${texteVariations(stocks)}`); }
+  if (autres.length) aFaire.push(`${autres.map(([k, v]) => `${k} ${v > 0 ? "+" : ""}${v}`).join(", ")} (à donner ou retirer en scène)`);
+  if (Number(e.moral)) {
+    for (const id of membres([])) await appeler("ajuster", { acteurId: id, etat: { moral: Number(e.moral) }, raison });
+    faits.push(`moral ${e.moral > 0 ? "+" : ""}${e.moral} à chacun`);
+  }
+  if (Number(e.entente)) { await appeler("entente", { delta: Math.max(-3, Math.min(3, Number(e.entente))), raison }); faits.push(`entente ${e.entente > 0 ? "+" : ""}${e.entente}`); }
+  for (const [f, v] of Object.entries(e.reputation ?? {})) {
+    if (!Number(v)) continue;
+    await avancerHorloge(`rep-${f}`, Number(v), { type: "reputation", faction: f });
+    faits.push(`réputation ${nomDe(lire("contenu")?.factions, f)} ${v > 0 ? "+" : ""}${v}`);
+  }
+  if (Number(e.front) && front) { await avancerHorloge(`front-${front}`, Number(e.front), { type: "horloge", max: 6 }); faits.push(`front ${front} ${e.front > 0 ? "+" : ""}${e.front}`); }
+  if (e.plan) { await appeler("noterPlan", { cle: e.plan }); faits.push(`plan au carnet : ${nomDe(lire("contenu")?.installations, e.plan)}`); }
+  const A = {
+    acte: v => `l'acte « ${v} » pour ceux qui l'ont choisi (survie_acte_moral)`, savoir: v => `un savoir appris ou enseigné : ${nomDe(lire("contenu")?.savoirs, v)} (survie_veillee)`,
+    renom: v => `renom ${v}`, autorite: v => `autorité du chef ${v} (survie_esprit)`, visibilite: v => `l'abri se voit plus (${v})`,
+    recrue: () => "quelqu'un rejoint le groupe (survie_recrue ou survie_ajouter_membre)", depart: () => "quelqu'un quitte le groupe (raconte-le)",
+    rumeur: v => (v === "dementie" ? "une rumeur est démentie (survie_rumeur dementir)" : "le Ladi Lafé s'en empare (survie_rumeur lancer)"),
+    prejuge: () => "un préjugé d'un PNJ perd un cran (survie_prejuge dementir)", voie: () => "une route s'ouvre (survie_renseigner)",
+    horde: () => "une horde approche (au bon moment : survie_assaut)", fete: v => `le groupe fête ${v} (survie_feter)`, voeu: v => `un vœu ${v} (survie_feter voeu_${v})`
+  };
+  for (const [k, f] of Object.entries(A)) if (e[k] !== undefined && e[k] !== null && e[k] !== "" && e[k] !== false && e[k] !== 0) aFaire.push(f(e[k]));
+  return { faits, aFaire };
+}
+
+// Lot « corps » (§19) : les traits d'un endroit de bivouac (CRITERES_BIVOUAC) en critères de jugerBivouac.
+const criteresBivouac = l => Object.fromEntries((l ?? []).map(c => (c === "pente-raide" ? ["pente", "raide"] : c === "pente-douce" ? ["pente", "douce"]
+  : c === "a-decouvert" ? ["couvert", false] : [c, true])));
+// Ce qu'un survivant laisse voir de ses maux (api.symptomes) : les signes ; ses vrais maux au secret.
+function lignesSymptomes(x) {
+  if (!x) return { connu: ["Rien à voir."], secret: [] };
+  const signes = [...(x.maux ?? []).map(m => `${(m.signes ?? []).join(", ") || "mal-être"}${m.reconnue && m.nom ? ` (ils reconnaissent : ${m.nom})` : ""}`),
+    ...(x.gris ? [`${(x.gris.signes ?? []).join(", ") || "fièvre"}${x.gris.reconnu ? " (ils reconnaissent le Gris)" : ""}`] : [])];
+  return {
+    connu: [`${x.nom ?? "?"} : ${signes.join(" ; ") || "aucun signe"}${x.morsure ? " ; une morsure pansée" : ""}${x.sommeil && x.sommeil !== "repose" ? ` ; sommeil : ${x.sommeil}` : ""}.`
+      + " Dis-le par ces signes."],
+    secret: [(x.mj?.afflictions ?? []).length ? `Ses vrais maux : ${x.mj.afflictions.map(a => `${a.nom ?? a.cle} (${a.stade ?? "?"}${Number(a.moral) ? `, moral ${a.moral}` : ""})`).join(", ")}.` : "",
+      x.mj?.infection ? `INFECTÉ ${x.mj.infection.stade}/6 (ne le dis jamais).` : ""]
+  };
+}
+// Un mort du groupe (l'autel), par son nom.
+const mortDe = nom => (lire("etat")?.morts ?? []).find(m => m.id === ref(nom) || n(m.nom) === n(nom)) ?? null;
+
+OUTILS_SURVIE.push(
+  outil({
+    nom: "survie_affaire",
+    description: "Fénoir, les affaires de l'île (récits sans quête : une nouvelle, sa vérité, sa pente, ses issues). lister (celles qui "
+      + "peuvent naître) ; tirer : une horloge cachée affaire-<clé> garde sa pente et sa VÉRITÉ (ne la dis jamais ; la nouvelle arrive par "
+      + "quelqu'un, d'un lieu) ; avancer d'un cran ; clore avec l'issue (stocks, moral, entente, réputation, front, plan appliqués ; le reste, toi).",
+    schema: objet({
+      action: choix(["lister", "tirer", "avancer", "clore"], "Ce qu'on fait."),
+      affaire: chaine("tirer : clé ou titre (vide = au hasard) ; avancer, clore : celle en cours (vide = la seule)."),
+      issue: chaine("clore : la clé de l'issue ; vide sinon."),
+      declencheur: choix(["", "refus-a-la-porte", "date-perdue"], "Ce qui vient d'arriver ; vide = rien.")
+    }),
+    sensible: true,
+    async executer({ action, affaire = "", issue = "", declencheur = "" }) {
+      api();
+      const ctx = { ...(declencheur ? { declencheurs: [declencheur] } : {}), closes: affairesCloses() };
+      const enCours = affairesEnCours();
+      if (action === "lister") {
+        const r = await appeler("affaires", ctx);
+        return { contenu: rendu({ secret: [
+          `Affaires qui peuvent naître : ${(r?.affaires ?? []).map(a => `${a.titre} [${a.cle}] (${a.taille}${a.front ? `, front ${a.front}` : ""})`).join(" ; ") || "aucune"}.`,
+          enCours.length ? `En cours : ${enCours.map(h => `${h.nom} cran ${h.valeur}/${h.max}`).join(" ; ")}.` : ""] }) };
+      }
+      if (action === "tirer") {
+        const cle = ref(affaire) ? affaireDuContenu(affaire).cle : "";
+        if (cle && enCours.some(h => h.id === `affaire-${cle}`)) throw new Refus(`l'affaire ${cle} est déjà en cours (avancer ou clore).`);
+        const t = await appeler("tirerAffaire", { cle, ...ctx });
+        if (!t) throw new Refus("aucune affaire ne peut naître ici et maintenant.");
+        const def = definitionAffaire(t.cle) ?? {};
+        const crans = (def.pente?.crans ?? []).length;
+        await horloges().assurer({ id: `affaire-${t.cle}`, nom: `Affaire : ${t.titre}`, type: "horloge", max: crans || 4, visible: false,
+          notes: `Vérité (${t.verite?.cle ?? "?"}) : ${brut(t.verite?.texte)}${crans ? ` ; pente : ${crans} crans, un tous les ${def.pente?.tousLes ?? "?"} j` : ""}` });
+        return { contenu: rendu({ secret: [
+          `Affaire tirée : ${t.titre} [${t.cle}] (${t.taille}${t.front ? `, front ${t.front}` : ""}) ; horloge cachée affaire-${t.cle}.`,
+          `Sa VÉRITÉ (${t.verite?.cle ?? "?"}) : ${brut(t.verite?.texte)}. Ne la dis jamais : laisse les faits la montrer.`,
+          t.voix ? `Une voix qui la porte (sa provenance) : « ${brut(t.voix)} ».` : "",
+          def.apprendre ? `Comment on l'apprend : ${brut(def.apprendre)}.` : "", def.demande ? `Ce qu'elle demande : ${brut(def.demande)}.` : "",
+          def.malTourner ? `Si elle tourne mal : ${brut(def.malTourner)}.` : "", def.ton ? `Ton : ${brut(def.ton)}.` : "",
+          (def.issues ?? []).length ? `Issues (clore) : ${def.issues.map(i => `${i.cle} — ${brut(i.titre)}`).join(" ; ")}.` : ""] }) };
+      }
+      const h = affaireEnCours(affaire);
+      const cle = h.id.slice(8);
+      const def = definitionAffaire(cle) ?? {};
+      if (action === "avancer") {
+        const crans = (def.pente?.crans ?? []).length;
+        const cran = Math.min(crans || h.max, Number(h.valeur) + 1);
+        const p = await appeler("penteAffaire", { cle, jours: cran * Math.max(1, Number(def.pente?.tousLes) || 1) });
+        await horloges().avancer(h.id, 1);
+        return { contenu: rendu({ secret: [`Pente de « ${def.titre ?? cle} » : cran ${cran}/${crans || h.max} : ${brut(p?.texte) || "rien de plus"}.`
+          + `${p?.fin ? ` AU BOUT : ${brut(def.malTourner) || "l'affaire tourne mal"}.` : ""} Fais-en sentir ce qui se voit.`] }) };
+      }
+      if (!ref(issue)) throw new Refus(`clore : dis l'issue (${(def.issues ?? []).map(i => i.cle).join(", ") || "?"}).`);
+      const i = await appeler("issueAffaire", { cle, issue: ref(issue) });
+      if (!i) throw new Refus(`issue inconnue : « ${issue} » (${(def.issues ?? []).map(x => x.cle).join(", ") || "?"}).`);
+      const { faits, aFaire } = await effetsDIssue(i.effets, { titre: def.titre ?? cle, front: def.front ?? "" });
+      await horloges().regler(h.id, { valeur: h.max, notes: `${CLOSE} (issue ${i.cle}). ${h.notes ?? ""}`.slice(0, 600) });
+      return { contenu: rendu({ connu: [`Affaire « ${def.titre ?? cle} » close : ${brut(i.titre)} — ${brut(i.texte)}.`,
+        faits.length ? `Appliqué : ${faits.join(" ; ")}.` : "", aFaire.length ? `À toi de le jouer : ${aFaire.join(" ; ")}.` : ""] }) };
+    }
+  }),
+  outil({
+    nom: "survie_sens",
+    description: "Fénoir, percevoir (le noir, le vent, la pluie). lire (le temps, la ravine, l'habitude du noir, les lieux nettoyés ; "
+      + "l'odeur au secret) ; approche d'un Livide (dés de discrétion) ; l'habitude du noir : lumiere (la casse), nuit (une de plus), "
+      + "regler ; nettoyer un lieu (moins de rencontres) ; jouer (musique : moral, bruit). La Timise est un oiseau ; un bruit amène des "
+      + "Livides intrigués, pas un assaut.",
+    schema: objet({
+      action: choix(["lire", "approche", "lumiere", "nuit", "regler", "nettoyer", "jouer"], "Ce qu'on fait."),
+      personnages: liste(chaine("Un survivant."), "Qui (jouer : les musiciens) ; vide sinon."),
+      creature: chaine("approche : clé du bestiaire ; vide = un Livide frais."),
+      vent: choix(["", "vers-lui", "vers-moi"], "approche : où porte le vent ; vide = de côté."),
+      bruit: booleen("approche : on fait du bruit."),
+      region: chaine("nettoyer : la région ; vide = celle du groupe."),
+      site: chaine("nettoyer : le site ; vide = la région."),
+      n: entier("nettoyer : Livides tués ; regler : nuits ; 0 sinon."),
+      air: choix(["doux", "fort"], "jouer : l'air.")
+    }),
+    sensible: false,
+    async executer({ action, personnages = [], creature = "", vent = "", bruit = false, region = "", site = "", n: nombre = 0, air = "doux" }) {
+      api();
+      const ids = (personnages ?? []).filter(ref).map(x => survivant(x).id);
+      if (action === "lire") {
+        const s = lire("sens");
+        if (!s) return { contenu: rendu({ connu: ["Rien à percevoir (partie pas démarrée)."] }) };
+        return { contenu: rendu({
+          connu: [`Dehors : ${[s.pluie ? "il pleut" : "", s.brume ? "la brume" : "", s.vent?.mot && s.vent.mot !== "calme" ? `${s.vent.mot} du ${s.vent.de}` : "calme"].filter(Boolean).join(", ")}`
+            + `${s.voix ? ` ; la voix du coin : ${s.voix}` : ""}${s.ravine ? ` ; la ravine : ${s.ravine}` : ""}${s.musique ? ` ; un moment pour la musique : ${s.musique}` : ""}.`,
+            (s.accoutumance ?? []).length ? `Habitude du noir : ${s.accoutumance.map(m => `${m.nom} ${m.nuits} nuit(s) (palier ${m.effectif ?? m.palier})`).join(", ")}.` : "",
+            (s.nettoyes ?? []).length ? `Lieux nettoyés : ${s.nettoyes.map(x => `${x.nom} (rencontres × ${x.facteur})`).join(", ")}.` : "",
+            s.corps ? `Les Livides ici : ${court(s.corps)}.` : ""],
+          secret: [s.odeur ? `Odeur de l'abri : ${s.odeur.odeur}/4 pour les Livides, ${s.odeur.betes}/4 pour les bêtes${(s.odeur.sources ?? []).length ? ` (${s.odeur.sources.join(", ")})` : ""}`
+            + `${s.odeur.sousLeVent ? `, portée vers le ${s.odeur.sousLeVent}` : ""}.` : ""]
+        }) };
+      }
+      if (action === "approche") {
+        const r = await appeler("approche", { creature: ref(creature) || "livide-frais", vent, bruit });
+        return { contenu: rendu({ connu: [`Approcher ou fuir ${r?.creature ?? creature} : ${signeDe(r?.des)} dé(s) de discrétion (vent, bruit, nuit, altitude comptés).`] }) };
+      }
+      if (["lumiere", "nuit", "regler"].includes(action)) {
+        if (!ids.length) throw new Refus("dis qui (personnages).");
+        const l = [];
+        for (const id of ids) {
+          const r = await appeler("noir", { acteurId: id, action, ...(action === "regler" ? { nuits: Math.max(0, nombre) } : {}) });
+          l.push(`${nomActeur(id)} : ${r?.nuits ?? "?"} nuit(s) au noir, palier ${r?.effectif ?? r?.palier ?? "?"}`);
+        }
+        return { contenu: rendu({ connu: [`Habitude du noir : ${l.join(" ; ")}.`] }) };
+      }
+      if (action === "nettoyer") {
+        const cle = cleDe("regions", region, "une région", { defaut: regionDuGroupe() });
+        const cs = ref(site) ? cleDe("sites", site, "un site") : "";
+        const r = await appeler("nettoyer", { region: cle, site: cs, tues: Math.max(1, nombre) });
+        return { contenu: rendu({ connu: [`${cs ? nomDe(lire("contenu")?.sites, cs) : nomRegion(cle)} nettoyé (${r?.tues ?? nombre} Livide(s)) : les rencontres y sont × ${r?.facteur ?? "?"} pour un temps.`] }) };
+      }
+      if (!ids.length) throw new Refus("jouer : dis qui joue (personnages).");
+      const r = await appeler("jouer", { musiciens: ids, air });
+      return { contenu: rendu({ connu: [`${ids.map(nomActeur).join(", ")} jouent un air ${air} : ${Number(r?.moral) ? `+${r.moral} de moral à chacun` : "pas de moral de plus (trop tôt)"}, bruit +${r?.bruit ?? "?"}.`] }) };
+    }
+  }),
+  outil({
+    nom: "survie_corps",
+    description: "Fénoir, le corps. lire (sommeil, hygiène) ; symptomes d'un survivant (ce que voient les joueurs ; ses vrais maux au "
+      + "secret) ; bivouac (juger un endroit) ; dormir ; chute (mètres ; tester : se recevoir) ; menage ; parer au bouclier ; gris_connu "
+      + "(le groupe a vu un mordu se relever). Parle par symptômes ; la faim et la soif ne tuent pas d'elles-mêmes.",
+    schema: objet({
+      action: choix(["lire", "symptomes", "bivouac", "dormir", "chute", "menage", "parer", "gris_connu"], "Ce qu'on fait."),
+      personnage: chaine("symptomes, chute, parer : qui ; vide sinon."),
+      membres: MEMBRES,
+      quarts: entier("dormir, menage : quarts (0 = 1)."),
+      lieu: choix(["", "abri", "bivouac", "sol"], "dormir : où ; vide = selon le lieu."),
+      hauteur: entier("chute : mètres ; 0 sinon."),
+      eau: entier("chute : mètres d'eau dessous ; 0 sinon."),
+      tester: booleen("chute : il tente de se recevoir."),
+      livide: booleen("chute : un Livide tombe."),
+      touches: entier("parer : touches ; 0 sinon."),
+      criteres: liste(choix(CRITERES_BIVOUAC, "Un trait."), "bivouac : l'endroit ; vide = rien de notable."),
+      oui: booleen("gris_connu : le groupe l'a vu.")
+    }),
+    sensible: true,
+    async executer({ action, personnage = "", membres: noms = [], quarts = 0, lieu = "", hauteur = 0, eau = 0, tester = false, livide = false, touches = 0, criteres = [], oui = true }) {
+      api();
+      if (action === "lire") {
+        const c = lire("corps");
+        if (!c) return { contenu: rendu({ connu: ["Rien à dire (partie pas démarrée)."] }) };
+        return { contenu: rendu({
+          connu: [`Sommeil : ${(c.membres ?? []).map(m => `${m.nom} ${m.sommeil}${Number(m.malus) ? ` (${m.malus} dé)` : ""}`).join(", ") || "?"}.`,
+            c.abri ? `Hygiène de l'abri : ${c.abri.etat ?? "?"} (latrines ${c.abri.latrines ?? 0}, toilette ${c.abri.toilette ?? 0}${c.abri.salubre ? ", salubre" : ""}).` : "",
+            c.bivouac ? "Ils portent de quoi bivouaquer." : "", c.grisConnu ? "Le groupe reconnaît les signes du Gris." : ""],
+          secret: [c.abri?.souillure !== undefined ? `Souillure réelle : ${c.abri.souillure}.` : ""]
+        }) };
+      }
+      if (action === "symptomes") {
+        const a = survivant(personnage);
+        return { contenu: rendu(lignesSymptomes(await appeler("symptomes", { acteurId: a.id }))) };
+      }
+      if (action === "bivouac") {
+        const r = await appeler("bivouac", criteresBivouac(criteres));
+        return { contenu: rendu({ connu: [`Bivouac ${r?.libelle ?? r?.jugement ?? "?"}${(r?.textes ?? []).length ? ` : ${r.textes.join(", ")}` : ""}${r?.equipe ? "" : " ; rien pour bivouaquer (au sol)"}.`,
+          `Une rencontre de nuit que tu tires y compte × ${r?.rencontre ?? "?"}.`] }) };
+      }
+      if (action === "dormir" || action === "menage") {
+        const ids = membres(noms);
+        if (action === "menage") {
+          const r = await appeler("menage", { membres: ids, quarts: Math.max(1, quarts || 1) });
+          return { contenu: rendu({ connu: [`${ids.map(nomActeur).join(", ")} font le ménage (${r?.quarts ?? quarts} quart(s)) : l'abri est ${["propre", "ordinaire", "sale", "insalubre"][Number(r?.insalubrite)] ?? "?"} ; maintenant : ${quandTexte()}.`] }) };
+        }
+        const r = await appeler("dormir", { membres: ids, quarts: Math.max(1, quarts || 1), ...(lieu ? { lieu } : {}) });
+        return { contenu: rendu({ connu: [`Ils dorment ${r?.quarts ?? quarts} quart(s) (${r?.lieu ?? lieu}) : ${(r?.survivants ?? []).map(x => `${nomActeur(x.acteurId)} ${x.sommeil}`).join(", ")}.`] }) };
+      }
+      if (action === "gris_connu") {
+        await appeler("grisConnu", { connu: oui });
+        return { contenu: rendu({ connu: [oui ? "Le groupe a vu un mordu se relever : il reconnaîtra les signes du Gris." : "Le groupe ne sait pas reconnaître le Gris."] }) };
+      }
+      if (action === "chute" && livide) {
+        const r = await appeler("chute", { hauteur: Math.max(0, hauteur), eau: Math.max(0, eau), livide: true });
+        return { contenu: rendu({ connu: [`Le Livide tombe de ${hauteur} m : ${r?.rampe ? "il rampe" : r?.chancelle ? "il chancelle et se relève" : "il se relève"}.`] }) };
+      }
+      const a = survivant(personnage);
+      if (action === "chute") {
+        const r = await appeler("chute", { acteurId: a.id, hauteur: Math.max(0, hauteur), eau: Math.max(0, eau), tester });
+        return { contenu: rendu({ connu: [`${a.name} tombe de ${hauteur} m${eau ? ` (${eau} m d'eau dessous)` : ""} : ${r?.mort ? "MORT" : r?.mourant ? "MOURANT" : `${r?.blessures ?? 0} blessure(s)`}`
+          + `${r?.fracture ? ", une FRACTURE" : ""}${r?.recu ? " (il s'est reçu)" : ""}.`] }) };
+      }
+      const r = await appeler("parer", { acteurId: a.id, touches: Math.max(1, touches) });
+      return { contenu: rendu({ connu: [`${a.name} pare au bouclier : ${r?.parees ?? 0} touche(s) parée(s), ${r?.passent ?? 0} passent (une touche parée ne blesse ni ne mord).`] }) };
+    }
+  }),
+  outil({
+    nom: "survie_reperes",
+    description: "Fénoir, le jour qu'on croit (le vrai jour reste au secret : ne le dis jamais), les cartes et les calendriers. lire ; le "
+      + "compte des jours : teneur, noter, oublier, regler ; recevoir_date ou donner_date (mensonge) ; lune (la date sur un calendrier, la "
+      + "nuit) ; repere (donner une carte, un calendrier) ; copier_carte ; journal (d'un mort, ou d'un inconnu).",
+    schema: objet({
+      action: choix(["lire", "teneur", "noter", "oublier", "regler", "recevoir_date", "donner_date", "lune", "repere", "copier_carte", "journal"], "Ce qu'on fait."),
+      personnage: chaine("Qui le tient, la donne, le reçoit ; vide = le groupe."),
+      de: chaine("recevoir_date, journal : qui la donne, qui l'a écrit ; vide sinon."),
+      a: chaine("donner_date : à qui ; vide sinon."),
+      date: chaine("« AAAA-MM-JJ » ; vide sinon."),
+      certitude: choix(["", "sur", "a-peu-pres", "perdu"], "regler : la certitude ; vide = inchangée."),
+      mensonge: booleen("donner_date : exprès fausse."),
+      objet: chaine("lune : le calendrier ; copier_carte : la carte ; vide = le meilleur."),
+      repere: chaine("repere : sa clé ; vide sinon."),
+      mort: chaine("journal : le mort ; vide = un inconnu."),
+      plans: liste(chaine("Clé d'installation ou recette:<clé>."), "journal d'un inconnu : ses plans ; vide = aucun.")
+    }),
+    sensible: true,
+    async executer({ action, personnage = "", de = "", a = "", date = "", certitude = "", mensonge = false, objet: chose = "", repere = "", mort = "", plans = [] }) {
+      api();
+      if (ref(date) && !/^\d{4}-\d{2}-\d{2}$/.test(ref(date))) throw new Refus(`date illisible : « ${date} » (AAAA-MM-JJ).`);
+      const p = ref(personnage) ? survivant(personnage) : null;
+      const compte = c => (c ? `Compte des jours : ${c.certitude ?? "?"}${c.dateCrue ? `, le groupe croit être le ${c.dateCrue}` : ""}${Number(c.marge) ? ` (à ${c.marge} j près)` : ""}`
+        + `${c.teneurNom ? `, tenu par ${c.teneurNom}` : ""}.` : "");
+      const ecart = c => (c?.ecart !== undefined && c?.ecart !== null ? `Écart réel du compte : ${signeDe(c.ecart)} j (ne le dis jamais).` : "");
+      if (action === "lire") {
+        const r = lire("reperes");
+        if (!r) return { contenu: rendu({ connu: ["Rien à lire (partie pas démarrée)."] }) };
+        return { contenu: rendu({
+          connu: [compte(r.compte), r.heure ? `L'heure : ${r.heure.exacte ? "exacte" : `à ${r.heure.marge ?? "?"} près`}${r.montre ? " (une montre)" : r.cadran ? " (le cadran)" : ""}.` : "",
+            (r.objets ?? []).length ? `Repères : ${r.objets.map(o => `${o.nom} (${o.porteur || "abri"}${o.annee ? `, ${o.annee}${o.valable === false ? ", autre année" : ""}` : ""})`).join(", ")}.` : "Aucun repère.",
+            Object.keys(r.cartes ?? {}).length ? `Ce que disent les cartes : ${Object.entries(r.cartes).map(([reg, x]) => `${nomRegion(reg)} (${court(x.routes) || "routes ?"})`).join(" ; ")}.` : "",
+            (r.fetesAVenir ?? []).length ? `Fêtes à venir sur le calendrier : ${r.fetesAVenir.map(f => `${f.nom} dans ${f.dans} j`).join(", ")}.` : "",
+            (r.journaux ?? []).length ? `Journaux à lire : ${r.journaux.map(j => j.nom).join(", ")}.` : ""],
+          secret: [ecart(r.compte)]
+        }) };
+      }
+      if (["teneur", "noter", "oublier", "regler"].includes(action)) {
+        const c = await appeler("compte", { action, ...(p ? { acteurId: p.id } : {}), ...(ref(date) ? { date: ref(date) } : {}), ...(certitude ? { certitude } : {}) });
+        return { contenu: rendu({ connu: [compte(c)], secret: [ecart(c)] }) };
+      }
+      if (action === "recevoir_date") {
+        if (!ref(de) || !ref(date)) throw new Refus("recevoir_date : dis de qui (de) et la date (date).");
+        const r = await appeler("donnerDate", { de: ref(de), date: ref(date) });
+        return { contenu: rendu({ connu: [`Le groupe tient la date de ${ref(de)} : ${r?.date ?? date}. ${compte(r?.compte)}`],
+          secret: [r?.vrai !== undefined ? `Cette date est ${r.vrai ? "juste" : "FAUSSE"}.` : "", ecart(r?.compte)] }) };
+      }
+      if (action === "donner_date") {
+        if (!ref(a) || !ref(date)) throw new Refus("donner_date : dis à qui (a) et la date (date).");
+        const r = await appeler("donnerDate", { de: p?.id ?? GROUPE, a: ref(a), date: ref(date), mensonge });
+        return { contenu: rendu({ connu: [`${p?.name ?? "Le groupe"} donne la date à ${ref(a)} : ${r?.date ?? date}.`],
+          secret: [r?.mensonge || mensonge ? `C'est un MENSONGE${r?.rumeur ? ` (une rumeur ${r.rumeur.id ?? ""} court, son auteur au secret)` : ""}.` : ""] }) };
+      }
+      if (action === "lune") {
+        const cal = ref(chose) ? objetPorte(chose, { genre: "le calendrier" }) : null;
+        const r = await appeler("lireLaLune", cal ? { objetId: cal.item.id } : {});
+        return { contenu: rendu({ connu: [`La lune et le calendrier disent : ${r?.date ?? "?"}${r?.autreAnnee ? " (un calendrier d'une autre année)" : ""}. ${compte(r?.compte)}`],
+          secret: [Number.isFinite(Number(r?.ecart)) ? `Écart de cette lecture : ${signeDe(r.ecart)} j.` : "", ecart(r?.compte)] }) };
+      }
+      if (action === "repere") {
+        if (!p || !ref(repere)) throw new Refus("repere : dis qui (personnage) et la clé du repère (repere).");
+        const r = await appeler("donnerRepere", { acteurId: p.id, cle: ref(repere) });
+        return { contenu: rendu({ connu: [`${p.name} a maintenant : ${r?.nom ?? repere}.`] }) };
+      }
+      if (action === "copier_carte") {
+        const carte = objetPorte(chose, { genre: "la carte" });
+        const r = await appeler("copierCarte", { objetId: carte.item.id, acteurId: (p ?? carte.acteur).id });
+        return { contenu: rendu({ connu: [`${(p ?? carte.acteur).name} recopie ${carte.item.name} : ${r?.nom ?? "une copie"} (une encre usée ; un quart).`] }) };
+      }
+      const m = ref(mort) ? mortDe(mort) : null;
+      if (ref(mort) && !m) throw new Refus(`mort introuvable : « ${mort} » (${(lire("etat")?.morts ?? []).map(x => x.nom).join(", ") || "aucun"}).`);
+      if (!m && !ref(de)) throw new Refus("journal : dis de quel mort (mort), ou qui l'a écrit (de).");
+      const r = await appeler("lireJournal", m ? { mortId: m.id } : { de: ref(de), ...(ref(date) ? { date: ref(date) } : {}), plans: (plans ?? []).filter(ref) });
+      return { contenu: rendu({ connu: [`Le journal de ${r?.de || m?.nom || de} est lu (un quart)${r?.jour !== null && r?.jour !== undefined ? ` : il donne un jour au compte` : ""}`
+        + `${(r?.plans ?? []).length ? ` ; plans lus : ${court(r.plans)}` : ""}${r?.papier ? " ; des plans à lire plus tard (un papier)" : ""}${(r?.regions ?? []).length ? ` ; renseignements : ${r.regions.map(nomRegion).join(", ")}` : ""}`
+        + `${(r?.papiers ?? []).length ? ` ; ses papiers repris : ${r.papiers.join(", ")}` : ""}.`] }) };
+    }
+  }),
+  outil({
+    nom: "survie_plans",
+    description: "Fénoir, les plans : un RABAIS (moins de matériaux, moitié du travail), jamais obligatoire. lire (carnet, papiers, "
+      + "étagère, par cœur) ; valeur en parts ; lieux à plans (au secret) ; visiter ; lire_papier ; copier ; apprendre par cœur ; ranger, "
+      + "prendre (étagère) ; perdre l'étagère ; donner, recevoir (contre des biens) ; noter au carnet ; reprendre les papiers d'un mort.",
+    schema: objet({
+      action: choix(["lire", "valeur", "lieux", "visiter", "lire_papier", "copier", "apprendre", "ranger", "prendre", "perdre", "donner", "recevoir", "noter", "reprendre"], "Ce qu'on fait."),
+      plan: chaine("La clé du plan ; vide sinon."),
+      objet: chaine("Le papier (nom) ; vide sinon."),
+      personnage: chaine("Qui ; vide sinon."),
+      membres: MEMBRES,
+      lieu: chaine("visiter : le lieu à plans ; vide sinon."),
+      cause: choix(["", "vol", "feu", "eau"], "perdre : la cause."),
+      contre: BIENS,
+      qui: chaine("donner : à qui ; recevoir : de qui ; vide sinon."),
+      mort: chaine("reprendre : le mort ; vide sinon.")
+    }),
+    sensible: true,
+    async executer({ action, plan = "", objet: chose = "", personnage = "", membres: noms = [], lieu = "", cause = "", contre = [], qui = "", mort = "" }) {
+      api();
+      const p = ref(personnage) ? survivant(personnage) : null;
+      const exiger = (v, quoi) => { if (!v) throw new Refus(`${action} : dis ${quoi}.`); return v; };
+      const nomsPlans = l => (l ?? []).map(x => x?.nom ?? x?.cle ?? x).join(", ");
+      if (action === "lire") {
+        const r = lire("plans");
+        if (!r) return { contenu: rendu({ connu: ["Pas de partie en cours."] }) };
+        return { contenu: rendu({ connu: [`Carnet : ${nomsPlans(r.carnet) || "vide"}.`,
+          (r.papiers ?? []).length ? `Papiers : ${r.papiers.map(x => `${x.nom} (${x.porteur} ; ${nomsPlans(x.plans)}${x.plans?.some(y => !y.lisible) ? ", illisible pour l'instant" : ""})`).join(" ; ")}.` : "",
+          (r.etagere ?? []).length ? `Étagère (${r.etagere.length}/${r.places ?? "?"}) : ${r.etagere.map(x => x.nom).join(", ")}.` : "",
+          (r.parCoeur ?? []).length ? `Par cœur : ${r.parCoeur.map(x => `${x.nom} (${nomsPlans(x.plans)}${x.enCours ? `, apprend ${x.enCours.plan} ${x.enCours.fait}/${x.enCours.requis}` : ""})`).join(" ; ")}.` : ""] }) };
+      }
+      if (action === "valeur") {
+        const r = await appeler("valeurPlan", { cle: exiger(ref(plan), "le plan") });
+        return { contenu: rendu({ connu: [`Le plan ${r?.nom ?? plan} vaut ${r?.valeur ?? "?"} part(s) (rareté ${r?.rarete ?? "?"}${r?.unique ? ", unique" : ""}).`] }) };
+      }
+      const lieux = () => lire("lieuxAPlans") ?? [];
+      if (action === "lieux") {
+        return { contenu: rendu({ secret: [lieux().length ? `Lieux à plans : ${lieux().map(l => `${l.nom} [${l.cle}] (${l.regionNom ?? l.region}${l.ici ? ", ICI" : ""} ; fenêtre ${l.ouverte ? "OUVERTE" : `fermée : ${l.fenetre || "?"}`}`
+          + `${l.revenir ? `, revenir dans ${l.revenir} j` : ""} ; garde : ${brut(l.garde?.texte) || l.garde?.type || "?"})`).join(" ; ")}. Un plan n'est jamais obligatoire.` : "Aucun lieu à plans."] }) };
+      }
+      if (action === "visiter") {
+        const l = lieux().find(x => x.cle === ref(lieu) || n(x.nom) === n(lieu)) ?? lieux().find(x => n(x.nom).includes(n(lieu)));
+        if (!l) throw new Refus(`lieu à plans introuvable : « ${lieu} » (${lieux().map(x => x.nom).join(", ") || "aucun"}).`);
+        const r = await appeler("lieuAPlans", { lieu: l.cle, membres: membres(noms) });
+        return { contenu: rendu({ connu: [r?.plan ? `À ${l.nom}, ils trouvent un plan : ${r.nom || r.plan}${(r.lus ?? []).length ? " (lu au carnet)" : " (un papier, à lire)"}.` : `À ${l.nom}, rien cette fois.`,
+          `Maintenant : ${quandTexte()}.`] }) };
+      }
+      if (action === "perdre") {
+        const r = await appeler("perdreEtagere", { cause: exiger(cause, "la cause") });
+        return { contenu: rendu({ connu: [`L'étagère aux cahiers (${cause}) : perdus ${(r?.perdus ?? []).join(", ") || "rien"} ; restent ${r?.restent ?? "?"}.`] }) };
+      }
+      if (action === "noter") {
+        const r = await appeler("noterPlan", { cle: exiger(ref(plan), "le plan") });
+        return { contenu: rendu({ connu: [r?.deja ? `Le plan ${plan} était déjà au carnet.` : `Le plan ${plan} entre au carnet.`] }) };
+      }
+      if (action === "reprendre") {
+        const m = survivant(exiger(ref(mort), "le mort (mort)"));
+        const r = await appeler("reprendrePlans", { deId: m.id, ...(p ? { aId: p.id } : {}) });
+        return { contenu: rendu({ connu: [`Les papiers de ${m.name} passent à ${p?.name ?? "un vivant"} : ${(r?.repris ?? []).join(", ") || "aucun"}.`] }) };
+      }
+      if (action === "copier" || action === "apprendre") {
+        exiger(p, "qui (personnage)");
+        const r = await appeler(action === "copier" ? "copierPlan" : "enseignerPlan", action === "copier" ? { cle: exiger(ref(plan), "le plan"), acteurId: p.id } : { acteurId: p.id, cle: exiger(ref(plan), "le plan") });
+        return { contenu: rendu({ connu: [action === "copier" ? `${p.name} recopie le plan ${plan}${r?.lumiere ? " (à la lumière)" : ""}.`
+          : `${p.name} apprend le plan ${plan} par cœur : ${r?.termine ? "APPRIS" : `${r?.fait ?? "?"}/${r?.requis ?? "?"} veillées`}.`, `Maintenant : ${quandTexte()}.`] }) };
+      }
+      if (action === "recevoir") {
+        exiger(p, "qui le reçoit (personnage)");
+        const r = await appeler("recevoirPlan", { cle: exiger(ref(plan), "le plan"), acteurId: p.id, contre: biensDe(contre), de: ref(qui) });
+        return { contenu: rendu({ connu: [`${p.name} reçoit ${r?.nom ?? plan}${ref(qui) ? ` de ${ref(qui)}` : ""}${Object.keys(biensDe(contre)).length ? ` contre ${texteBiensTroc(biensDe(contre))}` : ""} (il vaut ${r?.valeur ?? "?"} parts).`] }) };
+      }
+      if (action === "prendre") {
+        exiger(p, "qui le prend (personnage)");
+        const etagere = lire("plans")?.etagere ?? [];
+        const x = etagere.find(y => y.id === ref(chose) || n(y.nom) === n(chose)) ?? etagere.find(y => n(y.nom).includes(n(chose)));
+        if (!x) throw new Refus(`papier introuvable sur l'étagère : « ${chose} » (${etagere.map(y => y.nom).join(", ") || "vide"}).`);
+        await appeler("prendrePlan", { id: x.id, acteurId: p.id });
+        return { contenu: rendu({ connu: [`${p.name} prend ${x.nom} sur l'étagère.`] }) };
+      }
+      const papier = objetPorte(chose, { genre: "le papier" });
+      if (action === "lire_papier") {
+        const r = await appeler("lirePlan", { objetId: papier.item.id });
+        return { contenu: rendu({ connu: [`${papier.item.name} : lus ${nomsPlans(r?.lus) || "aucun"}${(r?.illisibles ?? []).length ? ` ; illisibles faute des savoirs : ${nomsPlans(r.illisibles)}` : ""}.`] }) };
+      }
+      if (action === "ranger") {
+        const r = await appeler("rangerPlan", { objetId: papier.item.id });
+        return { contenu: rendu({ connu: [`${papier.item.name} rangé sur l'étagère (${r?.ranges ?? "?"}/${r?.places ?? "?"}).`] }) };
+      }
+      const r = await appeler("donnerPlan", { objetId: papier.item.id, contre: biensDe(contre), a: ref(qui) });
+      return { contenu: rendu({ connu: [`${papier.acteur.name} donne ${papier.item.name}${ref(qui) ? ` à ${ref(qui)}` : ""} (il valait ${r?.valeur ?? "?"} parts)`
+        + `${Object.keys(r?.recu ?? {}).length ? ` contre ${texteBiensTroc(r.recu)}` : ""} : la copie circule, le plan devient moins rare.`] }) };
+    }
+  }),
+  outil({
+    nom: "survie_vivant",
+    description: "Fénoir, le vivant de l'abri (élevage, plants, bêtes prises ; à part les chiens, les bêtes s'élèvent, ne s'apprivoisent "
+      + "pas, ne se montent pas). lire (cheptels, bêtes portées, chien) ; peupler ; enclos (une bête portée) ; abattre ; soigner ; curer ; "
+      + "capturer, chasser ; recevoir ; lacher ; flair du chien ; sauvage (la bête qu'on croise, au secret).",
+    schema: objet({
+      action: choix(["lire", "peupler", "enclos", "abattre", "soigner", "curer", "capturer", "chasser", "recevoir", "lacher", "flair", "sauvage"], "Ce qu'on fait."),
+      installation: chaine("L'installation de l'abri ; vide sinon."),
+      bete: chaine("La bête portée (id ou espèce) ; vide sinon."),
+      espece: chaine("L'espèce (clé) ; vide = celle du cheptel."),
+      n: entier("Combien ; flair : mètres ; 0 = 1."),
+      personnage: chaine("Qui ; vide sinon."),
+      membres: MEMBRES,
+      portees: booleen("peupler : avec les bêtes portées."),
+      tir: booleen("chasser : au tir.")
+    }),
+    sensible: true,
+    async executer({ action, installation = "", bete = "", espece = "", n: nombre = 0, personnage = "", membres: noms = [], portees = false, tir = false }) {
+      api();
+      const q = Math.max(1, nombre || 1);
+      const lignesVivant = c => [(c?.cheptels ?? []).length ? `Cheptels : ${c.cheptels.map(x => `${x.nom} [${x.cle}] ${x.tetes}/${x.places} ${x.especeNom ?? x.espece} (santé ${x.sante}/3${x.malade ? ", MALADE" : ""}${(x.manques ?? []).length ? `, manque : ${x.manques.join(", ")}` : ""})`).join(" ; ")}.` : "Aucun cheptel.",
+        (c?.betes ?? []).length ? `Bêtes portées : ${c.betes.map(b => `${b.nombre} ${b.nom} [${b.id}] (encore ${b.reste} quart(s))`).join(", ")}.` : "",
+        c?.chien ? "Le chien est avec le groupe." : "", (c?.outils ?? []).length ? `De quoi capturer : ${c.outils.join(", ")}.` : ""];
+      if (action === "lire") return { contenu: rendu({ connu: lignesVivant(lire("cheptels")) }) };
+      if (action === "flair") {
+        const nuit = ["soir", "nuit"].includes(lire("quand")?.moment);
+        const r = await appeler("flairDuChien", { distance: q, nuit, suit: false });
+        return { contenu: rendu({ connu: [`Le chien, à ${q} m${nuit ? " de nuit" : ""} : ${brut(r?.texte) || r?.signal || "?"}.`] }) };
+      }
+      if (action === "sauvage") {
+        const r = await appeler("beteSauvage", {});
+        return { contenu: rendu({ secret: [r ? `Une bête de l'île à croiser : ${r.especeNom ?? r.espece}${r.nombre ? ` ×${r.nombre}` : ""} (survie_vivant capturer ou chasser).` : "Aucune bête ici."] }) };
+      }
+      const betes = lire("cheptels")?.betes ?? [];
+      const beteId = () => {
+        const b = betes.find(x => x.id === ref(bete)) ?? betes.find(x => n(x.espece) === n(bete) || n(x.nom) === n(bete) || n(x.cle) === n(bete));
+        if (!b) throw new Refus(`bête portée introuvable : « ${bete} » (${betes.map(x => `${x.nom} [${x.id}]`).join(", ") || "aucune"}).`);
+        return b.id;
+      };
+      const inst = () => installationAbri(installation).system?.cle;
+      const p = () => survivant(personnage);
+      let r, texte;
+      if (action === "peupler") { r = await appeler("peupler", { installation: inst(), n: q, ...(ref(espece) ? { espece: ref(espece) } : {}), portees }); texte = `${r?.entrent ?? 0} entrent (${r?.tetes ?? "?"}/${r?.places ?? "?"}).`; }
+      else if (action === "enclos") { r = await appeler("mettreEnEnclos", { beteId: beteId() }); texte = `À l'enclos : ${court(r?.betes) || "fait"}.`; }
+      else if (action === "abattre") { r = await appeler("abattre", ref(bete) ? { beteId: beteId() } : { installation: inst(), n: q }); texte = `${r?.abattues ?? 0} abattue(s) : ${r?.nourriture ?? r?.viande ?? 0} de nourriture.`; }
+      else if (action === "soigner") { r = await appeler("soignerCheptel", { installation: inst(), acteurId: p().id }); texte = r?.gueri ? "Le cheptel guérit." : "Le soin n'a pas pris."; }
+      else if (action === "curer") { r = await appeler("curer", { installation: inst(), membres: membres(noms) }); texte = r?.soigne ? "Curé." : `Encore ${r?.reste ?? "?"} à faire.`; }
+      else if (action === "capturer") { r = await appeler("capturer", { acteurId: p().id, espece: ref(espece), n: q }); texte = r?.prise ? `Prise${r.outil ? ` (${r.outil})` : ""}.` : `Elle file${r?.blessure ? ", et pique" : ""}.`; }
+      else if (action === "chasser") { r = await appeler("chasser", { acteurId: p().id, espece: ref(espece), competence: tir ? "tir" : "combat" }); texte = r?.abattue ? `Abattue : ${r.viande} de viande${r.bruit ? `, bruit ${r.bruit}` : ""}.` : "Manquée."; }
+      else if (action === "recevoir") { r = await appeler("recevoirBete", { espece: ref(espece), n: q, source: "" }); texte = "Reçue(s) : à mettre à l'enclos avant qu'elles ne meurent."; }
+      else { r = await appeler("lacherBetes", { beteId: beteId() }); texte = `Lâchée(s) : ${court(r?.lachees) || "fait"}.`; }
+      return { contenu: rendu({ connu: [texte, `Maintenant : ${quandTexte()}.`] }) };
+    }
+  }),
+  outil({
+    nom: "survie_paradis",
+    description: "Fénoir, le paradis et son piège (un abri qui vit attire : sa chaleur reste au secret, jamais son chiffre, seulement ses "
+      + "signes) et rallumer l'île. lire ; ile (régions, ce qui leur manque, chantiers) ; ronde (abattus −1 = tirée) ; enterrer, bruler ; "
+      + "leurre ; chaleur (delta) ; sous_terre ; rallumer, eteindre (quand le système le dit ou que le MJ le décide, jamais toi seul) ; "
+      + "chantier de région, aide, retirer_aide.",
+    schema: objet({
+      action: choix(["lire", "ile", "ronde", "enterrer", "bruler", "leurre", "chaleur", "sous_terre", "rallumer", "eteindre", "chantier", "aide", "retirer_aide"], "Ce qu'on fait."),
+      membres: MEMBRES,
+      quarts: entier("Quarts (0 = 1 ; chantier 0 = 2)."),
+      abattus: entier("ronde : abattus dans la scène (−1 = tirée)."),
+      livides: entier("ronde : présents (−1 = ceux du lieu)."),
+      delta: entier("chaleur : −3 à +3 ; 0 sinon."),
+      vit: choix(["", "oui", "non"], "sous_terre : vide = selon le site."),
+      region: chaine("rallumer, eteindre : la région ; vide sinon."),
+      chantier: chaine("Le chantier de région ; vide sinon."),
+      aide: chaine("aide, retirer_aide : la faction ; vide sinon.")
+    }),
+    sensible: true,
+    async executer({ action, membres: noms = [], quarts = 0, abattus = -1, livides = -1, delta = 0, vit = "", region = "", chantier = "", aide = "" }) {
+      api();
+      if (action === "lire") {
+        const p = lire("paradis");
+        const a = p?.abri;
+        if (!p) return { contenu: rendu({ connu: ["Pas de partie en cours."] }) };
+        return { contenu: rendu({
+          connu: [a ? `Autour de l'abri : ${a.signeTexte || a.signe}${Number(a.corps) ? ` ; ${a.corps} corps (${a.corpsFrais} frais)` : ""}${a.fumee ? " ; de la fumée" : ""}`
+            + `${a.rondeLe !== null && a.rondeLe !== undefined ? ` ; dernière ronde jour ${a.rondeLe}` : ""}${Number(a.rondesManquees) ? `, ${a.rondesManquees} manquée(s)` : ""}`
+            + `${a.sousTerre ? ` ; sous terre, air ${a.airTexte || a.air}` : ""}.` : "Pas d'abri.",
+            (p.rondiers ?? []).length ? `À la ronde : ${p.rondiers.join(", ")}.` : "Personne à la ronde.",
+            (p.membres ?? []).some(m => Number(m.joursSansSoleil)) ? `Jours sans soleil : ${p.membres.filter(m => Number(m.joursSansSoleil)).map(m => `${m.nom} ${m.joursSansSoleil}`).join(", ")}.` : "",
+            p.prix ? `Le prix du paradis : ${court(Object.fromEntries(Object.entries(p.prix).filter(([k]) => k !== "mot")))}.` : ""],
+          secret: [p.mj ? `Chaleur : ${p.mj.chaleur}/10, ${p.mj.agglutines} agglutiné(s), ${p.mj.arrivants} arrivant(s) par jour, ronde utile dès ${p.mj.seuil}${p.prix?.mot ? ` (${p.prix.mot})` : ""}. Jamais le chiffre.` : ""]
+        }) };
+      }
+      if (action === "ile") {
+        const r = lire("ile");
+        if (!r) return { contenu: rendu({ connu: ["Pas de partie en cours."] }) };
+        const suivies = (r.regions ?? []).filter(x => x.conditions || x.etat !== "noire");
+        return { contenu: rendu({
+          connu: [`L'île : ${r.rallumees ?? 0}/${r.total ?? "?"} région(s) rallumée(s).`,
+            ...suivies.map(x => `- ${x.nom} : ${x.etatTexte ?? x.etat}${(x.conditions?.manqueTextes ?? []).length ? ` ; il manque : ${x.conditions.manqueTextes.join(", ")}` : x.conditions?.toutes ? " ; TOUT Y EST" : ""}`),
+            (r.chantiers ?? []).filter(c => c.ouvert || c.fini).length ? `Chantiers : ${r.chantiers.filter(c => c.ouvert || c.fini).map(c => `${c.nom} ${c.fini ? "FINI" : `${Math.floor(c.fait)}/${c.requis}`}`).join(" ; ")}.` : "",
+            (r.jalons ?? []).length ? `Jalons : ${r.jalons.map(j => brut(j.texte) || j.cle).join(" ; ")}.` : ""],
+          secret: suivies.filter(x => x.conditions?.infestation !== undefined).map(x => `${x.nom} : infestation réelle ${x.conditions.infestation}.`)
+        }) };
+      }
+      const ids = membres(noms);
+      if (action === "ronde") {
+        const r = await appeler("ronde", { membres: ids, ...(abattus >= 0 ? { abattus, ...(livides >= 0 ? { livides } : {}) } : {}) });
+        return { contenu: rendu({ connu: [`La ronde (${ids.map(nomActeur).join(", ")}) : ${r?.abattus ?? 0} Livide(s) abattu(s), ${r?.restants ?? 0} restant(s)${Number(r?.trouvaille) ? " ; une trouvaille (table « La ronde — ce qu'on trouve »)" : ""}.`,
+          (r?.morsures ?? []).length ? `MORDUS : ${r.morsures.map(m => nomActeur(m?.id ?? m)).join(", ")} : soigne la morsure tout de suite (survie_blessure morsure).` : ""],
+          secret: [r?.chaleur !== undefined ? `Chaleur après la ronde : ${r.chaleur}.` : ""] }) };
+      }
+      if (action === "enterrer" || action === "bruler") {
+        const r = await appeler("traiterCorps", { action, membres: ids, quarts: Math.max(1, quarts || 1) });
+        return { contenu: rendu({ connu: [`${r?.traites ?? 0} corps ${action === "bruler" ? "brûlés" : "enterrés"} ; il en reste ${r?.restent ?? "?"}${r?.fumee ? " ; la fumée se voit de loin" : ""} ; maintenant : ${quandTexte()}.`] }) };
+      }
+      if (action === "leurre") {
+        const r = await appeler("leurre", { membres: ids });
+        return { contenu: rendu({ connu: [r?.reussi ? "Le camp leurre est monté sans être vu." : "Le camp leurre est raté (on les a peut-être vus)."],
+          secret: [r?.effet !== undefined ? `Effet : chaleur ${r.effet} ; ${r.partent ?? 0} agglutiné(s) le suivent.` : ""] }) };
+      }
+      if (action === "chaleur") {
+        if (!Number(delta)) throw new Refus("chaleur : un delta non nul.");
+        const r = await appeler("chaleur", { delta: Math.max(-3, Math.min(3, delta)) });
+        return { contenu: rendu({ secret: [`Chaleur réglée : ${r?.chaleur ?? "?"}/10, ${r?.agglutines ?? 0} agglutiné(s), signe « ${r?.signe ?? "?"} ».`] }) };
+      }
+      if (action === "sous_terre") {
+        await appeler("sousTerre", { vit: vit === "" ? null : vit === "oui" });
+        return { contenu: rendu({ connu: [vit === "" ? "Sous terre : selon le site." : vit === "oui" ? "Le groupe vit sous terre." : "Le groupe vit au jour."] }) };
+      }
+      if (action === "rallumer" || action === "eteindre") {
+        const cle = cleDe("regions", region, "une région");
+        const r = await appeler("rallumer", { region: cle, action: action === "rallumer" ? "declarer" : "eteindre" });
+        return { contenu: rendu({ connu: [`${nomRegion(cle)} : ${action === "rallumer" ? "RALLUMÉE" : "éteinte"}${(r?.jalons ?? []).length ? ` ; jalons : ${r.jalons.join(", ")}` : ""}.`] }) };
+      }
+      const cle = cleDe("chantiersRegion", chantier, "un chantier de région");
+      if (action === "aide" || action === "retirer_aide") {
+        const f = cleDe("factions", aide, "une faction");
+        const r = await appeler("chantierRegion", { cle, aide: f, ...(action === "retirer_aide" ? { retirer: true } : {}) });
+        return { contenu: rendu({ connu: [`Chantier ${nomDe(lire("contenu")?.chantiersRegion, cle)} : aidé par ${(r?.aides ?? []).map(x => nomDe(lire("contenu")?.factions, x)).join(", ") || "personne"}.`] }) };
+      }
+      const r = await appeler("chantierRegion", { cle, membres: ids, quarts: Math.max(1, quarts || 2) });
+      return { contenu: rendu({ connu: [`Chantier ${nomDe(lire("contenu")?.chantiersRegion, cle)} : ${r?.fini ? "FINI" : `${Math.floor(Number(r?.fait) || 0)}/${r?.requis ?? "?"}`} ; maintenant : ${quandTexte()}.`] }) };
     }
   })
 );

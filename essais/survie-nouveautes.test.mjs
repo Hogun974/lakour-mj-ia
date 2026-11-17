@@ -16,7 +16,10 @@ const { vueAventure } = await import("../scripts/compagnons-jeu.js");
 const { adaptateur } = await import("../scripts/adaptateurs.js");
 const { CONNU, SECRET } = L;
 
+// Les champs que les lots du jeu 3D (§16 à §29) ont ajoutés aux outils d'avant, à leur valeur vide (essais/survie-troisd.test.mjs les essaie).
+const CHAMPS_3D = { survie_fouiller: { genre: "", ecart: "", lieu: "", gisement: "" } };
 async function executer(nom, args) {
+  args = { ...(CHAMPS_3D[nom] ?? {}), ...args };
   const o = OUTILS.find(x => x.nom === nom);
   assert.ok(o, `outil absent : ${nom}`);
   assert.deepEqual(validerSchema(o.schema, args), [], `${nom} : arguments hors schéma`);
@@ -32,17 +35,17 @@ const NOUVEAUX = ["survie_marche", "survie_troquer", "survie_carnet", "survie_ma
 
 // Des arguments complets (schéma strict) pour chaque outil, à compléter.
 const A = {
-  survie_marche: { action: "lire", region: "", stade: "" },
-  survie_troquer: { action: "evaluer", biens: [{ ressource: "medicaments", n: 1 }, { ressource: "nourriture", n: -8 }], pnj: "", cibles: [], faction: "", marche: "", accepter: false, prejuge: "" },
-  survie_carnet: { action: "prendre", boutique: "", tenancier: "", biens: [{ ressource: "nourriture", n: 2 }], cibles: [], faction: "", remise: false },
-  survie_marche_forain: { action: "ouvrir", marche: "", foire: "", nom: "", jour_semaine: 6, bastions: [], par: "" },
+  survie_marche: { action: "lire", region: "", stade: "", objet: "" },
+  survie_troquer: { action: "evaluer", biens: [{ ressource: "medicaments", n: 1 }, { ressource: "nourriture", n: -8 }], pnj: "", cibles: [], faction: "", marche: "", accepter: false, prejuge: "", boutique: "", parleur: "" },
+  survie_carnet: { action: "prendre", boutique: "", tenancier: "", biens: [{ ressource: "nourriture", n: 2 }], cibles: [], faction: "", remise: false, tirer: false },
+  survie_marche_forain: { action: "ouvrir", marche: "", foire: "", nom: "", jour_semaine: 6, bastions: [], par: "", biens: [], contre: "" },
   survie_rumeur: { action: "lancer", sujet: "", texte: "", vraie: true, malveillant: false, auteur: "", portee: "region", contre: true, rumeur: "", preuve: "fait" },
   survie_prejuge: { action: "dementir", cible: "", pnj: [], prejuges: [] },
   survie_veillee: { action: "apprendre", personnage: "", autre: "", savoir: "", source: "", membres: [], quarts: 0 },
   survie_porte: { action: "frapper", visiteur: "", profil: "", vote: "", circonstances: false },
   survie_vote: { action: "voter", question: "", acte: "", voix: [], circonstances: false, vote: "", decision: "pour" },
   survie_acte_moral: { personnages: [], acte: "", delta: 0, circonstances: false, temoins: true, vote: "", journal: false },
-  survie_communaute: { action: "chef", qui: [], oui: true, delta: 0, raison: "", cible: "", nom: "", abri_aux: "restants" },
+  survie_communaute: { action: "chef", qui: [], oui: true, delta: 0, raison: "", cible: "", nom: "", abri_aux: "restants", religions: [] },
   survie_esprit: { action: "lire", personnage: "", regard: "", religion: [], pratique: "", ancrage: "", ancrage_perdu: "", reputation: 0, autorite: 0, chance: 0, forcer: false }
 };
 const avec = (nom, x) => ({ ...A[nom], ...x });
@@ -57,7 +60,7 @@ test("nouveaux outils : proposés à Fénoir seulement (systemes lakour-survie),
     const ailleurs = new Set(outilsDuSysteme(s).map(o => o.nom));
     for (const n of NOUVEAUX) assert.ok(!ailleurs.has(n), `${n} proposé en ${s}`);
   }
-  assert.equal(ici.size, 83, "Fénoir : 71 outils avant, 12 de plus");
+  assert.equal(ici.size, 90, "Fénoir : 71 outils avant, 12 de plus, puis 7 des lots du jeu 3D");
 });
 
 test("schémas stricts : les arguments complets passent, un choix inconnu ou un champ manquant est refusé", () => {

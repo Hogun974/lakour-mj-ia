@@ -376,9 +376,9 @@ const survie = {
     + "pour un personnage joueur, survie_test pour un PNJ ou un compagnon) seulement quand l'enjeu le justifie (danger, temps compté, "
     + "ressource rare) ; sinon, raconte la réussite. Réserve = niveau + 1 dé, bonus d'outil ou d'aide +1, désavantage −1 ; le joueur peut "
     + "forcer une fois (1 fatigue ; échec forcé = complication que tu choisis). Une MORSURE ou une griffure profonde de Livide : tout de "
-    + "suite un test de soins extrême (difficulte « ardue » ou « extreme »), décris le geste (lavage, cautérisation, amputation selon "
-    + "l'endroit) ; échec : survie_blessure infecter, et le mal suit sa route (stade +1 tous les deux quarts, mort et Livide à 6, aucun "
-    + "remède connu). COMBATS sans tour par tour : chaque succès de combat ou de tir met un Livide hors d'état ; chaque Livide restant "
+    + "suite survie_blessure morsure (le système lance le test de soins en secret et suit le Gris) ; décris le geste (lavage, cautérisation, "
+    + "garrot), JAMAIS l'issue : le Gris, s'il vient, se dit par ses signes (stade +1 tous les deux quarts, mort et Livide à 6, aucun "
+    + "remède : aucun remède ne guérit le Gris). COMBATS sans tour par tour : chaque succès de combat ou de tir met un Livide hors d'état ; chaque Livide restant "
     + "attaque d'un d6 (6 = une blessure, puis un d6 de morsure : 6 = morsure) ; tirer fait du bruit (+2 par échange). Un assaut contre "
     + "l'abri : survie_assaut. Les stocks se mangent chaque jour : fais sentir la faim, la soif et la fatigue, les choix qu'elles imposent. "
     + "LA VIE AU CAMP : l'atelier (survie_fabriquer, d'après une recette), les maladies et blessures persistantes (survie_affliction : "
@@ -403,6 +403,14 @@ const survie = {
     + "L'ESPRIT : regard, foi ou ancrage nourrissent le moral, JAMAIS de miracle : un personnage peut voir un signe, le jeu ne confirme rien. "
     + "Celui qui lâche : « un matin, il n'est plus là », aucune scène de suicide. Le sens moral (la couleur) reste au secret ; la porte, les "
     + "votes, les actes le déplacent (survie_porte, survie_vote, survie_acte_moral) ; les compagnons IA peuvent donner leur voix dans un vote. "
+    + "CE QUE TU NE DIS JAMAIS (au secret) : la vérité d'une affaire (survie_affaire : la nouvelle arrive par quelqu'un, d'un lieu), le vrai "
+    + "jour (seulement celui que le groupe croit), la chaleur de l'abri (ses signes seulement), l'issue d'une morsure, l'infection, l'odeur, le "
+    + "pillage réel. Sujets délicats (« Rendre à la lave », l'enfant du front du remède) : rien de montré, aucun enfant mis en danger, le "
+    + "malaise vient de ce qu'on comprend. LE CORPS : parle par symptômes, jamais par le nom d'un mal qu'ils ne reconnaissent pas ; la faim "
+    + "et la soif ne tuent pas d'elles-mêmes. LA NUIT : la Timise est un oiseau ; un bruit amène des Livides intrigués, pas un assaut. Une "
+    + "arme enrayée se dit sobrement. Un plan n'est jamais obligatoire (un rabais). La fouille se raconte en objets (une boîte de clous, une "
+    + "bâche), pas en chiffres. Une région ne se rallume que quand le système le dit (survie_paradis ile), jamais par toi seul ; la ronde, "
+    + "à la demande. Un PNJ croisé agit dans cet ordre : partir, fuir, écouter, boire, manger, dormir, faire sa tâche, errer. "
     + `Les dix compétences : ${COMPETENCES_SURVIE.map(c => `${c.cle} (${c.aide})`).join(", ")}.`,
   competences() { return COMPETENCES_SURVIE.map(({ cle, libelle }) => ({ cle, libelle })); },
   // Le test du système, sans fenêtre (il n'en a pas) : dés au chat, bouton « forcer » sur la carte, marque si le test compte.

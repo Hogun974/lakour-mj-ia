@@ -67,19 +67,22 @@ test("compétences : les dix du contrat, libellés français ; pas d'expérience
 test("consignes du narrateur : temps (survie_avancer), secret daté, deux voies, tests mesurés, morsure, plans, créole, île", () => {
   const c = adaptateurDe("lakour-survie").consignes;
   for (const motif of [/survie_avancer/, /\[secret MJ\]/, /Ne révèle jamais/, /laisse pas deviner/, /repartir/, /s'enraciner/, /demander_jet/, /survie_test/,
-    /MORSURE/, /soins extrême/, /plans/, /[Cc]réole/, /lagon|cirques/, /enjeu le justifie/, /survie_assaut/]) {
+    /MORSURE/, /survie_blessure morsure/, /JAMAIS l'issue/, /plans/, /[Cc]réole/, /lagon|cirques/, /enjeu le justifie/, /survie_assaut/]) {
     assert.match(c, motif);
   }
 });
 
-test("résumé d'un survivant : passé du contenu, compétences non nulles, état, INFECTION, savoirs, équipement ; compagnon ; mort ; Livide", () => {
+test("résumé d'un survivant : passé du contenu, compétences non nulles, état, INFECTION (au narrateur seul), savoirs, équipement ; compagnon ; mort ; Livide", () => {
   installerFenoir();
   const sys = adaptateur();
   const lucie = sys.resumer(game.actors.get("s1"));
   for (const morceau of ["Lucie Hoarau (survivant, 34 ans)", "passé : Infirmière", "soins 3 (1 marque)", "survie 1", "blessures 1/4 (égratigné)",
-    "fatigue 2/5", "moral 4/5", "INFECTÉ : stade 2/6 depuis le quart 10", "savoirs : Premiers secours avancés", "équipement : Trousse de secours"]) {
+    "fatigue 2/5", "moral 4/5", "savoirs : Premiers secours avancés", "équipement : Trousse de secours"]) {
     assert.ok(lucie.includes(morceau), `${morceau} absent de : ${lucie}`);
   }
+  // Le lot « corps » (§19) : « INFECTÉ n/6 » au MJ seul ; la fiche publique (un compagnon, le chat) n'en dit rien.
+  assert.doesNotMatch(lucie, /INFECT/);
+  assert.match(sys.resumer(game.actors.get("s1"), { secret: true }), /\[secret MJ\] INFECTÉ 2\/6 depuis le quart 10/);
   assert.ok(!/tir 0/.test(lucie), "une compétence à 0 est tue");
   const eddy = sys.resumer(game.actors.get("s2"));
   assert.match(eddy, /Eddy Payet \[compagnon IA\]/);

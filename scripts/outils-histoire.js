@@ -8,7 +8,7 @@ import { langueDuMonde } from "./contenus.js";
 import * as H from "./histoire-logique.js";
 import { assurerJournal, ecrireHistoire } from "./histoire.js";
 import { estCompagnon } from "./compagnons-jeu.js";
-import { texteQuand, nomDe } from "./survie-logique.js";
+import { texteQuand, nomDe, lireSurvie } from "./survie-logique.js";
 
 const objet = proprietes => ({ type: "object", properties: proprietes, required: Object.keys(proprietes), additionalProperties: false });
 const chaine = description => ({ type: "string", description });
@@ -62,6 +62,9 @@ export const OUTIL_HISTOIRE = {
         const { journal, cree } = await assurerJournal(acteur);
         const ecrites = H.PAGES_HISTOIRE.filter(p => !H.estAide(H.pageDe(journal, p.cle)?.text?.content)).map(p => p.nom);
         const materiau = H.materiauHistoire(acteur, systeme, { nomDe: nomContenu });
+        // Fénoir (§16) : les phrases d'histoire du système, déjà écrites au portrait : le reste ne les contredit jamais.
+        const phrases = systeme === "lakour-survie" ? lireSurvie(game.lakourSurvie, "histoireDuSurvivant", { acteurId: acteur.id })?.phrases ?? [] : [];
+        if (phrases.length) materiau.push(`Phrases d'histoire (déjà au « Portrait » : ne les contredis jamais, pars d'elles) : ${phrases.join(" ")}`);
         const q = H.questionsAide(systeme);
         return { contenu: [
           `Journal « ${journal.name} » ${cree ? "créé (pages d'aide)" : "déjà là"} ; pages écrites : ${ecrites.join(", ") || "aucune"}.`,
