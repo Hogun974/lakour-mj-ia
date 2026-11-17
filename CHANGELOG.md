@@ -4,6 +4,18 @@ Versions du moteur MJ IA de La Kour (les modules de contenu des mondes tiennent 
 suivent `module.json` ; chaque release GitHub `v<version>` reprend la section correspondante. Avant la 0.26, le moteur
 vivait dans un dépôt commun aux mondes, dont l'historique n'est pas repris ici.
 
+## 0.49.0 — 2026-11-17
+
+- Fénoir : les douze lots du jeu 3D (contrat §16 à §29). Sept outils nouveaux : `survie_affaire`, `survie_sens`, `survie_corps`,
+  `survie_reperes`, `survie_plans`, `survie_vivant`, `survie_paradis`. Seize outils étendus (avancer, test, fouiller, état,
+  blessure avec la morsure, construire, assaut avec l'incendie, fabriquer, assigner avec la table de gestion, communauté,
+  carnet, marché forain avec l'étal, marché avec la valeur, troc, voyage, histoire). L'état du jeu dit le jour que le groupe
+  croit (le vrai jour au secret), le temps, le sommeil, les signes des maux, les repères, les plans, les rangs, les ateliers,
+  les entretiens, les cheptels, le signe autour de l'abri et les régions rallumées ; l'odeur, la chaleur, l'infection
+  (« INFECTÉ n/6 » au narrateur seul), les vrais maux, les lieux à plans et la vérité des affaires restent au secret. Prompt de
+  Fénoir : 36,6 k → 41,4 k jetons ; les autres mondes ne changent pas.
+- Fêtes sur demande : Pongal et la fête du miel vert.
+
 ## 0.48.0 — 2026-11-13
 
 - **Fêtes « sur demande »** : ramadan et Aïd el-Kebir (calendrier hégirien), Nouvel An tamoul, marche sur le feu. Seul un monde
