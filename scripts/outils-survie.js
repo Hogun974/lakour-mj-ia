@@ -2628,7 +2628,7 @@ OUTILS_SURVIE.push(
         if (!p) return { contenu: rendu({ connu: ["Pas de partie en cours."] }) };
         return { contenu: rendu({
           connu: [a ? `Autour de l'abri : ${a.signeTexte || a.signe}${Number(a.corps) ? ` ; ${a.corps} corps (${a.corpsFrais} frais)` : ""}${a.fumee ? " ; de la fumée" : ""}`
-            + `${a.rondeLe !== null && a.rondeLe !== undefined ? ` ; dernière ronde jour ${a.rondeLe}` : ""}${Number(a.rondesManquees) ? `, ${a.rondesManquees} manquée(s)` : ""}`
+            + `${a.rondeLe !== null && a.rondeLe !== undefined ? ` ; dernière ronde : ${texteJour(a.rondeLe, lire("quand"))}` : ""}${Number(a.rondesManquees) ? `, ${a.rondesManquees} manquée(s)` : ""}`
             + `${a.sousTerre ? ` ; sous terre, air ${a.airTexte || a.air}` : ""}.` : "Pas d'abri.",
             (p.rondiers ?? []).length ? `À la ronde : ${p.rondiers.join(", ")}.` : "Personne à la ronde.",
             (p.membres ?? []).some(m => Number(m.joursSansSoleil)) ? `Jours sans soleil : ${p.membres.filter(m => Number(m.joursSansSoleil)).map(m => `${m.nom} ${m.joursSansSoleil}`).join(", ")}.` : "",

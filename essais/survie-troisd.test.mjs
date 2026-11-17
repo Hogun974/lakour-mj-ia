@@ -269,7 +269,7 @@ test("survie_paradis : le signe au connu, la chaleur au secret ; ronde (morsures
   const { api } = installerFenoir({ troisD: true });
   const r = ok(await executer("survie_paradis", A.survie_paradis), "lire");
   const { connu, secret } = blocs(r.contenu);
-  assert.match(connu, /Autour de l'abri : on vous a remarqués : des traces autour de la clôture ; 3 corps \(2 frais\) ; dernière ronde jour 2, 1 manquée\(s\)\./);
+  assert.match(connu, /Autour de l'abri : on vous a remarqués : des traces autour de la clôture ; 3 corps \(2 frais\) ; dernière ronde : il y a 1 j, 1 manquée\(s\)\./);
   assert.doesNotMatch(connu, /4.37|Chaleur/);
   assert.match(secret, /Chaleur : 4.37\/10, 2 agglutiné\(s\)/);
   assert.match(ok(await executer("survie_paradis", avec("survie_paradis", { action: "ile" })), "île").contenu, /L'île : 1\/5 région\(s\) rallumée\(s\)\.\n- Saint-Paul : rallumée ; TOUT Y EST/);
